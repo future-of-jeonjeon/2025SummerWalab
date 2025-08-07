@@ -13,9 +13,9 @@ RUN npm install
 # 앱 소스 복사
 COPY . .
 
-# 환경변수 설정 (필요하면)
-ENV TARGET=http://localhost:3000
-ENV PORT=8080
+# 환경변수 설정
+ENV TARGET=http://oj-backend:8000
+ENV PORT=3000
 
 # 개발 서버 실행 명령
 CMD ["npm", "run", "dev"]

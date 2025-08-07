@@ -14,6 +14,8 @@ FROM python:3.12-alpine
 ARG TARGETARCH
 ARG TARGETVARIANT
 
+RUN pip install google-auth
+
 ENV OJ_ENV production
 WORKDIR /app
 

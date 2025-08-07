@@ -7,6 +7,9 @@ services:
     environment:
       - TARGET=http://oj-backend:8000
       - PORT=3000
+      - VUE_APP_GOOGLE_CLIENT_ID=${VUE_APP_GOOGLE_CLIENT_ID}
+      - VUE_APP_GOOGLE_CLIENT_SECRET=${VUE_APP_GOOGLE_CLIENT_SECRET}
+      - VUE_APP_GOOGLE_REDIRECT_URI=${VUE_APP_GOOGLE_REDIRECT_URI:-http://localhost:3000/oauth/callback}
     depends_on:
       - oj-backend
 

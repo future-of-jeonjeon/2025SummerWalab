@@ -13,6 +13,7 @@ import os
 import raven
 from copy import deepcopy
 from utils.shortcuts import get_env
+from dotenv import load_dotenv
 
 production_env = get_env("OJ_ENV", "dev") == "production"
 if production_env:
@@ -24,6 +25,12 @@ with open(os.path.join(DATA_DIR, "config", "secret.key"), "r") as f:
     SECRET_KEY = f.read()
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+load_dotenv(os.path.join(BASE_DIR, ".env"))
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
+GOOGLE_REDIRECT_URI = os.getenv("GOOGLE_REDIRECT_URI")
 
 # Applications
 VENDOR_APPS = [
@@ -39,7 +46,6 @@ VENDOR_APPS = [
 
 if production_env:
     VENDOR_APPS.append('raven.contrib.django.raven_compat')
-
 
 LOCAL_APPS = [
     'account',
@@ -137,51 +143,50 @@ UPLOAD_DIR = f"{DATA_DIR}{UPLOAD_PREFIX}"
 
 STATICFILES_DIRS = [os.path.join(DATA_DIR, "public")]
 
-
 LOGGING_HANDLERS = ['console', 'sentry'] if production_env else ['console']
 LOGGING = {
-   'version': 1,
-   'disable_existing_loggers': False,
-   'formatters': {
-       'standard': {
-           'format': '[%(asctime)s] - [%(levelname)s] - [%(name)s:%(lineno)d]  - %(message)s',
-           'datefmt': '%Y-%m-%d %H:%M:%S'
-       }
-   },
-   'handlers': {
-       'console': {
-           'level': 'DEBUG',
-           'class': 'logging.StreamHandler',
-           'formatter': 'standard'
-       },
-       'sentry': {
-           'level': 'ERROR',
-           'class': 'raven.contrib.django.raven_compat.handlers.SentryHandler',
-           'formatter': 'standard'
-       }
-   },
-   'loggers': {
-       'django.request': {
-           'handlers': LOGGING_HANDLERS,
-           'level': 'ERROR',
-           'propagate': True,
-       },
-       'django.db.backends': {
-           'handlers': LOGGING_HANDLERS,
-           'level': 'ERROR',
-           'propagate': True,
-       },
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'standard': {
+            'format': '[%(asctime)s] - [%(levelname)s] - [%(name)s:%(lineno)d]  - %(message)s',
+            'datefmt': '%Y-%m-%d %H:%M:%S'
+        }
+    },
+    'handlers': {
+        'console': {
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'standard'
+        },
+        'sentry': {
+            'level': 'ERROR',
+            'class': 'raven.contrib.django.raven_compat.handlers.SentryHandler',
+            'formatter': 'standard'
+        }
+    },
+    'loggers': {
+        'django.request': {
+            'handlers': LOGGING_HANDLERS,
+            'level': 'ERROR',
+            'propagate': True,
+        },
+        'django.db.backends': {
+            'handlers': LOGGING_HANDLERS,
+            'level': 'ERROR',
+            'propagate': True,
+        },
         'dramatiq': {
             'handlers': LOGGING_HANDLERS,
             'level': 'DEBUG',
             'propagate': False,
         },
-       '': {
-           'handlers': LOGGING_HANDLERS,
-           'level': 'WARNING',
-           'propagate': True,
-       }
-   },
+        '': {
+            'handlers': LOGGING_HANDLERS,
+            'level': 'WARNING',
+            'propagate': True,
+        }
+    },
 }
 
 REST_FRAMEWORK = {
@@ -246,4 +251,4 @@ RAVEN_CONFIG = {
 
 IP_HEADER = "HTTP_X_REAL_IP"
 
-DEFAULT_AUTO_FIELD='django.db.models.AutoField'
+DEFAULT_AUTO_FIELD = 'django.db.models.AutoField'
