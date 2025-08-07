@@ -77,6 +77,24 @@ class ProblemAPI(APIView):
         difficulty = request.GET.get("difficulty")
         if difficulty:
             problems = problems.filter(difficulty=difficulty)
+            
+        # 问题集筛选
+        workbook = request.GET.get("workbook")
+        if workbook:
+            problems = problems.filter(workbook_id=workbook)
+            
+        # 정렬
+        sort = request.GET.get("sort")
+        if sort:
+            if sort == "difficulty":
+                problems = problems.order_by("difficulty")
+            elif sort == "accepted_number":
+                problems = problems.order_by("-accepted_number")
+            else:
+                problems = problems.order_by("_id")  # 기본값: ID 순서
+        else:
+            problems = problems.order_by("_id")  # 기본값: ID 순서
+        
         # 根据profile 为做过的题目添加标记
         data = self.paginate_data(request, problems, ProblemSerializer)
         self._add_problem_status(request, data)

@@ -55,6 +55,18 @@
               </el-select>
             </el-form-item>
           </el-col>
+          <el-col :span="8">
+            <el-form-item label="문제집">
+              <el-select v-model="problem.workbook" placeholder="문제집 선택" clearable>
+                <el-option
+                  v-for="workbook in workbooks"
+                  :key="workbook.id"
+                  :label="workbook.title"
+                  :value="workbook.id">
+                </el-option>
+              </el-select>
+            </el-form-item>
+          </el-col>
         </el-row>
         <el-row :gutter="20">
           <el-col :span="4">
@@ -311,7 +323,8 @@
           spj: '',
           languages: '',
           testCase: ''
-        }
+        },
+        workbooks: []
       }
     },
     mounted () {
@@ -382,6 +395,9 @@
             this.problem.languages.push(item.name)
           }
         }
+        
+        // 문제집 데이터 가져오기
+        this.getWorkbooks()
       })
     },
     watch: {
@@ -481,6 +497,14 @@
       },
       uploadFailed () {
         this.$error('Upload failed')
+      },
+      getWorkbooks () {
+        // 문제집 목록 가져오기
+        api.getWorkbookList(0, 100).then(res => {
+          this.workbooks = res.data.data.results || []
+        }).catch(() => {
+          this.workbooks = []
+        })
       },
       compileSPJ () {
         let data = {

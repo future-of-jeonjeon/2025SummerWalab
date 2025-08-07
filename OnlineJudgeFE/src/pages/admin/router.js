@@ -3,6 +3,9 @@ import VueRouter from 'vue-router'
 // 引入 view 组件
 import { Announcement, Conf, Contest, ContestList, Home, JudgeServer, Login,
   Problem, ProblemList, User, PruneTestCase, Dashboard, ProblemImportOrExport } from './views'
+import WorkbookList from './views/workbook/WorkbookList.vue'
+import WorkbookCreate from './views/workbook/WorkbookCreate.vue'
+import WorkbookEdit from './views/workbook/WorkbookEdit.vue'
 Vue.use(VueRouter)
 
 export default new VueRouter({
@@ -103,6 +106,21 @@ export default new VueRouter({
           path: '/contest/:contestId/problem/:problemId/edit',
           name: 'edit-contest-problem',
           component: Problem
+        },
+        {
+          path: '/workbooks',
+          name: 'workbook-list',
+          component: WorkbookList
+        },
+        {
+          path: '/workbook/create',
+          name: 'create-workbook',
+          component: WorkbookCreate
+        },
+        {
+          path: '/workbook/edit/:id',
+          name: 'edit-workbook',
+          component: WorkbookEdit
         }
       ]
     },

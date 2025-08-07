@@ -81,6 +81,9 @@ class Problem(models.Model):
     # {JudgeStatus.ACCEPTED: 3, JudgeStaus.WRONG_ANSWER: 11}, the number means count
     statistic_info = JSONField(default=dict)
     share_submission = models.BooleanField(default=False)
+    
+    # workbook 필드 추가
+    workbook = models.ForeignKey('workbook.Workbook', on_delete=models.SET_NULL, null=True, blank=True)
 
     class Meta:
         db_table = "problem"
@@ -94,3 +97,6 @@ class Problem(models.Model):
     def add_ac_number(self):
         self.accepted_number = models.F("accepted_number") + 1
         self.save(update_fields=["accepted_number"])
+
+
+

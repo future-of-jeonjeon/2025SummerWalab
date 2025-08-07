@@ -296,6 +296,40 @@ export default {
     return ajax('export_problem', 'post', {
       data
     })
+  },
+  // 문제집 관련 API
+  getWorkbookList (offset, limit, keyword) {
+    let params = {paging: true, offset, limit}
+    if (keyword) {
+      params.keyword = keyword
+    }
+    return ajax('admin/workbook', 'get', {
+      params: params
+    })
+  },
+  getWorkbook (id) {
+    return ajax('admin/workbook', 'get', {
+      params: {
+        id
+      }
+    })
+  },
+  createWorkbook (data) {
+    return ajax('admin/workbook', 'post', {
+      data
+    })
+  },
+  editWorkbook (data) {
+    return ajax('admin/workbook', 'put', {
+      data
+    })
+  },
+  deleteWorkbook (id) {
+    return ajax('admin/workbook', 'delete', {
+      params: {
+        id
+      }
+    })
   }
 }
 

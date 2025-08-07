@@ -18,7 +18,11 @@
       <el-menu-item index="/problems">{{$t('m.Problem_List')}}</el-menu-item>
       <el-menu-item index="/problem/create">{{$t('m.Create_Problem')}}</el-menu-item>
       <el-menu-item index="/problem/batch_ops">{{$t('m.Export_Import_Problem')}}</el-menu-item>
-
+    </el-submenu>
+    <el-submenu index="workbook" v-if="hasProblemPermission">
+      <template slot="title"><i class="el-icon-fa-book"></i>문제집</template>
+      <el-menu-item index="/workbooks">문제집 목록</el-menu-item>
+      <el-menu-item index="/workbook/create">문제집 생성</el-menu-item>
     </el-submenu>
     <el-submenu index="contest">
       <template slot="title"><i class="el-icon-fa-trophy"></i>{{$t('m.Contest')}}</template>

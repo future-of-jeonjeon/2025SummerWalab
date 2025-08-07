@@ -214,6 +214,20 @@ class ProblemAPI(ProblemBase):
         # todo check filename and score info
         tags = data.pop("tags")
         data["created_by"] = request.user
+        
+        # workbook 필드 처리
+        if "workbook" in data:
+            if data["workbook"] == "" or data["workbook"] is None:
+                data["workbook"] = None
+            else:
+                # workbook ID를 Workbook 인스턴스로 변환
+                from workbook.models import Workbook
+                try:
+                    workbook = Workbook.objects.get(id=data["workbook"])
+                    data["workbook"] = workbook
+                except Workbook.DoesNotExist:
+                    return self.error("Workbook does not exist")
+        
         problem = Problem.objects.create(**data)
 
         for item in tags:
