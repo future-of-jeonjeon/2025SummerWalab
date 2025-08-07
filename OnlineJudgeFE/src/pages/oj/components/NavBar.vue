@@ -6,10 +6,18 @@
         <Icon type="home"></Icon>
         {{ $t('m.Home') }}
       </Menu-item>
-      <Menu-item name="/problem">
-        <Icon type="ios-keypad"></Icon>
-        {{ $t('m.NavProblems') }}
-      </Menu-item>
+      <Submenu name="problems">
+        <template slot="title">
+          <Icon type="ios-keypad"></Icon>
+          {{ $t('m.NavProblems') }}
+        </template>
+        <Menu-item name="/problem">
+          {{ $t('m.All_Problems') }}
+        </Menu-item>
+        <Menu-item name="/workbook">
+          {{ $t('m.Workbooks') }}
+        </Menu-item>
+      </Submenu>
       <Menu-item name="/contest">
         <Icon type="trophy"></Icon>
         {{ $t('m.Contests') }}
@@ -42,17 +50,16 @@
           {{ $t('m.FAQ') }}
         </Menu-item>
       </Submenu>
-      <Submenu name="/Language">
+      <Submenu name="language">
         <template slot="title">
-          <Icon type="information-circled"></Icon>
+          <Icon type="ios-world"></Icon>
           {{ $t('m.Language') }}
-        
         </template>
-        <Menu-item name="/korean">
-          {{ "한국어" }}
+        <Menu-item name="ko-KR">
+          {{ $t('m.Korean') }}
         </Menu-item>
-        <Menu-item name="/english">
-          {{ "English" }}
+        <Menu-item name="en-US">
+          {{ $t('m.English') }}
         </Menu-item>
       </Submenu>
       
@@ -111,6 +118,12 @@ export default {
   methods: {
     ...mapActions(['getProfile', 'changeModalStatus']),
     handleRoute(route) {
+      // 언어 변경 처리
+      if (route === 'ko-KR' || route === 'en-US') {
+        this.changeLang(route)
+        return
+      }
+      
       if (route && route.indexOf('admin') < 0) {
         this.$router.push(route)
       } else {
