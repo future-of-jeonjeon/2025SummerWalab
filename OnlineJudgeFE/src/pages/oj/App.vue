@@ -6,8 +6,8 @@
         <router-view></router-view>
       </transition>
       <div class="footer">
-        <p v-html="website.website_footer"></p>
-        <p>Powered by <a href="https://github.com/QingdaoU/OnlineJudge">OnlineJudge</a>
+        <p>Built with by Walab</p>
+        <p>Powered by <a href="https://github.com/QingdaoU/OnlineJudge">OnlineJudge</a></p>
           <span v-if="version">&nbsp; Version: {{ version }}</span>
         </p>
       </div>

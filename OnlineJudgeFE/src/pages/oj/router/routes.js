@@ -34,7 +34,7 @@ export default [
   {
     name: 'home',
     path: '/',
-    meta: { title: 'Home' },
+    meta: { title: 'Welcome' },
     component: Home
   },
   {
