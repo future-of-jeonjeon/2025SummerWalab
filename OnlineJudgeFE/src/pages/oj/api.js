@@ -132,6 +132,31 @@ export default {
   pickone () {
     return ajax('pickone', 'get')
   },
+  getWorkbookList (offset, limit, searchParams) {
+    let params = {
+      paging: true,
+      offset,
+      limit
+    }
+    Object.keys(searchParams).forEach((element) => {
+      if (searchParams[element]) {
+        params[element] = searchParams[element]
+      }
+    })
+    return ajax('workbook', 'get', {
+      params: params
+    })
+  },
+  getWorkbook (id) {
+    return ajax('workbook', 'get', {
+      params: { id }
+    })
+  },
+  getWorkbook (id) {
+    return ajax('workbook', 'get', {
+      params: { id }
+    })
+  },
   getProblem (problemID) {
     return ajax('problem', 'get', {
       params: {

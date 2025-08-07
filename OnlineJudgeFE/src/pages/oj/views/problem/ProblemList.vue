@@ -20,14 +20,12 @@
           </li>
           <li>
             <Dropdown @on-click="filterBySort">
-              <span>{{query.sort === '' ? this.$i18n.t('m.Sort') : this.$i18n.t('m.' + query.sort)}}
+              <span>{{getSortDisplayText()}}
                 <Icon type="arrow-down-b"></Icon>
               </span>
               <Dropdown-menu slot="list">
-                <Dropdown-item name="">{{$t('m.Default')}}</Dropdown-item>
-                <Dropdown-item name="id">{{$t('m.By_ID')}}</Dropdown-item>
+                <Dropdown-item name="">{{$t('m.By_ID')}}</Dropdown-item>
                 <Dropdown-item name="difficulty">{{$t('m.By_Difficulty')}}</Dropdown-item>
-                <Dropdown-item name="submission_number">{{$t('m.By_Submissions')}}</Dropdown-item>
                 <Dropdown-item name="accepted_number">{{$t('m.By_Accepted')}}</Dropdown-item>
               </Dropdown-menu>
             </Dropdown>
@@ -253,6 +251,17 @@
         this.query.sort = sort
         this.query.page = 1
         this.pushRouter()
+      },
+      getSortDisplayText () {
+        if (this.query.sort === '') {
+          return this.$i18n.t('m.By_ID')
+        } else if (this.query.sort === 'difficulty') {
+          return this.$i18n.t('m.By_Difficulty')
+        } else if (this.query.sort === 'accepted_number') {
+          return this.$i18n.t('m.By_Accepted')
+        } else {
+          return this.$i18n.t('m.By_ID')
+        }
       },
       filterByKeyword () {
         this.query.page = 1
