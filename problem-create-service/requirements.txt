@@ -1,11 +1,13 @@
+spglib
 booktype
 aioredis
 httpx
 fastapi
 uvicorn[standard]
-SQLAlchemy
+sqlalchemy[asyncio]>=2.0.0
 psycopg2-binary
 pydantic
 pydantic-settings
 python-dotenv
 alembic
+asyncpg>=0.28.0

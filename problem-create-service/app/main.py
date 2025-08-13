@@ -1,6 +1,11 @@
 from fastapi import FastAPI
 from app.config.settings import settings
 from app.config.cors import setup_cors
+
+# Import all models here to ensure they are registered with SQLAlchemy's declarative base
+from app.user import models as user_models
+from app.problem import models as problem_models
+
 from app.auth import routes as auth_routes
 from app.problem import routes as problem_routes
 from datetime import datetime
