@@ -10,14 +10,17 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/1.8/ref/settings/
 """
 import os
-import raven
 from copy import deepcopy
 from utils.shortcuts import get_env
 from dotenv import load_dotenv
 
 production_env = get_env("OJ_ENV", "dev") == "production"
 if production_env:
-    from .production_settings import *
+    try:
+        import raven
+        from .production_settings import *
+    except ImportError:
+        from .dev_settings import *
 else:
     from .dev_settings import *
 
@@ -57,6 +60,7 @@ LOCAL_APPS = [
     'submission',
     'options',
     'judge',
+    'workbook',
 ]
 
 INSTALLED_APPS = VENDOR_APPS + LOCAL_APPS

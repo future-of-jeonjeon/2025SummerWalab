@@ -1,0 +1,561 @@
+/* OnlineJudge 스타일을 참고한 Workbook 전용 프론트엔드 스타일 */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  background-color: #eee;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background-color: #eee;
+  min-width: 320px;
+}
+
+.container {
+  max-width: none;
+  margin: 0;
+  padding: 0 20px;
+  margin-top: 80px; 
+  min-height: calc(100vh - 80px);
+}
+
+/* 헤더 스타일 - 상단 고정 */
+.header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background-color: #fff;
+  border-bottom: 1px solid #ddd;
+  padding: 15px 0;
+  z-index: 1000;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.header-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  flex-wrap: wrap; /* 헤더 내용이 줄바꿈되도록 설정 */
+  gap: 15px; /* 헤더 요소들 사이 간격 */
+}
+
+.header-logo {
+  width: 40px;
+  height: 40px;
+  margin-right: 15px;
+}
+
+.header h1 {
+  color: #495060;
+  font-size: 24px;
+  font-weight: 500;
+  margin: 0;
+}
+
+/* 카드 스타일 */
+.card {
+  background-color: #fff;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  margin-bottom: 20px;
+  overflow: hidden;
+}
+
+.workbook-list-full {
+  margin: 0;
+  border-radius: 0;
+  min-height: calc(100vh - 80px); /* 전체 화면 높이에서 헤더 높이를 뺀 값 */
+  background-color: #fff;
+}
+
+.workbook-list-full .list-header {
+  background-color: #f8f9fa;
+  padding: 20px 30px;
+  border-bottom: 1px solid #e9ecef;
+  margin: 0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.workbook-list-full .list-title {
+  font-size: 18px;
+  font-weight: 500;
+  color: #495060;
+  margin: 0;
+}
+
+.sort-options {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.sort-btn {
+  background-color: #fff;
+  border: 1px solid #dcdee2;
+  color: #495060;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 400;
+  transition: all 0.2s ease-in-out;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 100px;
+  justify-content: center;
+}
+
+.sort-btn:hover {
+  background-color: #f8f9fa;
+  border-color: #2d8cf0;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.sort-btn.active {
+  background-color: #e8f5e8; /* 파스텔 민트 그린 */
+  border-color: #4caf50;
+  color: #2e7d32;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(76, 175, 80, 0.2);
+}
+
+.workbook-list-full .list-content {
+  padding: 30px;
+  margin: 0;
+  overflow-x: auto;
+}
+
+.workbook-list-full .table {
+  margin: 0;
+  border: none;
+  background-color: transparent;
+}
+
+.workbook-list-full .table th {
+  background-color: #f8f9fa;
+  font-weight: 500;
+  color: #495060;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.workbook-list-full .table td {
+  border-bottom: 1px solid #e9ecef;
+  background-color: #fff;
+}
+
+.workbook-list-full .table tr:hover td {
+  background-color: #f8f9fa;
+}
+
+.card-header {
+  background-color: #f8f9fa;
+  padding: 15px 20px;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.card-title {
+  font-size: 18px;
+  font-weight: 500;
+  color: #495060;
+  margin: 0;
+}
+
+.card-body {
+  padding: 20px;
+}
+
+/* 버튼 스타일 - 파스텔 톤 */
+.btn {
+  display: inline-block;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 400;
+  text-align: center;
+  text-decoration: none;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.btn-primary {
+  background-color: #a8d8ff; /* 파스텔 블루 */
+  border-color: #8bc4ff;
+  color: #2c5aa0;
+}
+
+.btn-primary:hover {
+  background-color: #8bc4ff;
+  border-color: #6ba8ff;
+}
+
+.btn-success {
+  background-color: #b8e6b8; /* 파스텔 그린 */
+  border-color: #9dd69d;
+  color: #2d5a2d;
+}
+
+.btn-success:hover {
+  background-color: #9dd69d;
+  border-color: #7cc67c;
+}
+
+.btn-danger {
+  background-color: #ffb8b8; /* 파스텔 레드 */
+  border-color: #ff9d9d;
+  color: #a02d2d;
+}
+
+.btn-danger:hover {
+  background-color: #ff9d9d;
+  border-color: #ff7c7c;
+}
+
+.btn-secondary {
+  background-color: #d4d4d4; /* 파스텔 그레이 */
+  border-color: #b8b8b8;
+  color: #4a4a4a;
+}
+
+.btn-secondary:hover {
+  background-color: #b8b8b8;
+  border-color: #9a9a9a;
+}
+
+.btn-info {
+  background-color: #b8e6ff; /* 파스텔 라이트 블루 */
+  border-color: #9dd6ff;
+  color: #2d7aa0;
+}
+
+.btn-info:hover {
+  background-color: #9dd6ff;
+  border-color: #7cc6ff;
+}
+
+/* 폼 스타일 */
+.form-group {
+  margin-bottom: 20px;
+}
+
+/* 문제집 생성/수정 폼 반응형 스타일 */
+.workbook-form-container {
+  max-width: 800px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.workbook-form-container .card {
+  margin: 0;
+}
+
+.workbook-form-container .card-body {
+  padding: 30px;
+}
+
+.workbook-form-container .form-group {
+  margin-bottom: 25px;
+}
+
+.workbook-form-container .form-label {
+  font-size: 16px;
+  margin-bottom: 10px;
+}
+
+.workbook-form-container .form-control {
+  font-size: 16px;
+  padding: 12px 15px;
+}
+
+.workbook-form-container .btn {
+  padding: 12px 24px;
+  font-size: 16px;
+  min-width: 100px;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: #495060;
+}
+
+.form-control {
+  width: 100%;
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid #dcdee2;
+  border-radius: 4px;
+  transition: border-color 0.2s ease-in-out;
+}
+
+.form-control:focus {
+  outline: none;
+  border-color: #2d8cf0;
+  box-shadow: 0 0 0 2px rgba(45, 140, 240, 0.2);
+}
+
+textarea.form-control {
+  resize: vertical;
+  min-height: 100px;
+}
+
+/* 테이블 스타일 */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  background-color: #fff;
+}
+
+.table th,
+.table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.table th {
+  background-color: #f8f9fa;
+  font-weight: 500;
+  color: #495060;
+}
+
+.table tr:hover {
+  background-color: #f8f9fa;
+}
+
+/* 상태 표시 */
+.status-badge {
+  display: inline-block;
+  padding: 4px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 12px;
+  text-transform: uppercase;
+}
+
+.status-active {
+  background-color: #dff0d8;
+  color: #3c763d;
+}
+
+.status-inactive {
+  background-color: #f2dede;
+  color: #a94442;
+}
+
+/* 유틸리티 클래스 */
+.text-center {
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+.mb-20 {
+  margin-bottom: 20px;
+}
+
+.mt-20 {
+  margin-top: 20px;
+}
+
+.d-flex {
+  display: flex;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.align-center {
+  align-items: center;
+}
+
+/* 반응형 */
+@media (max-width: 1200px) {
+  .header-content {
+    padding: 0 15px;
+  }
+  
+  .workbook-list-full .list-header {
+    padding: 20px 20px;
+  }
+  
+  .workbook-list-full .list-content {
+    padding: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 10px;
+    margin-top: 70px;
+  }
+  
+  .header-content {
+    padding: 0 10px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  
+  .header h1 {
+    font-size: 20px;
+  }
+  
+  .workbook-list-full .list-header {
+    padding: 15px;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 15px;
+  }
+  
+  .workbook-list-full .list-title {
+    font-size: 16px;
+  }
+  
+  .workbook-list-full .list-content {
+    padding: 15px;
+  }
+  
+  .sort-options {
+    gap: 8px;
+  }
+  
+  .sort-btn {
+    min-width: 80px;
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+  
+  .card-body {
+    padding: 15px;
+  }
+  
+  .table {
+    font-size: 14px;
+  }
+  
+  .table th,
+  .table td {
+    padding: 8px;
+  }
+  
+  .btn {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+  
+  .form-control {
+    padding: 8px 10px;
+    font-size: 14px;
+  }
+  
+  /* 문제집 폼 반응형 */
+  .workbook-form-container .card-body {
+    padding: 20px;
+  }
+  
+  .workbook-form-container .form-group {
+    margin-bottom: 20px;
+  }
+  
+  .workbook-form-container .form-label {
+    font-size: 15px;
+  }
+  
+  .workbook-form-container .form-control {
+    font-size: 15px;
+    padding: 10px 12px;
+  }
+  
+  .workbook-form-container .btn {
+    padding: 10px 20px;
+    font-size: 15px;
+    min-width: 90px;
+  }
+}
+
+@media (max-width: 480px) {
+  .container {
+    padding: 5px;
+    margin-top: 60px;
+  }
+  
+  .header {
+    padding: 10px 0;
+  }
+  
+  .header h1 {
+    font-size: 18px;
+  }
+  
+  .workbook-list-full .list-header {
+    padding: 10px;
+  }
+  
+  .workbook-list-full .list-content {
+    padding: 10px;
+  }
+  
+  .sort-btn {
+    min-width: 70px;
+    padding: 5px 10px;
+    font-size: 12px;
+  }
+  
+  .btn {
+    padding: 5px 10px;
+    font-size: 12px;
+    margin-right: 5px;
+  }
+  
+  .table th,
+  .table td {
+    padding: 6px;
+    font-size: 12px;
+  }
+  
+  /* 문제집 폼 반응형 */
+  .workbook-form-container .card-body {
+    padding: 15px;
+  }
+  
+  .workbook-form-container .form-group {
+    margin-bottom: 15px;
+  }
+  
+  .workbook-form-container .form-label {
+    font-size: 14px;
+  }
+  
+  .workbook-form-container .form-control {
+    font-size: 14px;
+    padding: 8px 10px;
+  }
+  
+  .workbook-form-container .btn {
+    padding: 8px 16px;
+    font-size: 14px;
+    min-width: 80px;
+  }
+}

@@ -5,6 +5,7 @@ import logging
 
 from app.auth import routes as auth_routes
 from app.problem import routes as problem_routes
+from app.workbook import routes as workbook_routes
 from datetime import datetime
 
 app = FastAPI(**settings.fastapi_kwargs)
@@ -13,6 +14,7 @@ logging.basicConfig(level=logging.INFO)
 
 app.include_router(auth_routes.router)
 app.include_router(problem_routes.router)
+app.include_router(workbook_routes.router)
 
 
 @app.get("/")
