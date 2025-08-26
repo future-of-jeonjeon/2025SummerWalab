@@ -71,3 +71,26 @@ services:
     ports:
       - "0.0.0.0:80:8000"
       - "0.0.0.0:443:1443"
+  
+
+  oj-micro-service: 
+    build: ./micro-service-server 
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://onlinejudge:onlinejudge@oj-postgres:5432/onlinejudge
+      - SSO_INTROSPECT_URL=http://oj-backend:8000/api/sso
+      - REDIS_URL=redis://oj-redis:6379/0
+      - REDIS_SESSION_PREFIX="ms:session:"
+      - TOKEN_COOKIE_NAME=ms_token
+      - LOCAL_TOKEN_TTL_SECONDS=1800
+      - TEST_CASE_DATA_PATH=/test_case 
+    volumes:
+      - ./data/backend/test_case:/test_case:rw 
+    depends_on:
+      - oj-postgres
+      - oj-redis 
+      - oj-frontend
+      - oj-backend
+
+
