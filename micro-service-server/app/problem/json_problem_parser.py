@@ -1,54 +1,44 @@
 import json
+import hashlib
 import os
-import shutil  # 파일 복사용
-import uuid  # 고유한 test_case_id 생성을 위함
+import shutil
+import uuid  
 import zipfile
 from typing import List, Dict, Any
 
 
 class ZIPJSONProblemParser:
-    """
-    ZIP 파일 내부에 있는 JSON 파일들과 테스트 케이스들을 파싱하고 저장하는 클래스.
-    """
-
     def __init__(self, zip_file_path: str, destination_test_case_base_path: str):
         self.zip_file_path = zip_file_path
         self.destination_test_case_base_path = destination_test_case_base_path
         os.makedirs(self.destination_test_case_base_path, exist_ok=True)  # 기본 경로가 없으면 생성
 
     def parse(self) -> List[Dict[str, Any]]:
-        """
-        ZIP 파일 내의 각 문제 디렉토리에서 JSON 파일과 테스트 케이스를 파싱하고 저장합니다.
-        """
         all_problems_data: List[Dict[str, Any]] = []
 
         try:
             with zipfile.ZipFile(self.zip_file_path, 'r') as zf:
-                namelist = zf.namelist()  # ZIP 파일 내의 모든 파일 목록
-
-                problem_dirs = {}  # { '1/': { 'json_file': '1/problem_a.json', 'test_case_dir_in_zip': '1/test_cases/' } }
-
+                namelist = zf.namelist()  
+                problem_dirs = {}  
                 for name in namelist:
-                    # macOS 메타데이터 파일 건너뛰기
                     if name.startswith('__MACOSX/') or '/._' in name:
                         continue
 
                     if name.endswith('.json'):
-                        parent_dir = os.path.dirname(name)  # 예: '1' 또는 루트의 경우 ''
-                        if parent_dir and not parent_dir.endswith('/'):  # 일관성을 위해 '/' 추가
+                        parent_dir = os.path.dirname(name)
+                        if parent_dir and not parent_dir.endswith('/'):  
                             parent_dir += '/'
 
                         if parent_dir not in problem_dirs:
                             problem_dirs[parent_dir] = {'json_file': None, 'test_case_dir_in_zip': None}
                         problem_dirs[parent_dir]['json_file'] = name
-                    elif '/test_cases/' in name and not name.endswith('/'):  # test_cases 디렉토리 식별
+                    elif '/test_cases/' in name and not name.endswith('/'):
                         parts = name.split('/test_cases/')
-                        parent_dir = parts[0] + '/' if parts[0] else ''  # 문제 디렉토리 (예: '1/')
-
+                        parent_dir = parts[0] + '/' if parts[0] else ''  
                         if parent_dir not in problem_dirs:
                             problem_dirs[parent_dir] = {'json_file': None, 'test_case_dir_in_zip': None}
                         problem_dirs[parent_dir][
-                            'test_case_dir_in_zip'] = parent_dir + 'test_cases/'  # ZIP 내의 test_cases 기본 경로
+                            'test_case_dir_in_zip'] = parent_dir + 'test_cases/'  
 
                 if not problem_dirs:
                     raise ValueError("ZIP 아카이브 내에 문제 정의 JSON 파일이 없습니다.")
@@ -71,7 +61,7 @@ class ZIPJSONProblemParser:
 
                         try:
                             problem_data = json.loads(json_content)
-                            if isinstance(problem_data, list):  # JSON이 리스트 형태면 첫 번째 문제만 가져옴
+                            if isinstance(problem_data, list):
                                 if problem_data:
                                     problem_data = problem_data[0]
                                 else:
@@ -85,53 +75,107 @@ class ZIPJSONProblemParser:
                         except Exception as e:
                             raise ValueError(f"파일 '{json_file_in_zip}' 파싱 중 알 수 없는 오류 발생: {e}")
 
-                    # 2. 테스트 케이스 저장
                     if test_case_dir_in_zip:
-                        # 이 문제의 테스트 케이스를 위한 고유 ID 생성
                         unique_test_case_id = str(uuid.uuid4())
-                        problem_data['test_case_id'] = unique_test_case_id  # 문제 데이터에 ID 업데이트
-
+                        problem_data['test_case_id'] = unique_test_case_id  
                         destination_path = os.path.join(self.destination_test_case_base_path, unique_test_case_id)
                         os.makedirs(destination_path, exist_ok=True)
-
-                        # test_cases/ 디렉토리 내의 파일들만 추출
                         for member in namelist:
                             if member.startswith(test_case_dir_in_zip) and not member.endswith(
-                                    '/'):  # test_cases 내의 파일인 경우
+                                    '/'):  
                                 relative_path = os.path.relpath(member, test_case_dir_in_zip)
                                 dest_file_path = os.path.join(destination_path, relative_path)
-                                os.makedirs(os.path.dirname(dest_file_path), exist_ok=True)  # 하위 디렉토리 생성 보장
-
+                                os.makedirs(os.path.dirname(dest_file_path), exist_ok=True)  
                                 with zf.open(member) as source, open(dest_file_path, 'wb') as target:
                                     shutil.copyfileobj(source, target)
+                        if not problem_data.get('test_case_score'):
+                            generated_scores = []
+                            index = 1
+                            while True:
+                                in_name = f"{index}.in"
+                                out_name = f"{index}.out"
+                                in_path = os.path.join(destination_path, in_name)
+                                out_path = os.path.join(destination_path, out_name)
+                                if os.path.isfile(in_path) and os.path.isfile(out_path):
+                                    generated_scores.append({
+                                        "input_name": in_name,
+                                        "output_name": out_name,
+                                        "score": 0
+                                    })
+                                    index += 1
+                                    continue
+                                else:
+                                    break
+                            if not generated_scores:
+                                all_files = {f for f in os.listdir(destination_path) if os.path.isfile(os.path.join(destination_path, f))}
+                                in_files = sorted([f for f in all_files if f.endswith('.in')])
+                                for in_file in in_files:
+                                    prefix = in_file[:-3]
+                                    out_file = prefix + '.out'
+                                    if out_file in all_files:
+                                        generated_scores.append({
+                                            "input_name": in_file,
+                                            "output_name": out_file,
+                                            "score": 0
+                                        })
+                            if problem_data.get("spj") and not generated_scores:
+                                all_files = {f for f in os.listdir(destination_path) if os.path.isfile(os.path.join(destination_path, f))}
+                                in_files = sorted([f for f in all_files if f.endswith('.in')])
+                                for in_file in in_files:
+                                    generated_scores.append({
+                                        "input_name": in_file,
+                                        "output_name": None,
+                                        "score": 0
+                                    })
 
-                        # --- 'info' JSON 파일 생성 ---
+                            if generated_scores:
+                                problem_data['test_case_score'] = generated_scores
                         info_file_path = os.path.join(destination_path, "info")
                         test_case_info_for_file = {"spj": problem_data.get("spj", False), "test_cases": {}}
-
-                        # problem_data['test_case_score']를 사용하여 'info' 파일의 'test_cases' 딕셔너리 재구성
+                        size_cache = {}
+                        md5_cache = {}
+                        for f in os.listdir(destination_path):
+                            f_path = os.path.join(destination_path, f)
+                            if not os.path.isfile(f_path):
+                                continue
+                            try:
+                                with open(f_path, 'rb') as fh:
+                                    content = fh.read()
+                                    size_cache[f] = len(content)
+                                    if f.endswith('.out'):
+                                        md5_cache[f] = hashlib.md5(content.rstrip()).hexdigest()
+                            except Exception:
+                                continue
                         if problem_data.get('test_case_score'):
+                            spj_mode = bool(problem_data.get('spj'))
                             for idx, tc_score_item in enumerate(problem_data['test_case_score']):
-                                # 'info' 파일은 input_name, output_name, score를 기대합니다.
-                                test_case_info_for_file["test_cases"][str(idx + 1)] = {
-                                    "input_name": tc_score_item.get("input_name"),
-                                    "output_name": tc_score_item.get("output_name"),
-                                    "score": tc_score_item.get("score", 0)
+                                input_name = tc_score_item.get("input_name")
+                                output_name = tc_score_item.get("output_name")
+                                entry = {
+                                    "input_name": input_name,
+                                    "score": tc_score_item.get("score", 0),
                                 }
-
+                                if not spj_mode:
+                                    entry.update({
+                                        "output_name": output_name,
+                                        "input_size": size_cache.get(input_name, 0),
+                                        "output_size": size_cache.get(output_name, 0),
+                                        "stripped_output_md5": md5_cache.get(output_name, ""),
+                                    })
+                                else:
+                                    entry.update({
+                                        "input_size": size_cache.get(input_name, 0),
+                                    })
+                                test_case_info_for_file["test_cases"][str(idx + 1)] = entry
                         with open(info_file_path, "w", encoding="utf-8") as f:
                             json.dump(test_case_info_for_file, f, indent=4)
-                        # --- 'info' JSON 파일 생성 끝 ---
-
                     else:
-                        # test_cases 디렉토리가 없으면 test_case_id를 None으로 설정
                         problem_data['test_case_id'] = None
-
                     all_problems_data.append(problem_data)
 
         except zipfile.BadZipFile:
-            raise ValueError("유효하지 않은 ZIP 파일입니다.")
+            raise ValueError("unvalid ZIP file ")
         except Exception as e:
-            raise ValueError(f"ZIP 파일 처리 중 오류 발생: {e}")
+            raise ValueError(f"Error: {e}")
 
         return all_problems_data
