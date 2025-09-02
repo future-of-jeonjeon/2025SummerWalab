@@ -1,6 +1,4 @@
 starlette
-spglib
-booktype
 httpx
 fastapi
 uvicorn[standard]

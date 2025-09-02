@@ -11,7 +11,7 @@ load_dotenv()
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:
-    raise ValueError("DATABASE_URL 환경변수가 설정되지 않았습니다.")
+    raise ValueError("NOT SET DATABASE_URL")
 
 engine = create_async_engine(
     DATABASE_URL,
@@ -20,7 +20,13 @@ engine = create_async_engine(
     pool_pre_ping=True,
     pool_recycle=3600
 )
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine, class_=AsyncSession)
+SessionLocal = sessionmaker(
+    autocommit=False,
+    autoflush=False,
+    expire_on_commit=False,
+    bind=engine,
+    class_=AsyncSession
+)
 
 Base = declarative_base()
 
