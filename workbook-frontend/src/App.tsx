@@ -1,126 +1,164 @@
-import React, { useState } from 'react';
-import { WorkbookList } from './components/WorkbookList';
-import { WorkbookForm } from './components/WorkbookForm';
-import { WorkbookDetail } from './components/WorkbookDetail';
-import { workbookApi, type Workbook, type WorkbookCreate, type WorkbookUpdate } from './services/workbookApi';
-import './styles/common.css';
-
-type ViewMode = 'list' | 'create' | 'edit' | 'detail';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Header } from './components/common/Header';
+import { HomePage } from './pages/HomePage';
+import { LoginPage } from './pages/LoginPage';
+import { RegisterPage } from './pages/RegisterPage';
+import { WorkbookListPage } from './pages/WorkbookListPage';
+import { WorkbookDetailPage } from './pages/WorkbookDetailPage';
+import { ProblemListPage } from './pages/ProblemListPage';
+import { ProblemDetailPage } from './pages/ProblemDetailPage';
+import { ContestListPage } from './pages/ContestListPage';
+import { ContestDetailPage } from './pages/ContestDetailPage';
+import { AdminProblemPage } from './pages/admin/AdminProblemPage';
+import { AdminWorkbookPage } from './pages/admin/AdminWorkbookPage';
+import { AdminContestPage } from './pages/admin/AdminContestPage';
+import { authApi, type User } from './services/auth';
+import './styles/theme.css';
 
 function App() {
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
-  const [currentWorkbook, setCurrentWorkbook] = useState<Workbook | null>(null);
-  const [currentWorkbookId, setCurrentWorkbookId] = useState<number | null>(null);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const handleCreateWorkbook = async (data: WorkbookCreate) => {
+  useEffect(() => {
+    const initAuth = async () => {
+      try {
+        if (authApi.isAuthenticated()) {
+          const userData = await authApi.getCurrentUser();
+          setUser(userData);
+        }
+      } catch (error) {
+        console.error('Auth initialization error:', error);
+        // 토큰이 유효하지 않은 경우 제거
+        localStorage.removeItem('access_token');
+        localStorage.removeItem('refresh_token');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initAuth();
+  }, []);
+
+  const handleLogout = async () => {
     try {
-      await workbookApi.createWorkbook(data);
-      alert('문제집이 성공적으로 생성되었습니다.');
-      setViewMode('list');
-      setRefreshTrigger(prev => prev + 1);
-    } catch (err) {
-      alert('문제집 생성에 실패했습니다.');
-      console.error('Error creating workbook:', err);
+      await authApi.logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    } finally {
+      setUser(null);
     }
   };
 
-  const handleUpdateWorkbook = async (data: WorkbookUpdate) => {
-    if (!currentWorkbook) return;
-    
-    try {
-      await workbookApi.updateWorkbook(currentWorkbook.id, data);
-      alert('문제집이 성공적으로 수정되었습니다.');
-      setViewMode('list');
-      setCurrentWorkbook(null);
-      setRefreshTrigger(prev => prev + 1);
-    } catch (err) {
-      alert('문제집 수정에 실패했습니다.');
-      console.error('Error updating workbook:', err);
-    }
+  const handleLogin = (userData: User) => {
+    setUser(userData);
   };
 
-  const handleEditWorkbook = (workbook: Workbook) => {
-    setCurrentWorkbook(workbook);
-    setViewMode('edit');
-  };
-
-  const handleViewWorkbook = (id: number) => {
-    setCurrentWorkbookId(id);
-    setViewMode('detail');
-  };
-
-  const handleDeleteWorkbook = (id: number) => {
-    setRefreshTrigger(prev => prev + 1);
-  };
-
-  const handleCancel = () => {
-    setViewMode('list');
-    setCurrentWorkbook(null);
-    setCurrentWorkbookId(null);
-  };
-
-  const renderContent = () => {
-    switch (viewMode) {
-      case 'create':
-        return (
-          <WorkbookForm
-            mode="create"
-            onSubmit={(data: WorkbookCreate) => handleCreateWorkbook(data)}
-            onCancel={handleCancel}
-          />
-        );
-      
-      case 'edit':
-        return (
-          <WorkbookForm
-            workbook={currentWorkbook || undefined}
-            mode="edit"
-            onSubmit={(data: WorkbookUpdate) => handleUpdateWorkbook(data)}
-            onCancel={handleCancel}
-          />
-        );
-      
-      case 'detail':
-        return (
-          <WorkbookDetail
-            workbookId={currentWorkbookId!}
-            onBack={handleCancel}
-          />
-        );
-      
-      default:
-        return (
-          <WorkbookList
-            onEdit={handleEditWorkbook}
-            onDelete={handleDeleteWorkbook}
-            onView={handleViewWorkbook}
-            key={refreshTrigger}
-          />
-        );
-    }
-  };
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent"></div>
+      </div>
+    );
+  }
 
   return (
-    <div className="App">
-      <header className="header">
-        <div className="header-content">
-          <h1>HGU OJ - 문제집</h1>
-          {viewMode === 'list' && (
-            <button
-              className="btn btn-primary"
-              onClick={() => setViewMode('create')}
-            >
-              새 문제집 만들기
-            </button>
-          )}
-        </div>
-      </header>
-      
-      <div className="container">
-        {renderContent()}
+    <Router>
+      <div className="min-h-screen bg-gray-50">
+        <Header user={user} onLogout={handleLogout} />
+        
+        <main className="container mx-auto px-4 py-8">
+          <Routes>
+            {/* 공개 라우트 */}
+            <Route path="/" element={<HomePage />} />
+            <Route 
+              path="/login" 
+              element={
+                user ? <Navigate to="/" replace /> : 
+                <LoginPage onLogin={handleLogin} />
+              } 
+            />
+            <Route 
+              path="/register" 
+              element={
+                user ? <Navigate to="/" replace /> : 
+                <RegisterPage onLogin={handleLogin} />
+              } 
+            />
+            
+            {/* 인증 필요 라우트 */}
+            <Route 
+              path="/workbooks" 
+              element={
+                user ? <WorkbookListPage /> : 
+                <Navigate to="/login" replace />
+              } 
+            />
+            <Route 
+              path="/workbooks/:id" 
+              element={
+                user ? <WorkbookDetailPage /> : 
+                <Navigate to="/login" replace />
+              } 
+            />
+            <Route 
+              path="/problems" 
+              element={
+                user ? <ProblemListPage /> : 
+                <Navigate to="/login" replace />
+              } 
+            />
+            <Route 
+              path="/problems/:id" 
+              element={
+                user ? <ProblemDetailPage /> : 
+                <Navigate to="/login" replace />
+              } 
+            />
+            <Route 
+              path="/contests" 
+              element={
+                user ? <ContestListPage /> : 
+                <Navigate to="/login" replace />
+              } 
+            />
+            <Route 
+              path="/contests/:id" 
+              element={
+                user ? <ContestDetailPage /> : 
+                <Navigate to="/login" replace />
+              } 
+            />
+            
+            {/* 관리자 라우트 */}
+            <Route 
+              path="/admin/problems" 
+              element={
+                user?.isAdmin ? <AdminProblemPage /> : 
+                <Navigate to="/" replace />
+              } 
+            />
+            <Route 
+              path="/admin/workbooks" 
+              element={
+                user?.isAdmin ? <AdminWorkbookPage /> : 
+                <Navigate to="/" replace />
+              } 
+            />
+            <Route 
+              path="/admin/contests" 
+              element={
+                user?.isAdmin ? <AdminContestPage /> : 
+                <Navigate to="/" replace />
+              } 
+            />
+            
+            {/* 404 페이지 */}
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
       </div>
-    </div>
+    </Router>
   );
 }
 
