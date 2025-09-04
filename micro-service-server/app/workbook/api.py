@@ -7,6 +7,8 @@ from app.workbook.schemas import (
     WorkbookProblemCreate, WorkbookProblem
 )
 from app.workbook.service import WorkbookService
+from app.security.deps import get_userdata
+from app.user.DTO import UserData
 
 router = APIRouter(prefix="/workbooks", tags=["workbooks"])
 
@@ -14,21 +16,23 @@ router = APIRouter(prefix="/workbooks", tags=["workbooks"])
 @router.post("/", response_model=Workbook)
 async def create_workbook(
     workbook_data: WorkbookCreate,
-    db: AsyncSession = Depends(get_session)
+    db: AsyncSession = Depends(get_session),
+    current_user: UserData = Depends(get_userdata)
 ):
     """문제집 생성"""
     workbook_service = WorkbookService(db)
-    workbook = await workbook_service.create_workbook(workbook_data)
+    workbook = await workbook_service.create_workbook(workbook_data, current_user.id)
     return workbook
 
 
 @router.get("/", response_model=List[Workbook])
 async def get_workbooks(
-    db: AsyncSession = Depends(get_session)
+    db: AsyncSession = Depends(get_session),
+    current_user: UserData = Depends(get_userdata)
 ):
     """사용자의 문제집 목록 조회"""
     workbook_service = WorkbookService(db)
-    workbooks = await workbook_service.get_user_workbooks(1)  # 임시로 user_id=1
+    workbooks = await workbook_service.get_user_workbooks(current_user.id)
     return workbooks
 
 

@@ -12,15 +12,15 @@ class WorkbookService:
     def __init__(self, db: AsyncSession):
         self.db = db
     
-    # async def create_workbook(self, workbook_data: WorkbookCreate, creator_id: int) -> Workbook:
-    async def create_workbook(self, workbook_data: WorkbookCreate) -> Workbook:
+    async def create_workbook(self, workbook_data: WorkbookCreate, user_id: int) -> Workbook:
         """문제집 생성"""
         now = datetime.utcnow()
         workbook = Workbook(
             title=workbook_data.title,
             description=workbook_data.description,
-            created_by_id=1,
-            # created_by_id = creator_id;
+            category=workbook_data.category,
+            created_by_id=user_id,
+            is_public=workbook_data.is_public,
             created_at=now,
             updated_at=now
         )
@@ -107,7 +107,7 @@ class WorkbookService:
         workbook_problem = WorkbookProblem(
             workbook_id=workbook_id,
             problem_id=problem_data.problem_id,
-            order=problem_data.order_index  # order_index -> order로 변경
+            order=problem_data.order
         )
         self.db.add(workbook_problem)
         await self.db.commit()
