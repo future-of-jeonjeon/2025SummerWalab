@@ -10,6 +10,7 @@ from app.config.database import get_session, engine
 from app.auth import routes as auth_routes
 from app.problem import routes as problem_routes
 from app.workbook import routes as workbook_routes
+from app.execution import routes as execution_routes
 
 app = FastAPI(**settings.fastapi_kwargs)
 setup_cors(app)
@@ -18,6 +19,7 @@ logging.basicConfig(level=logging.INFO)
 app.include_router(auth_routes.router)
 app.include_router(problem_routes.router)
 app.include_router(workbook_routes.router)
+app.include_router(execution_routes.router)
 
 async def startup_event():
     try:
