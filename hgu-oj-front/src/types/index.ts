@@ -13,16 +13,25 @@ export interface Problem {
   id: number;
   title: string;
   description: string;
-  difficulty: 'EASY' | 'MEDIUM' | 'HARD';
+  difficulty: 'Low' | 'Mid' | 'High';
   timeLimit: number;
   memoryLimit: number;
-  inputFormat?: string;
-  outputFormat?: string;
-  sampleInput?: string;
-  sampleOutput?: string;
+  inputDescription?: string;
+  outputDescription?: string;
+  samples?: Array<{
+    input: string;
+    output: string;
+  }>;
   hint?: string;
-  createdAt: string;
-  updatedAt: string;
+  createTime: string;
+  lastUpdateTime?: string;
+  tags?: string[];
+  languages?: string[];
+  createdBy?: {
+    id: number;
+    username: string;
+    realName?: string;
+  };
 }
 
 // 제출 관련 타입
@@ -46,9 +55,38 @@ export interface Contest {
   description: string;
   startTime: string;
   endTime: string;
+  createTime: string;
+  ruleType: string;
+  visible: boolean;
+  createdBy: {
+    id: number;
+    username: string;
+    realName?: string;
+  };
+  now?: string;
+}
+
+// 문제집 관련 타입
+export interface Workbook {
+  id: number;
+  title: string;
+  description: string;
+  createdBy: User;
+  createdTime: string;
+  updatedTime: string;
   isPublic: boolean;
-  createdAt: string;
-  updatedAt: string;
+  problemCount: number;
+}
+
+export interface WorkbookProblem {
+  id: number;
+  problem: Problem;
+  order: number;
+  addedTime: string;
+}
+
+export interface WorkbookDetail extends Workbook {
+  problems: WorkbookProblem[];
 }
 
 // API 응답 타입
@@ -113,6 +151,7 @@ export interface BaseComponentProps {
 export interface LoginForm {
   username: string;
   password: string;
+  tfa_code?: string;
 }
 
 export interface RegisterForm {
@@ -120,4 +159,47 @@ export interface RegisterForm {
   email: string;
   password: string;
   confirmPassword: string;
+  captcha: string;
+}
+
+// 인증 관련 타입
+export interface AuthUser {
+  id: number;
+  username: string;
+  email: string;
+  admin_type: string;
+  problem_permission: string;
+  create_time: string;
+  last_login?: string;
+  two_factor_auth: boolean;
+  open_api: boolean;
+  is_disabled: boolean;
+}
+
+export interface LoginResponse {
+  success: boolean;
+  data?: string;
+  message?: string;
+}
+
+export interface SSOTokenResponse {
+  error: null;
+  data: {
+    token: string;
+  };
+}
+
+export interface UserProfile {
+  id: number;
+  username: string;
+  real_name?: string;
+  email?: string;
+  admin_type: string;
+  problem_permission: string;
+  create_time: string;
+  last_login?: string;
+  two_factor_auth: boolean;
+  open_api: boolean;
+  is_disabled: boolean;
+  avatar?: string;
 }

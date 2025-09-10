@@ -157,7 +157,7 @@ class CheckTFARequiredAPI(APIView):
         return self.success({"result": result})
 
 
-class UserLoginAPI(APIView):
+class UserLoginAPI(CSRFExemptAPIView):
     @validate_serializer(UserLoginSerializer)
     def post(self, request):
         """
@@ -211,7 +211,7 @@ class UsernameOrEmailCheck(APIView):
         return self.success(result)
 
 
-class UserRegisterAPI(APIView):
+class UserRegisterAPI(CSRFExemptAPIView):
     @validate_serializer(UserRegisterSerializer)
     def post(self, request):
         """

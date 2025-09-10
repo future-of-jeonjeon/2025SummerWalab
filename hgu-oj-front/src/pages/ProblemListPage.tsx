@@ -44,23 +44,33 @@ export const ProblemListPage: React.FC = () => {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900 mb-2">문제 목록</h1>
-        <p className="text-gray-600">다양한 알고리즘 문제를 풀어보세요</p>
-      </div>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="mb-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900 mb-2">PROBLEM</h1>
+            </div>
+            <div className="text-right">
+              <div className="text-2xl font-bold text-blue-600">{data?.total || 0}</div>
+              <div className="text-sm text-gray-500">Total Problems</div>
+            </div>
+          </div>
+        </div>
 
-      <ProblemList
-        problems={data?.data || []}
-        onProblemClick={handleProblemClick}
-        onSearch={handleSearch}
-        onFilterChange={handleFilterChange}
-        currentFilter={filter}
-        isLoading={isLoading}
-        totalPages={data?.totalPages || 1}
-        currentPage={filter.page || 1}
-        onPageChange={handlePageChange}
-      />
+        <ProblemList
+          problems={data?.data || []}
+          onProblemClick={handleProblemClick}
+          onSearch={handleSearch}
+          onFilterChange={handleFilterChange}
+          currentFilter={filter}
+          isLoading={isLoading}
+          totalPages={data?.totalPages || 1}
+          currentPage={filter.page || 1}
+          onPageChange={handlePageChange}
+        />
+      </div>
     </div>
   );
 };

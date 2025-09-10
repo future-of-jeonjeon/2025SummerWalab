@@ -105,44 +105,48 @@ export const ProblemDetailPage: React.FC = () => {
           <Card>
             <h2 className="text-xl font-semibold mb-4">문제 설명</h2>
             <div className="prose max-w-none">
-              <p className="whitespace-pre-wrap">{problem.description}</p>
+              <div dangerouslySetInnerHTML={{ __html: problem.description }} />
             </div>
           </Card>
 
-          {problem.inputFormat && (
+          {problem.inputDescription && (
             <Card>
               <h2 className="text-xl font-semibold mb-4">입력 형식</h2>
-              <pre className="bg-gray-100 p-4 rounded text-sm font-mono whitespace-pre-wrap">
-                {problem.inputFormat}
-              </pre>
+              <div className="prose max-w-none">
+                <div dangerouslySetInnerHTML={{ __html: problem.inputDescription }} />
+              </div>
             </Card>
           )}
 
-          {problem.outputFormat && (
+          {problem.outputDescription && (
             <Card>
               <h2 className="text-xl font-semibold mb-4">출력 형식</h2>
-              <pre className="bg-gray-100 p-4 rounded text-sm font-mono whitespace-pre-wrap">
-                {problem.outputFormat}
-              </pre>
+              <div className="prose max-w-none">
+                <div dangerouslySetInnerHTML={{ __html: problem.outputDescription }} />
+              </div>
             </Card>
           )}
 
-          {problem.sampleInput && problem.sampleOutput && (
+          {problem.samples && problem.samples.length > 0 && (
             <Card>
               <h2 className="text-xl font-semibold mb-4">입출력 예제</h2>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <h3 className="font-medium mb-2">입력</h3>
-                  <pre className="bg-gray-100 p-4 rounded text-sm font-mono whitespace-pre-wrap">
-                    {problem.sampleInput}
-                  </pre>
-                </div>
-                <div>
-                  <h3 className="font-medium mb-2">출력</h3>
-                  <pre className="bg-gray-100 p-4 rounded text-sm font-mono whitespace-pre-wrap">
-                    {problem.sampleOutput}
-                  </pre>
-                </div>
+              <div className="space-y-4">
+                {problem.samples.map((sample, index) => (
+                  <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <h3 className="font-medium mb-2">입력 {index + 1}</h3>
+                      <pre className="bg-gray-100 p-4 rounded text-sm font-mono whitespace-pre-wrap">
+                        {sample.input}
+                      </pre>
+                    </div>
+                    <div>
+                      <h3 className="font-medium mb-2">출력 {index + 1}</h3>
+                      <pre className="bg-gray-100 p-4 rounded text-sm font-mono whitespace-pre-wrap">
+                        {sample.output}
+                      </pre>
+                    </div>
+                  </div>
+                ))}
               </div>
             </Card>
           )}
