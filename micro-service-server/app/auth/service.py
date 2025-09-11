@@ -19,7 +19,7 @@ async def login(req):
     token = await _get_token(req)
     session_token = await exchange_sso_for_local_token(token)
     logging.info(f"     login request: session_token = {session_token}")
-    return _create_cookie_data(session_token, TOKEN_TTL_SECONDS)
+    return await _create_cookie_data(session_token, TOKEN_TTL_SECONDS)
 
 
 async def logout(req: Request):
@@ -28,7 +28,7 @@ async def logout(req: Request):
     redis = await get_redis()
     redis_key = f"{REDIS_SESSION_PREFIX}{token}"
     await redis.delete(redis_key)
-    return _create_cookie_data("", 0)
+    return await _create_cookie_data("", 0)
 
 
 async def _get_token(req):
