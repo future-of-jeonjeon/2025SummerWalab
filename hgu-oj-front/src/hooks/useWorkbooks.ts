@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { workbookService } from '../services/workbookService';
 import { WorkbookFilter } from '../stores/workbookStore';
 
-export const useWorkbooks = (filter: WorkbookFilter) => {
+export const useWorkbooks = (filter?: WorkbookFilter) => {
   return useQuery({
     queryKey: ['workbooks', filter],
     queryFn: () => workbookService.getWorkbooks(filter),

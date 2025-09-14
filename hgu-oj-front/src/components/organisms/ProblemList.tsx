@@ -1,6 +1,5 @@
 import React from 'react';
 import { Problem } from '../../types';
-import { SearchBar } from '../molecules/SearchBar';
 import { Button } from '../atoms/Button';
 
 interface ProblemListProps {
@@ -93,41 +92,16 @@ export const ProblemList: React.FC<ProblemListProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* 검색 및 필터 */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="flex-1">
-          <SearchBar
-            value=""
-            onChange={onSearch}
-            placeholder="문제 검색..."
-          />
-        </div>
-        <div className="flex gap-2">
-          {difficultyOptions.map((option) => (
-            <Button
-              key={option.value}
-              onClick={() => onFilterChange({ difficulty: option.value })}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                currentFilter.difficulty === option.value
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-              }`}
-            >
-              {option.label}
-            </Button>
-          ))}
-        </div>
-      </div>
 
       {/* 문제 목록 테이블 */}
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
           <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-500 uppercase tracking-wider">
-            <div className="col-span-1 text-center">#</div>
-            <div className="col-span-6">Title</div>
-            <div className="col-span-2 text-center">Level</div>
-            <div className="col-span-1 text-center">Submission</div>
-            <div className="col-span-2 text-center">Success Rate</div>
+            <div className="col-span-1 text-center">번호</div>
+            <div className="col-span-6">제목</div>
+            <div className="col-span-2 text-center">난이도</div>
+            <div className="col-span-1 text-center">제출</div>
+            <div className="col-span-2 text-center">정답률</div>
           </div>
         </div>
         <div className="divide-y divide-gray-200">
@@ -172,7 +146,7 @@ export const ProblemList: React.FC<ProblemListProps> = ({
           <Button
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage <= 1}
-            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg"
+            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-gray-900"
           >
             이전
           </Button>
@@ -187,7 +161,7 @@ export const ProblemList: React.FC<ProblemListProps> = ({
                   className={`px-3 py-2 rounded-lg ${
                     currentPage === page
                       ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 hover:bg-gray-300'
+                      : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
                   }`}
                 >
                   {page}
@@ -199,7 +173,7 @@ export const ProblemList: React.FC<ProblemListProps> = ({
           <Button
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage >= totalPages}
-            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg"
+            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-gray-900"
           >
             다음
           </Button>

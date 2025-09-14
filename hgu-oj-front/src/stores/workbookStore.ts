@@ -5,6 +5,8 @@ interface WorkbookFilter {
   search?: string;
   page?: number;
   limit?: number;
+  sortBy?: 'created_at' | 'title';
+  sortOrder?: 'asc' | 'desc';
 }
 
 interface WorkbookStore {
@@ -18,6 +20,8 @@ export const useWorkbookStore = create<WorkbookStore>((set) => ({
     search: '',
     page: 1,
     limit: 20,
+    sortBy: 'created_at',
+    sortOrder: 'desc',
   },
   setFilter: (newFilter) =>
     set((state) => ({
@@ -29,6 +33,8 @@ export const useWorkbookStore = create<WorkbookStore>((set) => ({
         search: '',
         page: 1,
         limit: 20,
+        sortBy: 'created_at',
+        sortOrder: 'desc',
       },
     }),
 }));

@@ -74,11 +74,12 @@ export interface Workbook {
   id: number;
   title: string;
   description: string;
-  createdBy: User;
-  createdTime: string;
-  updatedTime: string;
-  isPublic: boolean;
-  problemCount: number;
+  category?: string;
+  created_by_id: number;
+  created_at: string;
+  updated_at: string;
+  is_public: boolean;
+  problemCount?: number;
 }
 
 export interface WorkbookProblem {

@@ -2,8 +2,11 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Card } from '../components/atoms/Card';
 import { Button } from '../components/atoms/Button';
+import { useStats } from '../hooks/useStats';
 
 export const HomePage: React.FC = () => {
+  const { problemCount, workbookCount, contestCount } = useStats();
+
   return (
     <div className="min-h-screen bg-white">
       {/* Hero Section with New Color Gradient Banner */}
@@ -17,11 +20,14 @@ export const HomePage: React.FC = () => {
               HGU Online Judge
             </h1>
             <p className="text-lg md:text-xl text-white mb-8 max-w-2xl mx-auto">
-              Train Hard, Solve Fast, Code Like a Pro!
+              Why not change the world?
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link to="/problems">
-                <Button className="bg-white hover:bg-gray-50 text-black px-8 py-3 text-base font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200">
+                <Button 
+                  variant="outline" 
+                  className="bg-white hover:bg-gray-50 !text-gray-900 px-8 py-3 text-base font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
+                >
                   문제 살펴보기
                 </Button>
               </Link>
@@ -90,22 +96,18 @@ export const HomePage: React.FC = () => {
       {/* Stats Section */}
       <div className="bg-gray-50 py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8 text-center">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
             <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 group border border-gray-200">
-              <div className="text-4xl font-bold text-primary-600 mb-2 group-hover:scale-110 transition-transform duration-300">100+</div>
+              <div className="text-4xl font-bold text-primary-600 mb-2 group-hover:scale-110 transition-transform duration-300">{problemCount}</div>
               <div className="text-lg text-gray-600 font-medium">문제 수</div>
             </div>
             <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 group border border-gray-200">
-              <div className="text-4xl font-bold text-secondary-600 mb-2 group-hover:scale-110 transition-transform duration-300">50+</div>
+              <div className="text-4xl font-bold text-secondary-600 mb-2 group-hover:scale-110 transition-transform duration-300">{workbookCount}</div>
               <div className="text-lg text-gray-600 font-medium">문제집</div>
             </div>
             <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 group border border-gray-200">
-              <div className="text-4xl font-bold text-accent-600 mb-2 group-hover:scale-110 transition-transform duration-300">10+</div>
+              <div className="text-4xl font-bold text-accent-600 mb-2 group-hover:scale-110 transition-transform duration-300">{contestCount}</div>
               <div className="text-lg text-gray-600 font-medium">진행 중인 대회</div>
-            </div>
-            <div className="bg-white rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 p-6 group border border-gray-200">
-              <div className="text-4xl font-bold text-blue-600 mb-2 group-hover:scale-110 transition-transform duration-300">1000+</div>
-              <div className="text-lg text-gray-600 font-medium">활성 사용자</div>
             </div>
           </div>
         </div>

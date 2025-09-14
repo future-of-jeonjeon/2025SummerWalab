@@ -49,7 +49,7 @@ export const WorkbookDetailPage: React.FC = () => {
       {/* 뒤로가기 버튼 */}
       <Button
         onClick={handleBackClick}
-        className="mb-6 bg-gray-200 hover:bg-gray-300 text-gray-700"
+        className="mb-6 bg-blue-600 hover:bg-blue-700 text-white"
       >
         ← 문제집 목록으로 돌아가기
       </Button>
@@ -59,14 +59,14 @@ export const WorkbookDetailPage: React.FC = () => {
         <div className="flex justify-between items-start mb-4">
           <h1 className="text-3xl font-bold text-gray-800">{workbook.title}</h1>
           <span className="text-lg text-gray-600">
-            {workbook.problemCount}문제
+            {workbook.problemCount || 0}문제
           </span>
         </div>
         
         <div className="text-gray-600 mb-4">
           <p className="text-sm mb-2">
-            작성자: {workbook.createdBy.username} | 
-            생성일: {new Date(workbook.createdTime).toLocaleDateString()}
+            작성자: User {workbook.created_by_id} | 
+            생성일: {new Date(workbook.created_at).toLocaleDateString()}
           </p>
         </div>
         
