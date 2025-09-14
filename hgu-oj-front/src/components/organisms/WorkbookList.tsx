@@ -61,15 +61,6 @@ export const WorkbookList: React.FC<WorkbookListProps> = ({
 
   return (
     <div className="space-y-6">
-      {/* 검색바 */}
-      <div className="max-w-md mx-auto">
-        <SearchBar
-          value={searchQuery}
-          onChange={onSearchChange}
-          placeholder="문제집 검색..."
-        />
-      </div>
-
       {/* 문제집 목록 */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
         {workbooks.map((workbook) => (

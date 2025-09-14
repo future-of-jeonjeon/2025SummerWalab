@@ -83,64 +83,40 @@ export const ContestListPage: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold text-gray-900 mb-2">대회</h1>
-            </div>
-            <div className="text-right">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-4 ml-2">
+              <div className="text-sm text-gray-500">전체 대회 수</div>
               <div className="text-2xl font-bold text-blue-600">{data?.total || 0}</div>
-              <div className="text-sm text-gray-500">Total Contests</div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="max-w-md">
+                <SearchBar
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  placeholder="대회 검색..."
+                />
+              </div>
+              <div>
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className="px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">전체</option>
+                  <option value="ongoing">진행 중</option>
+                  <option value="upcoming">시작 예정</option>
+                  <option value="ended">종료됨</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* 검색 및 필터 */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-8">
-          <div className="flex-1">
-            <SearchBar
-              value={searchQuery}
-              onChange={handleSearchChange}
-              placeholder="대회 검색..."
-            />
-          </div>
-          <div className="flex gap-2">
-            <Button
-              onClick={() => setStatusFilter('')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                statusFilter === ''
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-              }`}
-            >
-              전체
-            </Button>
-            <Button
-              onClick={() => setStatusFilter('ongoing')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                statusFilter === 'ongoing'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-              }`}
-            >
-              진행 중
-            </Button>
-            <Button
-              onClick={() => setStatusFilter('upcoming')}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                statusFilter === 'upcoming'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-white text-gray-700 hover:bg-gray-50 border border-gray-300'
-              }`}
-            >
-              시작 예정
-            </Button>
-          </div>
-        </div>
 
         {/* 대회 목록 */}
-        <div className="space-y-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {data?.data.length === 0 ? (
-            <div className="text-center py-12">
+            <div className="col-span-full text-center py-12">
               <div className="text-gray-600 text-lg mb-4">대회가 없습니다</div>
               <p className="text-gray-500">다른 검색어를 시도해보세요</p>
             </div>
@@ -150,47 +126,52 @@ export const ContestListPage: React.FC = () => {
               return (
                 <Card
                   key={contest.id}
-                  className="p-6 hover:shadow-lg transition-shadow cursor-pointer"
+                  className="p-4 hover:shadow-lg transition-shadow cursor-pointer h-64 flex flex-col"
                   onClick={() => handleContestClick(contest.id)}
                 >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-4 mb-3">
-                        <h3 className="text-lg font-semibold text-gray-900">
-                          {contest.title}
-                        </h3>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusInfo.color}`}>
-                          {statusInfo.text}
-                        </span>
-                      </div>
-                      <p className="text-gray-600 mb-4 text-sm line-clamp-2">
-                        {contest.description.replace(/<[^>]*>/g, '')}
-                      </p>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-xs text-gray-500">
-                        <div>
-                          <span className="font-medium text-gray-700">시작:</span><br />
-                          {formatDate(contest.startTime)}
-                        </div>
-                        <div>
-                          <span className="font-medium text-gray-700">종료:</span><br />
-                          {formatDate(contest.endTime)}
-                        </div>
-                        <div>
-                          <span className="font-medium text-gray-700">규칙:</span><br />
-                          {contest.ruleType}
-                        </div>
-                        <div>
-                          <span className="font-medium text-gray-700">작성자:</span><br />
-                          {contest.createdBy.username}
-                        </div>
-                      </div>
+                  {/* 제목과 상태 */}
+                  <div className="flex justify-between items-start mb-2">
+                    <h3 className="text-lg font-semibold text-gray-800 line-clamp-2 flex-1 pr-2">
+                      {contest.title}
+                    </h3>
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium flex-shrink-0 ${statusInfo.color}`}>
+                      {statusInfo.text}
+                    </span>
+                  </div>
+                  
+                  {/* 설명 */}
+                  <div className="flex-1 mb-3">
+                    <p className="text-gray-600 text-sm line-clamp-2 h-8 overflow-hidden">
+                      {contest.description.replace(/<[^>]*>/g, '') || '설명이 없습니다.'}
+                    </p>
+                  </div>
+                  
+                  {/* 대회 정보 */}
+                  <div className="text-xs text-gray-500 mb-3">
+                    <div className="mb-1">
+                      <span className="font-medium">시작:</span> {formatDate(contest.startTime)}
                     </div>
-                    <div className="ml-4 flex-shrink-0">
-                      <Button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 text-sm">
-                        참가하기
-                      </Button>
+                    <div className="mb-1">
+                      <span className="font-medium">종료:</span> {formatDate(contest.endTime)}
+                    </div>
+                    <div className="mb-1">
+                      <span className="font-medium">규칙:</span> {contest.ruleType}
+                    </div>
+                    <div>
+                      <span className="font-medium">작성자:</span> {contest.createdBy.username}
                     </div>
                   </div>
+                  
+                  {/* 버튼 */}
+                  <Button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleContestClick(contest.id);
+                    }}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm py-2 mt-auto"
+                  >
+                    참가하기
+                  </Button>
                 </Card>
               );
             })

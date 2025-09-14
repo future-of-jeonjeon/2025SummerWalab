@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useProblems } from '../hooks/useProblems';
 import { ProblemList } from '../components/organisms/ProblemList';
 import { useProblemStore } from '../stores/problemStore';
+import { SearchBar } from '../components/molecules/SearchBar';
 
 export const ProblemListPage: React.FC = () => {
   const navigate = useNavigate();
@@ -19,6 +20,12 @@ export const ProblemListPage: React.FC = () => {
     setSearchQuery(query);
     setFilter({ search: query, page: 1 });
   };
+
+  // 클라이언트 사이드 검색 필터링
+  const filteredProblems = data?.data?.filter(problem => 
+    problem.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    (problem.description && problem.description.toLowerCase().includes(searchQuery.toLowerCase()))
+  ) || [];
 
   const handleFilterChange = (newFilter: { difficulty?: string }) => {
     setFilter({
@@ -48,19 +55,38 @@ export const ProblemListPage: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-4xl font-bold text-gray-900 mb-2">PROBLEM</h1>
-            </div>
-            <div className="text-right">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center space-x-4 ml-2">
+              <div className="text-sm text-gray-500">전체 문제수</div>
               <div className="text-2xl font-bold text-blue-600">{data?.total || 0}</div>
-              <div className="text-sm text-gray-500">Total Problems</div>
+            </div>
+            <div className="flex items-center gap-4">
+              <div className="max-w-md">
+                <SearchBar
+                  value={searchQuery}
+                  onChange={setSearchQuery}
+                  onSearch={handleSearch}
+                  placeholder="문제 검색..."
+                />
+              </div>
+              <div>
+                <select
+                  value={filter.difficulty || ''}
+                  onChange={(e) => handleFilterChange({ difficulty: e.target.value })}
+                  className="px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="">All</option>
+                  <option value="Low">Level1</option>
+                  <option value="Mid">Level2</option>
+                  <option value="High">Level3</option>
+                </select>
+              </div>
             </div>
           </div>
         </div>
 
         <ProblemList
-          problems={data?.data || []}
+          problems={filteredProblems}
           onProblemClick={handleProblemClick}
           onSearch={handleSearch}
           onFilterChange={handleFilterChange}
