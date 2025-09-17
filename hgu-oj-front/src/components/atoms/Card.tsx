@@ -5,6 +5,7 @@ interface CardProps extends BaseComponentProps {
   padding?: 'sm' | 'md' | 'lg';
   shadow?: 'sm' | 'md' | 'lg';
   hover?: boolean;
+  appearance?: 'default' | 'inverted';
   onClick?: () => void;
 }
 
@@ -13,10 +14,14 @@ export const Card: React.FC<CardProps> = ({
   padding = 'md',
   shadow = 'md',
   hover = false,
+  appearance = 'default',
   onClick,
   className = '',
 }) => {
-  const baseClasses = 'bg-white rounded-lg border border-gray-200';
+  const baseColorClasses = appearance === 'inverted'
+    ? 'bg-slate-900 border border-slate-700 text-slate-100'
+    : 'bg-white border border-gray-200 text-gray-900';
+  const baseClasses = `rounded-lg ${baseColorClasses}`;
   
   const paddingClasses = {
     sm: 'p-3',

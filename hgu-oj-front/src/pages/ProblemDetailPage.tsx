@@ -712,9 +712,6 @@ export const ProblemDetailPage: React.FC = () => {
 
         {/* Right: Editor + I/O split */}
         <div className={`flex-1 min-w-0 flex flex-col ${isDarkTheme ? 'bg-slate-900 text-slate-100' : 'bg-white text-gray-900'}`}>
-          <div className={`flex items-center px-4 py-2 border-b ${editorHeaderClasses}`}>
-            <div className={`text-sm ${isDarkTheme ? 'text-slate-200' : 'text-gray-700'}`}>코드 편집</div>
-          </div>
           <CodeEditor
             problemId={problemId}
             samples={problem.samples}

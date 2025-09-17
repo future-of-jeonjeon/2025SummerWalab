@@ -280,6 +280,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           <Button
             variant="outline"
             size="sm"
+            className={isDarkTheme ? 'border-slate-600 text-slate-200 hover:bg-slate-800' : ''}
             onClick={() => {
               if (confirm('현재 언어의 기본 템플릿으로 초기화할까요?')) {
                 const def = defaultCode[language] || '';
@@ -431,7 +432,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
                     </Button>
                   </div>
                 </div>
-                <Card className={`flex-1 ${isDarkTheme ? 'bg-slate-900 border-slate-700 text-slate-100' : ''}`}>
+                <Card className="flex-1" appearance={isDarkTheme ? 'inverted' : 'default'}>
                   <div className="h-full overflow-auto space-y-2">
                     {executionResult ? (
                       <>
