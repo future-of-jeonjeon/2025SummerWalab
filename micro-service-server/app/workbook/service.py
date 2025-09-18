@@ -1,5 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 from app.workbook.models import Workbook, WorkbookProblem
 from app.user.models import User
 from app.workbook.schemas import WorkbookCreate, WorkbookUpdate, WorkbookProblemCreate
@@ -94,7 +95,10 @@ class WorkbookService:
     async def get_workbook_problems(self, workbook_id: int) -> List[WorkbookProblem]:
         """문제집에 포함된 문제들 조회"""
         result = await self.db.execute(
-            select(WorkbookProblem).where(WorkbookProblem.workbook_id == workbook_id)
+            select(WorkbookProblem)
+            .options(joinedload(WorkbookProblem.problem))
+            .where(WorkbookProblem.workbook_id == workbook_id)
+            .order_by(WorkbookProblem.order)
         )
         return result.scalars().all()
     
