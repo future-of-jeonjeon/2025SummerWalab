@@ -1,53 +1,53 @@
 from fastapi import APIRouter, Depends, HTTPException
 from app.security.deps import get_userdata
 from app.user.DTO import UserData
-from app.workbook.service import WorkbookService
-from app.workbook.schemas import WorkbookCreate, Workbook, WorkbookProblemCreate, WorkbookProblem
+from app.utils.security import authorize_roles
+from app.workbook.schemas import WorkbookCreate, Workbook, WorkbookProblem
 from app.config.database import get_session
 from sqlalchemy.ext.asyncio import AsyncSession
 import app.workbook.service as serv
 
 router = APIRouter(prefix="/api/workbook", tags=["workbook"])
 
+
 @router.post("/", response_model=Workbook)
+@authorize_roles("Admin")
 async def create_workbook(
         workbook: WorkbookCreate,
-        userdata:UserData = Depends(get_userdata),
+        userdata: UserData = Depends(get_userdata),
         db: AsyncSession = Depends(get_session)):
-    return await serv.create_workbook(workbook, userdata.username, db)
+    return await serv.create_workbook(workbook, userdata, db)
 
+
+@router.get("/all", response_model=list[Workbook])
+@authorize_roles("Admin")
+async def get_workbooks(
+        userdata: UserData = Depends(get_userdata), # 보안검사용
+        db: AsyncSession = Depends(get_session)):
+    return await serv.get_workbooks(db)
 
 @router.get("/", response_model=list[Workbook])
-async def get_workbooks(
-    db: AsyncSession = Depends(get_session)
-):
-    """사용자의 문제집 목록 조회"""
-    workbook_service = WorkbookService(db)
-    return await workbook_service.get_user_workbooks(1)
+async def get_public_workbooks(
+        db: AsyncSession = Depends(get_session)):
+    return await serv.get_public_workbooks(db)
 
 
 @router.get("/{workbook_id}", response_model=Workbook)
 async def get_workbook(
-    workbook_id: int,
-    db: AsyncSession = Depends(get_session)
-):
-    """특정 문제집 조회"""
-    workbook_service = WorkbookService(db)
-    workbook = await workbook_service.get_workbook(workbook_id)
-    if not workbook:
-        raise HTTPException(status_code=404, detail="Workbook not found")
-    return workbook
+        workbook_id: int,
+        userdata: UserData = Depends(get_userdata),
+        db: AsyncSession = Depends(get_session)):
+    return await serv.get_workbook(workbook_id, userdata, db)
 
 
 @router.put("/{workbook_id}", response_model=Workbook)
+@authorize_roles("Admin")
 async def update_workbook(
-    workbook_id: int,
-    workbook: WorkbookCreate,
-    db: AsyncSession = Depends(get_session)
-):
-    """문제집 수정"""
-    workbook_service = WorkbookService(db)
-    updated_workbook = await workbook_service.update_workbook(workbook_id, workbook)
+        workbook_id: int,
+        workbook: WorkbookCreate,
+        userdata: UserData = Depends(get_userdata),
+        db: AsyncSession = Depends(get_session)):
+    updated_workbook = await serv.update_workbook(workbook_id, workbook, db)
     if not updated_workbook:
         raise HTTPException(status_code=404, detail="Workbook not found")
     return updated_workbook
@@ -55,85 +55,24 @@ async def update_workbook(
 
 @router.delete("/{workbook_id}")
 async def delete_workbook(
-    workbook_id: int,
-    db: AsyncSession = Depends(get_session)
-):
-    """문제집 삭제"""
-    workbook_service = WorkbookService(db)
-    success = await workbook_service.delete_workbook(workbook_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Workbook not found")
-    return {"message": "Workbook deleted successfully"}
+        workbook_id: int,
+        db: AsyncSession = Depends(get_session)):
+    await serv.delete_workbook(workbook_id, db)
 
 
 @router.get("/{workbook_id}/problems", response_model=list[WorkbookProblem])
 async def get_workbook_problems(
-    workbook_id: int,
-    db: AsyncSession = Depends(get_session)
-):
-    """문제집에 포함된 문제들 조회"""
-    workbook_service = WorkbookService(db)
-    # 먼저 문제집이 존재하는지 확인
-    workbook = await workbook_service.get_workbook(workbook_id)
-    if not workbook:
-        raise HTTPException(status_code=404, detail="Workbook not found")
-    
-    problems = await workbook_service.get_workbook_problems(workbook_id)
-    return problems
-
-
-@router.post("/{workbook_id}/problems", response_model=WorkbookProblem)
-async def add_problem_to_workbook(
-    workbook_id: int,
-    problem: WorkbookProblemCreate,
-    db: AsyncSession = Depends(get_session)
-):
-    """문제집에 문제 추가"""
-    workbook_service = WorkbookService(db)
-    # 먼저 문제집이 존재하는지 확인
-    workbook = await workbook_service.get_workbook(workbook_id)
-    if not workbook:
-        raise HTTPException(status_code=404, detail="Workbook not found")
-    
-    result = await workbook_service.add_problem_to_workbook(workbook_id, problem)
-    if not result:
-        raise HTTPException(status_code=400, detail="Failed to add problem to workbook")
-    return result
-
-
-@router.delete("/{workbook_id}/problems/{problem_id}")
-async def remove_problem_from_workbook(
-    workbook_id: int,
-    problem_id: int,
-    db: AsyncSession = Depends(get_session)
-):
-    """문제집에서 문제 제거"""
-    workbook_service = WorkbookService(db)
-    # 먼저 문제집이 존재하는지 확인
-    workbook = await workbook_service.get_workbook(workbook_id)
-    if not workbook:
-        raise HTTPException(status_code=404, detail="Workbook not found")
-    
-    success = await workbook_service.remove_problem_from_workbook(workbook_id, problem_id)
-    if not success:
-        raise HTTPException(status_code=400, detail="Failed to remove problem from workbook")
-    return {"message": "Problem removed from workbook successfully"}
+        workbook_id: int,
+        db: AsyncSession = Depends(get_session)):
+    return await serv.get_workbook_problems(workbook_id, db)
 
 
 @router.put("/{workbook_id}/problems")
+@authorize_roles("Admin")
 async def update_workbook_problems(
-    workbook_id: int,
-    problems_data: dict,
-    db: AsyncSession = Depends(get_session)
+        workbook_id: int,
+        problems_data: dict,
+        userdata: UserData = Depends(get_userdata),
+        db: AsyncSession = Depends(get_session)
 ):
-    """문제집 문제 일괄 업데이트"""
-    workbook_service = WorkbookService(db)
-    # 먼저 문제집이 존재하는지 확인
-    workbook = await workbook_service.get_workbook(workbook_id)
-    if not workbook:
-        raise HTTPException(status_code=404, detail="Workbook not found")
-    
-    success = await workbook_service.update_workbook_problems(workbook_id, problems_data.get("problems", []))
-    if not success:
-        raise HTTPException(status_code=400, detail="Failed to update workbook problems")
-    return {"message": "Workbook problems updated successfully"}
+    return await serv.update_workbook_problems(workbook_id, problems_data.get("problems", []), db)

@@ -1,168 +1,81 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from sqlalchemy.orm import joinedload
-
-from app.config.database import get_session
-from app.utils.databse import transactional
+from app.user.DTO import UserData
 from app.workbook.models import Workbook, WorkbookProblem
-from app.workbook.schemas import WorkbookCreate, WorkbookUpdate, WorkbookProblemCreate
+from app.workbook.schemas import WorkbookCreate, WorkbookUpdate
 from typing import List, Optional
-import app.user.user_repository as user_repo
 from fastapi import HTTPException
+import app.user.user_repository as user_repo
+import app.workbook.repository as workbook_repo
 
-@transactional
-async def create_workbook(workbook_data: WorkbookCreate, username: str, db: AsyncSession) -> Workbook:
-    user = await user_repo.find_by_username(db, username)
+
+async def create_workbook(workbook_data: WorkbookCreate, userdata: UserData, db: AsyncSession) -> Workbook:
+    user = await user_repo.find_by_username(db, userdata.username)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    user_id = user.id
-    workbook = Workbook(
+    workbook = _create_workbook_by_data(workbook_data, user.id)
+    return await workbook_repo.save(workbook, db)
+
+
+async def get_workbook(workbook_id: int, userdata: UserData, db: AsyncSession) -> Workbook:
+    workbook = await workbook_repo.find_by_id(workbook_id, db)
+    if not workbook:
+        raise HTTPException(status_code=404, detail="WorkBook not found")
+    if not workbook.is_public and not userdata.admin_type.__contains__("Admin"):
+        raise HTTPException(status_code=403, detail="Permission error")
+    return workbook
+
+async def get_workbooks(db: AsyncSession) -> List[Workbook]:
+    ## TODO : 이후 pagination 방식으로 개선 필요
+    return await workbook_repo.find_all(db)
+
+
+async def get_public_workbooks(db: AsyncSession) -> List[Workbook]:
+    ## TODO : 이후 pagination 방식으로 개선 필요
+    return await workbook_repo.find_all_is_public_is_true(db)
+
+
+async def update_workbook(workbook_id: int, workbook_data: WorkbookUpdate, db: AsyncSession) -> Optional[Workbook]:
+    workbook = await workbook_repo.find_by_id(workbook_id, db)
+    if not workbook:
+        raise HTTPException(status_code=404, detail="WorkBook not found")
+    workbook = _update_workbook_data(workbook, workbook_data)
+    return await workbook_repo.save(workbook, db)
+
+
+async def delete_workbook(workbook_id: int, db: AsyncSession):
+    workbook = await workbook_repo.find_by_id(workbook_id, db)
+    if not workbook:
+        raise HTTPException(status_code=404, detail="WorkBook not found")
+    await workbook_repo.delete(workbook, db)
+
+async def get_workbook_problems(workbook_id: int, db: AsyncSession) -> List[WorkbookProblem]:
+    ## TODO : is_public -> false 인 경우 처리 필요
+    workbook = await workbook_repo.find_by_id(workbook_id, db)
+    if not workbook:
+        raise HTTPException(status_code=404, detail="WorkBook not found")
+    return workbook.problems
+
+
+async def update_workbook_problems(workbook_id: int, problem_ids: list[int], db: AsyncSession) -> bool:
+    workbook = await workbook_repo.find_by_id(workbook_id, db)
+    if not workbook:
+        raise HTTPException(status_code=404, detail="WorkBook not found")
+
+    return await workbook_repo.update_problems(workbook, problem_ids, db)
+
+def _create_workbook_by_data(workbook_data: WorkbookCreate, user_id: int):
+    return Workbook(
         title=workbook_data.title,
         description=workbook_data.description,
         category=workbook_data.category,
         created_by_id=user_id,
         is_public=workbook_data.is_public,
     )
-    db.add(workbook)
-    await db.flush()
+
+
+def _update_workbook_data(workbook: Workbook, workbook_data: WorkbookUpdate):
+    workbook.title = workbook_data.title
+    workbook.description = workbook_data.description
+    workbook.category = workbook_data.category
+    workbook.is_public = workbook_data.is_public
     return workbook
-
-class WorkbookService:
-    def __init__(self, db: AsyncSession):
-        self.db = db
-
-    async def get_workbook(self, workbook_id: int) -> Optional[Workbook]:
-        """문제집 조회"""
-        result = await self.db.execute(
-            select(Workbook).where(Workbook.id == workbook_id)
-        )
-        return result.scalar_one_or_none()
-    
-    async def get_user_workbooks(self, user_id: int) -> List[Workbook]:
-        """사용자의 문제집 목록 조회"""
-        result = await self.db.execute(
-            select(Workbook).where(Workbook.created_by_id == user_id)
-        )
-        return result.scalars().all()
-    
-    async def get_public_workbooks(self) -> List[Workbook]:
-        """공개 문제집 목록 조회"""
-        result = await self.db.execute(
-            # select(Workbook).wherer(Workbook.is_public == True)
-            select(Workbook)
-        )
-        return result.scalars().all()
-    
-    async def update_workbook(self, workbook_id: int, workbook_data: WorkbookUpdate) -> Optional[Workbook]:
-        """문제집 수정"""
-        workbook = await self.get_workbook(workbook_id)
-        if not workbook:
-            return None
-        
-        update_data = workbook_data.dict(exclude_unset=True)
-        for field, value in update_data.items():
-            setattr(workbook, field, value)
-        
-        await self.db.commit()
-        await self.db.refresh(workbook)
-        return workbook
-    
-    async def delete_workbook(self, workbook_id: int) -> bool:
-        """문제집 삭제"""
-        try:
-            workbook = await self.get_workbook(workbook_id)
-            if not workbook:
-                return False
-            
-            # 먼저 workbook_problem 테이블에서 해당 문제집 ID를 가진 모든 레코드 삭제
-            result = await self.db.execute(
-                select(WorkbookProblem).where(WorkbookProblem.workbook_id == workbook_id)
-            )
-            workbook_problems = result.scalars().all()
-            
-            for workbook_problem in workbook_problems:
-                await self.db.delete(workbook_problem)
-            
-            # 그 다음 문제집 삭제
-            await self.db.delete(workbook)
-            await self.db.commit()
-            return True
-            
-        except Exception as e:
-            await self.db.rollback()
-            print(f"Error deleting workbook: {e}")
-            return False
-    
-    async def get_workbook_problems(self, workbook_id: int) -> List[WorkbookProblem]:
-        """문제집에 포함된 문제들 조회"""
-        result = await self.db.execute(
-            select(WorkbookProblem)
-            .options(joinedload(WorkbookProblem.problem))
-            .where(WorkbookProblem.workbook_id == workbook_id)
-            .order_by(WorkbookProblem.order)
-        )
-        return result.scalars().all()
-    
-    async def add_problem_to_workbook(self, workbook_id: int, problem_data: WorkbookProblemCreate) -> Optional[WorkbookProblem]:
-        """문제집에 문제 추가"""
-        workbook = await self.get_workbook(workbook_id)
-        if not workbook:
-            return None
-        
-        workbook_problem = WorkbookProblem(
-            workbook_id=workbook_id,
-            problem_id=problem_data.problem_id,
-            order=problem_data.order
-        )
-        self.db.add(workbook_problem)
-        await self.db.commit()
-        await self.db.refresh(workbook_problem)
-        return workbook_problem
-    
-    async def remove_problem_from_workbook(self, workbook_id: int, problem_id: int) -> bool:
-        """문제집에서 문제 제거"""
-        workbook = await self.get_workbook(workbook_id)
-        if not workbook:
-            return False
-        
-        result = await self.db.execute(
-            select(WorkbookProblem).where(
-                WorkbookProblem.workbook_id == workbook_id,
-                WorkbookProblem.problem_id == problem_id
-            )
-        )
-        workbook_problem = result.scalar_one_or_none()
-        if not workbook_problem:
-            return False
-        
-        await self.db.delete(workbook_problem)
-        await self.db.commit()
-        return True
-
-    async def update_workbook_problems(self, workbook_id: int, problem_ids: list[int]) -> bool:
-        """문제집 문제 일괄 업데이트"""
-        try:
-            # 기존 문제집 문제들 모두 삭제
-            result = await self.db.execute(
-                select(WorkbookProblem).where(WorkbookProblem.workbook_id == workbook_id)
-            )
-            existing_problems = result.scalars().all()
-            
-            for problem in existing_problems:
-                await self.db.delete(problem)
-            
-            # 새로운 문제들 추가 (추가된 순서대로)
-            for order, problem_id in enumerate(problem_ids):
-                workbook_problem = WorkbookProblem(
-                    workbook_id=workbook_id,
-                    problem_id=problem_id,
-                    order=order
-                )
-                self.db.add(workbook_problem)
-            
-            await self.db.commit()
-            return True
-        except Exception as e:
-            await self.db.rollback()
-            print(f"Error updating workbook problems: {e}")
-            return False
