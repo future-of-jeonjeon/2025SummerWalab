@@ -3,6 +3,18 @@ from typing import Optional, List
 from datetime import datetime
 
 
+class ProblemSummary(BaseModel):
+    id: int
+    title: str
+    description: Optional[str] = None
+    difficulty: Optional[str] = None
+    time_limit: Optional[int] = None
+    memory_limit: Optional[int] = None
+
+    class Config:
+        from_attributes = True
+
+
 class WorkbookBase(BaseModel):
     title: str
     description: Optional[str] = None
@@ -35,6 +47,7 @@ class WorkbookProblem(WorkbookProblemBase):
     id: int
     workbook_id: int
     added_time: datetime 
+    problem: Optional[ProblemSummary] = None
     
     class Config:
         from_attributes = True

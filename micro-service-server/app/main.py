@@ -4,6 +4,7 @@ from app.security.cors import setup_cors
 import logging
 from datetime import datetime
 
+from sqlalchemy import text
 from sqlalchemy.orm import configure_mappers
 from app.config.database import get_session, engine
 
@@ -21,10 +22,16 @@ app.include_router(problem_routes.router)
 app.include_router(workbook_routes.router)
 app.include_router(execution_routes.router)
 
+
+@app.on_event("startup")
 async def startup_event():
     try:
         async with engine.begin() as conn:
-            pass
+            await conn.execute(
+                text(
+                    "ALTER TABLE public.workbook ADD COLUMN IF NOT EXISTS category VARCHAR(100);"
+                )
+            )
         print("Database connection successful.")
         configure_mappers()
     except Exception as e:
