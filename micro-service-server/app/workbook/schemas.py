@@ -1,6 +1,7 @@
-from pydantic import BaseModel
-from typing import Optional, List
 from datetime import datetime
+from typing import Optional, List
+
+from pydantic import BaseModel, Field
 
 
 class ProblemSummary(BaseModel):
@@ -23,7 +24,11 @@ class WorkbookBase(BaseModel):
 
 
 class WorkbookCreate(WorkbookBase):
-    pass
+    problem_ids: List[int] = Field(default_factory=list, alias="problemIds")
+
+    class Config:
+        from_attributes = True
+        allow_population_by_field_name = True
 
 
 class WorkbookUpdate(BaseModel):
@@ -35,18 +40,15 @@ class WorkbookUpdate(BaseModel):
 
 class WorkbookProblemBase(BaseModel):
     problem_id: int
-    order: int
 
 
-class WorkbookProblemCreate(BaseModel):
-    problem_id: int
-    order: int
+class WorkbookProblemCreate(WorkbookProblemBase):
+    pass
 
 
 class WorkbookProblem(WorkbookProblemBase):
     id: int
     workbook_id: int
-    added_time: datetime 
     problem: Optional[ProblemSummary] = None
     
     class Config:

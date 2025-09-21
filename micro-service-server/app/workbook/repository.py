@@ -13,8 +13,19 @@ async def save(workbook: Workbook, db: AsyncSession) -> Optional[Workbook]:
     await db.refresh(workbook)
     return workbook
 
-async def find_by_id(workbook_id:int, db: AsyncSession) -> Optional[Workbook]:
-    return await db.get(Workbook, workbook_id)
+
+async def find_by_id(workbook_id: int, db: AsyncSession) -> Optional[Workbook]:
+    from sqlalchemy.orm import selectinload
+
+    stmt = (
+        select(Workbook)
+        .options(
+            selectinload(Workbook.problems).selectinload(WorkbookProblem.problem)
+        )
+        .where(Workbook.id == workbook_id)
+    )
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()
 
 
 async def find_all_is_public_is_true(db: AsyncSession) -> List[Workbook]:
@@ -45,11 +56,10 @@ async def update_problems(workbook: Workbook, problem_ids: List[int], db: AsyncS
         await db.delete(workbook_problem)
 
     new_problems: List[WorkbookProblem] = []
-    for order, problem_id in enumerate(problem_ids):
+    for problem_id in problem_ids:
         workbook_problem = WorkbookProblem(
             workbook_id=workbook.id,
             problem_id=problem_id,
-            order=order,
         )
         db.add(workbook_problem)
         new_problems.append(workbook_problem)

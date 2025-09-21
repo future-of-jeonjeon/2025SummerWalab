@@ -8,7 +8,7 @@ from app.problem.models import Problem
 
 class Workbook(Base):
     """문제집 모델"""
-    __tablename__ = "workbook"
+    __tablename__ = "micro_workbook"
     __table_args__ = {"schema": "public"}
 
     id = Column(Integer, primary_key=True, index=True)
@@ -25,14 +25,12 @@ class Workbook(Base):
 
 class WorkbookProblem(Base):
     """문제집에 포함된 문제 모델"""
-    __tablename__ = "workbook_problem"
+    __tablename__ = "micro_workbook_problem"
     __table_args__ = {"schema": "public"}
 
     id = Column(Integer, primary_key=True, index=True)
-    workbook_id = Column(Integer, ForeignKey("public.workbook.id"), nullable=False)
+    workbook_id = Column(Integer, ForeignKey("public.micro_workbook.id"), nullable=False)
     problem_id = Column(Integer, ForeignKey("public.problem.id"), nullable=False)
-    order = Column(Integer, nullable=False)  # order_index -> order로 변경
-    added_time = Column(DateTime(timezone=True), server_default=func.now())  # created_at -> added_time으로 변경
 
     workbook = relationship("Workbook", back_populates="problems")
     problem = relationship("Problem")

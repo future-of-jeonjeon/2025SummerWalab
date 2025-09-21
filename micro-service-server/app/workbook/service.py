@@ -8,12 +8,27 @@ import app.user.user_repository as user_repo
 import app.workbook.repository as workbook_repo
 
 
-async def create_workbook(workbook_data: WorkbookCreate, userdata: UserData, db: AsyncSession) -> Workbook:
+async def create_workbook(
+        workbook_data: WorkbookCreate,
+        userdata: UserData,
+        db: AsyncSession,
+        *,
+        problems_data: Optional[list[int]] = None,
+) -> Workbook:
     user = await user_repo.find_by_username(db, userdata.username)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     workbook = _create_workbook_by_data(workbook_data, user.id)
-    return await workbook_repo.save(workbook, db)
+    saved_workbook = await workbook_repo.save(workbook, db)
+
+    provided_problem_ids = problems_data if problems_data is not None else getattr(workbook_data, "problem_ids", [])
+    if provided_problem_ids:
+        await workbook_repo.update_problems(saved_workbook, provided_problem_ids, db)
+        refreshed = await workbook_repo.find_by_id(saved_workbook.id, db)
+        if refreshed:
+            saved_workbook = refreshed
+
+    return saved_workbook
 
 
 async def get_workbook(workbook_id: int, userdata: UserData, db: AsyncSession) -> Workbook:
@@ -23,6 +38,7 @@ async def get_workbook(workbook_id: int, userdata: UserData, db: AsyncSession) -
     if not workbook.is_public and not userdata.admin_type.__contains__("Admin"):
         raise HTTPException(status_code=403, detail="Permission error")
     return workbook
+
 
 async def get_workbooks(db: AsyncSession) -> List[Workbook]:
     ## TODO : 이후 pagination 방식으로 개선 필요
@@ -62,6 +78,7 @@ async def update_workbook_problems(workbook_id: int, problem_ids: list[int], db:
         raise HTTPException(status_code=404, detail="WorkBook not found")
 
     return await workbook_repo.update_problems(workbook, problem_ids, db)
+
 
 def _create_workbook_by_data(workbook_data: WorkbookCreate, user_id: int):
     return Workbook(

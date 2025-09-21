@@ -18,6 +18,11 @@ async def create_workbook(
         db: AsyncSession = Depends(get_session)):
     return await serv.create_workbook(workbook, userdata, db)
 
+@router.get("/", response_model=list[Workbook])
+async def get_public_workbooks(
+        db: AsyncSession = Depends(get_session)):
+    return await serv.get_public_workbooks(db)
+
 
 @router.get("/all", response_model=list[Workbook])
 @authorize_roles("Admin")
@@ -25,11 +30,6 @@ async def get_workbooks(
         userdata: UserData = Depends(get_userdata), # 보안검사용
         db: AsyncSession = Depends(get_session)):
     return await serv.get_workbooks(db)
-
-@router.get("/", response_model=list[Workbook])
-async def get_public_workbooks(
-        db: AsyncSession = Depends(get_session)):
-    return await serv.get_public_workbooks(db)
 
 
 @router.get("/{workbook_id}", response_model=Workbook)
