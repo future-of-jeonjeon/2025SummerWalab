@@ -184,10 +184,12 @@ class JudgeDispatcher(DispatcherBase):
         self.submission.save()
 
         if self.contest_id:
-            if self.contest.status != ContestStatus.CONTEST_UNDERWAY or \
-                    User.objects.get(id=self.submission.user_id).is_contest_admin(self.contest):
+            if User.objects.get(id=self.submission.user_id).is_contest_admin(self.contest):
                 logger.info(
-                    "Contest debug mode, id: " + str(self.contest_id) + ", submission id: " + self.submission.id)
+                    "Contest admin submission skipped for rank update, contest id: %s, submission id: %s",
+                    str(self.contest_id),
+                    self.submission.id,
+                )
                 return
             with transaction.atomic():
                 self.update_contest_problem_status()
@@ -393,11 +395,34 @@ class JudgeDispatcher(DispatcherBase):
 
     def _update_oi_contest_rank(self, rank):
         problem_id = str(self.submission.problem_id)
-        current_score = self.submission.statistic_info["score"]
+        statistic_info = self.submission.statistic_info or {}
+        if isinstance(statistic_info, str):
+            try:
+                statistic_info = json.loads(statistic_info)
+            except (TypeError, ValueError):
+                statistic_info = {}
+
+        current_score = statistic_info.get("score")
+        if current_score is None:
+            # backward compatibility: some judge payloads may use other keys
+            current_score = statistic_info.get("total_score")
+        if current_score is None:
+            current_score = statistic_info.get("max_score")
+        if current_score is None:
+            current_score = statistic_info.get("sum_score")
+        if current_score is None:
+            current_score = 0
+
+        try:
+            current_score = int(current_score)
+        except (TypeError, ValueError):
+            current_score = 0
+
+        rank.submission_number += 1
         last_score = rank.submission_info.get(problem_id)
-        if last_score:
-            rank.total_score = rank.total_score - last_score + current_score
+        if last_score is not None:
+            rank.total_score = rank.total_score - int(last_score) + current_score
         else:
             rank.total_score = rank.total_score + current_score
         rank.submission_info[problem_id] = current_score
-        rank.save()
+        rank.save(update_fields=["total_score", "submission_info", "submission_number"])

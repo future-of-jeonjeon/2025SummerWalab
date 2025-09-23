@@ -1,10 +1,20 @@
 from typing import List, Optional
 
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload, selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.utils.databse import transactional
+from app.problem.models import Problem
 from app.workbook.models import Workbook, WorkbookProblem
+
+
+WORKBOOK_WITH_RELATIONS = (
+    selectinload(Workbook.problems)
+    .joinedload(WorkbookProblem.problem)
+    .selectinload(Problem.tags),
+    selectinload(Workbook.problems).selectinload(WorkbookProblem.tags),
+)
 
 @transactional
 async def save(workbook: Workbook, db: AsyncSession) -> Optional[Workbook]:
@@ -15,23 +25,15 @@ async def save(workbook: Workbook, db: AsyncSession) -> Optional[Workbook]:
 
 
 async def find_by_id(workbook_id: int, db: AsyncSession) -> Optional[Workbook]:
-    from sqlalchemy.orm import selectinload
-
-    stmt = (
-        select(Workbook)
-        .options(
-            selectinload(Workbook.problems).selectinload(WorkbookProblem.problem)
-        )
-        .where(Workbook.id == workbook_id)
-    )
+    stmt = select(Workbook).options(*WORKBOOK_WITH_RELATIONS).where(Workbook.id == workbook_id)
     result = await db.execute(stmt)
-    return result.scalar_one_or_none()
+    return result.scalars().unique().one_or_none()
 
 
 async def find_all_is_public_is_true(db: AsyncSession) -> List[Workbook]:
-    stmt = select(Workbook).where(Workbook.is_public == True)
+    stmt = select(Workbook).options(*WORKBOOK_WITH_RELATIONS).where(Workbook.is_public == True)
     result = await db.execute(stmt)
-    return result.scalars().all()
+    return result.scalars().unique().all()
 
 
 @transactional
@@ -55,19 +57,19 @@ async def update_problems(workbook: Workbook, problem_ids: List[int], db: AsyncS
     for workbook_problem in existing_problems:
         await db.delete(workbook_problem)
 
-    new_problems: List[WorkbookProblem] = []
     for problem_id in problem_ids:
         workbook_problem = WorkbookProblem(
             workbook_id=workbook.id,
             problem_id=problem_id,
         )
         db.add(workbook_problem)
-        new_problems.append(workbook_problem)
 
-    workbook.problems = new_problems
+    await db.flush()
+    await db.refresh(workbook)
     return True
 
 
 async def find_all(db: AsyncSession) -> List[Workbook]:
-    result = await db.execute(select(Workbook))
-    return result.scalars().all()
+    stmt = select(Workbook).options(*WORKBOOK_WITH_RELATIONS)
+    result = await db.execute(stmt)
+    return result.scalars().unique().all()

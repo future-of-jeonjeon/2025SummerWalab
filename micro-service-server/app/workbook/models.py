@@ -3,7 +3,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 from app.config.database import Base
-from app.problem.models import Problem
+from app.problem.models import Problem, ProblemTag, problem_tags_association_table
 
 
 class Workbook(Base):
@@ -29,8 +29,16 @@ class WorkbookProblem(Base):
     __table_args__ = {"schema": "public"}
 
     id = Column(Integer, primary_key=True, index=True)
-    workbook_id = Column(Integer, ForeignKey("public.micro_workbook.id"), nullable=False)
+    workbook_id = Column(Integer, ForeignKey("public.micro_workbook.id", ondelete="CASCADE"), nullable=False)
     problem_id = Column(Integer, ForeignKey("public.problem.id"), nullable=False)
 
-    workbook = relationship("Workbook", back_populates="problems")
-    problem = relationship("Problem")
+    workbook = relationship("Workbook", back_populates="problems", passive_deletes=True)
+    problem = relationship("Problem", lazy="joined")
+    tags = relationship(
+        "ProblemTag",
+        secondary=problem_tags_association_table,
+        primaryjoin=problem_id == problem_tags_association_table.c.problem_id,
+        secondaryjoin=ProblemTag.id == problem_tags_association_table.c.problemtag_id,
+        lazy="joined",
+        viewonly=True,
+    )

@@ -14,7 +14,7 @@ export const WorkbookCard: React.FC<WorkbookCardProps> = ({ workbook, onClick })
   };
 
   return (
-    <Card className="p-4 hover:shadow-lg transition-shadow cursor-pointer h-64 flex flex-col">
+    <Card className="mx-auto w-full max-w-[420px] p-4 hover:shadow-lg transition-shadow cursor-pointer h-56 flex flex-col">
       {/* 제목과 문제 수 */}
       <div className="flex justify-between items-start mb-2">
         <h3 className="text-lg font-semibold text-gray-800 line-clamp-2 flex-1 pr-2">

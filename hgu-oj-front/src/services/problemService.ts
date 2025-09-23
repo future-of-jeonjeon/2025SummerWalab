@@ -38,6 +38,25 @@ const adaptSamples = (samples: any): Array<{ input: string; output: string }> | 
   return adapted.length > 0 ? adapted : undefined;
 };
 
+const normalizeTags = (value: any): string[] | undefined => {
+  if (!value) return undefined;
+  const source = Array.isArray(value) ? value : [value];
+  const tags = source
+    .map((tag) => {
+      if (!tag) return undefined;
+      if (typeof tag === 'string') return tag;
+      if (typeof tag === 'object') {
+        if ('name' in tag && tag.name) return String(tag.name);
+        if ('tag' in tag && tag.tag) return String(tag.tag);
+        if ('tagName' in tag && tag.tagName) return String(tag.tagName);
+        if ('value' in tag && tag.value) return String(tag.value);
+      }
+      return undefined;
+    })
+    .filter((tag): tag is string => Boolean(tag));
+  return tags.length > 0 ? tags : undefined;
+};
+
 // 적응형 매퍼: 마이크로서비스 또는 OJ 백엔드 형태 모두 지원
 const adaptProblem = (p: any): Problem => {
   if (!p) {
@@ -72,7 +91,13 @@ const adaptProblem = (p: any): Problem => {
       hint: p.hint || undefined,
       createTime: p.create_time,
       lastUpdateTime: p.last_update_time,
-      tags: Array.isArray(p.tags) ? p.tags.map((t: any) => t.name) : undefined,
+      tags: normalizeTags(
+        p.tags
+        ?? p.problem_tags
+        ?? p.problemTags
+        ?? p.tag_list
+        ?? p.tagList,
+      ),
       languages: p.languages || undefined,
       createdBy: p.created_by || undefined,
       myStatus: normalizeStatusValue(p.my_status ?? p.myStatus),
@@ -95,13 +120,20 @@ const adaptProblem = (p: any): Problem => {
 export const problemService = {
   // 문제 목록 조회
   getProblems: async (filter: ProblemFilter): Promise<PaginatedResponse<Problem>> => {
-    // OJ 기본 시스템 API 호환: /api/problem?limit=...&keyword=...&difficulty=...
-    const params: any = {};
-    params.limit = filter.limit || 50;
+    const limit = filter.limit && filter.limit > 0 ? filter.limit : 50;
+    const page = filter.page && filter.page > 0 ? filter.page : 1;
+    const params: Record<string, unknown> = {
+      limit,
+      offset: (page - 1) * limit,
+    };
     if (filter.search) params.keyword = filter.search;
     if (filter.difficulty) params.difficulty = filter.difficulty;
 
     const response = await api.get<any>('/problem', params);
+    if (!response.success) {
+      throw new Error(response.message || '문제 목록을 불러오지 못했습니다.');
+    }
+
     const raw = response.data as any;
     let items: any[] = [];
     let total = 0;
@@ -115,27 +147,121 @@ export const problemService = {
       items = [];
       total = 0;
     }
+
     const adapted = items.map(adaptProblem);
-    const page = filter.page || 1;
-    const limit = filter.limit || adapted.length || 20;
     return {
       data: adapted,
       total,
       page,
       limit,
-      totalPages: Math.max(1, Math.ceil(total / limit)),
+      totalPages: Math.max(1, Math.ceil((total || adapted.length) / limit)),
     };
   },
 
   // 문제 상세 조회
   getProblem: async (id: number): Promise<Problem> => {
-    // OJ 기본 시스템은 상세 조회 시 display _id 사용. 목록에서 매핑 후 반환.
-    const list = await problemService.getProblems({ page: 1, limit: 1000 });
-    const found = (list.data as any[]).find((p) => p.id === id);
-    if (found) return found as Problem;
-    // 마이크로서비스 형태로 백업 시도
-    const response = await api.get<any>(`/problem/${id}`);
-    return adaptProblem(response.data);
+    const pageSize = 250;
+    let currentPage = 1;
+    let totalPages = 1;
+
+    do {
+      const { data, total } = await problemService.getProblems({ page: currentPage, limit: pageSize });
+      const match = data.find((item) => item.id === id);
+      if (match) {
+        return match;
+      }
+      totalPages = Math.max(1, Math.ceil(total / pageSize));
+      currentPage += 1;
+    } while (currentPage <= totalPages);
+
+    throw new Error('문제를 찾을 수 없습니다.');
+  },
+
+  // 문제 상태 맵 조회 (id -> Problem)
+  getProblemStatusMap: async (ids: number[], options?: { pageSize?: number }): Promise<Record<number, Problem>> => {
+    const uniqueIds = Array.from(new Set(ids.filter((value) => Number.isFinite(value))));
+    if (uniqueIds.length === 0) {
+      return {};
+    }
+
+    const pageSize = options?.pageSize && options.pageSize > 0 ? options.pageSize : 250;
+    const found: Record<number, Problem> = {};
+    let currentPage = 1;
+    let totalPages = 1;
+
+    const idSet = new Set(uniqueIds);
+
+    while (currentPage <= totalPages && Object.keys(found).length < idSet.size) {
+      const pageResult = await problemService.getProblems({ page: currentPage, limit: pageSize });
+      pageResult.data.forEach((problem) => {
+        if (idSet.has(problem.id)) {
+          found[problem.id] = problem;
+        }
+      });
+
+      const derivedTotalPages = Number.isFinite(pageResult.totalPages) && pageResult.totalPages > 0
+        ? pageResult.totalPages
+        : 1;
+      totalPages = derivedTotalPages;
+      if (pageResult.data.length === 0) {
+        break;
+      }
+      currentPage += 1;
+    }
+
+    return found;
+  },
+
+  getContestProblem: async (contestId: number, identifier: string | number): Promise<Problem> => {
+    const params: Record<string, unknown> = {
+      contest_id: contestId,
+    };
+
+    if (typeof identifier === 'number' && Number.isFinite(identifier)) {
+      params.problem_id = identifier;
+    } else if (typeof identifier === 'string' && identifier.trim().length > 0) {
+      params.problem_id = identifier.trim();
+    }
+
+    const response = await api.get<any>('/contest/problem', params);
+    if (!response.success) {
+      throw new Error(response.message || '대회 문제를 불러오지 못했습니다.');
+    }
+
+    const body = response.data;
+    let rawProblem: any | undefined;
+
+    const matchFromCollection = (collection: any[]): any | undefined => {
+      const targetId = typeof identifier === 'number' ? identifier : undefined;
+      const targetDisplayId = typeof identifier === 'string' ? identifier.trim() : undefined;
+      return collection.find((item) => {
+        if (!item) return false;
+        if (targetId != null && Number(item.id) === Number(targetId)) {
+          return true;
+        }
+        if (targetDisplayId) {
+          const candidate = item.display_id ?? item._id ?? item.displayId ?? item.id;
+          if (candidate != null && String(candidate).trim() === targetDisplayId) {
+            return true;
+          }
+        }
+        return false;
+      }) ?? collection[0];
+    };
+
+    if (Array.isArray(body)) {
+      rawProblem = matchFromCollection(body);
+    } else if (body && Array.isArray(body.results)) {
+      rawProblem = matchFromCollection(body.results);
+    } else if (body && typeof body === 'object' && Object.keys(body).length) {
+      rawProblem = body;
+    }
+
+    if (!rawProblem) {
+      throw new Error('대회 문제를 찾을 수 없습니다.');
+    }
+
+    return adaptProblem(rawProblem);
   },
 
   // 문제 생성 (관리자)

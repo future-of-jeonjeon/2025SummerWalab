@@ -13,8 +13,8 @@ from app.config.database import Base
 # 'public' 스키마를 명시하여 정확한 테이블 참조
 problem_tags_association_table = Table(
     'problem_tags', Base.metadata, # <--- 이 부분을 'problem_tags'로 변경합니다!
-    Column('problem_id', Integer, ForeignKey('public.problem.id'), primary_key=True),
-    Column('problemtag_id', Integer, ForeignKey('public.problem_tag.id'), primary_key=True),
+    Column('problem_id', Integer, ForeignKey('public.problem.id', ondelete='CASCADE'), primary_key=True),
+    Column('problemtag_id', Integer, ForeignKey('public.problem_tag.id', ondelete='CASCADE'), primary_key=True),
     schema='public' # 중간 테이블도 public 스키마에 있다고 가정
 )
 

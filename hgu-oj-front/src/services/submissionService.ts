@@ -117,7 +117,10 @@ export const submissionService = {
     }
     return response.data;
   },
-  getMySubmissions: async (problemId: number | string, options?: { limit?: number; offset?: number; page?: number }): Promise<SubmissionListResponse> => {
+  getMySubmissions: async (
+    problemId: number | string,
+    options?: { limit?: number; offset?: number; page?: number; contestId?: number | string },
+  ): Promise<SubmissionListResponse> => {
     const limit = options?.limit ?? 20;
     const offset = options?.offset ?? 0;
     const page = options?.page ?? Math.floor(offset / Math.max(limit, 1)) + 1;
@@ -130,7 +133,12 @@ export const submissionService = {
       myself: '1',
     };
 
-    const response = await api.get<any>('/submissions', params);
+    const basePath = options?.contestId != null ? '/contest_submissions' : '/submissions';
+    if (options?.contestId != null) {
+      params.contest_id = String(options.contestId);
+    }
+
+    const response = await api.get<any>(basePath, params);
     if (!response.success) {
       const message = response.message || '제출 목록을 불러오지 못했습니다.';
       throw new Error(message);

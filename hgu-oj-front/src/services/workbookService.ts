@@ -1,107 +1,118 @@
-import { api } from './api';
 import { Problem, Workbook } from '../types';
+import { mapProblem } from '../utils/problemMapper';
+import { WorkbookFilter } from '../stores/workbookStore';
 
-const mapProblem = (raw: any): Problem => ({
-  id: raw.id,
-  displayId: raw.displayId ?? raw._id ?? String(raw.id ?? ''),
-  title: raw.title ?? '제목 없음',
-  description: raw.description ?? '',
-  difficulty: (raw.difficulty as Problem['difficulty']) ?? 'Mid',
-  timeLimit: raw.timeLimit ?? raw.time_limit ?? 0,
-  memoryLimit: raw.memoryLimit ?? raw.memory_limit ?? 0,
-  inputDescription: raw.inputDescription ?? raw.input_description ?? '',
-  outputDescription: raw.outputDescription ?? raw.output_description ?? '',
-  samples: raw.samples,
-  hint: raw.hint,
-  createTime: raw.createTime ?? raw.create_time ?? new Date().toISOString(),
-  lastUpdateTime: raw.lastUpdateTime ?? raw.last_update_time,
-  tags: raw.tags ?? [],
-  languages: raw.languages ?? [],
-  createdBy: raw.created_by
-    ? {
-        id: raw.created_by.id,
-        username: raw.created_by.username,
-        realName: raw.created_by.real_name ?? raw.created_by.realName,
+const MICRO_API_BASE = '/ms-api/workbook';
+
+const buildUrl = (path = '', params?: Record<string, string | number | undefined>) => {
+  const searchParams = new URLSearchParams();
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== '') {
+        searchParams.append(key, String(value));
       }
-    : raw.createdBy,
-});
+    });
+  }
+  const query = searchParams.toString();
+  return `${MICRO_API_BASE}${path}${query ? `?${query}` : ''}`;
+};
 
 export const workbookService = {
-  // 문제집 목록 조회 (micro-service API 사용)
-  getWorkbooks: async (params?: {
-    page?: number;
-    limit?: number;
-    search?: string;
-  }): Promise<Workbook[]> => {
-    const response = await fetch('http://localhost:8000/api/workbook/', {
+  getWorkbooks: async (filter?: WorkbookFilter) => {
+    const url = buildUrl('/', {
+      search: filter?.search,
+      limit: filter?.limit,
+    });
+
+    const response = await fetch(url, {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
       credentials: 'include',
     });
-    
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    
+
     const workbooks = await response.json();
-    return workbooks;
+    return workbooks as Workbook[];
   },
 
-  // 문제집 상세 조회 (micro-service 사용)
   getWorkbook: async (id: number): Promise<Workbook> => {
-    const response = await fetch(`http://localhost:8000/api/workbook/${id}`, {
+    const response = await fetch(buildUrl(`/${id}`), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
       credentials: 'include',
     });
-    
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    
+
     const workbook = await response.json();
     return workbook;
   },
 
-  // 문제집의 문제 목록 조회 (micro-service 사용)
   getWorkbookProblems: async (id: number): Promise<{
     success: boolean;
-    data: any[];
+    data: Array<{
+      id: number;
+      problemId?: number;
+      problem: Problem;
+      order: number;
+      addedTime: string;
+    }>;
     workbook: Workbook;
   }> => {
-    const response = await fetch(`http://localhost:8000/api/workbook/${id}/problems`, {
+    const response = await fetch(buildUrl(`/${id}/problems`), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
       },
       credentials: 'include',
     });
-    
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    
+
     const rawProblems = await response.json();
 
-    const normalizedProblems = (Array.isArray(rawProblems) ? rawProblems : []).map((item: any) => ({
-      id: item.id,
-      problemId: item.problem_id ?? item.problemId,
-      problem: item.problem ? mapProblem(item.problem) : undefined,
-      order: item.order,
-      addedTime: item.added_time ?? item.addedTime ?? '',
-    })).filter((item: any) => !!item.problem);
-    
-    // 문제집 정보도 함께 가져오기
+    const normalizedProblems = (Array.isArray(rawProblems) ? rawProblems : [])
+      .map((item: any) => {
+        const rawProblem = item.problem
+          ? {
+              ...item.problem,
+              tags: item.problem?.tags ?? item.tags ?? item.problem_tags ?? item.problemTags,
+            }
+          : undefined;
+
+        return {
+          id: item.id,
+          problemId: item.problem_id ?? item.problemId,
+          problem: rawProblem ? mapProblem(rawProblem) : undefined,
+          order: item.order,
+          addedTime: item.added_time ?? item.addedTime ?? '',
+        };
+      })
+      .filter((item: any) => !!item.problem) as Array<{
+        id: number;
+        problemId?: number;
+        problem: Problem;
+        order: number;
+        addedTime: string;
+      }>;
+
     const workbook = await workbookService.getWorkbook(id);
-    
+
     return {
       success: true,
       data: normalizedProblems,
-      workbook: workbook
+      workbook,
     };
   },
 };

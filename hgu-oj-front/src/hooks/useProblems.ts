@@ -12,11 +12,11 @@ export const useProblems = (filter: ProblemFilter) => {
 };
 
 // 문제 상세 조회 훅
-export const useProblem = (id: number) => {
+export const useProblem = (id: number, options?: { enabled?: boolean }) => {
   return useQuery({
     queryKey: ['problem', id],
     queryFn: () => problemService.getProblem(id),
-    enabled: !!id,
+    enabled: options?.enabled ?? !!id,
   });
 };
 

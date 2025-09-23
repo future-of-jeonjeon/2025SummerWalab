@@ -9,6 +9,7 @@ import { ProblemDetailPage } from './pages/ProblemDetailPage';
 import { WorkbookListPage } from './pages/WorkbookListPage';
 import { WorkbookDetailPage } from './pages/WorkbookDetailPage';
 import { ContestListPage } from './pages/ContestListPage';
+import { ContestDetailPage } from './pages/ContestDetailPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import { NavBar } from './components/organisms/NavBar';
@@ -29,6 +30,7 @@ const AppShell: React.FC = () => {
         <Route path="/workbooks" element={<WorkbookListPage />} />
         <Route path="/workbooks/:id" element={<WorkbookDetailPage />} />
         <Route path="/contests" element={<ContestListPage />} />
+        <Route path="/contests/:id" element={<ContestDetailPage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

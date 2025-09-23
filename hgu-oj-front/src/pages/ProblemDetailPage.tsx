@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useProblem } from '../hooks/useProblems';
+import { problemService } from '../services/problemService';
 import { CodeEditor } from '../components/organisms/CodeEditor';
 import { Button } from '../components/atoms/Button';
 import { ExecutionResult } from '../types';
@@ -186,9 +187,50 @@ const progressStatuses = new Set(['PENDING', 'JUDGING', 'RUNNING', 'SUBMITTED', 
 export const ProblemDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
   const problemId = id ? parseInt(id, 10) : 0;
+  const contestContextId = useMemo(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const raw = searchParams.get('contestId');
+    if (!raw) return undefined;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+  }, [location.search]);
 
-  const { data: problem, isLoading, error } = useProblem(problemId);
+  const contestProblemDisplayId = useMemo(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const raw = searchParams.get('displayId');
+    if (!raw) return undefined;
+    return raw.trim();
+  }, [location.search]);
+
+  const shouldFetchRegularProblem = !contestContextId;
+
+  const {
+    data: fallbackProblem,
+    isLoading: regularProblemLoading,
+    error: regularProblemError,
+  } = useProblem(problemId, { enabled: shouldFetchRegularProblem });
+
+  const {
+    data: contestProblem,
+    isLoading: contestProblemLoading,
+    error: contestProblemError,
+  } = useQuery({
+    queryKey: ['contest-problem', contestContextId, contestProblemDisplayId ?? problemId],
+    queryFn: () => {
+      if (!contestContextId) {
+        throw new Error('contestId is required');
+      }
+      const identifier = contestProblemDisplayId ?? problemId;
+      return problemService.getContestProblem(contestContextId, identifier);
+    },
+    enabled: !!contestContextId,
+  });
+
+  const problem = contestContextId ? contestProblem : fallbackProblem;
+  const isLoading = contestContextId ? contestProblemLoading : regularProblemLoading;
+  const error = contestContextId ? contestProblemError : regularProblemError;
   const queryClient = useQueryClient();
   const [executionResult, setExecutionResult] = useState<ExecutionResult | undefined>();
   const [isExecuting, setIsExecuting] = useState(false);
@@ -321,6 +363,12 @@ export const ProblemDetailPage: React.FC = () => {
   }, [mapJudgeResult, problemId, queryClient, stopSubmissionPolling]);
 
   const submissionProblemKey = useMemo(() => {
+    if (contestContextId) {
+      if (contestProblemDisplayId) return contestProblemDisplayId;
+      if (contestProblem?.displayId) return String(contestProblem.displayId);
+      if (contestProblem?.id != null) return String(contestProblem.id);
+      return undefined;
+    }
     if (!problem) return undefined;
     if (problem.displayId && problem.displayId.trim().length > 0) {
       return problem.displayId.trim();
@@ -332,7 +380,15 @@ export const ProblemDetailPage: React.FC = () => {
       return String(problemId);
     }
     return undefined;
-  }, [problem, problemId]);
+  }, [contestContextId, contestProblemDisplayId, contestProblem?.displayId, contestProblem?.id, problem, problemId]);
+
+  const submissionQueryKey = useMemo(() => {
+    if (!submissionProblemKey) return null;
+    if (contestContextId) {
+      return ['my-submissions', 'contest', contestContextId, submissionProblemKey] as const;
+    }
+    return ['my-submissions', 'practice', submissionProblemKey] as const;
+  }, [contestContextId, submissionProblemKey]);
 
   const handleExecute = async (code: string, language: string, input?: string) => {
     setIsExecuting(true);
@@ -388,10 +444,13 @@ export const ProblemDetailPage: React.FC = () => {
     }
     setIsSubmitting(true);
     try {
+      const targetProblemId = contestContextId ? (contestProblem?.id ?? problemId) : problemId;
+
       const result = await submissionService.submitSolution({
-        problemId,
+        problemId: targetProblemId,
         code,
         language,
+        contestId: contestContextId,
       });
 
       const submissionIdRaw = (result?.submissionId ?? result?.id) as number | string | undefined;
@@ -407,8 +466,8 @@ export const ProblemDetailPage: React.FC = () => {
       if (hasSubmissionId && submissionIdRaw != null) {
         setManualStatus('SUBMITTING');
         startSubmissionPolling(submissionIdRaw);
-        if (submissionProblemKey) {
-          queryClient.invalidateQueries({ queryKey: ['my-submissions', submissionProblemKey] });
+        if (submissionQueryKey) {
+          queryClient.invalidateQueries({ queryKey: submissionQueryKey });
         }
       } else {
         setManualStatus('SUBMITTED');
@@ -475,8 +534,10 @@ export const ProblemDetailPage: React.FC = () => {
   ];
 
   const { data: mySubmissionsResponse, isLoading: isLoadingSubmissions } = useQuery({
-    queryKey: ['my-submissions', submissionProblemKey],
-    queryFn: () => submissionProblemKey ? submissionService.getMySubmissions(submissionProblemKey) : Promise.resolve({ items: [], total: 0 }),
+    queryKey: submissionQueryKey ?? ['my-submissions', 'idle'],
+    queryFn: () => (submissionProblemKey
+      ? submissionService.getMySubmissions(submissionProblemKey, { contestId: contestContextId ?? undefined })
+      : Promise.resolve({ items: [], total: 0 })),
     enabled: activeSection === 'submissions' && !!submissionProblemKey,
     staleTime: 30_000,
   });
@@ -579,6 +640,16 @@ export const ProblemDetailPage: React.FC = () => {
     }
   }, []);
 
+  const handleBackClick = useCallback(() => {
+    if (contestContextId) {
+      const params = new URLSearchParams();
+      params.set('tab', 'problems');
+      navigate(`/contests/${contestContextId}?${params.toString()}`);
+      return;
+    }
+    navigate(-1);
+  }, [contestContextId, navigate]);
+
   if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
@@ -598,7 +669,7 @@ export const ProblemDetailPage: React.FC = () => {
       <div className="container mx-auto px-4 py-8">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-red-600 mb-4">문제를 찾을 수 없습니다</h1>
-          <Button onClick={() => navigate('/problems')}>
+          <Button variant="secondary" onClick={() => navigate('/problems')}>
             문제 목록으로 돌아가기
           </Button>
         </div>
@@ -625,7 +696,7 @@ export const ProblemDetailPage: React.FC = () => {
                   variant="ghost"
                   size="sm"
                   className={`mt-1 ${isDarkTheme ? 'text-slate-200 hover:bg-slate-800' : ''}`}
-                  onClick={() => navigate(-1)}
+                  onClick={handleBackClick}
                 >
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                     <polyline points="15 18 9 12 15 6" />

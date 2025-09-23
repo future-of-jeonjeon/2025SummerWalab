@@ -36,6 +36,10 @@ export interface Problem {
   // Optional fields from OJ profile enrichment
   myStatus?: string;
   solved?: boolean;
+  submissionNumber?: number;
+  acceptedNumber?: number;
+  ruleType?: string;
+  totalScore?: number;
 }
 
 // 제출 관련 타입
@@ -67,7 +71,42 @@ export interface Contest {
     username: string;
     realName?: string;
   };
+  status?: string;
+  contestType?: string;
+  realTimeRank?: boolean;
   now?: string;
+}
+
+export interface ContestAnnouncement {
+  id: number;
+  contestId: number;
+  title: string;
+  content: string;
+  visible: boolean;
+  createdAt: string;
+  createdBy: {
+    id: number;
+    username: string;
+    realName?: string;
+  };
+}
+
+export interface ContestAccess {
+  access: boolean;
+}
+
+export interface ContestRankEntry {
+  id?: number;
+  user: {
+    id: number;
+    username: string;
+    realName?: string;
+  };
+  acceptedNumber?: number;
+  submissionNumber?: number;
+  totalTime?: number;
+  totalScore?: number;
+  submissionInfo?: Record<string, unknown>;
 }
 
 // 문제집 관련 타입
@@ -141,7 +180,7 @@ export interface LanguageOption {
 
 // 필터 관련 타입
 export interface ProblemFilter {
-  difficulty?: 'EASY' | 'MEDIUM' | 'HARD';
+  difficulty?: 'Low' | 'Mid' | 'High';
   search?: string;
   page?: number;
   limit?: number;

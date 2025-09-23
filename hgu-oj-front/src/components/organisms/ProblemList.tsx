@@ -13,6 +13,7 @@ interface ProblemListProps {
   currentPage?: number;
   onPageChange?: (page: number) => void;
   showStats?: boolean;
+  showStatus?: boolean;
 }
 
 export const ProblemList: React.FC<ProblemListProps> = ({
@@ -26,55 +27,85 @@ export const ProblemList: React.FC<ProblemListProps> = ({
   currentPage = 1,
   onPageChange,
   showStats = true,
+  showStatus = false,
 }) => {
-  const getDifficultyColor = (difficulty: string) => {
-    switch (difficulty) {
-      case 'Low':
-        return 'text-green-600 bg-green-100';
-      case 'Mid':
-        return 'text-yellow-600 bg-yellow-100';
-      case 'High':
-        return 'text-red-600 bg-red-100';
-      default:
-        return 'text-gray-600 bg-gray-100';
-    }
-  };
+  const resolveStatusState = (problem: Problem) => {
+    const rawStatus = problem.myStatus ?? (problem as any).my_status;
+    const normalized = (() => {
+      if (rawStatus == null) return '';
+      const value = String(rawStatus).trim();
+      if (!value) return '';
+      if (value === '0') return 'AC';
+      return value.toUpperCase();
+    })();
 
-  const getDifficultyText = (difficulty: string) => {
-    switch (difficulty) {
-      case 'Low':
-        return 'Level1';
-      case 'Mid':
-        return 'Level2';
-      case 'High':
-        return 'Level3';
-      default:
-        return difficulty;
+    if (problem.solved || normalized === 'AC' || normalized === 'ACCEPTED') {
+      return 'solved' as const;
     }
-  };
-
-  const isProblemSolved = (problem: Problem) => {
-    if (problem.solved) return true;
-    const status = problem.myStatus;
-    if (!status) return false;
-    const normalized = status.trim().toUpperCase();
-    return normalized === 'AC' || normalized === 'ACCEPTED' || normalized === '0';
+    if (!normalized) {
+      return 'untouched' as const;
+    }
+    if (normalized === '-1' || normalized === 'WA' || normalized === 'WRONG_ANSWER') {
+      return 'wrong' as const;
+    }
+    return 'attempted' as const;
   };
 
   const getStatusBadge = (problem: Problem) => {
-    if (isProblemSolved(problem)) {
+    const state = resolveStatusState(problem);
+    if (!showStatus) {
+      if (state === 'solved') {
+        return {
+          label: 'Solved',
+          className: 'bg-green-100 text-green-700 border border-green-200',
+        };
+      }
+      if (state === 'attempted' || state === 'wrong') {
+        return {
+          label: 'Tried',
+          className: 'bg-red-100 text-red-600 border border-red-200',
+        };
+      }
+      return undefined;
+    }
+
+    if (state === 'solved') {
       return {
-        label: 'Solved',
+        label: '정답',
         className: 'bg-green-100 text-green-700 border border-green-200',
       };
     }
-    if (problem.myStatus) {
+    if (state === 'wrong') {
       return {
-        label: 'Tried',
+        label: '틀림',
         className: 'bg-red-100 text-red-600 border border-red-200',
       };
     }
-    return undefined;
+    if (state === 'attempted') {
+      return {
+        label: '시도',
+        className: 'bg-amber-100 text-amber-700 border border-amber-200',
+      };
+    }
+    return {
+      label: '미시도',
+      className: 'bg-gray-100 text-gray-600 border border-gray-300',
+    };
+  };
+
+  const renderTags = (tags?: string[]) => {
+    if (!tags || tags.length === 0) {
+      return <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-xs font-medium text-slate-400">태그 없음</span>;
+    }
+
+    return tags.map((tag) => (
+      <span
+        key={tag}
+        className="inline-flex items-center px-2 py-0.5 rounded-full bg-slate-100 text-xs font-medium text-slate-600"
+      >
+        {tag}
+      </span>
+    ));
   };
 
   if (isLoading) {
@@ -115,13 +146,21 @@ export const ProblemList: React.FC<ProblemListProps> = ({
       {/* 문제 목록 테이블 */}
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-          <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-500 uppercase tracking-wider">
-            <div className="col-span-1 text-center">번호</div>
-            <div className={showStats ? 'col-span-6' : 'col-span-8'}>제목</div>
-            <div className={showStats ? 'col-span-2 text-center' : 'col-span-3 text-center'}>난이도</div>
-            {showStats && <div className="col-span-1 text-center">제출</div>}
-            {showStats && <div className="col-span-2 text-center">정답률</div>}
-          </div>
+          {showStats ? (
+            <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-500 uppercase tracking-wider">
+              <div className="col-span-1 text-center">번호</div>
+              <div className="col-span-6">제목</div>
+              <div className="col-span-2 text-center">태그</div>
+              <div className="col-span-1 text-center">제출</div>
+              <div className="col-span-2 text-center">정답률</div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-[160px_minmax(0,1fr)_200px] items-center gap-4 text-sm font-medium text-gray-500 uppercase tracking-wider">
+              <div className="text-center">번호</div>
+              <div className="text-center">제목</div>
+              <div className="text-right pr-2">태그</div>
+            </div>
+          )}
         </div>
         <div className="divide-y divide-gray-200">
           {problems.map((problem) => {
@@ -132,41 +171,56 @@ export const ProblemList: React.FC<ProblemListProps> = ({
                 className="px-6 py-4 hover:bg-gray-50 cursor-pointer transition-colors"
                 onClick={() => onProblemClick(problem.id)}
               >
-                <div className="grid grid-cols-12 gap-4 items-center">
-                  <div className="col-span-1 text-sm font-medium text-gray-900 text-center">
-                    {problem.displayId ?? problem.id}
-                  </div>
-                  <div className={showStats ? 'col-span-6' : 'col-span-8'}>
-                    <div className="flex items-center gap-2">
-                      <div className="text-sm font-medium text-gray-900 hover:text-blue-600">
-                        {problem.title}
-                      </div>
-                      {badge && (
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${badge.className}`}>
-                          {badge.label}
-                        </span>
-                      )}
+                {showStats ? (
+                  <div className="grid grid-cols-12 gap-4 items-center">
+                    <div className="col-span-1 text-sm font-medium text-gray-900 text-center">
+                      {problem.displayId ?? problem.id}
                     </div>
-                  </div>
-                  <div className={showStats ? 'col-span-2 text-center' : 'col-span-3 text-center'}>
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getDifficultyColor(problem.difficulty)}`}>
-                      {getDifficultyText(problem.difficulty)}
-                    </span>
-                  </div>
-                  {showStats && (
+                    <div className="col-span-6">
+                      <div className="flex items-center gap-2">
+                        <div className="text-sm font-medium text-gray-900 hover:text-blue-600">
+                          {problem.title}
+                        </div>
+                        {badge && (
+                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${badge.className}`}>
+                            {badge.label}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="col-span-2 flex justify-center flex-wrap gap-1">
+                      {renderTags(problem.tags)}
+                    </div>
                     <div className="col-span-1 text-sm text-gray-500 text-center">
                       {problem.submissionNumber || 0}
                     </div>
-                  )}
-                  {showStats && (
                     <div className="col-span-2 text-sm text-gray-500 text-center">
                       {problem.acceptedNumber && problem.submissionNumber
                         ? `${Math.round((problem.acceptedNumber / problem.submissionNumber) * 100)}%`
                         : '0%'
                       }
                     </div>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-[150px_minmax(0,1fr)_200px] items-center gap-4">
+                    <div className="text-sm font-medium text-gray-900 text-center">
+                      {problem.displayId ?? problem.id}
+                    </div>
+                    <div className="flex items-center justify-center gap-2 text-center">
+                      <div className="text-sm font-medium text-gray-900 hover:text-blue-600">
+                        {problem.title}
+                      </div>
+                      {badge && (
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap ${badge.className}`}>
+                          {badge.label}
+                        </span>
+                      )}
+                    </div>
+                    <div className="flex justify-end flex-wrap gap-1">
+                      {renderTags(problem.tags)}
+                    </div>
+                  </div>
+                )}
               </div>
             );
           })}
