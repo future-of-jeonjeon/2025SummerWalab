@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import uuid
@@ -29,8 +30,17 @@ async def exchange_sso_for_local_token(sso_token: str) -> str:
     if not SSO_INTROSPECT_URL:
         raise HTTPException(status_code=500, detail="SSO_INTROSPECT_URL is not configured")
 
-    async with httpx.AsyncClient(timeout=3.0) as client:
-        resp = await client.post(SSO_INTROSPECT_URL, json={"token": sso_token})
+    # 최초 로그인시 oj-backend 장고 최초 부팅시간 기다려야함 -> 응답시간 늘리고 3번까지 재시도 하게 바꿈 그래도 안되면 503에러
+    timeout = httpx.Timeout(15.0, connect=8.0)
+    for attempt in range(3):
+        try:
+            async with httpx.AsyncClient(timeout=timeout) as client:
+                resp = await client.post(SSO_INTROSPECT_URL, json={"token": sso_token})
+            break
+        except httpx.RequestError as exc:
+            if attempt == 2:
+                raise HTTPException(status_code=503, detail="SSO service temporarily unavailable") from exc
+            await asyncio.sleep(1.5 * (attempt + 1))
 
     if resp.status_code != 200:
         raise HTTPException(status_code=401, detail="SSO unreachable")
