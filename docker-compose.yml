@@ -3,13 +3,13 @@ services:
     build: ./OnlineJudgeFE
     container_name: oj-frontend
     ports:
-      - "3000:3000"
+      - "8080:3000"
     environment:
       - TARGET=http://oj-backend:8000
-      - PORT=3000
+      - PORT=8080
       - VUE_APP_GOOGLE_CLIENT_ID=${VUE_APP_GOOGLE_CLIENT_ID}
       - VUE_APP_GOOGLE_CLIENT_SECRET=${VUE_APP_GOOGLE_CLIENT_SECRET}
-      - VUE_APP_GOOGLE_REDIRECT_URI=${VUE_APP_GOOGLE_REDIRECT_URI:-http://localhost:3000/oauth/callback}
+      - VUE_APP_GOOGLE_REDIRECT_URI=${VUE_APP_GOOGLE_REDIRECT_URI:-http://localhost:8080/oauth/callback}
     depends_on:
       - oj-backend
 

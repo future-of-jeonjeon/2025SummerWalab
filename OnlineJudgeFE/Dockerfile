@@ -1,32 +1,94 @@
-# 베이스 이미지 (Node.js 16 LTS 버전)
-FROM node:16-alpine
-
-# git 설치 (npm install에 필요)
+# --- build stage ---
+FROM node:16-alpine AS build
 RUN apk add --no-cache git
-
-# 작업 디렉토리 생성
 WORKDIR /app
 
-# package.json과 package-lock.json 복사
 COPY package*.json ./
+RUN npm ci
 
-# 의존성 설치
-RUN npm install
-
-# 앱 소스 복사
 COPY . .
+RUN npm run build:dll || true
 
-# DLL 빌드 실행
-RUN npm run build:dll
+RUN npm run build
 
-# 환경변수 설정
-ENV TARGET=http://oj-backend:8000
-ENV PORT=3000
-ENV NODE_ENV=development
-ENV HOST=0.0.0.0
+RUN set -eux; \
+    if [ -d /app/static ]; then \
+      echo "Copying built static assets -> /app/dist/static"; \
+      mkdir -p /app/dist/static; \
+      cp -a /app/static/. /app/dist/static/; \
+    else \
+      echo "No /app/static directory found; skipping"; \
+    fi
 
-# 포트 노출
+RUN set -eux; \
+    if [ -d /app/static/js ]; then \
+      echo "Also copying JS bundles to /app/dist root for absolute-path script tags"; \
+      find /app/static/js -maxdepth 1 -type f -name "*.js" -exec cp {} /app/dist/ \; ; \
+    else \
+      echo "No /app/static/js directory found; skipping root js copy"; \
+    fi
+
+RUN set -eux; \
+    mkdir -p /app/dist; \
+    DLL_JS=$(find /app -type f -name "vendor.dll*.js" | head -n 1 || true); \
+    if [ -n "$DLL_JS" ]; then \
+      echo "Copying DLL: $DLL_JS -> /app/dist/"; \
+      cp "$DLL_JS" /app/dist/; \
+      DLL_MAP=$(echo "$DLL_JS" | sed 's/\.js$/\.js.map/'); \
+      if [ -f "$DLL_MAP" ]; then cp "$DLL_MAP" /app/dist/; fi; \
+    else \
+      echo "No vendor.dll*.js found; continuing"; \
+    fi
+
+# --- run stage ---
+FROM nginx:alpine AS run
+
+RUN apk add --no-cache gettext
+
+# Nginx listens on 3000 to match docker-compose (8080:3000)
+RUN sed -i 's/listen       80;/listen       3000;/' /etc/nginx/conf.d/default.conf || true
+
+# Overwrite default server config with SPA-friendly rules
+RUN rm -f /etc/nginx/conf.d/default.conf
+RUN printf '%s\n' \
+    'server { \
+    listen 3000; \
+    server_name _; \
+    root /usr/share/nginx/html; \
+    index index.html; \
+     \
+    location /api/ { \
+        proxy_pass ${TARGET}/api/;
+ \
+        proxy_set_header X-Real-IP $remote_addr;
+ \
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+ \
+        proxy_set_header Host $http_host;
+ \
+    } \
+     \
+    # Serve static assets and bundles as-is; if missing, 404 (avoid HTML fallback for .js) \
+    location ~* \.(js|css|map|png|jpg|jpeg|gif|svg|webp|ico|woff2?|ttf|eot)$ { \
+        try_files $uri =404; \
+        access_log off; \
+    } \
+     \
+    # Optional: cache headers for static assets \
+    location ~* \.(js|css|png|jpg|jpeg|gif|svg|webp|ico|woff2?|ttf|eot)$ { \
+        expires 7d; \
+        add_header Cache-Control "public, max-age=604800"; \
+    } \
+     \
+    # SPA fallback only for routes WITHOUT an extension \
+    location / { \
+        try_files $uri $uri/ /index.html; \
+    } \
+}' \
+    > /etc/nginx/conf.d/default.conf.template
+
+# Copy built assets
+COPY --from=build /app/dist /usr/share/nginx/html
+
 EXPOSE 3000
-
-# 개발 서버 실행 명령 (호스트 바인딩 추가)
-CMD ["npm", "run", "dev"]
+CMD ["/bin/sh", "-c", "envsubst < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]
