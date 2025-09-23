@@ -3,7 +3,14 @@ FROM node:16-alpine AS build
 RUN apk add --no-cache git
 WORKDIR /app
 
-COPY package*.json ./
+ARG VUE_APP_GOOGLE_CLIENT_ID
+ARG VUE_APP_GOOGLE_CLIENT_SECRET
+ARG VUE_APP_GOOGLE_REDIRECT_URI
+ENV VUE_APP_GOOGLE_CLIENT_ID=$VUE_APP_GOOGLE_CLIENT_ID
+ENV VUE_APP_GOOGLE_CLIENT_SECRET=$VUE_APP_GOOGLE_CLIENT_SECRET
+ENV VUE_APP_GOOGLE_REDIRECT_URI=$VUE_APP_GOOGLE_REDIRECT_URI
+
+COPY package*.json ./ 
 RUN npm ci
 
 COPY . .
@@ -50,45 +57,51 @@ RUN sed -i 's/listen       80;/listen       3000;/' /etc/nginx/conf.d/default.co
 
 # Overwrite default server config with SPA-friendly rules
 RUN rm -f /etc/nginx/conf.d/default.conf
-RUN printf '%s\n' \
-    'server { \
-    listen 3000; \
-    server_name _; \
-    root /usr/share/nginx/html; \
-    index index.html; \
-     \
-    location /api/ { \
+RUN <<'EOF' cat > /etc/nginx/conf.d/default.conf.template
+server {
+    listen 3000;
+    server_name _;
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Backend API proxy
+    location /api/ {
         proxy_pass ${TARGET}/api/;
- \
         proxy_set_header X-Real-IP $remote_addr;
- \
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
- \
         proxy_set_header Host $http_host;
- \
-    } \
-     \
-    # Serve static assets and bundles as-is; if missing, 404 (avoid HTML fallback for .js) \
-    location ~* \.(js|css|map|png|jpg|jpeg|gif|svg|webp|ico|woff2?|ttf|eot)$ { \
-        try_files $uri =404; \
-        access_log off; \
-    } \
-     \
-    # Optional: cache headers for static assets \
-    location ~* \.(js|css|png|jpg|jpeg|gif|svg|webp|ico|woff2?|ttf|eot)$ { \
-        expires 7d; \
-        add_header Cache-Control "public, max-age=604800"; \
-    } \
-     \
-    # SPA fallback only for routes WITHOUT an extension \
-    location / { \
-        try_files $uri $uri/ /index.html; \
-    } \
-}' \
-    > /etc/nginx/conf.d/default.conf.template
+    }
+
+    # Static assets: serve as-is; attempt alternate common build paths before 404
+    location ~* \.(js|css|map|png|jpg|jpeg|gif|svg|webp|ico|woff2?|ttf|eot)$ {
+        # Try requested path, then /static/<same>, then /static/js/<same>
+        try_files $uri /static$uri /static/js$uri =404;
+        expires 7d;
+        add_header Cache-Control "public, max-age=604800";
+        access_log off;
+    }
+
+    # SPA fallback only for routes WITHOUT an extension
+    location / {
+        try_files $uri $uri/ /index.html;
+    }
+
+    # ---- Hotfix: force correct OAuth params in built assets ----
+    # We cannot change source now, so use sub_filter to inject values at response time.
+    gzip off;
+    sub_filter_once off;
+    sub_filter_types application/javascript text/html;
+    # Inject Google client_id when found empty in query strings
+    sub_filter "client_id=" "client_id=$VUE_APP_GOOGLE_CLIENT_ID";
+    # Fix redirect_uri hardcoded to port 3000 -> use provided redirect URI
+    sub_filter "http://localhost:3000/oauth/callback" "$VUE_APP_GOOGLE_REDIRECT_URI";
+    sub_filter "https://localhost:3000/oauth/callback" "$VUE_APP_GOOGLE_REDIRECT_URI";
+    # -----------------------------------------------------------
+}
+EOF
 
 # Copy built assets
 COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 3000
-CMD ["/bin/sh", "-c", "envsubst < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]
+CMD ["/bin/sh", "-c", "envsubst '$TARGET $VUE_APP_GOOGLE_CLIENT_ID $VUE_APP_GOOGLE_REDIRECT_URI' < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]
