@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, validator
 
 class ProblemSummary(BaseModel):
     id: int
+    original_id: Optional[str] = Field(default=None, alias="_id")
     title: str
     description: Optional[str] = None
     difficulty: Optional[str] = None
@@ -15,6 +16,7 @@ class ProblemSummary(BaseModel):
 
     class Config:
         from_attributes = True
+        allow_population_by_field_name = True
 
     @validator('tags', pre=True, always=True)
     def extract_tag_names(cls, value):

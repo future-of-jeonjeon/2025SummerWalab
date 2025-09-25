@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams, useLocation } from 'react-router-dom';
 import {
   useContest,
@@ -15,6 +15,7 @@ import { Button } from '../components/atoms/Button';
 import { ContestProblemList } from '../components/organisms/ContestProblemList';
 import { ContestRankTable } from '../components/organisms/ContestRankTable';
 import { ContestAnnouncement, ContestRankEntry, Problem } from '../types';
+import { submissionService, SubmissionListItem, SubmissionDetail } from '../services/submissionService';
 
 const formatDateTime = (value?: string) => {
   if (!value) return '-';
@@ -35,19 +36,19 @@ const statusLabel: Record<string, string> = {
   '-1': '종료',
 };
 
-type ContestTab = 'overview' | 'announcements' | 'problems' | 'rank';
+type ContestTab = 'overview' | 'announcements' | 'problems' | 'rank' | 'submission-details';
 
-const tabs: Array<{ id: ContestTab; label: string; requiresAccess?: boolean }> = [
+const baseTabs: Array<{ id: ContestTab; label: string; requiresAccess?: boolean }> = [
   { id: 'overview', label: '메인' },
   { id: 'announcements', label: '공지', requiresAccess: true },
   { id: 'problems', label: '대회 문제', requiresAccess: true },
   { id: 'rank', label: '랭크', requiresAccess: true },
 ];
 
-const parseTabFromSearch = (search: string): ContestTab | null => {
+const parseTabFromSearch = (search: string, availableTabs: Array<{ id: ContestTab }>): ContestTab | null => {
   const params = new URLSearchParams(search);
   const candidate = params.get('tab') as ContestTab | null;
-  if (candidate && tabs.some((item) => item.id === candidate)) {
+  if (candidate && availableTabs.some((item) => item.id === candidate)) {
     return candidate;
   }
   return null;
@@ -66,6 +67,15 @@ export const ContestDetailPage: React.FC = () => {
   );
 
   const { user: authUser } = useAuthStore();
+  const isAdminUser = useMemo(() => authUser?.admin_type?.includes('Admin') ?? false, [authUser?.admin_type]);
+
+  const tabs = useMemo(() => {
+    const list = [...baseTabs];
+    if (isAdminUser) {
+      list.splice(4, 0, { id: 'submission-details', label: '제출 상세정보', requiresAccess: true });
+    }
+    return list;
+  }, [isAdminUser]);
 
   const [contestPhase, setContestPhase] = useState<'before' | 'running' | 'after'>('before');
   const [serverClock, setServerClock] = useState('--:--:--');
@@ -77,7 +87,7 @@ export const ContestDetailPage: React.FC = () => {
   } = useContestAccess(contestId, !!contest && requiresPassword);
 
   const [hasAccess, setHasAccess] = useState(false);
-  const [activeTab, setActiveTab] = useState<ContestTab>(() => parseTabFromSearch(location.search) ?? 'overview');
+  const [activeTab, setActiveTab] = useState<ContestTab>(() => parseTabFromSearch(location.search, baseTabs) ?? 'overview');
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState<string | null>(null);
 
@@ -91,11 +101,11 @@ export const ContestDetailPage: React.FC = () => {
   const canViewProtectedContent = hasAccess && contestPhase === 'running';
 
   useEffect(() => {
-    const queryTab = parseTabFromSearch(location.search);
+    const queryTab = parseTabFromSearch(location.search, tabs);
     if (queryTab && queryTab !== activeTab) {
       setActiveTab(queryTab);
     }
-  }, [location.search]);
+  }, [location.search, tabs, activeTab]);
 
   useEffect(() => {
     if (contest && !requiresPassword) {
@@ -193,14 +203,81 @@ export const ContestDetailPage: React.FC = () => {
     refetch: refetchProblems,
   } = useContestProblems(contestId, canViewProtectedContent);
 
+  const shouldLoadRank = canViewProtectedContent && (activeTab === 'rank' || activeTab === 'problems');
   const {
     data: rankData,
     isLoading: rankLoading,
     error: rankError,
     refetch: refetchRank,
-  } = useContestRank(contestId, canViewProtectedContent && activeTab === 'rank');
+  } = useContestRank(contestId, shouldLoadRank);
 
   const rankEntries: ContestRankEntry[] = rankData?.results ?? [];
+  const adminRankEntries = useMemo(
+    () => rankEntries.length > 0 ? [...rankEntries].sort((a, b) => a.user.id - b.user.id) : [],
+    [rankEntries],
+  );
+
+  const {
+    data: contestSubmissions,
+    isLoading: submissionsLoading,
+    error: submissionsError,
+  } = useQuery({
+    queryKey: ['contest-submissions', contestId, isAdminUser],
+    queryFn: () => contestService.getContestSubmissions(contestId, { limit: 2000 }),
+    enabled: isAdminUser && activeTab === 'submission-details' && !!contestId,
+  });
+
+  const submissionGroups = useMemo(() => {
+    if (!contestSubmissions?.data) {
+      return [] as Array<{ userId: number; username: string; submissions: SubmissionListItem[] }>;
+    }
+    const map = new Map<number, { userId: number; username: string; submissions: SubmissionListItem[] }>();
+    contestSubmissions.data.forEach((item) => {
+      const userId = Number((item as any).user_id ?? (item as any).userId ?? 0);
+      const username = (item as any).username ?? `User ${userId}`;
+      if (!map.has(userId)) {
+        map.set(userId, { userId, username, submissions: [] });
+      }
+      map.get(userId)!.submissions.push(item);
+    });
+    return Array.from(map.values()).sort((a, b) => a.userId - b.userId);
+  }, [contestSubmissions]);
+
+  const [isSubmissionModalOpen, setSubmissionModalOpen] = useState(false);
+  const [submissionModalLoading, setSubmissionModalLoading] = useState(false);
+  const [submissionModalError, setSubmissionModalError] = useState<string | null>(null);
+  const [selectedSubmissionDetail, setSelectedSubmissionDetail] = useState<SubmissionDetail | null>(null);
+
+  const closeSubmissionModal = useCallback(() => {
+    setSubmissionModalOpen(false);
+    setSubmissionModalLoading(false);
+    setSubmissionModalError(null);
+    setSelectedSubmissionDetail(null);
+  }, []);
+
+  const handleSubmissionClick = useCallback(async (submissionId: number | string | undefined) => {
+    if (submissionId == null) {
+      return;
+    }
+    setSubmissionModalOpen(true);
+    setSubmissionModalLoading(true);
+    setSubmissionModalError(null);
+    try {
+      const detail = await submissionService.getSubmission(submissionId);
+      setSelectedSubmissionDetail(detail);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '제출 내용을 불러오지 못했습니다.';
+      setSubmissionModalError(message);
+    } finally {
+      setSubmissionModalLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab !== 'submission-details' && isSubmissionModalOpen) {
+      closeSubmissionModal();
+    }
+  }, [activeTab, isSubmissionModalOpen, closeSubmissionModal]);
 
   const myRankProgress = useMemo(() => {
     if (!authUser?.id || !contest) return {} as Record<number, string>;
@@ -249,14 +326,28 @@ export const ContestDetailPage: React.FC = () => {
     if (!canViewProtectedContent) return '-- / --';
     if (problemsLoading) return '로딩 중...';
     const total = problems.length;
+    if (total === 0) return '0 / 0';
+
     const solved = problems.reduce((count, problem) => {
+      const override = myRankProgress?.[problem.id];
+      if (override) {
+        const normalizedOverride = override.trim().toUpperCase();
+        if (normalizedOverride === 'AC' || normalizedOverride === 'ACCEPTED') {
+          return count + 1;
+        }
+        if (normalizedOverride === 'TRIED' || normalizedOverride === 'ATTEMPTED' || normalizedOverride === 'WA') {
+          return count;
+        }
+      }
+
       const rawStatus = problem.myStatus ?? (problem as any).my_status;
       const normalized = rawStatus == null ? '' : String(rawStatus).trim().toUpperCase();
       const isSolved = problem.solved || normalized === 'AC' || normalized === 'ACCEPTED' || normalized === '0';
       return isSolved ? count + 1 : count;
     }, 0);
+
     return `${solved} / ${total}`;
-  }, [canViewProtectedContent, problemsLoading, problems]);
+  }, [canViewProtectedContent, problemsLoading, problems, myRankProgress]);
 
   const contestStatus = contest?.status ?? '';
   const timeLeftDisplay = timeLeft || '-';
@@ -283,11 +374,11 @@ export const ContestDetailPage: React.FC = () => {
   }, [location.pathname, location.search, navigate]);
 
   useEffect(() => {
-    const requestedTab = parseTabFromSearch(location.search);
-    if (requestedTab && requestedTab !== activeTab) {
-      setActiveTab(requestedTab);
+    if (activeTab === 'problems' && canViewProtectedContent) {
+      refetchProblems();
+      refetchRank();
     }
-  }, [location.search]);
+  }, [activeTab, canViewProtectedContent, refetchProblems, refetchRank]);
 
   const passwordMutation = useMutation({
     mutationFn: (formPassword: string) => contestService.verifyContestPassword(contestId, formPassword),
@@ -543,6 +634,105 @@ export const ContestDetailPage: React.FC = () => {
     );
   };
 
+  const formatSeconds = (value?: number) => {
+    if (value == null || Number.isNaN(value)) {
+      return '00:00:00';
+    }
+    const totalSeconds = Math.max(0, Math.floor(value));
+    const hours = Math.floor(totalSeconds / 3600)
+      .toString()
+      .padStart(2, '0');
+    const minutes = Math.floor((totalSeconds % 3600) / 60)
+      .toString()
+      .padStart(2, '0');
+    const seconds = (totalSeconds % 60).toString().padStart(2, '0');
+    return `${hours}:${minutes}:${seconds}`;
+  };
+
+  const judgeStatusLabels: Record<number, string> = {
+    [-2]: '컴파일 에러',
+    [-1]: '오답',
+    [0]: '정답',
+    [1]: '시간 초과',
+    [2]: '실행 시간 초과',
+    [3]: '메모리 초과',
+    [4]: '런타임 에러',
+    [5]: '시스템 에러',
+    [6]: '채점 대기',
+    [7]: '채점 중',
+    [8]: '부분 정답',
+  };
+
+  function getJudgeResultLabel(resultValue: unknown): string {
+    if (resultValue == null) {
+      return '-';
+    }
+    const numeric = Number(resultValue);
+    if (!Number.isNaN(numeric) && numeric in judgeStatusLabels) {
+      return judgeStatusLabels[numeric];
+    }
+    if (typeof resultValue === 'string') {
+      return resultValue;
+    }
+    return String(resultValue);
+  }
+
+  const renderSubmissionDetails = (entry: ContestRankEntry) => {
+    const info = entry.submissionInfo ?? {};
+    const keys = Object.keys(info);
+    if (keys.length === 0) {
+      return <div className="mt-2 text-sm text-gray-500">제출 상세 정보가 없습니다.</div>;
+    }
+    const isAcmContest = contest.ruleType === 'ACM';
+
+    return (
+      <div className="mt-3 overflow-x-auto">
+        <table className="min-w-full table-fixed border border-gray-200 text-sm">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="w-32 border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">문제 ID</th>
+              {isAcmContest ? (
+                <>
+                  <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">정답 여부</th>
+                  <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">정답까지 걸린 시간</th>
+                  <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">오답 시도</th>
+                  <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">첫 정답인지</th>
+                </>
+              ) : (
+                <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">득점</th>
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {keys.sort().map((problemKey) => {
+              const rawValue = (info as Record<string, unknown>)[problemKey];
+              if (isAcmContest) {
+                const detail = typeof rawValue === 'object' && rawValue !== null ? (rawValue as Record<string, any>) : {};
+                return (
+                  <tr key={problemKey} className="border-b border-gray-200">
+                    <td className="px-3 py-2 text-gray-700">{problemKey}</td>
+                    <td className="px-3 py-2 text-gray-700">{detail.is_ac ? '정답' : '미정답'}</td>
+                    <td className="px-3 py-2 text-gray-700">{detail.ac_time ? formatSeconds(Number(detail.ac_time)) : '정답 제출 없음'}</td>
+                    <td className="px-3 py-2 text-gray-700">{detail.error_number ?? 0}회</td>
+                    <td className="px-3 py-2 text-gray-700">{detail.is_first_ac ? '이 문제 최초 정답' : '-'}</td>
+                  </tr>
+                );
+              }
+
+              const score = typeof rawValue === 'number' ? rawValue : Number(rawValue ?? 0);
+              return (
+                <tr key={problemKey} className="border-b border-gray-200">
+                  <td className="px-3 py-2 text-gray-700">{problemKey}</td>
+                  <td className="px-3 py-2 text-gray-700">{Number.isNaN(score) ? '-' : score}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
+
   const renderRank = () => {
     if (contestPhase !== 'running') {
       return (
@@ -573,7 +763,96 @@ export const ContestDetailPage: React.FC = () => {
     return <ContestRankTable entries={rankEntries} ruleType={contest.ruleType} />;
   };
 
+  const renderSubmissionDetailsTab = () => {
+    if (!isAdminUser) {
+      return <div className="text-sm text-gray-600">관리자만 제출 상세정보를 확인할 수 있습니다.</div>;
+    }
+
+    if (submissionsLoading) {
+      return (
+        <div className="flex justify-center items-center h-32">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        </div>
+      );
+    }
+
+    if (submissionsError) {
+      return <div className="text-sm text-red-600">제출 상세정보를 불러오는 중 오류가 발생했습니다.</div>;
+    }
+
+    if (submissionGroups.length === 0) {
+      return <div className="text-sm text-gray-600">표시할 제출 상세정보가 없습니다.</div>;
+    }
+
+    return (
+      <div className="space-y-4">
+        {submissionGroups.map((group) => (
+          <Card key={group.userId} className="border border-gray-200 bg-white p-4 shadow-sm">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="font-medium text-gray-900">
+                {group.username} <span className="text-sm text-gray-500">(ID {group.userId})</span>
+              </div>
+              <div className="text-sm text-gray-600">총 제출 {group.submissions.length}건</div>
+            </div>
+            <div className="mt-3 overflow-x-auto">
+              <table className="min-w-full table-fixed border border-gray-200 text-sm">
+                <thead className="bg-gray-50">
+                  <tr>
+                    <th className="w-28 border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">제출 ID</th>
+                    <th className="w-24 border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">문제 ID</th>
+                    <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">결과</th>
+                    <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">언어</th>
+                    <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">제출 시각</th>
+                    <th className="w-28 border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">소스 보기</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {group.submissions
+                    .slice()
+                    .sort((a, b) => {
+                      const ta = new Date((a.create_time ?? a.createTime) || 0).getTime();
+                      const tb = new Date((b.create_time ?? b.createTime) || 0).getTime();
+                      return ta - tb;
+                    })
+                    .map((submission) => {
+                      const submissionId = submission.id ?? submission.submissionId;
+                      const problemId = submission.problem_id ?? (submission as any).problemId ?? submission.problem;
+                      const language = submission.language ?? (submission as any).language_name ?? '-';
+                      const submittedAt = submission.create_time ?? submission.createTime ?? '';
+                      const resultLabel = getJudgeResultLabel(submission.result ?? (submission as any).status);
+                      return (
+                        <tr key={String(submissionId)} className="border-b border-gray-200">
+                          <td className="px-3 py-2 text-gray-700">{submissionId}</td>
+                          <td className="px-3 py-2 text-gray-700">{problemId}</td>
+                          <td className="px-3 py-2 text-gray-700">{resultLabel}</td>
+                          <td className="px-3 py-2 text-gray-700">{language}</td>
+                          <td className="px-3 py-2 text-gray-700">{submittedAt ? formatDateTime(submittedAt) : '-'}</td>
+                          <td className="px-3 py-2 text-gray-700">
+                            <button
+                              type="button"
+                              className="rounded-md bg-blue-600 px-3 py-1 text-xs font-semibold text-white shadow-sm transition hover:bg-blue-700"
+                              onClick={(event) => {
+                                event.preventDefault();
+                                handleSubmissionClick(submissionId);
+                              }}
+                            >
+                              소스 보기
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+          </Card>
+        ))}
+      </div>
+    );
+  };
+
   return (
+    <>
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
       {contestPhase !== 'running' && (
         <Card className="mb-6 border border-amber-200 bg-amber-50 px-6 py-4 text-amber-800 dark:border-amber-500/40 dark:bg-amber-900/30 dark:text-amber-100">
@@ -644,8 +923,59 @@ export const ContestDetailPage: React.FC = () => {
           {activeTab === 'announcements' && renderAnnouncements()}
           {activeTab === 'problems' && renderProblems()}
           {activeTab === 'rank' && renderRank()}
+          {activeTab === 'submission-details' && renderSubmissionDetailsTab()}
         </div>
       </div>
     </div>
+    {isSubmissionModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          onClick={closeSubmissionModal}
+        >
+          <div
+            className="max-h-[90vh] w-full max-w-3xl overflow-hidden rounded-lg bg-white shadow-xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="flex items-center justify-between border-b border-gray-200 px-5 py-3">
+              <h3 className="text-lg font-semibold text-gray-900">제출 코드 보기</h3>
+              <button
+                type="button"
+                onClick={closeSubmissionModal}
+                className="rounded-md bg-gray-100 px-3 py-1 text-sm font-medium text-gray-700 hover:bg-gray-200"
+              >
+                닫기
+              </button>
+            </div>
+            <div className="max-h-[70vh] overflow-y-auto px-5 py-4 text-sm text-gray-800">
+              {submissionModalLoading ? (
+                <div className="flex h-32 items-center justify-center">
+                  <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
+                </div>
+              ) : submissionModalError ? (
+                <div className="text-red-600">{submissionModalError}</div>
+              ) : selectedSubmissionDetail ? (
+                <div className="space-y-4">
+                  <div className="grid gap-2 text-gray-700 sm:grid-cols-2">
+                    <div><span className="font-semibold">제출 ID:</span> {selectedSubmissionDetail.id}</div>
+                    <div><span className="font-semibold">문제 ID:</span> {(selectedSubmissionDetail as any).problem ?? (selectedSubmissionDetail as any).problem_id ?? '-'}</div>
+                    <div><span className="font-semibold">결과:</span> {getJudgeResultLabel(selectedSubmissionDetail.result ?? (selectedSubmissionDetail as any).status)}</div>
+                    <div><span className="font-semibold">언어:</span> {selectedSubmissionDetail.language ?? '-'}</div>
+                    <div><span className="font-semibold">제출 시각:</span> {selectedSubmissionDetail.create_time ? formatDateTime(selectedSubmissionDetail.create_time) : selectedSubmissionDetail.createTime ? formatDateTime(selectedSubmissionDetail.createTime) : '-'}</div>
+                  </div>
+                  <div>
+                    <h4 className="mb-2 font-semibold text-gray-900">소스 코드</h4>
+                    <pre className="overflow-x-auto rounded-md bg-gray-900 px-4 py-3 text-xs leading-5 text-gray-100">
+{selectedSubmissionDetail.code ?? '코드를 불러올 수 없습니다.'}
+                    </pre>
+                  </div>
+                </div>
+              ) : (
+                <div className="text-sm text-gray-600">제출 정보를 불러오지 못했습니다.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };

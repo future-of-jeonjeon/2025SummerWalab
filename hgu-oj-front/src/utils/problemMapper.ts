@@ -21,6 +21,7 @@ const normalizeTags = (value: any): string[] => {
 export const mapProblem = (raw: any): Problem => ({
   id: raw.id,
   displayId: raw.displayId ?? raw._id ?? String(raw.id ?? ''),
+  _id: raw._id ?? raw.displayId ?? raw.id,
   title: raw.title ?? '제목 없음',
   description: raw.description ?? '',
   difficulty: (raw.difficulty as Problem['difficulty']) ?? 'Mid',

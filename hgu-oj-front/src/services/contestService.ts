@@ -1,5 +1,6 @@
 import { api } from './api';
 import { Contest, ContestAnnouncement, ContestAccess, ContestRankEntry, PaginatedResponse, Problem } from '../types';
+import { SubmissionListItem } from './submissionService';
 import { mapProblem } from '../utils/problemMapper';
 
 const mapContest = (raw: any): Contest => ({
@@ -140,6 +141,46 @@ export const contestService = {
     return {
       results: entries,
       total: data.total ?? entries.length,
+    };
+  },
+
+  getContestSubmissions: async (
+    contestId: number,
+    params?: { limit?: number; offset?: number; userId?: number },
+  ): Promise<{ data: SubmissionListItem[]; total: number }> => {
+    const limit = params?.limit && params.limit > 0 ? params.limit : 500;
+    const offset = params?.offset && params.offset >= 0 ? params.offset : 0;
+    const query: Record<string, unknown> = {
+      contest_id: contestId,
+      limit,
+      offset,
+    };
+    if (params?.userId != null) {
+      query.user_id = params.userId;
+    }
+
+    const response = await api.get<any>('/contest_submissions', query);
+    if (!response.success) {
+      throw new Error(response.message || '제출 기록을 불러오지 못했습니다.');
+    }
+
+    const payload = response.data;
+    let items: SubmissionListItem[] = [];
+    let total = 0;
+    if (Array.isArray(payload)) {
+      items = payload as SubmissionListItem[];
+      total = payload.length;
+    } else if (payload && Array.isArray(payload.results)) {
+      items = payload.results as SubmissionListItem[];
+      total = Number(payload.total ?? payload.count ?? items.length);
+    } else if (payload && Array.isArray(payload.data)) {
+      items = payload.data as SubmissionListItem[];
+      total = Number(payload.total ?? payload.count ?? items.length);
+    }
+
+    return {
+      data: items,
+      total,
     };
   },
 

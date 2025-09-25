@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { WorkbookList } from '../components/organisms/WorkbookList';
-import { SearchBar } from '../components/molecules/SearchBar';
 import { useWorkbooks } from '../hooks/useWorkbooks';
 import { useWorkbookStore } from '../stores/workbookStore';
 
@@ -19,6 +18,13 @@ export const WorkbookListPage: React.FC = () => {
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
     setFilter({ search: query, page: 1 });
+  };
+
+  const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const trimmed = searchQuery.trim();
+    setSearchQuery(trimmed);
+    setFilter({ search: trimmed, page: 1 });
   };
 
   const handlePageChange = (page: number) => {
@@ -61,13 +67,23 @@ export const WorkbookListPage: React.FC = () => {
               <span className="text-2xl font-bold text-blue-600">{filteredWorkbooks.length}</span>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-              <SearchBar
-                value={searchQuery}
-                onChange={handleSearchChange}
-                onSearch={handleSearchChange}
-                placeholder="문제집 검색..."
-                className="w-full sm:w-64"
-              />
+              <form onSubmit={handleSearchSubmit} className="flex w-full sm:w-auto sm:min-w-[320px]">
+                <label htmlFor="workbook-search" className="sr-only">문제집 검색</label>
+                <input
+                  id="workbook-search"
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => handleSearchChange(event.target.value)}
+                  placeholder="문제집 검색..."
+                  className="w-full rounded-l-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  type="submit"
+                  className="min-w-[72px] rounded-r-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white text-center shadow-sm transition hover:bg-blue-700"
+                >
+                  검색
+                </button>
+              </form>
               <select
                 value={filter.sortBy === 'created_at' && filter.sortOrder === 'desc' ? 'newest' : 'oldest'}
                 onChange={(e) => handleSortChange(e.target.value)}

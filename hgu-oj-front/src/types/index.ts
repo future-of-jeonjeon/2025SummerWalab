@@ -12,6 +12,7 @@ export interface User {
 export interface Problem {
   id: number;
   displayId?: string;
+  _id?: string | number;
   title: string;
   description: string;
   difficulty: 'Low' | 'Mid' | 'High';
@@ -184,6 +185,9 @@ export interface ProblemFilter {
   search?: string;
   page?: number;
   limit?: number;
+  searchField?: 'title' | 'tag' | 'number';
+  sortField?: 'number' | 'submission' | 'accuracy';
+  sortOrder?: 'asc' | 'desc';
 }
 
 // 컴포넌트 Props 타입

@@ -20,8 +20,8 @@ export const useStats = () => {
 
   // 대회 수 조회
   const { data: contestsData } = useQuery({
-    queryKey: ['contests', 'stats'],
-    queryFn: () => contestService.getContests({ page: 1, limit: 1 }),
+    queryKey: ['contests', 'stats', 'running'],
+    queryFn: () => contestService.getContests({ page: 1, limit: 1, status: '0' }),
     staleTime: 5 * 60 * 1000, // 5분
   });
 

@@ -5,8 +5,8 @@ import { Button } from '../atoms/Button';
 interface ProblemListProps {
   problems: Problem[];
   onProblemClick: (problemId: number) => void;
-  onSearch: (query: string) => void;
-  onFilterChange: (filter: { difficulty?: string }) => void;
+  onSearch?: (query: string) => void;
+  onFilterChange?: (filter: { difficulty?: string }) => void;
   currentFilter?: { difficulty?: string };
   isLoading?: boolean;
   totalPages?: number;
@@ -14,13 +14,14 @@ interface ProblemListProps {
   onPageChange?: (page: number) => void;
   showStats?: boolean;
   showStatus?: boolean;
+  showOriginalId?: boolean;
 }
 
 export const ProblemList: React.FC<ProblemListProps> = ({
   problems,
   onProblemClick,
-  onSearch: _onSearch,
-  onFilterChange: _onFilterChange,
+  onSearch: _onSearch = () => {},
+  onFilterChange: _onFilterChange = () => {},
   currentFilter: _currentFilter = {},
   isLoading = false,
   totalPages = 1,
@@ -28,6 +29,7 @@ export const ProblemList: React.FC<ProblemListProps> = ({
   onPageChange,
   showStats = true,
   showStatus = false,
+  showOriginalId = false,
 }) => {
   const resolveStatusState = (problem: Problem) => {
     const rawStatus = problem.myStatus ?? (problem as any).my_status;
@@ -53,19 +55,7 @@ export const ProblemList: React.FC<ProblemListProps> = ({
 
   const getStatusBadge = (problem: Problem) => {
     const state = resolveStatusState(problem);
-    if (!showStatus) {
-      if (state === 'solved') {
-        return {
-          label: 'Solved',
-          className: 'bg-green-100 text-green-700 border border-green-200',
-        };
-      }
-      if (state === 'attempted' || state === 'wrong') {
-        return {
-          label: 'Tried',
-          className: 'bg-red-100 text-red-600 border border-red-200',
-        };
-      }
+    if (!showStatus && state !== 'solved' && state !== 'wrong') {
       return undefined;
     }
 
@@ -77,20 +67,11 @@ export const ProblemList: React.FC<ProblemListProps> = ({
     }
     if (state === 'wrong') {
       return {
-        label: '틀림',
+        label: '오답',
         className: 'bg-red-100 text-red-600 border border-red-200',
       };
     }
-    if (state === 'attempted') {
-      return {
-        label: '시도',
-        className: 'bg-amber-100 text-amber-700 border border-amber-200',
-      };
-    }
-    return {
-      label: '미시도',
-      className: 'bg-gray-100 text-gray-600 border border-gray-300',
-    };
+    return undefined;
   };
 
   const renderTags = (tags?: string[]) => {
@@ -147,18 +128,18 @@ export const ProblemList: React.FC<ProblemListProps> = ({
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
           {showStats ? (
-            <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-500 uppercase tracking-wider">
-              <div className="col-span-1 text-center">번호</div>
-              <div className="col-span-6">제목</div>
-              <div className="col-span-2 text-center">태그</div>
-              <div className="col-span-1 text-center">제출</div>
-              <div className="col-span-2 text-center">정답률</div>
-            </div>
-          ) : (
-            <div className="grid grid-cols-[160px_minmax(0,1fr)_200px] items-center gap-4 text-sm font-medium text-gray-500 uppercase tracking-wider">
+            <div className="grid grid-cols-[120px_minmax(0,1fr)_200px_120px_120px] items-center gap-4 text-sm font-medium text-gray-500 uppercase tracking-wider">
               <div className="text-center">번호</div>
               <div className="text-center">제목</div>
-              <div className="text-right pr-2">태그</div>
+              <div className="text-center">태그</div>
+              <div className="text-center">전체 제출수</div>
+              <div className="text-center">정답률</div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-[150px_minmax(0,1fr)_200px] items-center gap-4 text-sm font-medium text-gray-500 uppercase tracking-wider">
+              <div className="text-center">번호</div>
+              <div className="text-center">제목</div>
+              <div className="text-center">태그</div>
             </div>
           )}
         </div>
@@ -172,29 +153,27 @@ export const ProblemList: React.FC<ProblemListProps> = ({
                 onClick={() => onProblemClick(problem.id)}
               >
                 {showStats ? (
-                  <div className="grid grid-cols-12 gap-4 items-center">
-                    <div className="col-span-1 text-sm font-medium text-gray-900 text-center">
-                      {problem.displayId ?? problem.id}
+                  <div className="grid grid-cols-[120px_minmax(0,1fr)_200px_120px_120px] items-center gap-4">
+                    <div className="text-sm font-medium text-gray-900 text-center">
+                      {showOriginalId ? problem._id ?? problem.displayId ?? problem.id : problem.displayId ?? problem.id}
                     </div>
-                    <div className="col-span-6">
-                      <div className="flex items-center gap-2">
-                        <div className="text-sm font-medium text-gray-900 hover:text-blue-600">
-                          {problem.title}
-                        </div>
-                        {badge && (
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${badge.className}`}>
-                            {badge.label}
-                          </span>
-                        )}
+                    <div className="flex items-center justify-center gap-2 text-center">
+                      <div className="text-sm font-medium text-gray-900 hover:text-blue-600">
+                        {problem.title}
                       </div>
+                      {badge && (
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${badge.className}`}>
+                          {badge.label}
+                        </span>
+                      )}
                     </div>
-                    <div className="col-span-2 flex justify-center flex-wrap gap-1">
+                    <div className="flex justify-center flex-wrap gap-1">
                       {renderTags(problem.tags)}
                     </div>
-                    <div className="col-span-1 text-sm text-gray-500 text-center">
-                      {problem.submissionNumber || 0}
+                    <div className="text-sm text-gray-500 text-center">
+                      {problem.submissionNumber ?? 0}
                     </div>
-                    <div className="col-span-2 text-sm text-gray-500 text-center">
+                    <div className="text-sm text-gray-500 text-center">
                       {problem.acceptedNumber && problem.submissionNumber
                         ? `${Math.round((problem.acceptedNumber / problem.submissionNumber) * 100)}%`
                         : '0%'
@@ -204,7 +183,7 @@ export const ProblemList: React.FC<ProblemListProps> = ({
                 ) : (
                   <div className="grid grid-cols-[150px_minmax(0,1fr)_200px] items-center gap-4">
                     <div className="text-sm font-medium text-gray-900 text-center">
-                      {problem.displayId ?? problem.id}
+                      {showOriginalId ? problem._id ?? problem.displayId ?? problem.id : problem.displayId ?? problem.id}
                     </div>
                     <div className="flex items-center justify-center gap-2 text-center">
                       <div className="text-sm font-medium text-gray-900 hover:text-blue-600">
@@ -216,7 +195,7 @@ export const ProblemList: React.FC<ProblemListProps> = ({
                         </span>
                       )}
                     </div>
-                    <div className="flex justify-end flex-wrap gap-1">
+                    <div className="flex justify-center flex-wrap gap-1">
                       {renderTags(problem.tags)}
                     </div>
                   </div>

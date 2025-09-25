@@ -1,6 +1,5 @@
 import React from 'react';
 import { WorkbookCard } from '../molecules/WorkbookCard';
-import { SearchBar } from '../molecules/SearchBar';
 import { Button } from '../atoms/Button';
 import { Workbook } from '../../types';
 

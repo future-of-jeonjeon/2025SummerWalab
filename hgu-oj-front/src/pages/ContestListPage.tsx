@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useContests } from '../hooks/useContests';
-import { SearchBar } from '../components/molecules/SearchBar';
 import { Button } from '../components/atoms/Button';
 import { Card } from '../components/atoms/Card';
 
@@ -22,6 +21,11 @@ export const ContestListPage: React.FC = () => {
 
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
+  };
+
+  const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSearchQuery((prev) => prev.trim());
   };
 
   const getContestStatus = (contest: any) => {
@@ -91,13 +95,23 @@ export const ContestListPage: React.FC = () => {
               <span className="text-2xl font-bold text-blue-600">{data?.total || 0}</span>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-              <SearchBar
-                value={searchQuery}
-                onChange={handleSearchChange}
-                onSearch={handleSearchChange}
-                placeholder="대회 검색..."
-                className="w-full sm:w-64"
-              />
+              <form onSubmit={handleSearchSubmit} className="flex w-full sm:w-auto sm:min-w-[320px]">
+                <label htmlFor="contest-search" className="sr-only">대회 검색</label>
+                <input
+                  id="contest-search"
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => handleSearchChange(event.target.value)}
+                  placeholder="대회 검색..."
+                  className="w-full rounded-l-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                <button
+                  type="submit"
+                  className="min-w-[72px] rounded-r-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white text-center shadow-sm transition hover:bg-blue-700"
+                >
+                  검색
+                </button>
+              </form>
               <select
                 value={statusFilter}
                 onChange={(e) => setStatusFilter(e.target.value)}

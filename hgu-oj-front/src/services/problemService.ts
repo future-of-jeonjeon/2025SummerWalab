@@ -126,8 +126,18 @@ export const problemService = {
       limit,
       offset: (page - 1) * limit,
     };
-    if (filter.search) params.keyword = filter.search;
+    const searchValue = filter.search?.trim();
+    if (searchValue) {
+      if (filter.searchField === 'tag') {
+        params.tag = searchValue;
+      } else {
+        params.keyword = searchValue;
+        params.search_field = filter.searchField ?? 'title';
+      }
+    }
     if (filter.difficulty) params.difficulty = filter.difficulty;
+    if (filter.sortField) params.sort_field = filter.sortField;
+    if (filter.sortOrder) params.sort_order = filter.sortOrder;
 
     const response = await api.get<any>('/problem', params);
     if (!response.success) {

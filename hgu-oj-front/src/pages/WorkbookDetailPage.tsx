@@ -3,7 +3,6 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Card } from '../components/atoms/Card';
 import { Button } from '../components/atoms/Button';
 import { ProblemList } from '../components/organisms/ProblemList';
-import { SearchBar } from '../components/molecules/SearchBar';
 import { useWorkbook, useWorkbookProblems } from '../hooks/useWorkbooks';
 import { Problem } from '../types';
 import { useQuery } from '@tanstack/react-query';
@@ -17,7 +16,9 @@ export const WorkbookDetailPage: React.FC = () => {
   const { data: workbook, isLoading: workbookLoading, error: workbookError } = useWorkbook(workbookId);
   const { data: problemsData, isLoading: problemsLoading, error: problemsError } = useWorkbookProblems(workbookId);
   const [searchQuery, setSearchQuery] = useState('');
-  const [difficultyFilter, setDifficultyFilter] = useState<string>('');
+  const [searchField, setSearchField] = useState<'title' | 'tag' | 'number'>('title');
+  const [sortField, setSortField] = useState<'number' | 'submission' | 'accuracy'>('number');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
   const handleProblemClick = (problemId: number) => {
     navigate(`/problems/${problemId}`);
@@ -100,15 +101,68 @@ export const WorkbookDetailPage: React.FC = () => {
     });
   }, [normalizedProblems, statusMap]);
 
-  const filteredProblems = useMemo(() => {
-    return enrichedProblems.filter((problem) => {
-      const matchesSearch =
-        problem.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        (problem.description && problem.description.toLowerCase().includes(searchQuery.toLowerCase()));
-      const matchesDifficulty = difficultyFilter ? problem.difficulty === difficultyFilter : true;
-      return matchesSearch && matchesDifficulty;
+  const processedProblems = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase();
+
+    const matchesSearch = (problem: Problem) => {
+      if (!query) return true;
+      if (searchField === 'tag') {
+        return (problem.tags ?? []).some((tag) => tag.toLowerCase().includes(query));
+      }
+      if (searchField === 'number') {
+        const identifier = (problem.displayId ?? (problem as any)._id ?? problem.id ?? '').toString().toLowerCase();
+        return identifier.includes(query);
+      }
+      return problem.title.toLowerCase().includes(query);
+    };
+
+    const safeNumber = (value: unknown) => {
+      const numeric = Number(value);
+      return Number.isNaN(numeric) ? null : numeric;
+    };
+
+    const getProblemNumber = (problem: Problem) => {
+      const raw = (problem.displayId ?? (problem as any)._id ?? problem.id ?? '').toString();
+      const numericOnly = raw.replace(/[^0-9]/g, '');
+      return {
+        numeric: numericOnly ? safeNumber(numericOnly) : null,
+        raw,
+      };
+    };
+
+    const getAccuracy = (problem: Problem) => {
+      const submissions = Number(problem.submissionNumber ?? 0);
+      const accepted = Number(problem.acceptedNumber ?? 0);
+      if (!submissions) return 0;
+      return accepted / submissions;
+    };
+
+    const filtered = enrichedProblems.filter(matchesSearch);
+
+    const sorted = [...filtered].sort((a, b) => {
+      let result = 0;
+      if (sortField === 'submission') {
+        result = (a.submissionNumber ?? 0) - (b.submissionNumber ?? 0);
+      } else if (sortField === 'accuracy') {
+        result = getAccuracy(a) - getAccuracy(b);
+      } else {
+        const aNum = getProblemNumber(a);
+        const bNum = getProblemNumber(b);
+        if (typeof aNum.numeric === 'number' && typeof bNum.numeric === 'number') {
+          result = aNum.numeric - bNum.numeric;
+        } else if (typeof aNum.numeric === 'number') {
+          result = -1;
+        } else if (typeof bNum.numeric === 'number') {
+          result = 1;
+        } else {
+          result = aNum.raw.localeCompare(bNum.raw, undefined, { numeric: true, sensitivity: 'base' });
+        }
+      }
+      return sortOrder === 'desc' ? -result : result;
     });
-  }, [enrichedProblems, searchQuery, difficultyFilter]);
+
+    return sorted;
+  }, [enrichedProblems, searchQuery, searchField, sortField, sortOrder]);
 
   const solvedCount = useMemo(() => {
     const isSolved = (problem: Problem) => {
@@ -147,9 +201,25 @@ export const WorkbookDetailPage: React.FC = () => {
     setSearchQuery(query);
   };
 
-  const handleFilterChange = (filter: { difficulty?: string }) => {
-    setDifficultyFilter(filter.difficulty ?? '');
+  const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSearchQuery((prev) => prev.trim());
   };
+
+  const handleSearchFieldChange = (value: string) => {
+    const field = (value || 'title') as typeof searchField;
+    setSearchField(field);
+  };
+
+  const handleSortFieldChange = (value: string) => {
+    const field = (value || 'number') as typeof sortField;
+    setSortField(field);
+  };
+
+  const handleSortOrderToggle = () => {
+    setSortOrder((prev) => (prev === 'desc' ? 'asc' : 'desc'));
+  };
+
 
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
@@ -286,40 +356,63 @@ export const WorkbookDetailPage: React.FC = () => {
                   </div>
                 </div>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-                  <div className="max-w-md">
-                    <SearchBar
+                  <form onSubmit={handleSearchSubmit} className="flex w-full sm:w-auto sm:min-w-[360px]">
+                    <label htmlFor="workbook-problem-search" className="sr-only">문제 검색</label>
+                    <input
+                      id="workbook-problem-search"
+                      type="search"
                       value={searchQuery}
-                      onChange={handleSearchChange}
+                      onChange={(event) => handleSearchChange(event.target.value)}
                       placeholder="문제 검색..."
+                      className="w-full rounded-l-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
-                  </div>
-                  <div>
                     <select
-                      value={difficultyFilter}
-                      onChange={(e) => handleFilterChange({ difficulty: e.target.value })}
-                      className="px-4 py-2 rounded-lg text-sm font-medium border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      value={searchField}
+                      onChange={(event) => handleSearchFieldChange(event.target.value)}
+                      className="w-28 border-y border-r border-gray-300 bg-white px-2 text-sm font-medium text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
                     >
-                      <option value="">All</option>
-                      <option value="Low">Level1</option>
-                      <option value="Mid">Level2</option>
-                      <option value="High">Level3</option>
+                      <option value="title">제목</option>
+                      <option value="tag">태그</option>
+                      <option value="number">번호</option>
                     </select>
+                    <button
+                      type="submit"
+                      className="min-w-[60px] rounded-r-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white text-center shadow-sm transition hover:bg-blue-700"
+                    >
+                      검색
+                    </button>
+                  </form>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <select
+                      value={sortField}
+                      onChange={(event) => handleSortFieldChange(event.target.value)}
+                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-28"
+                    >
+                      <option value="number">번호</option>
+                      <option value="submission">제출수</option>
+                      <option value="accuracy">정답률</option>
+                    </select>
+                    <button
+                      type="button"
+                      onClick={handleSortOrderToggle}
+                      className="min-w-[96px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 text-center shadow-sm transition hover:border-blue-400 hover:text-blue-600"
+                    >
+                      {sortOrder === 'desc' ? '내림차순' : '오름차순'}
+                    </button>
                   </div>
                 </div>
               </div>
 
               <div>
                 <ProblemList
-                  problems={filteredProblems}
+                  problems={processedProblems}
                   onProblemClick={handleProblemClick}
-                  onSearch={() => {}}
-                  onFilterChange={handleFilterChange}
-                  currentFilter={{ difficulty: difficultyFilter }}
                   isLoading={false}
                   totalPages={1}
                   currentPage={1}
-                  showStats={false}
+                  showStats
                   showStatus
+                  showOriginalId
                 />
               </div>
             </div>
