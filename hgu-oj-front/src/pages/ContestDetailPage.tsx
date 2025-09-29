@@ -15,6 +15,7 @@ import { Button } from '../components/atoms/Button';
 import { ContestProblemList } from '../components/organisms/ContestProblemList';
 import { ContestRankTable } from '../components/organisms/ContestRankTable';
 import { ContestAnnouncement, ContestRankEntry, Problem } from '../types';
+import { resolveProblemStatus } from '../utils/problemStatus';
 import { submissionService, SubmissionListItem, SubmissionDetail } from '../services/submissionService';
 
 const formatDateTime = (value?: string) => {
@@ -91,6 +92,12 @@ export const ContestDetailPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [passwordError, setPasswordError] = useState<string | null>(null);
 
+  const [problemSearchQuery, setProblemSearchQuery] = useState('');
+  const [problemSearchField, setProblemSearchField] = useState<'title' | 'tag' | 'number'>('title');
+  const [problemSortField, setProblemSortField] = useState<'number' | 'submission' | 'accuracy'>('number');
+  const [problemSortOrder, setProblemSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [problemStatusFilter, setProblemStatusFilter] = useState<'all' | 'solved' | 'wrong' | 'untouched'>('all');
+
   const offsetRef = useRef(0);
   const intervalRef = useRef<number | null>(null);
   const [timeLeft, setTimeLeft] = useState('-');
@@ -132,7 +139,7 @@ export const ContestDetailPage: React.FC = () => {
     }
     const serverNow = contest.now ? new Date(contest.now).getTime() : NaN;
     offsetRef.current = Number.isNaN(serverNow) ? 0 : serverNow - Date.now();
-  }, [contest?.id, contest?.now]);
+  }, [contest]);
 
   useEffect(() => {
     const update = () => {
@@ -211,35 +218,49 @@ export const ContestDetailPage: React.FC = () => {
     refetch: refetchRank,
   } = useContestRank(contestId, shouldLoadRank);
 
-  const rankEntries: ContestRankEntry[] = rankData?.results ?? [];
-  const adminRankEntries = useMemo(
-    () => rankEntries.length > 0 ? [...rankEntries].sort((a, b) => a.user.id - b.user.id) : [],
-    [rankEntries],
+  const rankEntries: ContestRankEntry[] = useMemo(
+    () => rankData?.results ?? [],
+    [rankData],
   );
 
   const {
     data: contestSubmissions,
     isLoading: submissionsLoading,
     error: submissionsError,
-  } = useQuery({
-    queryKey: ['contest-submissions', contestId, isAdminUser],
+  } = useQuery<{ data: SubmissionListItem[]; total: number }, Error>({
+    queryKey: ['contest-submissions', contestId, isAdminUser, activeTab === 'submission-details'],
     queryFn: () => contestService.getContestSubmissions(contestId, { limit: 2000 }),
     enabled: isAdminUser && activeTab === 'submission-details' && !!contestId,
   });
 
-  const submissionGroups = useMemo(() => {
+  type SubmissionGroup = { userId: number; username: string; submissions: SubmissionListItem[] };
+  type SubmissionWithUserMeta = SubmissionListItem & {
+    user?: { id?: number; username?: string };
+  };
+
+  const submissionGroups = useMemo<SubmissionGroup[]>(() => {
     if (!contestSubmissions?.data) {
-      return [] as Array<{ userId: number; username: string; submissions: SubmissionListItem[] }>;
+      return [];
     }
-    const map = new Map<number, { userId: number; username: string; submissions: SubmissionListItem[] }>();
-    contestSubmissions.data.forEach((item) => {
-      const userId = Number((item as any).user_id ?? (item as any).userId ?? 0);
-      const username = (item as any).username ?? `User ${userId}`;
-      if (!map.has(userId)) {
-        map.set(userId, { userId, username, submissions: [] });
+
+    const map = new Map<number, SubmissionGroup>();
+    contestSubmissions.data.forEach((rawItem) => {
+      const item = rawItem as SubmissionWithUserMeta;
+      const candidateIds = [item.user?.id, item.user_id, item.userId];
+      const resolvedUserId = candidateIds.find((value): value is number => typeof value === 'number' && Number.isFinite(value)) ?? 0;
+      const fallbackName = resolvedUserId ? `User ${resolvedUserId}` : '알 수 없는 사용자';
+      const username =
+        (typeof item.user?.username === 'string' && item.user.username) ||
+        (typeof item.username === 'string' && item.username) ||
+        fallbackName;
+
+      if (!map.has(resolvedUserId)) {
+        map.set(resolvedUserId, { userId: resolvedUserId, username, submissions: [] });
       }
-      map.get(userId)!.submissions.push(item);
+
+      map.get(resolvedUserId)!.submissions.push(rawItem);
     });
+
     return Array.from(map.values()).sort((a, b) => a.userId - b.userId);
   }, [contestSubmissions]);
 
@@ -254,6 +275,43 @@ export const ContestDetailPage: React.FC = () => {
     setSubmissionModalError(null);
     setSelectedSubmissionDetail(null);
   }, []);
+
+  const handleContestProblemSearchChange = (value: string) => {
+    setProblemSearchQuery(value);
+  };
+
+  const handleContestProblemSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setProblemSearchQuery((prev) => prev.trim());
+  };
+
+  const handleContestProblemSearchFieldChange = (value: string) => {
+    const nextField = (value || 'title') as typeof problemSearchField;
+    setProblemSearchField(nextField);
+  };
+
+  const handleContestProblemSortToggle = (field: 'number' | 'submission' | 'accuracy') => {
+    setProblemSortOrder((prevOrder) => {
+      if (problemSortField === field) {
+        return prevOrder === 'asc' ? 'desc' : 'asc';
+      }
+      return 'asc';
+    });
+    setProblemSortField(field);
+  };
+
+  const handleContestProblemStatusFilterChange = (value: string) => {
+    const next = (value || 'all') as typeof problemStatusFilter;
+    setProblemStatusFilter(next);
+  };
+
+  const handleContestProblemReset = () => {
+    setProblemSearchQuery('');
+    setProblemSearchField('title');
+    setProblemSortField('number');
+    setProblemSortOrder('asc');
+    setProblemStatusFilter('all');
+  };
 
   const handleSubmissionClick = useCallback(async (submissionId: number | string | undefined) => {
     if (submissionId == null) {
@@ -279,13 +337,20 @@ export const ContestDetailPage: React.FC = () => {
     }
   }, [activeTab, isSubmissionModalOpen, closeSubmissionModal]);
 
+  type AcmSubmissionDetail = {
+    is_ac?: boolean;
+    ac_time?: number | string;
+    error_number?: number;
+    is_first_ac?: boolean;
+  };
+
   const myRankProgress = useMemo(() => {
     if (!authUser?.id || !contest) return {} as Record<number, string>;
     const entry = rankEntries.find((item) => item.user?.id === authUser.id);
     if (!entry || !entry.submissionInfo) return {} as Record<number, string>;
 
     const result: Record<number, string> = {};
-    const submissionInfo = entry.submissionInfo as Record<string, any>;
+    const submissionInfo = entry.submissionInfo ?? {};
     const scoreLookup = new Map<number, number>(
       problems.map((problem) => [problem.id, problem.totalScore ?? 0]),
     );
@@ -294,11 +359,13 @@ export const ContestDetailPage: React.FC = () => {
       Object.entries(submissionInfo).forEach(([problemKey, info]) => {
         const numericId = Number(problemKey);
         if (!Number.isFinite(numericId)) return;
-        if (info?.is_ac) {
+        const detail = (typeof info === 'object' && info !== null ? info : {}) as AcmSubmissionDetail;
+        if (detail.is_ac) {
           result[numericId] = 'AC';
           return;
         }
-        if ((info?.error_number ?? 0) > 0) {
+        const errorCount = typeof detail.error_number === 'number' ? detail.error_number : Number(detail.error_number ?? 0);
+        if (errorCount > 0) {
           result[numericId] = 'WA';
         }
       });
@@ -322,33 +389,121 @@ export const ContestDetailPage: React.FC = () => {
     return result;
   }, [authUser?.id, rankEntries, contest, problems]);
 
-  const problemSummary = useMemo(() => {
-    if (!canViewProtectedContent) return '-- / --';
-    if (problemsLoading) return '로딩 중...';
-    const total = problems.length;
-    if (total === 0) return '0 / 0';
+  const processedContestProblems = useMemo(() => {
+    if (!canViewProtectedContent || problemsLoading) return [] as Problem[];
 
-    const solved = problems.reduce((count, problem) => {
-      const override = myRankProgress?.[problem.id];
-      if (override) {
-        const normalizedOverride = override.trim().toUpperCase();
-        if (normalizedOverride === 'AC' || normalizedOverride === 'ACCEPTED') {
-          return count + 1;
-        }
-        if (normalizedOverride === 'TRIED' || normalizedOverride === 'ATTEMPTED' || normalizedOverride === 'WA') {
-          return count;
+    const items = problems ?? [];
+    const query = problemSearchQuery.trim().toLowerCase();
+
+    const matchesSearch = (problem: Problem) => {
+      if (!query) return true;
+      if (problemSearchField === 'tag') {
+        const tags = problem.tags ?? [];
+        return tags.some((tag) => tag.toLowerCase().includes(query));
+      }
+      if (problemSearchField === 'number') {
+        const identifier = (problem.displayId ?? problem._id ?? problem.id ?? '').toString().toLowerCase();
+        return identifier.includes(query);
+      }
+      return (problem.title ?? '').toLowerCase().includes(query);
+    };
+
+    const matchesStatus = (problem: Problem) => {
+      const status = resolveProblemStatus(problem, { override: myRankProgress?.[problem.id] });
+      if (problemStatusFilter === 'all') return true;
+      if (problemStatusFilter === 'solved') return status === 'solved';
+      if (problemStatusFilter === 'wrong') return status === 'wrong';
+      if (problemStatusFilter === 'untouched') return status === 'untouched';
+      return true;
+    };
+
+    const safeNumber = (value: unknown) => {
+      const numeric = Number(value);
+      return Number.isNaN(numeric) ? null : numeric;
+    };
+
+    const getProblemNumber = (problem: Problem) => {
+      const raw = (problem.displayId ?? problem._id ?? problem.id ?? '').toString();
+      const numericOnly = raw.replace(/[^0-9]/g, '');
+      return {
+        numeric: numericOnly ? safeNumber(numericOnly) : null,
+        raw,
+      };
+    };
+
+    const getAccuracy = (problem: Problem) => {
+      const submissions = Number(problem.submissionNumber ?? 0);
+      const accepted = Number(problem.acceptedNumber ?? 0);
+      if (!submissions) return 0;
+      return accepted / submissions;
+    };
+
+    const filtered = items.filter(matchesSearch).filter(matchesStatus);
+
+    const sorted = [...filtered].sort((a, b) => {
+      let result = 0;
+      if (problemSortField === 'submission') {
+        result = (a.submissionNumber ?? 0) - (b.submissionNumber ?? 0);
+      } else if (problemSortField === 'accuracy') {
+        result = getAccuracy(a) - getAccuracy(b);
+      } else {
+        const aNum = getProblemNumber(a);
+        const bNum = getProblemNumber(b);
+        if (typeof aNum.numeric === 'number' && typeof bNum.numeric === 'number') {
+          result = aNum.numeric - bNum.numeric;
+        } else if (typeof aNum.numeric === 'number') {
+          result = -1;
+        } else if (typeof bNum.numeric === 'number') {
+          result = 1;
+        } else {
+          result = aNum.raw.localeCompare(bNum.raw, undefined, { numeric: true, sensitivity: 'base' });
         }
       }
+      return problemSortOrder === 'desc' ? -result : result;
+    });
 
-      const rawStatus = problem.myStatus ?? (problem as any).my_status;
-      const normalized = rawStatus == null ? '' : String(rawStatus).trim().toUpperCase();
-      const isSolved = problem.solved || normalized === 'AC' || normalized === 'ACCEPTED' || normalized === '0';
-      return isSolved ? count + 1 : count;
-    }, 0);
+    return sorted;
+  }, [
+    canViewProtectedContent,
+    problemsLoading,
+    problems,
+    problemSearchQuery,
+    problemSearchField,
+    problemSortField,
+    problemSortOrder,
+    problemStatusFilter,
+    myRankProgress,
+  ]);
 
-    return `${solved} / ${total}`;
+  const contestProblemStats = useMemo(() => {
+    if (!canViewProtectedContent || problemsLoading) {
+      return { total: 0, solved: 0, wrong: 0, untouched: 0, attempted: 0 };
+    }
+    return (problems ?? []).reduce(
+      (acc, problem) => {
+        const status = resolveProblemStatus(problem, { override: myRankProgress?.[problem.id] });
+        if (status === 'solved') {
+          acc.solved += 1;
+        } else if (status === 'wrong') {
+          acc.wrong += 1;
+        } else if (status === 'untouched') {
+          acc.untouched += 1;
+        } else {
+          acc.attempted += 1;
+        }
+        acc.total += 1;
+        return acc;
+      },
+      { total: 0, solved: 0, wrong: 0, untouched: 0, attempted: 0 },
+    );
   }, [canViewProtectedContent, problemsLoading, problems, myRankProgress]);
 
+  const totalProblems = contestProblemStats.total || (problems?.length ?? 0);
+  const solvedProblems = contestProblemStats.solved;
+  const wrongProblems = contestProblemStats.wrong;
+  const remainingProblems = Math.max(totalProblems - solvedProblems - wrongProblems, 0);
+  const startTimeDisplay = contest?.startTime ? formatDateTime(contest.startTime) : '-';
+  const endTimeDisplay = contest?.endTime ? formatDateTime(contest.endTime) : '-';
   const contestStatus = contest?.status ?? '';
   const timeLeftDisplay = timeLeft || '-';
   const timeTextClass = timeLeft.includes('종료')
@@ -416,7 +571,7 @@ export const ContestDetailPage: React.FC = () => {
     return (
       <div className="text-center py-12">
         <div className="text-red-600 text-lg">유효하지 않은 대회입니다.</div>
-        <Button className="mt-4 bg-blue-600 hover:bg-blue-700 text-white" onClick={() => navigate('/contests')}>
+        <Button className="mt-4 w-fit min-w-[180px] bg-blue-600 hover:bg-blue-700 text-white" onClick={() => navigate('/contests')}>
           대회 목록으로 돌아가기
         </Button>
       </div>
@@ -436,7 +591,7 @@ export const ContestDetailPage: React.FC = () => {
       <div className="text-center py-12">
         <div className="text-red-600 text-lg mb-4">대회를 불러오지 못했습니다.</div>
         <p className="text-gray-600">{error instanceof Error ? error.message : '정보를 가져오는 중 오류가 발생했습니다.'}</p>
-        <Button variant="secondary" className="mt-6" onClick={() => navigate('/contests')}>
+        <Button variant="secondary" className="mt-6 w-fit min-w-[180px]" onClick={() => navigate('/contests')}>
           대회 목록으로 이동
         </Button>
       </div>
@@ -444,15 +599,6 @@ export const ContestDetailPage: React.FC = () => {
   }
 
   const renderOverview = () => {
-    const overviewItems = [
-      { label: '시작 시간', value: formatDateTime(contest.startTime) },
-      { label: '종료 시간', value: formatDateTime(contest.endTime) },
-      { label: '대회장', value: contest.createdBy.username },
-      { label: '실시간 랭크', value: contest.realTimeRank ? '사용' : '캐시 사용' },
-      { label: '규칙 유형', value: contest.ruleType },
-      { label: '상태', value: (statusLabel[contestStatus] ?? contestStatus) || '-' },
-    ];
-
     return (
       <div className="space-y-6">
         <Card className="border-0 bg-white p-8 shadow-lg dark:border-slate-800 dark:bg-slate-900">
@@ -463,49 +609,20 @@ export const ContestDetailPage: React.FC = () => {
                   <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
                     {contest.title}
                   </h1>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="inline-flex items-center rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700 dark:bg-blue-900/30 dark:text-blue-200">
-                      {contest.ruleType}
-                    </span>
-                    {contest.contestType && (
-                      <span className="inline-flex items-center rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-200">
-                        {contest.contestType === 'Password Protected' ? '비밀번호 필요' : contest.contestType}
-                      </span>
-                    )}
-                    {contestStatus && (
-                      <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
-                        {statusLabel[contestStatus] ?? contestStatus}
-                      </span>
-                    )}
-                  </div>
+                  {contestStatus && (
+                    <div className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
+                      {statusLabel[contestStatus] ?? contestStatus}
+                    </div>
+                  )}
                 </div>
               </div>
-              <p className="max-w-3xl text-sm leading-relaxed text-slate-500 dark:text-slate-300">
-                대회의 진행 시간과 규칙, 실시간 랭크 여부 등을 한눈에 확인하고 준비하세요.
-              </p>
-            </div>
 
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {overviewItems.map(({ label, value }) => (
-                <div
-                  key={label}
-                  className="rounded-xl bg-slate-100/80 px-4 py-4 text-sm dark:bg-slate-800/70"
-                >
-                  <div className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
-                    {label}
-                  </div>
-                  <div className="mt-2 text-base font-semibold text-slate-900 dark:text-slate-100">
-                    {value}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            <div className="prose max-w-none leading-relaxed text-slate-700 dark:prose-invert dark:text-slate-200">
+            <div className="prose max-w-none text-lg font-semibold leading-relaxed text-slate-700 dark:prose-invert dark:text-slate-200">
               <div dangerouslySetInnerHTML={{ __html: contest.description }} />
             </div>
           </div>
-        </Card>
+        </div>
+      </Card>
 
         {requiresPassword && !hasAccess && (
           <Card className="border border-blue-200/70 bg-blue-50/70 p-6 dark:border-blue-400/40 dark:bg-blue-900/20 dark:text-blue-100">
@@ -616,37 +733,88 @@ export const ContestDetailPage: React.FC = () => {
       return <div className="text-sm text-red-600">문제 목록을 불러오는 중 오류가 발생했습니다.</div>;
     }
 
-    return (
-      <ContestProblemList
-        problems={problems}
-        onProblemClick={(problem) => {
-          const displayId = problem.displayId ?? problem.id;
-          const query = new URLSearchParams();
-          query.set('contestId', String(contestId));
-          if (displayId != null) {
-            query.set('displayId', String(displayId));
-          }
-          navigate(`/problems/${problem.id}?${query.toString()}`);
-        }}
-        disabled={contestPhase !== 'running'}
-        statusOverrides={myRankProgress}
-      />
-    );
-  };
+    const totalCount = contestProblemStats.total || (problems?.length ?? 0);
+    const solvedCount = contestProblemStats.solved;
+    const wrongCount = contestProblemStats.wrong;
 
-  const formatSeconds = (value?: number) => {
-    if (value == null || Number.isNaN(value)) {
-      return '00:00:00';
-    }
-    const totalSeconds = Math.max(0, Math.floor(value));
-    const hours = Math.floor(totalSeconds / 3600)
-      .toString()
-      .padStart(2, '0');
-    const minutes = Math.floor((totalSeconds % 3600) / 60)
-      .toString()
-      .padStart(2, '0');
-    const seconds = (totalSeconds % 60).toString().padStart(2, '0');
-    return `${hours}:${minutes}:${seconds}`;
+    return (
+      <div className="space-y-6">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="text-base font-semibold text-slate-900 dark:text-slate-100">
+            <span className="text-slate-600 dark:text-slate-300">{totalCount}개 문제 중</span>
+            <span className="ml-3 text-emerald-600 dark:text-emerald-400">{solvedCount}개 정답</span>
+            <span className="ml-3 text-rose-600 dark:text-rose-400">{wrongCount}개 오답</span>
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
+            <form onSubmit={handleContestProblemSearchSubmit} className="flex w-full sm:w-auto sm:min-w-[360px]">
+              <label htmlFor="contest-problem-search" className="sr-only">문제 검색</label>
+              <input
+                id="contest-problem-search"
+                type="search"
+                value={problemSearchQuery}
+                onChange={(event) => handleContestProblemSearchChange(event.target.value)}
+                placeholder="문제 검색..."
+                className="w-full rounded-l-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <select
+                value={problemSearchField}
+                onChange={(event) => handleContestProblemSearchFieldChange(event.target.value)}
+                className="w-28 border-y border-r border-gray-300 bg-white px-2 text-sm font-medium text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                <option value="title">제목</option>
+                <option value="tag">태그</option>
+                <option value="number">번호</option>
+              </select>
+              <button
+                type="submit"
+                className="min-w-[60px] rounded-r-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white text-center shadow-sm transition hover:bg-blue-700"
+              >
+                검색
+              </button>
+            </form>
+            <div className="flex w-full sm:w-auto sm:min-w-[220px]">
+              <label htmlFor="contest-problem-status-filter" className="sr-only">문제 상태 필터</label>
+              <select
+                id="contest-problem-status-filter"
+                value={problemStatusFilter}
+                onChange={(event) => handleContestProblemStatusFilterChange(event.target.value)}
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-28"
+              >
+                <option value="all">전체</option>
+                <option value="untouched">미시도</option>
+                <option value="solved">정답</option>
+                <option value="wrong">오답</option>
+              </select>
+              <button
+                type="button"
+                onClick={handleContestProblemReset}
+                className="ml-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 text-center shadow-sm transition hover:border-blue-400 hover:text-blue-600"
+              >
+                초기화
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <ContestProblemList
+          problems={processedContestProblems}
+          onProblemClick={(problem) => {
+            const displayId = problem.displayId ?? problem.id;
+            const query = new URLSearchParams();
+            query.set('contestId', String(contestId));
+            if (displayId != null) {
+              query.set('displayId', String(displayId));
+            }
+            navigate(`/problems/${problem.id}?${query.toString()}`);
+          }}
+          disabled={contestPhase !== 'running'}
+          statusOverrides={myRankProgress}
+          onSortChange={handleContestProblemSortToggle}
+          sortField={problemSortField}
+          sortOrder={problemSortOrder}
+        />
+      </div>
+    );
   };
 
   const judgeStatusLabels: Record<number, string> = {
@@ -676,62 +844,6 @@ export const ContestDetailPage: React.FC = () => {
     }
     return String(resultValue);
   }
-
-  const renderSubmissionDetails = (entry: ContestRankEntry) => {
-    const info = entry.submissionInfo ?? {};
-    const keys = Object.keys(info);
-    if (keys.length === 0) {
-      return <div className="mt-2 text-sm text-gray-500">제출 상세 정보가 없습니다.</div>;
-    }
-    const isAcmContest = contest.ruleType === 'ACM';
-
-    return (
-      <div className="mt-3 overflow-x-auto">
-        <table className="min-w-full table-fixed border border-gray-200 text-sm">
-          <thead className="bg-gray-50">
-            <tr>
-              <th className="w-32 border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">문제 ID</th>
-              {isAcmContest ? (
-                <>
-                  <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">정답 여부</th>
-                  <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">정답까지 걸린 시간</th>
-                  <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">오답 시도</th>
-                  <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">첫 정답인지</th>
-                </>
-              ) : (
-                <th className="border-b border-gray-200 px-3 py-2 text-left text-xs font-semibold uppercase tracking-wide text-gray-600">득점</th>
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {keys.sort().map((problemKey) => {
-              const rawValue = (info as Record<string, unknown>)[problemKey];
-              if (isAcmContest) {
-                const detail = typeof rawValue === 'object' && rawValue !== null ? (rawValue as Record<string, any>) : {};
-                return (
-                  <tr key={problemKey} className="border-b border-gray-200">
-                    <td className="px-3 py-2 text-gray-700">{problemKey}</td>
-                    <td className="px-3 py-2 text-gray-700">{detail.is_ac ? '정답' : '미정답'}</td>
-                    <td className="px-3 py-2 text-gray-700">{detail.ac_time ? formatSeconds(Number(detail.ac_time)) : '정답 제출 없음'}</td>
-                    <td className="px-3 py-2 text-gray-700">{detail.error_number ?? 0}회</td>
-                    <td className="px-3 py-2 text-gray-700">{detail.is_first_ac ? '이 문제 최초 정답' : '-'}</td>
-                  </tr>
-                );
-              }
-
-              const score = typeof rawValue === 'number' ? rawValue : Number(rawValue ?? 0);
-              return (
-                <tr key={problemKey} className="border-b border-gray-200">
-                  <td className="px-3 py-2 text-gray-700">{problemKey}</td>
-                  <td className="px-3 py-2 text-gray-700">{Number.isNaN(score) ? '-' : score}</td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      </div>
-    );
-  };
 
   const renderRank = () => {
     if (contestPhase !== 'running') {
@@ -816,10 +928,11 @@ export const ContestDetailPage: React.FC = () => {
                     })
                     .map((submission) => {
                       const submissionId = submission.id ?? submission.submissionId;
-                      const problemId = submission.problem_id ?? (submission as any).problemId ?? submission.problem;
-                      const language = submission.language ?? (submission as any).language_name ?? '-';
+                      const problemId = submission.problem_id ?? submission.problemId ?? submission.problem ?? '-';
+                      const language = submission.language ?? submission.language_name ?? '-';
                       const submittedAt = submission.create_time ?? submission.createTime ?? '';
-                      const resultLabel = getJudgeResultLabel(submission.result ?? (submission as any).status);
+                      const statusValue = submission.result ?? submission.status;
+                      const resultLabel = getJudgeResultLabel(statusValue);
                       return (
                         <tr key={String(submissionId)} className="border-b border-gray-200">
                           <td className="px-3 py-2 text-gray-700">{submissionId}</td>
@@ -853,7 +966,7 @@ export const ContestDetailPage: React.FC = () => {
 
   return (
     <>
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 py-8">
       {contestPhase !== 'running' && (
         <Card className="mb-6 border border-amber-200 bg-amber-50 px-6 py-4 text-amber-800 dark:border-amber-500/40 dark:bg-amber-900/30 dark:text-amber-100">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
@@ -864,32 +977,66 @@ export const ContestDetailPage: React.FC = () => {
           </div>
         </Card>
       )}
-      <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-stretch">
-        <Button
-          variant="secondary"
-          onClick={() => navigate('/contests')}
-          className="w-full md:w-auto md:self-start"
-        >
-          ← 대회 목록으로 돌아가기
-        </Button>
-        <div className="md:ml-auto md:w-fit">
-          <Card className="border-0 bg-white p-4 shadow-md dark:border-slate-800 dark:bg-slate-900 md:min-w-[320px]">
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <div className="flex flex-1 flex-col rounded-xl bg-blue-50 px-4 py-2.5 dark:bg-blue-900/30">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-200">
-                  남은 시간
-                </span>
-                <span className={`mt-1 text-base font-semibold sm:text-lg ${timeTextClass} whitespace-nowrap`}>{timeLeftDisplay}</span>
-              </div>
-              <div className="flex flex-1 flex-col rounded-xl bg-sky-50 px-4 py-2.5 dark:bg-sky-900/30">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-sky-700 dark:text-sky-200">
-                  맞힌 문제 / 전체 문제
-                </span>
-                <span className="mt-1 text-base font-semibold text-slate-900 dark:text-slate-100 sm:text-lg whitespace-nowrap">{problemSummary}</span>
+      <div className="mb-8 grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(220px,0.55fr)]">
+        <div className="rounded-xl bg-slate-100/80 px-6 py-6 text-sm dark:bg-slate-800/70">
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <Button
+                  variant="secondary"
+                  onClick={() => navigate('/contests')}
+                  className="w-fit min-w-[200px] whitespace-nowrap"
+                >
+                  ← 대회 목록으로 돌아가기
+                </Button>
+                <h1 className="ml-2 text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100 whitespace-nowrap lg:ml-8">
+                  {contest.title}
+                </h1>
+                {contestStatus && (
+                  <span className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
+                    {statusLabel[contestStatus] ?? contestStatus}
+                  </span>
+                )}
               </div>
             </div>
-          </Card>
+            <div className="flex w-full flex-wrap items-end justify-end gap-6 text-right pl-0 lg:gap-12 lg:pl-[calc(200px+1rem)]">
+              <div className="text-left w-full sm:w-auto sm:min-w-[160px] lg:ml-6">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">시작 시간</p>
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{startTimeDisplay}</p>
+              </div>
+              <div className="text-left w-full sm:w-auto sm:min-w-[160px]">
+                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">종료 시간</p>
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{endTimeDisplay}</p>
+              </div>
+              <div className="w-full sm:w-auto sm:min-w-[160px]">
+                <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-200">남은 시간</p>
+                <p className={`text-2xl font-black tracking-tight ${timeTextClass} sm:text-[28px]`}>{timeLeftDisplay}</p>
+              </div>
+            </div>
+          </div>
         </div>
+
+        <div className="rounded-xl bg-white px-4 py-6 text-sm shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700 justify-self-end w-full">
+          <div className="grid grid-cols-2 gap-y-4 gap-x-3 sm:gap-x-4">
+            <div>
+              <p className="text-xs font-medium text-slate-500 dark:text-slate-400">전체 문제</p>
+              <p className="text-base font-semibold text-slate-900 dark:text-slate-100">{totalProblems}문제</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">정답</p>
+              <p className="text-base font-semibold text-emerald-600 dark:text-emerald-400">{solvedProblems}문제</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-indigo-600 dark:text-indigo-400">남은 문제</p>
+              <p className="mt-1 text-base font-semibold text-indigo-600 dark:text-indigo-400">{remainingProblems}문제</p>
+            </div>
+            <div>
+              <p className="text-xs font-medium text-rose-600 dark:text-rose-400">오답</p>
+              <p className="mt-1 text-base font-semibold text-rose-600 dark:text-rose-400">{wrongProblems}문제</p>
+            </div>
+          </div>
+        </div>
+
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6">
@@ -957,9 +1104,9 @@ export const ContestDetailPage: React.FC = () => {
                 <div className="space-y-4">
                   <div className="grid gap-2 text-gray-700 sm:grid-cols-2">
                     <div><span className="font-semibold">제출 ID:</span> {selectedSubmissionDetail.id}</div>
-                    <div><span className="font-semibold">문제 ID:</span> {(selectedSubmissionDetail as any).problem ?? (selectedSubmissionDetail as any).problem_id ?? '-'}</div>
-                    <div><span className="font-semibold">결과:</span> {getJudgeResultLabel(selectedSubmissionDetail.result ?? (selectedSubmissionDetail as any).status)}</div>
-                    <div><span className="font-semibold">언어:</span> {selectedSubmissionDetail.language ?? '-'}</div>
+                    <div><span className="font-semibold">문제 ID:</span> {selectedSubmissionDetail.problem ?? selectedSubmissionDetail.problem_id ?? selectedSubmissionDetail.problemId ?? '-'}</div>
+                    <div><span className="font-semibold">결과:</span> {getJudgeResultLabel(selectedSubmissionDetail.result ?? selectedSubmissionDetail.status)}</div>
+                    <div><span className="font-semibold">언어:</span> {selectedSubmissionDetail.language ?? selectedSubmissionDetail.language_name ?? '-'}</div>
                     <div><span className="font-semibold">제출 시각:</span> {selectedSubmissionDetail.create_time ? formatDateTime(selectedSubmissionDetail.create_time) : selectedSubmissionDetail.createTime ? formatDateTime(selectedSubmissionDetail.createTime) : '-'}</div>
                   </div>
                   <div>

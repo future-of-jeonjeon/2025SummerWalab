@@ -58,7 +58,7 @@ export const WorkbookListPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 py-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">

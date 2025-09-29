@@ -3,9 +3,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useProblem } from '../hooks/useProblems';
 import { problemService } from '../services/problemService';
+import { contestService } from '../services/contestService';
+import { workbookService } from '../services/workbookService';
+import { resolveProblemStatus } from '../utils/problemStatus';
 import { CodeEditor } from '../components/organisms/CodeEditor';
 import { Button } from '../components/atoms/Button';
-import { ExecutionResult } from '../types';
+import { Contest, ExecutionResult, Problem } from '../types';
 import { executionService } from '../services/executionService';
 import { submissionService, SubmissionListItem } from '../services/submissionService';
 import { useAuthStore } from '../stores/authStore';
@@ -204,6 +207,17 @@ export const ProblemDetailPage: React.FC = () => {
     return raw.trim();
   }, [location.search]);
 
+  const workbookContextId = useMemo(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const raw = searchParams.get('workbookId');
+    if (!raw) return undefined;
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+  }, [location.search]);
+
+  const [contestMeta, setContestMeta] = useState<Contest | null>(null);
+  const [contestTimeLeft, setContestTimeLeft] = useState<string | null>(null);
+
   const shouldFetchRegularProblem = !contestContextId;
 
   const {
@@ -236,16 +250,96 @@ export const ProblemDetailPage: React.FC = () => {
   const [isExecuting, setIsExecuting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [manualStatus, setManualStatus] = useState<string | undefined>();
-  const [activeSection, setActiveSection] = useState<'description' | 'submissions'>('description');
+  const [activeSection, setActiveSection] = useState<'description' | 'problem-list' | 'submissions'>('description');
   const [editorTheme, setEditorTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('oj:editorTheme');
     return saved === 'light' || saved === 'dark' ? saved : 'dark';
   });
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user: authUser } = useAuthStore();
   const submissionPollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const submissionPollAttemptsRef = useRef(0);
   const copyFeedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const contestTimeOffsetRef = useRef(0);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!contestContextId) {
+      setContestMeta(null);
+      setContestTimeLeft(null);
+      contestTimeOffsetRef.current = 0;
+      return;
+    }
+
+    contestService.getContest(contestContextId)
+      .then((meta) => {
+        if (cancelled) return;
+        setContestMeta(meta);
+        const serverNow = meta.now ? new Date(meta.now).getTime() : NaN;
+        contestTimeOffsetRef.current = Number.isNaN(serverNow) ? 0 : serverNow - Date.now();
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setContestMeta(null);
+          setContestTimeLeft(null);
+          contestTimeOffsetRef.current = 0;
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [contestContextId]);
+
+  useEffect(() => {
+    if (!contestContextId || !contestMeta) {
+      setContestTimeLeft(null);
+      return;
+    }
+
+    const startMs = contestMeta.startTime ? new Date(contestMeta.startTime).getTime() : NaN;
+    const endMs = contestMeta.endTime ? new Date(contestMeta.endTime).getTime() : NaN;
+
+    const update = () => {
+      const nowWithOffset = Date.now() + contestTimeOffsetRef.current;
+      if (Number.isNaN(endMs)) {
+        setContestTimeLeft(null);
+        return;
+      }
+
+      const diff = endMs - nowWithOffset;
+      if (diff <= 0) {
+        setContestTimeLeft('대회가 종료되었습니다.');
+        return;
+      }
+
+      if (!Number.isNaN(startMs) && nowWithOffset < startMs) {
+        const untilStart = startMs - nowWithOffset;
+        const totalSeconds = Math.floor(untilStart / 1000);
+        const hours = Math.floor((totalSeconds % 86400) / 3600);
+        const minutes = Math.floor((totalSeconds % 3600) / 60);
+        const seconds = totalSeconds % 60;
+        const days = Math.floor(totalSeconds / 86400);
+        const prefix = days ? `${days}일 ` : '';
+        setContestTimeLeft(`시작까지 ${prefix}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`);
+        return;
+      }
+
+      const totalSeconds = Math.floor(diff / 1000);
+      const hours = Math.floor((totalSeconds % 86400) / 3600);
+      const minutes = Math.floor((totalSeconds % 3600) / 60);
+      const seconds = totalSeconds % 60;
+      const days = Math.floor(totalSeconds / 86400);
+      const prefix = days ? `${days}일 ` : '';
+      setContestTimeLeft(`${prefix}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`);
+    };
+
+    update();
+    const timer = window.setInterval(update, 1000);
+    return () => {
+      window.clearInterval(timer);
+    };
+  }, [contestContextId, contestMeta]);
 
   // Layout states: left/right resizable and collapsible
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -528,10 +622,139 @@ export const ProblemDetailPage: React.FC = () => {
   const tabInactiveClass = isDarkTheme
     ? 'text-slate-300 border border-transparent hover:bg-slate-800'
     : 'text-gray-600 border border-transparent hover:bg-gray-100';
-  const sectionOptions: Array<{ id: 'description' | 'submissions'; label: string }> = [
-    { id: 'description', label: '문제 내용' },
-    { id: 'submissions', label: '내 제출' },
-  ];
+
+  const problemListLabel = useMemo(() => {
+    if (contestContextId) return '대회 문제 목록';
+    if (workbookContextId) return '문제집 문제';
+    return '문제 목록';
+  }, [contestContextId, workbookContextId]);
+
+  const sectionOptions = useMemo(
+    () => [
+      { id: 'description' as const, label: '문제 내용' },
+      { id: 'problem-list' as const, label: problemListLabel },
+      { id: 'submissions' as const, label: '내 제출' },
+    ],
+    [problemListLabel],
+  );
+
+  const isProblemListActive = activeSection === 'problem-list';
+
+  const {
+    data: contestProblemList,
+    isLoading: isLoadingContestProblemList,
+    error: contestProblemListError,
+  } = useQuery({
+    queryKey: ['contest-problem-list', contestContextId],
+    queryFn: () => contestService.getContestProblems(contestContextId!),
+    enabled: !!contestContextId,
+  });
+
+  const {
+    data: workbookProblemList,
+    isLoading: isLoadingWorkbookProblemList,
+    error: workbookProblemListError,
+  } = useQuery({
+    queryKey: ['workbook-problem-list', workbookContextId],
+    queryFn: async () => {
+      const response = await workbookService.getWorkbookProblems(workbookContextId!);
+      return response.data
+        .slice()
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+        .map((item) => item.problem);
+    },
+    enabled: isProblemListActive && !!workbookContextId,
+  });
+
+  const {
+    data: globalProblemList,
+    isLoading: isLoadingGlobalProblemList,
+    error: globalProblemListError,
+  } = useQuery({
+    queryKey: ['problem-list', 'all'],
+    queryFn: async () => {
+      const response = await problemService.getProblems({ page: 1, limit: 200 });
+      return response.data;
+    },
+    enabled: isProblemListActive && !contestContextId && !workbookContextId,
+  });
+
+  const problemListItems = useMemo<Problem[]>(() => {
+    if (contestContextId) return contestProblemList ?? [];
+    if (workbookContextId) return workbookProblemList ?? [];
+    return globalProblemList ?? [];
+  }, [contestContextId, contestProblemList, workbookContextId, workbookProblemList, globalProblemList]);
+
+  const problemListError = contestContextId
+    ? contestProblemListError
+    : workbookContextId
+      ? workbookProblemListError
+      : globalProblemListError;
+
+  const isLoadingProblemList = contestContextId
+    ? isLoadingContestProblemList
+    : workbookContextId
+      ? isLoadingWorkbookProblemList
+      : isLoadingGlobalProblemList;
+
+  const { data: contestRankProgress } = useQuery({
+    queryKey: ['contest-rank-progress', contestContextId, authUser?.id],
+    queryFn: async () => {
+      if (!contestContextId || !authUser) return null;
+      const result = await contestService.getContestRank(contestContextId, { limit: 200 });
+      return result.results.find((entry) => entry.user?.id === authUser.id) ?? null;
+    },
+    enabled: !!contestContextId && !!authUser,
+    staleTime: 30_000,
+  });
+
+  const contestProblemStats = useMemo(() => {
+    if (!contestContextId || problemListItems.length === 0) {
+      return null;
+    }
+    const stats = { total: problemListItems.length, solved: 0, wrong: 0, untouched: 0 };
+    const overrides = new Map<number, string>();
+
+    const submissionInfo = contestRankProgress?.submissionInfo as Record<string, any> | undefined;
+    if (submissionInfo) {
+      Object.entries(submissionInfo).forEach(([key, value]) => {
+        const numericId = Number(key);
+        if (!Number.isFinite(numericId)) return;
+        if (value && typeof value === 'object') {
+          if (value.is_ac) {
+            overrides.set(numericId, 'AC');
+          } else if ((value.error_number ?? 0) > 0) {
+            overrides.set(numericId, 'WA');
+          }
+        } else {
+          const numericValue = Number(value);
+          if (Number.isFinite(numericValue)) {
+            overrides.set(numericId, numericValue > 0 ? 'TRIED' : '');
+          }
+        }
+      });
+    }
+
+    problemListItems.forEach((item) => {
+      const override = overrides.get(item.id);
+      const status = resolveProblemStatus(item, override ? { override } : undefined);
+      if (status === 'solved') {
+        stats.solved += 1;
+      } else if (status === 'untouched') {
+        stats.untouched += 1;
+      } else {
+        stats.wrong += 1;
+      }
+    });
+
+    // Ensure counts sum to total
+    const assigned = stats.solved + stats.wrong + stats.untouched;
+    if (assigned !== stats.total) {
+      stats.untouched += stats.total - assigned;
+    }
+
+    return stats;
+  }, [contestContextId, contestRankProgress, problemListItems]);
 
   const { data: mySubmissionsResponse, isLoading: isLoadingSubmissions } = useQuery({
     queryKey: submissionQueryKey ?? ['my-submissions', 'idle'],
@@ -647,12 +870,42 @@ export const ProblemDetailPage: React.FC = () => {
       navigate(`/contests/${contestContextId}?${params.toString()}`);
       return;
     }
-    navigate(-1);
-  }, [contestContextId, navigate]);
+
+    if (workbookContextId) {
+      navigate(`/workbooks/${workbookContextId}`);
+      return;
+    }
+
+    navigate('/problems');
+  }, [contestContextId, workbookContextId, navigate]);
+
+  const openProblemFromList = useCallback((target: Problem) => {
+    if (!target || target.id === problemId) return;
+
+    if (contestContextId) {
+      const params = new URLSearchParams();
+      params.set('contestId', String(contestContextId));
+      const displayValue = target.displayId ?? target.id;
+      if (displayValue !== undefined && displayValue !== null) {
+        params.set('displayId', String(displayValue));
+      }
+      navigate(`/problems/${target.id}?${params.toString()}`);
+      return;
+    }
+
+    if (workbookContextId) {
+      const params = new URLSearchParams();
+      params.set('workbookId', String(workbookContextId));
+      navigate(`/problems/${target.id}?${params.toString()}`);
+      return;
+    }
+
+    navigate(`/problems/${target.id}`);
+  }, [contestContextId, workbookContextId, navigate, problemId]);
 
   if (isLoading) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 py-8">
         <div className="animate-pulse">
           <div className="h-8 bg-gray-200 rounded mb-4"></div>
           <div className="h-4 bg-gray-200 rounded mb-2"></div>
@@ -666,7 +919,7 @@ export const ProblemDetailPage: React.FC = () => {
 
   if (error || !problem) {
     return (
-      <div className="container mx-auto px-4 py-8">
+      <div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 py-8">
         <div className="text-center">
           <h1 className="text-2xl font-bold text-red-600 mb-4">문제를 찾을 수 없습니다</h1>
           <Button variant="secondary" onClick={() => navigate('/problems')}>
@@ -679,6 +932,54 @@ export const ProblemDetailPage: React.FC = () => {
 
   return (
     <div className={`w-full px-0 py-0 ${isDarkTheme ? 'bg-slate-950 text-slate-100' : 'bg-gray-50 text-gray-900'}`}>
+      {contestContextId && contestMeta && (
+        <div className={`border-b px-4 py-3 text-xs sm:text-sm ${isDarkTheme ? 'border-slate-700 bg-slate-900 text-slate-200' : 'border-slate-200 bg-white text-slate-600'}`}>
+          <div className="mx-auto flex max-w-7xl flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
+            <div className="flex items-center gap-5">
+              <button
+                type="button"
+                onClick={() => navigate('/')}
+                className={`-ml-12 text-lg font-semibold tracking-tight transition ${isDarkTheme ? 'text-blue-200 hover:text-blue-300' : 'text-blue-700 hover:text-blue-800'}`}
+              >
+                HGU Online Judge
+              </button>
+              <span className={`text-lg font-semibold ${isDarkTheme ? 'text-slate-100' : 'text-slate-900'}`}>{contestMeta.title}</span>
+            </div>
+            <div className="flex flex-1 flex-wrap items-end justify-center gap-6 text-right">
+              <div className="flex flex-col items-start">
+                <span className={`font-medium uppercase tracking-wide ${isDarkTheme ? 'text-slate-400' : 'text-slate-500'}`}>시작</span>
+                <span className={`text-sm font-semibold ${isDarkTheme ? 'text-slate-100' : 'text-slate-900'}`}>{contestMeta.startTime ? formatDateTime(contestMeta.startTime) : '-'}</span>
+              </div>
+              <div className="flex flex-col items-start">
+                <span className={`font-medium uppercase tracking-wide ${isDarkTheme ? 'text-slate-400' : 'text-slate-500'}`}>종료</span>
+                <span className={`text-sm font-semibold ${isDarkTheme ? 'text-slate-100' : 'text-slate-900'}`}>{contestMeta.endTime ? formatDateTime(contestMeta.endTime) : '-'}</span>
+              </div>
+              <div className="flex flex-col items-end">
+                <span className="font-medium uppercase tracking-wide text-blue-600 dark:text-blue-300">남은 시간</span>
+                <span className={`text-xl font-bold ${isDarkTheme ? 'text-blue-300' : 'text-blue-700'}`}>{contestTimeLeft ?? '-'}</span>
+              </div>
+            </div>
+            <div className="flex flex-wrap items-center justify-end gap-4 text-xs">
+              <div className="flex flex-col items-center">
+                <span className={`${isDarkTheme ? 'text-slate-300' : 'text-slate-500'}`}>전체</span>
+                <span className={`text-2xl font-bold ${isDarkTheme ? 'text-slate-100' : 'text-slate-900'}`}>{contestProblemStats?.total ?? '-'}</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-indigo-500 dark:text-indigo-300">미응시</span>
+                <span className={`text-2xl font-bold ${isDarkTheme ? 'text-indigo-300' : 'text-indigo-600'}`}>{contestProblemStats?.untouched ?? '-'}</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-emerald-600 dark:text-emerald-300">정답</span>
+                <span className={`text-2xl font-bold ${isDarkTheme ? 'text-emerald-300' : 'text-emerald-600'}`}>{contestProblemStats?.solved ?? '-'}</span>
+              </div>
+              <div className="flex flex-col items-center">
+                <span className="text-rose-600 dark:text-rose-300">오답</span>
+                <span className={`text-2xl font-bold ${isDarkTheme ? 'text-rose-300' : 'text-rose-600'}`}>{contestProblemStats?.wrong ?? '-'}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <div
         ref={containerRef}
         className="relative flex gap-0 h-screen overflow-visible"
@@ -823,6 +1124,63 @@ export const ProblemDetailPage: React.FC = () => {
                     </section>
                   )}
                 </>
+              ) : activeSection === 'problem-list' ? (
+                <section className="space-y-4">
+                  <h2 className={`text-lg font-semibold ${headingTextClass}`}>{problemListLabel}</h2>
+                  {isLoadingProblemList ? (
+                    <div className={`py-8 text-center ${subtleTextClass}`}>
+                      문제 목록을 불러오는 중입니다...
+                    </div>
+                  ) : problemListError ? (
+                    <div className={`py-8 text-center ${subtleTextClass}`}>
+                      문제 목록을 불러오지 못했습니다.
+                    </div>
+                  ) : problemListItems.length === 0 ? (
+                    <div className={`py-8 text-center ${subtleTextClass}`}>
+                      표시할 문제가 없습니다.
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {problemListItems.map((item) => {
+                        const isCurrentProblem = item.id === problem.id;
+                        const problemIdentifier = item.displayId ?? item.id;
+                        return (
+                          <button
+                            key={`${problemIdentifier}-${item.id}`}
+                            type="button"
+                            onClick={() => !isCurrentProblem && openProblemFromList(item)}
+                            className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition ${
+                              isCurrentProblem
+                                ? isDarkTheme
+                                  ? 'border-blue-500 bg-blue-900/40 text-blue-100'
+                                  : 'border-blue-500 bg-blue-50 text-blue-700'
+                                : isDarkTheme
+                                  ? 'border-slate-700 bg-slate-900/70 hover:bg-slate-800'
+                                  : 'border-gray-200 bg-white hover:bg-gray-50'
+                            } ${isCurrentProblem ? 'cursor-default' : 'cursor-pointer'}`}
+                          >
+                            <div className="flex items-center justify-between gap-4">
+                              <div className="flex-1 min-w-0">
+                                <div className="truncate text-sm font-semibold">
+                                  {problemIdentifier} · {item.title}
+                                </div>
+                              </div>
+                              {isCurrentProblem ? (
+                                <span className={`text-xs font-semibold ${isDarkTheme ? 'text-blue-200' : 'text-blue-600'}`}>
+                                  현재 문제
+                                </span>
+                              ) : (
+                                <span className={`text-xs font-medium ${isDarkTheme ? 'text-slate-300' : 'text-gray-500'}`}>
+                                  이동
+                                </span>
+                              )}
+                            </div>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </section>
               ) : (
                 <section className="space-y-4">
                   {isLoadingSubmissions ? (

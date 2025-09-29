@@ -1,6 +1,7 @@
 import React from 'react';
 import { Problem } from '../../types';
 import { Button } from '../atoms/Button';
+import { resolveProblemStatus } from '../../utils/problemStatus';
 
 interface ProblemListProps {
   problems: Problem[];
@@ -15,6 +16,9 @@ interface ProblemListProps {
   showStats?: boolean;
   showStatus?: boolean;
   showOriginalId?: boolean;
+  onSortChange?: (field: 'number' | 'submission' | 'accuracy') => void;
+  sortField?: 'number' | 'submission' | 'accuracy';
+  sortOrder?: 'asc' | 'desc';
 }
 
 export const ProblemList: React.FC<ProblemListProps> = ({
@@ -30,28 +34,43 @@ export const ProblemList: React.FC<ProblemListProps> = ({
   showStats = true,
   showStatus = false,
   showOriginalId = false,
+  onSortChange,
+  sortField,
+  sortOrder,
 }) => {
-  const resolveStatusState = (problem: Problem) => {
-    const rawStatus = problem.myStatus ?? (problem as any).my_status;
-    const normalized = (() => {
-      if (rawStatus == null) return '';
-      const value = String(rawStatus).trim();
-      if (!value) return '';
-      if (value === '0') return 'AC';
-      return value.toUpperCase();
-    })();
+  const renderSortableHeader = (label: string, field: 'number' | 'submission' | 'accuracy', align: 'left' | 'center' | 'right' = 'center') => {
+    if (!onSortChange) {
+      return (
+        <span
+          className={`text-sm font-medium uppercase tracking-wider ${align === 'left' ? 'text-left' : align === 'right' ? 'text-right' : 'text-center'} text-gray-500 dark:text-slate-400`}
+        >
+          {label}
+        </span>
+      );
+    }
 
-    if (problem.solved || normalized === 'AC' || normalized === 'ACCEPTED') {
-      return 'solved' as const;
-    }
-    if (!normalized) {
-      return 'untouched' as const;
-    }
-    if (normalized === '-1' || normalized === 'WA' || normalized === 'WRONG_ANSWER') {
-      return 'wrong' as const;
-    }
-    return 'attempted' as const;
+    const isActive = sortField === field;
+    const isAsc = isActive && sortOrder === 'asc';
+    const isDesc = isActive && sortOrder === 'desc';
+    const alignmentClass = align === 'left' ? 'justify-start text-left' : align === 'right' ? 'justify-end text-right' : 'justify-center text-center';
+
+    return (
+      <button
+        type="button"
+        onClick={() => onSortChange(field)}
+        aria-pressed={isActive}
+        className={`inline-flex w-full items-center ${alignmentClass} gap-1 rounded px-1 py-0.5 text-sm font-semibold uppercase tracking-wider focus:outline-none focus-visible:outline-none focus-visible:ring-0 active:outline-none ${isActive ? 'text-blue-600 dark:text-blue-300' : 'text-gray-500 dark:text-slate-400'}`}
+      >
+        <span>{label}</span>
+        <span className="flex flex-col leading-none text-[11px]">
+          <span className={isAsc ? 'text-blue-600 dark:text-blue-300' : 'text-slate-300 dark:text-slate-600'}>▲</span>
+          <span className={isDesc ? 'text-blue-600 dark:text-blue-300' : 'text-slate-300 dark:text-slate-600'}>▼</span>
+        </span>
+      </button>
+    );
   };
+
+  const resolveStatusState = (problem: Problem) => resolveProblemStatus(problem);
 
   const getStatusBadge = (problem: Problem) => {
     const state = resolveStatusState(problem);
@@ -128,24 +147,41 @@ export const ProblemList: React.FC<ProblemListProps> = ({
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
           {showStats ? (
-            <div className="grid grid-cols-[120px_minmax(0,1fr)_200px_120px_120px] items-center gap-4 text-sm font-medium text-gray-500 uppercase tracking-wider">
-              <div className="text-center">번호</div>
-              <div className="text-center">제목</div>
-              <div className="text-center">태그</div>
-              <div className="text-center">전체 제출수</div>
-              <div className="text-center">정답률</div>
+            <div className="grid grid-cols-[120px_minmax(0,1fr)_200px_120px_120px] items-center gap-4">
+              <div className="flex justify-center">
+                {renderSortableHeader('번호', 'number')}
+              </div>
+              <div className="text-center text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                제목
+              </div>
+              <div className="text-center text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                태그
+              </div>
+              <div className="flex justify-center">
+                {renderSortableHeader('전체 제출수', 'submission')}
+              </div>
+              <div className="flex justify-center">
+                {renderSortableHeader('정답률', 'accuracy')}
+              </div>
             </div>
           ) : (
-            <div className="grid grid-cols-[150px_minmax(0,1fr)_200px] items-center gap-4 text-sm font-medium text-gray-500 uppercase tracking-wider">
-              <div className="text-center">번호</div>
-              <div className="text-center">제목</div>
-              <div className="text-center">태그</div>
+            <div className="grid grid-cols-[150px_minmax(0,1fr)_200px] items-center gap-4">
+              <div className="flex justify-center">
+                {renderSortableHeader('번호', 'number')}
+              </div>
+              <div className="text-center text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                제목
+              </div>
+              <div className="text-center text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                태그
+              </div>
             </div>
           )}
         </div>
         <div className="divide-y divide-gray-200">
           {problems.map((problem) => {
             const badge = getStatusBadge(problem);
+            const statusState = resolveStatusState(problem);
             return (
               <div
                 key={problem.id}
@@ -161,6 +197,11 @@ export const ProblemList: React.FC<ProblemListProps> = ({
                       <div className="text-sm font-medium text-gray-900 hover:text-blue-600">
                         {problem.title}
                       </div>
+                      {statusState === 'untouched' && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-200 text-slate-700">
+                          미시도
+                        </span>
+                      )}
                       {badge && (
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${badge.className}`}>
                           {badge.label}
@@ -189,6 +230,11 @@ export const ProblemList: React.FC<ProblemListProps> = ({
                       <div className="text-sm font-medium text-gray-900 hover:text-blue-600">
                         {problem.title}
                       </div>
+                      {statusState === 'untouched' && (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-200 text-slate-700">
+                          미시도
+                        </span>
+                      )}
                       {badge && (
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap ${badge.className}`}>
                           {badge.label}

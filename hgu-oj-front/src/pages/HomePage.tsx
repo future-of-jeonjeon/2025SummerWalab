@@ -78,7 +78,7 @@ export const HomePage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 space-y-12">
+      <div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 py-12 space-y-12">
         <section className="grid gap-6 lg:grid-cols-[1.8fr,1fr] items-stretch">
           <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-sky-500 to-cyan-400 text-white shadow-xl">
             <div className="absolute inset-0 bg-gradient-to-br from-blue-600/70 via-sky-500/70 to-cyan-400/70" />

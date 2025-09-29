@@ -30,6 +30,7 @@ export const useProblemStore = create<ProblemState & ProblemActions>((set) => ({
     searchField: 'title',
     sortField: 'number',
     sortOrder: 'asc',
+    statusFilter: 'all',
   },
   totalCount: 0,
   isLoading: false,

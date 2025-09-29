@@ -20,17 +20,30 @@ export interface SubmissionDetail {
   result?: number | string;
   status?: string;
   statistic_info?: Record<string, unknown> | null;
+  problem?: number | string;
+  problem_id?: number | string;
+  problemId?: number | string;
+  language?: string;
+  language_name?: string;
+  code?: string;
+  user?: {
+    id?: number;
+    username?: string;
+  };
+  user_id?: number;
+  userId?: number;
+  username?: string;
   [key: string]: unknown;
 }
 
 export interface SubmissionListItem extends SubmissionDetail {
-  language?: string;
   create_time?: string;
   createTime?: string;
   execution_time?: number;
   executionTime?: number;
   memory?: number;
   memoryUsage?: number;
+  submissionId?: number | string;
 }
 
 export interface SubmissionListResponse {

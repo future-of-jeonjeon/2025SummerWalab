@@ -92,5 +92,3 @@ services:
       - oj-redis 
       - oj-frontend
       - oj-backend
-
-

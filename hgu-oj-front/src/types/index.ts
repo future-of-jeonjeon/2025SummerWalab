@@ -188,6 +188,7 @@ export interface ProblemFilter {
   searchField?: 'title' | 'tag' | 'number';
   sortField?: 'number' | 'submission' | 'accuracy';
   sortOrder?: 'asc' | 'desc';
+  statusFilter?: 'all' | 'solved' | 'wrong' | 'untouched';
 }
 
 // 컴포넌트 Props 타입
