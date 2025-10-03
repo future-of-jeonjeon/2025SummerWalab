@@ -1,39 +1,46 @@
 services:
   oj-frontend:
-    build: ./OnlineJudgeFE
+    networks:
+      - judge-network
+    build:
+      context: ./OnlineJudgeFE
+      args:
+        VUE_APP_GOOGLE_CLIENT_ID: ${VUE_APP_GOOGLE_CLIENT_ID}
+        VUE_APP_GOOGLE_CLIENT_SECRET: ${VUE_APP_GOOGLE_CLIENT_SECRET}
+        VUE_APP_GOOGLE_REDIRECT_URI: ${VUE_APP_GOOGLE_REDIRECT_URI}
     container_name: oj-frontend
-    ports:
-      - "8080:3000"
+    env_file: .env
     environment:
       - TARGET=http://oj-backend:8000
+      - TARGET_HOST=${SERVICE_DOMAIN}
       - PORT=8080
       - VUE_APP_GOOGLE_CLIENT_ID=${VUE_APP_GOOGLE_CLIENT_ID}
       - VUE_APP_GOOGLE_CLIENT_SECRET=${VUE_APP_GOOGLE_CLIENT_SECRET}
-      - VUE_APP_GOOGLE_REDIRECT_URI=${VUE_APP_GOOGLE_REDIRECT_URI:-http://localhost:8080/oauth/callback}
+      - VUE_APP_GOOGLE_REDIRECT_URI=${VUE_APP_GOOGLE_REDIRECT_URI}
+    ports:
+      - "8080:8080"
     depends_on:
       - oj-backend
 
   oj-redis:
+    networks:
+      - judge-network
     image: redis:4.0-alpine
     restart: always
     volumes:
       - ./data/redis:/data
 
-  oj-postgres:
-    image: postgres:10-alpine
-    restart: always
-    volumes:
-      - ./data/postgres:/var/lib/postgresql/data
-    environment:
-      - POSTGRES_DB=onlinejudge
-      - POSTGRES_USER=onlinejudge
-      - POSTGRES_PASSWORD=onlinejudge
-    ports:
-      - "5432:5432"  
-
   oj-judge:
+    networks:
+      - judge-network
     image: registry.cn-hongkong.aliyuncs.com/oj-image/judge:1.6.1
     restart: always
+    env_file: .env
+    deploy:
+      resources:
+        limits:
+          cpus: "1"
+          memory: 512m
     read_only: true
     cap_drop:
       - SETPCAP
@@ -46,39 +53,45 @@ services:
       - /tmp
     volumes:
       - ./data/backend/test_case:/test_case:ro
-      - ./data/judge_server/log:/log
-      - ./data/judge_server/run:/judger
+      - ./data/judge_server/oj-judge/log:/log
+      - ./data/judge_server/oj-judge/run:/judger
     environment:
-      - SERVICE_URL=http://oj-judge:8080
-      - BACKEND_URL=http://oj-backend:8000/api/judge_server_heartbeat/
-      - TOKEN=CHANGE_THIS
+      SERVICE_URL: http://oj-judge:8080
+      BACKEND_URL: http://oj-backend:8000/api/judge_server_heartbeat/
+      TOKEN: ${JUDGE_SERVER_TOKEN}
 
   oj-backend:
+    networks:
+      - judge-network
+    ports:
+      - "8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     build: ./OnlineJudge
-    # image: registry.cn-hongkong.aliyuncs.com/oj-image/backend:1.6.1
     restart: always
     depends_on:
       - oj-redis
-      - oj-postgres
       - oj-judge
     volumes:
       - ./data/backend:/data
+    env_file: .env
     environment:
-      - POSTGRES_DB=onlinejudge
-      - POSTGRES_USER=onlinejudge
-      - POSTGRES_PASSWORD=onlinejudge
-      - JUDGE_SERVER_TOKEN=CHANGE_THIS
-    ports:
-      - "0.0.0.0:80:8000"
-      - "0.0.0.0:443:1443"
-  
+      - POSTGRES_HOST=${POSTGRES_HOST}
+      - POSTGRES_PORT=${POSTGRES_PORT}
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - JUDGE_SERVER_TOKEN=${JUDGE_SERVER_TOKEN}
+      - REDIS_HOST=oj-redis
+      - REDIS_PORT=6379
 
   oj-micro-service: 
+    networks:
+      - judge-network
     build: ./micro-service-server 
     ports:
-      - "8000:8000"
+      - "9000:8000"
     environment:
-      - DATABASE_URL=postgresql+asyncpg://onlinejudge:onlinejudge@oj-postgres:5432/onlinejudge
       - SSO_INTROSPECT_URL=http://oj-backend:8000/api/sso
       - REDIS_URL=redis://oj-redis:6379/0
       - REDIS_SESSION_PREFIX="ms:session:"
@@ -88,7 +101,11 @@ services:
     volumes:
       - ./data/backend/test_case:/test_case:rw 
     depends_on:
-      - oj-postgres
       - oj-redis 
       - oj-frontend
       - oj-backend
+
+networks:
+  judge-network:
+    name: judge-network
+    driver: bridge

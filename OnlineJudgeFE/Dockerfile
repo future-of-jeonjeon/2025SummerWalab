@@ -51,25 +51,28 @@ RUN set -eux; \
 FROM nginx:alpine AS run
 
 RUN apk add --no-cache gettext
-
-# Nginx listens on 3000 to match docker-compose (8080:3000)
-RUN sed -i 's/listen       80;/listen       3000;/' /etc/nginx/conf.d/default.conf || true
+# Nginx listens on 8080 (deploy.sh expects container to serve on 8080)
+RUN sed -i 's/listen       80;/listen       8080;/' /etc/nginx/conf.d/default.conf || true
 
 # Overwrite default server config with SPA-friendly rules
 RUN rm -f /etc/nginx/conf.d/default.conf
 RUN <<'EOF' cat > /etc/nginx/conf.d/default.conf.template
 server {
-    listen 3000;
+    listen 8080;
     server_name _;
     root /usr/share/nginx/html;
     index index.html;
 
     # Backend API proxy
+
     location /api/ {
         proxy_pass ${TARGET}/api/;
+        proxy_set_header Host ${TARGET_HOST};
+        proxy_set_header X-Forwarded-Host ${TARGET_HOST};
+        proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header Host $http_host;
+        proxy_connect_timeout 5s;
+        proxy_read_timeout 300s;
     }
 
     # Static assets: serve as-is; attempt alternate common build paths before 404
@@ -85,23 +88,11 @@ server {
     location / {
         try_files $uri $uri/ /index.html;
     }
-
-    # ---- Hotfix: force correct OAuth params in built assets ----
-    # We cannot change source now, so use sub_filter to inject values at response time.
-    gzip off;
-    sub_filter_once off;
-    sub_filter_types application/javascript text/html;
-    # Inject Google client_id when found empty in query strings
-    sub_filter "client_id=" "client_id=$VUE_APP_GOOGLE_CLIENT_ID";
-    # Fix redirect_uri hardcoded to port 3000 -> use provided redirect URI
-    sub_filter "http://localhost:3000/oauth/callback" "$VUE_APP_GOOGLE_REDIRECT_URI";
-    sub_filter "https://localhost:3000/oauth/callback" "$VUE_APP_GOOGLE_REDIRECT_URI";
-    # -----------------------------------------------------------
 }
 EOF
 
 # Copy built assets
 COPY --from=build /app/dist /usr/share/nginx/html
 
-EXPOSE 3000
-CMD ["/bin/sh", "-c", "envsubst '$TARGET $VUE_APP_GOOGLE_CLIENT_ID $VUE_APP_GOOGLE_REDIRECT_URI' < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]
+EXPOSE 8080
+CMD ["/bin/sh", "-c", "if [ -z \"$TARGET_HOST\" ]; then TARGET_HOST='\\$host'; fi; export TARGET_HOST; envsubst '$TARGET $TARGET_HOST' < /etc/nginx/conf.d/default.conf.template > /etc/nginx/conf.d/default.conf && nginx -g 'daemon off;'"]
