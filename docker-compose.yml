@@ -1,5 +1,7 @@
 services:
   oj-frontend:
+    networks:
+      - judge-network
     build:
       context: ./OnlineJudgeFE
       args:
@@ -10,28 +12,30 @@ services:
     env_file: .env
     environment:
       - TARGET=http://oj-backend:8000
+      - TARGET_HOST=${SERVICE_DOMAIN}
       - PORT=8080
       - VUE_APP_GOOGLE_CLIENT_ID=${VUE_APP_GOOGLE_CLIENT_ID}
       - VUE_APP_GOOGLE_CLIENT_SECRET=${VUE_APP_GOOGLE_CLIENT_SECRET}
       - VUE_APP_GOOGLE_REDIRECT_URI=${VUE_APP_GOOGLE_REDIRECT_URI}
-    expose:
-      - "8080"
+    ports:
+      - "8080:8080"
     depends_on:
       - oj-backend
-    ports:
-      - "0.0.0.0:8080:8080"
 
   oj-redis:
+    networks:
+      - judge-network
     image: redis:4.0-alpine
     restart: always
     volumes:
       - ./data/redis:/data
 
   oj-judge:
+    networks:
+      - judge-network
     image: registry.cn-hongkong.aliyuncs.com/oj-image/judge:1.6.1
     restart: always
     env_file: .env
-    # cpuset: "15"
     deploy:
       resources:
         limits:
@@ -56,132 +60,18 @@ services:
       BACKEND_URL: http://oj-backend:8000/api/judge_server_heartbeat/
       TOKEN: ${JUDGE_SERVER_TOKEN}
 
-  oj-judge-2:
-    image: registry.cn-hongkong.aliyuncs.com/oj-image/judge:1.6.1
-    restart: always
-    env_file: .env
-    # cpuset: "16"
-    deploy:
-      resources:
-        limits:
-          cpus: "1"
-          memory: 512m
-    read_only: true
-    cap_drop:
-      - SETPCAP
-      - MKNOD
-      - NET_BIND_SERVICE
-      - SYS_CHROOT
-      - SETFCAP
-      - FSETID
-    tmpfs:
-      - /tmp
-    volumes:
-      - ./data/backend/test_case:/test_case:ro
-      - ./data/judge_server/oj-judge-2/log:/log
-      - ./data/judge_server/oj-judge-2/run:/judger
-    environment:
-      SERVICE_URL: http://oj-judge-2:8080
-      BACKEND_URL: http://oj-backend:8000/api/judge_server_heartbeat/
-      TOKEN: ${JUDGE_SERVER_TOKEN}
-
-  oj-judge-3:
-    image: registry.cn-hongkong.aliyuncs.com/oj-image/judge:1.6.1
-    restart: always
-    env_file: .env
-    # cpuset: "17"
-    deploy:
-      resources:
-        limits:
-          cpus: "1"
-          memory: 512m
-    read_only: true
-    cap_drop:
-      - SETPCAP
-      - MKNOD
-      - NET_BIND_SERVICE
-      - SYS_CHROOT
-      - SETFCAP
-      - FSETID
-    tmpfs:
-      - /tmp
-    volumes:
-      - ./data/backend/test_case:/test_case:ro
-      - ./data/judge_server/oj-judge-3/log:/log
-      - ./data/judge_server/oj-judge-3/run:/judger
-    environment:
-      SERVICE_URL: http://oj-judge-3:8080
-      BACKEND_URL: http://oj-backend:8000/api/judge_server_heartbeat/
-      TOKEN: ${JUDGE_SERVER_TOKEN}
-  
-  oj-judge-4:
-    image: registry.cn-hongkong.aliyuncs.com/oj-image/judge:1.6.1
-    restart: always
-    env_file: .env
-    # cpuset: "18"
-    deploy:
-      resources:
-        limits:
-          cpus: "1"
-          memory: 512m
-    read_only: true
-    cap_drop:
-      - SETPCAP
-      - MKNOD
-      - NET_BIND_SERVICE
-      - SYS_CHROOT
-      - SETFCAP
-      - FSETID
-    tmpfs:
-      - /tmp
-    volumes:
-      - ./data/backend/test_case:/test_case:ro
-      - ./data/judge_server/oj-judge-4/log:/log
-      - ./data/judge_server/oj-judge-4/run:/judger
-    environment:
-      SERVICE_URL: http://oj-judge-4:8080
-      BACKEND_URL: http://oj-backend:8000/api/judge_server_heartbeat/
-      TOKEN: ${JUDGE_SERVER_TOKEN}
-  
-  oj-judge-5:
-    image: registry.cn-hongkong.aliyuncs.com/oj-image/judge:1.6.1
-    restart: always
-    env_file: .env
-    # cpuset: "19"
-    deploy:
-      resources:
-        limits:
-          cpus: "1"
-          memory: 512m
-    read_only: true
-    cap_drop:
-      - SETPCAP
-      - MKNOD
-      - NET_BIND_SERVICE
-      - SYS_CHROOT
-      - SETFCAP
-      - FSETID
-    tmpfs:
-      - /tmp
-    volumes:
-      - ./data/backend/test_case:/test_case:ro
-      - ./data/judge_server/oj-judge-5/log:/log
-      - ./data/judge_server/oj-judge-5/run:/judger
-    environment:
-      SERVICE_URL: http://oj-judge-5:8080
-      BACKEND_URL: http://oj-backend:8000/api/judge_server_heartbeat/
-      TOKEN: ${JUDGE_SERVER_TOKEN}
-
   oj-backend:
+    networks:
+      - judge-network
+    ports:
+      - "8000:8000"
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     build: ./OnlineJudge
     restart: always
     depends_on:
       - oj-redis
       - oj-judge
-      - oj-judge-2
-      - oj-judge-3
-      - oj-judge-4
-      - oj-judge-5
     volumes:
       - ./data/backend:/data
     env_file: .env
@@ -194,3 +84,28 @@ services:
       - JUDGE_SERVER_TOKEN=${JUDGE_SERVER_TOKEN}
       - REDIS_HOST=oj-redis
       - REDIS_PORT=6379
+
+  oj-micro-service: 
+    networks:
+      - judge-network
+    build: ./micro-service-server 
+    ports:
+      - "9000:8000"
+    environment:
+      - SSO_INTROSPECT_URL=http://oj-backend:8000/api/sso
+      - REDIS_URL=redis://oj-redis:6379/0
+      - REDIS_SESSION_PREFIX="ms:session:"
+      - TOKEN_COOKIE_NAME=ms_token
+      - LOCAL_TOKEN_TTL_SECONDS=1800
+      - TEST_CASE_DATA_PATH=/test_case 
+    volumes:
+      - ./data/backend/test_case:/test_case:rw 
+    depends_on:
+      - oj-redis 
+      - oj-frontend
+      - oj-backend
+
+networks:
+  judge-network:
+    name: judge-network
+    driver: bridge

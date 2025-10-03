@@ -4,9 +4,6 @@
 
 [BackEnd](/OnlineJudge/)
 
-[Spring MircoService](/test-project-oj/)
-
-
 ### version information
 
 Django - python3.12

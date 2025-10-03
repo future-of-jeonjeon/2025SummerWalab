@@ -51,7 +51,6 @@ RUN set -eux; \
 FROM nginx:alpine AS run
 
 RUN apk add --no-cache gettext
-œœ
 # Nginx listens on 8080 (deploy.sh expects container to serve on 8080)
 RUN sed -i 's/listen       80;/listen       8080;/' /etc/nginx/conf.d/default.conf || true
 
