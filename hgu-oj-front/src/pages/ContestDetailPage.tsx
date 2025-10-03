@@ -733,19 +733,10 @@ export const ContestDetailPage: React.FC = () => {
       return <div className="text-sm text-red-600">문제 목록을 불러오는 중 오류가 발생했습니다.</div>;
     }
 
-    const totalCount = contestProblemStats.total || (problems?.length ?? 0);
-    const solvedCount = contestProblemStats.solved;
-    const wrongCount = contestProblemStats.wrong;
-
     return (
       <div className="space-y-6">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="text-base font-semibold text-slate-900 dark:text-slate-100">
-            <span className="text-slate-600 dark:text-slate-300">{totalCount}개 문제 중</span>
-            <span className="ml-3 text-emerald-600 dark:text-emerald-400">{solvedCount}개 정답</span>
-            <span className="ml-3 text-rose-600 dark:text-rose-400">{wrongCount}개 오답</span>
-          </div>
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-end">
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3 sm:self-end lg:ml-auto lg:justify-end">
             <form onSubmit={handleContestProblemSearchSubmit} className="flex w-full sm:w-auto sm:min-w-[360px]">
               <label htmlFor="contest-problem-search" className="sr-only">문제 검색</label>
               <input
@@ -772,7 +763,7 @@ export const ContestDetailPage: React.FC = () => {
                 검색
               </button>
             </form>
-            <div className="flex w-full sm:w-auto sm:min-w-[220px]">
+            <div className="flex w-full sm:w-auto sm:min-w-[220px] sm:justify-end">
               <label htmlFor="contest-problem-status-filter" className="sr-only">문제 상태 필터</label>
               <select
                 id="contest-problem-status-filter"
@@ -999,18 +990,18 @@ export const ContestDetailPage: React.FC = () => {
                 )}
               </div>
             </div>
-            <div className="flex w-full flex-wrap items-end justify-end gap-6 text-right pl-0 lg:gap-12 lg:pl-[calc(200px+1rem)]">
+            <div className="flex w-full flex-wrap items-end justify-end gap-6 text-right pl-0 sm:flex-nowrap lg:gap-12 lg:pl-[calc(200px+1rem)]">
               <div className="text-left w-full sm:w-auto sm:min-w-[160px] lg:ml-6">
                 <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">시작 시간</p>
-                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{startTimeDisplay}</p>
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap">{startTimeDisplay}</p>
               </div>
               <div className="text-left w-full sm:w-auto sm:min-w-[160px]">
                 <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">종료 시간</p>
-                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{endTimeDisplay}</p>
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap">{endTimeDisplay}</p>
               </div>
               <div className="w-full sm:w-auto sm:min-w-[160px]">
                 <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-200">남은 시간</p>
-                <p className={`text-2xl font-black tracking-tight ${timeTextClass} sm:text-[28px]`}>{timeLeftDisplay}</p>
+                <p className={`text-2xl font-black tracking-tight ${timeTextClass} sm:text-[28px] whitespace-nowrap`}>{timeLeftDisplay}</p>
               </div>
             </div>
           </div>

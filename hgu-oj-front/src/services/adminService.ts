@@ -166,8 +166,13 @@ interface ContestListParams {
   keyword?: string;
 }
 
+const WORKBOOK_API_BASE =
+  (import.meta.env.VITE_MS_WORKBOOK_BASE as string | undefined) || '/ms-api/workbook';
+
+const buildWorkbookUrl = (path = '') => `${WORKBOOK_API_BASE.replace(/\/$/, '')}${path}`;
+
 const MICRO_SERVICE_HEALTH_URL =
-  import.meta.env.VITE_MICRO_SERVICE_HEALTH_URL || 'http://localhost:8000/api/workbook/';
+  (import.meta.env.VITE_MICRO_SERVICE_HEALTH_URL as string | undefined) || buildWorkbookUrl('/');
 
 const unwrap = <T>(response: ApiResponse<T>): T => {
   if (!response.success) {
@@ -228,7 +233,7 @@ export const adminService = {
   },
 
   createWorkbook: async (payload: CreateWorkbookPayload): Promise<Workbook> => {
-    const response = await fetch('http://localhost:8000/api/workbook/', {
+    const response = await fetch(buildWorkbookUrl('/'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -246,7 +251,7 @@ export const adminService = {
   },
 
   getWorkbooks: async (): Promise<Workbook[]> => {
-    const response = await fetch('http://localhost:8000/api/workbook/all', {
+    const response = await fetch(buildWorkbookUrl('/all'), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -263,7 +268,7 @@ export const adminService = {
   },
 
   deleteWorkbook: async (id: number): Promise<void> => {
-    const response = await fetch(`http://localhost:8000/api/workbook/${id}`, {
+    const response = await fetch(buildWorkbookUrl(`/${id}`), {
       method: 'DELETE',
       credentials: 'include',
     });
@@ -275,7 +280,7 @@ export const adminService = {
   },
 
   getWorkbookProblems: async (id: number): Promise<WorkbookProblem[]> => {
-    const response = await fetch(`http://localhost:8000/api/workbook/${id}/problems`, {
+    const response = await fetch(buildWorkbookUrl(`/${id}/problems`), {
       method: 'GET',
       headers: {
         'Content-Type': 'application/json',
@@ -303,7 +308,7 @@ export const adminService = {
   },
 
   updateWorkbookProblems: async (workbookId: number, problemIds: number[]): Promise<void> => {
-    const response = await fetch(`http://localhost:8000/api/workbook/${workbookId}/problems`, {
+    const response = await fetch(buildWorkbookUrl(`/${workbookId}/problems`), {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',
@@ -319,7 +324,7 @@ export const adminService = {
   },
 
   updateWorkbookMeta: async (workbookId: number, payload: UpdateWorkbookPayload): Promise<Workbook> => {
-    const response = await fetch(`http://localhost:8000/api/workbook/${workbookId}`, {
+    const response = await fetch(buildWorkbookUrl(`/${workbookId}`), {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json',

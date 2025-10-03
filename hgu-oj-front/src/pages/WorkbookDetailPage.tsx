@@ -225,62 +225,28 @@ export const WorkbookDetailPage: React.FC = () => {
 
   return (
     <div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 py-8 space-y-8">
-      <div className="flex flex-col gap-4 md:flex-row md:items-center">
-        <Button
-          variant="secondary"
-          onClick={handleBackClick}
-          className="w-full md:w-auto md:self-center md:mt-0"
-        >
-          ← 문제집 목록으로 돌아가기
-        </Button>
-        <Card className="flex-1 border-0 bg-white p-6 shadow-md dark:border-slate-800 dark:bg-slate-900">
-          <div className="flex flex-col gap-5">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between lg:gap-6">
-              <div className="flex flex-wrap items-center gap-3">
-                <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-                  {workbook.title}
-                </h1>
-                {workbook.category && (
-                  <span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-600 dark:bg-slate-800 dark:text-blue-300">
-                    {workbook.category}
-                  </span>
-                )}
-              </div>
+      <Card className="border-0 bg-white p-6 shadow-md dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-4">
+          <div className="flex-shrink-0">
+            <Button
+              variant="secondary"
+              onClick={handleBackClick}
+              className="w-full min-w-[200px] whitespace-nowrap lg:w-auto"
+            >
+              ← 문제집 목록으로 돌아가기
+            </Button>
+          </div>
 
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 lg:flex lg:flex-none lg:items-center lg:gap-4">
-                <Card
-                  padding="sm"
-                  shadow="sm"
-                  className="flex items-center justify-between gap-3 border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800 sm:min-w-[180px] lg:min-w-[200px] lg:max-w-[220px]"
-                >
-                  <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">문제 수</span>
-                  <span className="text-base font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap">
-                    {totalProblemCount}문제
-                  </span>
-                </Card>
-
-                <Card
-                  padding="sm"
-                  shadow="sm"
-                  className="flex items-center justify-between gap-3 border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800 sm:min-w-[180px] lg:min-w-[200px] lg:max-w-[220px]"
-                >
-                  <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">공개 여부</span>
-                  <span className={`text-base font-semibold ${visibilityTone} whitespace-nowrap`}>
-                    {visibilityLabel}
-                  </span>
-                </Card>
-
-                <Card
-                  padding="sm"
-                  shadow="sm"
-                  className="flex items-center justify-between gap-3 border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800 sm:min-w-[180px] lg:min-w-[200px] lg:max-w-[220px]"
-                >
-                  <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">생성일</span>
-                  <span className="text-base font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap">
-                    {formatDate(workbook.created_at)}
-                  </span>
-                </Card>
-              </div>
+          <div className="flex-1 space-y-4 lg:pl-6">
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
+                {workbook.title}
+              </h1>
+              {workbook.category && (
+                <span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-600 dark:bg-slate-800 dark:text-blue-300">
+                  {workbook.category}
+                </span>
+              )}
             </div>
 
             <div className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
@@ -291,8 +257,37 @@ export const WorkbookDetailPage: React.FC = () => {
               )}
             </div>
           </div>
-        </Card>
-      </div>
+
+          <div className="w-full lg:w-[300px]">
+            <Card
+              padding="md"
+              shadow="sm"
+              className="border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800"
+            >
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between gap-6">
+                  <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">문제 수</span>
+                  <span className="text-base font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap">
+                    {totalProblemCount}문제
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-6">
+                  <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">공개 여부</span>
+                  <span className={`text-base font-semibold ${visibilityTone} whitespace-nowrap`}>
+                    {visibilityLabel}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between gap-6">
+                  <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">생성일</span>
+                  <span className="text-base font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap">
+                    {formatDate(workbook.created_at)}
+                  </span>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </div>
+      </Card>
 
       <Card className="border-0 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-900">
         {problemsLoading || statusLoading ? (
@@ -305,69 +300,70 @@ export const WorkbookDetailPage: React.FC = () => {
             <p className="text-sm text-slate-600 dark:text-slate-300">{getErrorMessage(problemsError)}</p>
           </div>
         ) : (
-          <><div className="space-y-6">
-                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
-                  <form onSubmit={handleSearchSubmit} className="flex w-full sm:w-auto sm:min-w-[360px]">
-                    <label htmlFor="workbook-problem-search" className="sr-only">문제 검색</label>
-                    <input
-                      id="workbook-problem-search"
-                      type="search"
-                      value={searchQuery}
-                      onChange={(event) => handleSearchChange(event.target.value)}
-                      placeholder="문제 검색..."
-                      className="w-full rounded-l-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                    <select
-                      value={searchField}
-                      onChange={(event) => handleSearchFieldChange(event.target.value)}
-                      className="w-28 border-y border-r border-gray-300 bg-white px-2 text-sm font-medium text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="title">제목</option>
-                      <option value="tag">태그</option>
-                      <option value="number">번호</option>
-                    </select>
-                    <button
-                      type="submit"
-                      className="min-w-[60px] rounded-r-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white text-center shadow-sm transition hover:bg-blue-700"
-                    >
-                      검색
-                    </button>
-                  </form>
-                  <div className="flex w-full sm:w-auto sm:min-w-[220px]">
-                    <label htmlFor="workbook-status-filter" className="sr-only">문제 상태 필터</label>
-                    <select
-                      id="workbook-status-filter"
-                      value={statusFilter}
-                      onChange={(event) => handleStatusFilterChange(event.target.value)}
-                      className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-28"
-                    >
-                      <option value="all">전체</option>
-                      <option value="untouched">미시도</option>
-                      <option value="solved">정답</option>
-                      <option value="wrong">오답</option>
-                    </select>
-                    <button
-                      type="button"
-                      onClick={handleResetFilters}
-                      className="ml-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 text-center shadow-sm transition hover:border-blue-400 hover:text-blue-600"
-                    >
-                      초기화
-                    </button>
-                  </div>
-                </div>
-              </div><div>
-                  <ProblemList
-                    problems={processedProblems}
-                    onProblemClick={handleProblemClick}
-                    isLoading={false}
-                    totalPages={1}
-                    currentPage={1}
-                    showStats
-                    showStatus
-                    showOriginalId
-                    onSortChange={handleSortToggle}
-                    sortField={sortField}
-                    sortOrder={sortOrder} />
-              </div></>
+          <div className="space-y-6">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end sm:gap-3 lg:ml-auto lg:w-auto">
+              <form onSubmit={handleSearchSubmit} className="flex w-full sm:w-auto sm:min-w-[320px]">
+                <label htmlFor="workbook-problem-search" className="sr-only">문제 검색</label>
+                <input
+                  id="workbook-problem-search"
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => handleSearchChange(event.target.value)}
+                  placeholder="문제 검색..."
+                  className="w-full rounded-l-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <select
+                  value={searchField}
+                  onChange={(event) => handleSearchFieldChange(event.target.value)}
+                  className="w-28 border-y border-r border-gray-300 bg-white px-2 text-sm font-medium text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="title">제목</option>
+                  <option value="tag">태그</option>
+                  <option value="number">번호</option>
+                </select>
+                <button
+                  type="submit"
+                  className="min-w-[60px] rounded-r-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white text-center shadow-sm transition hover:bg-blue-700"
+                >
+                  검색
+                </button>
+              </form>
+              <div className="flex w-full justify-end sm:w-auto sm:items-center sm:gap-2">
+                <label htmlFor="workbook-status-filter" className="sr-only">문제 상태 필터</label>
+                <select
+                  id="workbook-status-filter"
+                  value={statusFilter}
+                  onChange={(event) => handleStatusFilterChange(event.target.value)}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-28"
+                >
+                  <option value="all">전체</option>
+                  <option value="untouched">미시도</option>
+                  <option value="solved">정답</option>
+                  <option value="wrong">오답</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={handleResetFilters}
+                  className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 text-center shadow-sm transition hover:border-blue-400 hover:text-blue-600"
+                >
+                  초기화
+                </button>
+              </div>
+            </div>
+
+            <ProblemList
+              problems={processedProblems}
+              onProblemClick={handleProblemClick}
+              isLoading={false}
+              totalPages={1}
+              currentPage={1}
+              showStats
+              showStatus
+              showOriginalId
+              onSortChange={handleSortToggle}
+              sortField={sortField}
+              sortOrder={sortOrder}
+            />
+          </div>
         )}
       </Card>
     </div>
