@@ -2,7 +2,13 @@ import { Problem, Workbook } from '../types';
 import { mapProblem } from '../utils/problemMapper';
 import { WorkbookFilter } from '../stores/workbookStore';
 
-const MICRO_API_BASE = '/ms-api/workbook';
+const trimTrailingSlash = (value: string) => value.replace(/\/$/, '');
+
+const MS_API_BASE = trimTrailingSlash(
+  (import.meta.env.VITE_MS_API_BASE as string | undefined) || '/ms-api'
+);
+
+const MICRO_API_BASE = `${MS_API_BASE}/workbook`;
 
 const buildUrl = (path = '', params?: Record<string, string | number | undefined>) => {
   const searchParams = new URLSearchParams();

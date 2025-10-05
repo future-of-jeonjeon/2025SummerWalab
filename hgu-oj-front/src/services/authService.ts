@@ -1,5 +1,7 @@
 import { api } from './api';
-import { LoginForm, LoginResponse, SSOTokenResponse, UserProfile } from '../types';
+import { LoginForm, LoginResponse, UserProfile } from '../types';
+
+const API_BASE_URL = ((import.meta.env.VITE_API_URL as string | undefined) || '').replace(/\/$/, '');
 
 export const authService = {
   // Online Judge 로그인
@@ -25,7 +27,11 @@ export const authService = {
 
   // Micro-service 로그인
   loginToMicroService: async (token: string): Promise<void> => {
-    await fetch('http://localhost:8000/api/auth/login', {
+    if (!API_BASE_URL) {
+      throw new Error('API base URL is not configured.');
+    }
+
+    await fetch(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -63,9 +69,13 @@ export const authService = {
   logout: async (): Promise<void> => {
     // Online Judge 로그아웃
     await api.get('/logout');
-    
+
     // Micro-service 로그아웃
-    await fetch('http://localhost:8000/api/auth/logout', {
+    if (!API_BASE_URL) {
+      throw new Error('API base URL is not configured.');
+    }
+
+    await fetch(`${API_BASE_URL}/auth/logout`, {
       method: 'POST',
       credentials: 'include',
     });
