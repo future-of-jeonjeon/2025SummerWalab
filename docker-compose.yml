@@ -98,6 +98,11 @@ services:
       - TOKEN_COOKIE_NAME=ms_token
       - LOCAL_TOKEN_TTL_SECONDS=1800
       - TEST_CASE_DATA_PATH=/test_case 
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_HOST=${POSTGRES_HOST}
+      - DB_PORT=${POSTGRES_PORT}
+      - DB_NAME=${POSTGRES_DB}
     volumes:
       - ./data/backend/test_case:/test_case:rw 
     depends_on:

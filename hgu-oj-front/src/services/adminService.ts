@@ -166,13 +166,19 @@ interface ContestListParams {
   keyword?: string;
 }
 
-const WORKBOOK_API_BASE =
-  (import.meta.env.VITE_MS_WORKBOOK_BASE as string | undefined) || '/ms-api/workbook';
+const trimTrailingSlash = (value: string) => value.replace(/\/$/, '');
 
-const buildWorkbookUrl = (path = '') => `${WORKBOOK_API_BASE.replace(/\/$/, '')}${path}`;
+const API_BASE_URL = ((import.meta.env.VITE_API_URL as string | undefined) || '').replace(/\/$/, '');
 
-const MICRO_SERVICE_HEALTH_URL =
-  (import.meta.env.VITE_MICRO_SERVICE_HEALTH_URL as string | undefined) || buildWorkbookUrl('/');
+const MS_API_BASE = trimTrailingSlash(
+  (import.meta.env.VITE_MS_API_BASE as string | undefined) || '/ms-api'
+);
+
+const WORKBOOK_API_BASE = trimTrailingSlash(`${MS_API_BASE}/workbook`);
+
+const buildWorkbookUrl = (path = '') => `${WORKBOOK_API_BASE}${path}`;
+
+const MICRO_SERVICE_HEALTH_URL = buildWorkbookUrl('/');
 
 const unwrap = <T>(response: ApiResponse<T>): T => {
   if (!response.success) {
@@ -213,7 +219,11 @@ export const adminService = {
     const formData = new FormData();
     formData.append('file', file);
 
-    const response = await fetch('http://localhost:8000/api/problem', {
+    if (!API_BASE_URL) {
+      throw new Error('API base URL is not configured.');
+    }
+
+    const response = await fetch(`${API_BASE_URL}/problem`, {
       method: 'POST',
       body: formData,
       credentials: 'include',
