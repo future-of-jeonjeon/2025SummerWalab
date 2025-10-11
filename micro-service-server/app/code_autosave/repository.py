@@ -21,12 +21,8 @@ async def find_by_problem_id_and_user_id_and_language(
     return result.scalars().one_or_none()
 
 
-async def save(entity: ProblemCode, db: AsyncSession) -> Optional[ProblemCode]:
-    try:
-        db.add(entity)
-        await db.flush()
-        await db.refresh(entity)
-        return entity
-    except SQLAlchemyError as e:
-        await db.rollback()
-        raise e
+async def save(entity: ProblemCode, db: AsyncSession) -> ProblemCode:
+    db.add(entity)
+    await db.flush()
+    await db.refresh(entity)
+    return entity

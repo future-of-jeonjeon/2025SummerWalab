@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.code_autosave.repository as repo
 from app.code_autosave.models import ProblemCode
-from app.config.redis import get_redis
+from app.config.redis import get_redis_code_save
 from app.user.DTO import UserData
 from app.utils.databse import transactional
 
@@ -28,14 +28,14 @@ async def save_code(problem_id: int, language, code, userdata: UserData):
 
 
 async def _get_code_by_redis(problem_id, language, user_id: int) -> str:
-    redis = await get_redis()
+    redis = await get_redis_code_save()
     key = _create_redis_key(problem_id, language, user_id)
     data = await redis.get(key)
     return data
 
 
 async def _save_code_to_redis(problem_id: int, language: str, code: str, user_id: int):
-    redis = await get_redis()
+    redis = await get_redis_code_save()
     key = _create_redis_key(problem_id, language, user_id)
     await redis.set(key, code, CODE_SAVE_TTL_SECONDS)
     return
