@@ -1,3 +1,4 @@
+aioredis
 starlette
 httpx
 fastapi

@@ -6,6 +6,7 @@ Create Date: 2024-09-15 00:01:00.000000
 """
 
 from alembic import op
+from sqlalchemy.engine.reflection import Inspector
 
 
 # revision identifiers, used by Alembic.
@@ -16,6 +17,10 @@ depends_on = None
 
 
 def upgrade() -> None:
+    connection = op.get_bind()
+    inspector = Inspector.from_engine(connection)
+    if "micro_workbook_problem" not in inspector.get_table_names(schema="public"):
+        return
     op.drop_constraint(
         "micro_workbook_problem_workbook_id_fkey",
         "micro_workbook_problem",
@@ -35,6 +40,10 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    connection = op.get_bind()
+    inspector = Inspector.from_engine(connection)
+    if "micro_workbook_problem" not in inspector.get_table_names(schema="public"):
+        return
     op.drop_constraint(
         "micro_workbook_problem_workbook_id_fkey",
         "micro_workbook_problem",

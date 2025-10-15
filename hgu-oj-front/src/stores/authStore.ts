@@ -2,6 +2,72 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { UserProfile } from '../types';
 import { authService } from '../services/authService';
+import { queryClient } from '../hooks/useQueryClient';
+import { useProblemStore } from './problemStore';
+
+const invalidateUserScopedQueries = () => {
+  const userScopedKeys = new Set<string>([
+    'problems',
+    'problem',
+    'contest-problems',
+    'contest-problem',
+    'contest-problem-list',
+    'contest-rank-progress',
+    'contest-rank',
+    'workbook-problems',
+    'workbook-problem-list',
+    'workbook',
+  ]);
+
+  queryClient.invalidateQueries({
+    predicate: (query) => {
+      const rootKey = Array.isArray(query.queryKey) ? query.queryKey[0] : undefined;
+      return typeof rootKey === 'string' && userScopedKeys.has(rootKey);
+    },
+    refetchType: 'all',
+  });
+  queryClient.removeQueries({
+    predicate: (query) => {
+      const rootKey = Array.isArray(query.queryKey) ? query.queryKey[0] : undefined;
+      return typeof rootKey === 'string' && userScopedKeys.has(rootKey);
+    },
+  });
+};
+
+const clearOjStorage = () => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  const prefixes = ['oj:'];
+  const storages: Array<Storage> = [];
+  try {
+    if (window.localStorage) storages.push(window.localStorage);
+  } catch (err) {
+    console.warn('localStorage 접근 불가', err);
+  }
+  try {
+    if (window.sessionStorage) storages.push(window.sessionStorage);
+  } catch (err) {
+    console.warn('sessionStorage 접근 불가', err);
+  }
+  storages.forEach((storage) => {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < storage.length; i += 1) {
+      const key = storage.key(i);
+      if (!key) continue;
+      if (prefixes.some((prefix) => key.startsWith(prefix))) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach((key) => {
+      try {
+        storage.removeItem(key);
+      } catch (err) {
+        console.warn('스토리지 항목 제거 실패', key, err);
+      }
+    });
+  });
+};
 
 interface AuthState {
   user: UserProfile | null;
@@ -64,6 +130,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
             isLoading: false,
             error: null,
           });
+          invalidateUserScopedQueries();
 
           return true;
         } catch (error) {
@@ -81,6 +148,21 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         } catch (error) {
           console.error('로그아웃 중 오류:', error);
         } finally {
+          clearOjStorage();
+          invalidateUserScopedQueries();
+          queryClient.clear();
+          const problemStore = useProblemStore.getState();
+          problemStore.setProblems([]);
+          problemStore.setCurrentProblem(null);
+          problemStore.setTotalCount(0);
+          problemStore.setFilter({
+            page: 1,
+            limit: 20,
+            searchField: 'title',
+            sortField: 'number',
+            sortOrder: 'asc',
+            statusFilter: 'all',
+          });
           set({
             user: null,
             isAuthenticated: false,

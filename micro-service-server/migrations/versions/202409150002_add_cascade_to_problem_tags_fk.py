@@ -6,6 +6,7 @@ Create Date: 2024-09-15 01:15:00.000000
 """
 
 from alembic import op
+from sqlalchemy.engine.reflection import Inspector
 
 # revision identifiers, used by Alembic.
 revision = "202409150002"
@@ -15,6 +16,11 @@ depends_on = None
 
 
 def upgrade() -> None:
+    connection = op.get_bind()
+    inspector = Inspector.from_engine(connection)
+    tables = inspector.get_table_names(schema="public")
+    if "problem_tags" not in tables:
+        return
     op.drop_constraint(
         "problem_tags_problem_id_866ecb8d_fk_problem_id",
         "problem_tags",
@@ -50,6 +56,11 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    connection = op.get_bind()
+    inspector = Inspector.from_engine(connection)
+    tables = inspector.get_table_names(schema="public")
+    if "problem_tags" not in tables:
+        return
     op.drop_constraint(
         "problem_tags_problem_id_fkey",
         "problem_tags",

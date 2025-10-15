@@ -17,6 +17,7 @@ import { ContestRankTable } from '../components/organisms/ContestRankTable';
 import { ContestAnnouncement, ContestRankEntry, Problem } from '../types';
 import { resolveProblemStatus } from '../utils/problemStatus';
 import { submissionService, SubmissionListItem, SubmissionDetail } from '../services/submissionService';
+import { PROBLEM_STATUS_LABELS, PROBLEM_SUMMARY_LABELS, ProblemStatusKey } from '../constants/problemStatus';
 
 const formatDateTime = (value?: string) => {
   if (!value) return '-';
@@ -96,7 +97,7 @@ export const ContestDetailPage: React.FC = () => {
   const [problemSearchField, setProblemSearchField] = useState<'title' | 'tag' | 'number'>('title');
   const [problemSortField, setProblemSortField] = useState<'number' | 'submission' | 'accuracy'>('number');
   const [problemSortOrder, setProblemSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [problemStatusFilter, setProblemStatusFilter] = useState<'all' | 'solved' | 'wrong' | 'untouched'>('all');
+const [problemStatusFilter, setProblemStatusFilter] = useState<'all' | ProblemStatusKey>('all');
 
   const offsetRef = useRef(0);
   const intervalRef = useRef<number | null>(null);
@@ -301,8 +302,15 @@ export const ContestDetailPage: React.FC = () => {
   };
 
   const handleContestProblemStatusFilterChange = (value: string) => {
-    const next = (value || 'all') as typeof problemStatusFilter;
-    setProblemStatusFilter(next);
+    if (value === 'all') {
+      setProblemStatusFilter('all');
+      return;
+    }
+    if (Object.values(PROBLEM_STATUS_LABELS).includes(value as ProblemStatusKey)) {
+      setProblemStatusFilter(value as ProblemStatusKey);
+    } else {
+      setProblemStatusFilter('all');
+    }
   };
 
   const handleContestProblemReset = () => {
@@ -411,9 +419,9 @@ export const ContestDetailPage: React.FC = () => {
     const matchesStatus = (problem: Problem) => {
       const status = resolveProblemStatus(problem, { override: myRankProgress?.[problem.id] });
       if (problemStatusFilter === 'all') return true;
-      if (problemStatusFilter === 'solved') return status === 'solved';
-      if (problemStatusFilter === 'wrong') return status === 'wrong';
-      if (problemStatusFilter === 'untouched') return status === 'untouched';
+      if (problemStatusFilter === PROBLEM_STATUS_LABELS.solved) return status === PROBLEM_STATUS_LABELS.solved;
+      if (problemStatusFilter === PROBLEM_STATUS_LABELS.wrong) return status === PROBLEM_STATUS_LABELS.wrong;
+      if (problemStatusFilter === PROBLEM_STATUS_LABELS.untouched) return status === PROBLEM_STATUS_LABELS.untouched;
       return true;
     };
 
@@ -482,11 +490,11 @@ export const ContestDetailPage: React.FC = () => {
     return (problems ?? []).reduce(
       (acc, problem) => {
         const status = resolveProblemStatus(problem, { override: myRankProgress?.[problem.id] });
-        if (status === 'solved') {
+        if (status === PROBLEM_STATUS_LABELS.solved) {
           acc.solved += 1;
-        } else if (status === 'wrong') {
+        } else if (status === PROBLEM_STATUS_LABELS.wrong) {
           acc.wrong += 1;
-        } else if (status === 'untouched') {
+        } else if (status === PROBLEM_STATUS_LABELS.untouched) {
           acc.untouched += 1;
         } else {
           acc.attempted += 1;
@@ -772,9 +780,9 @@ export const ContestDetailPage: React.FC = () => {
                 className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-28"
               >
                 <option value="all">전체</option>
-                <option value="untouched">미시도</option>
-                <option value="solved">정답</option>
-                <option value="wrong">오답</option>
+                <option value={PROBLEM_STATUS_LABELS.untouched}>{PROBLEM_STATUS_LABELS.untouched}</option>
+                <option value={PROBLEM_STATUS_LABELS.solved}>{PROBLEM_STATUS_LABELS.solved}</option>
+                <option value={PROBLEM_STATUS_LABELS.wrong}>{PROBLEM_STATUS_LABELS.wrong}</option>
               </select>
               <button
                 type="button"
@@ -811,7 +819,7 @@ export const ContestDetailPage: React.FC = () => {
   const judgeStatusLabels: Record<number, string> = {
     [-2]: '컴파일 에러',
     [-1]: '오답',
-    [0]: '정답',
+    [0]: PROBLEM_STATUS_LABELS.solved,
     [1]: '시간 초과',
     [2]: '실행 시간 초과',
     [3]: '메모리 초과',
@@ -1014,7 +1022,7 @@ export const ContestDetailPage: React.FC = () => {
               <p className="text-base font-semibold text-slate-900 dark:text-slate-100">{totalProblems}문제</p>
             </div>
             <div>
-              <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">정답</p>
+              <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400">{PROBLEM_SUMMARY_LABELS.solved}</p>
               <p className="text-base font-semibold text-emerald-600 dark:text-emerald-400">{solvedProblems}문제</p>
             </div>
             <div>
@@ -1022,7 +1030,7 @@ export const ContestDetailPage: React.FC = () => {
               <p className="mt-1 text-base font-semibold text-indigo-600 dark:text-indigo-400">{remainingProblems}문제</p>
             </div>
             <div>
-              <p className="text-xs font-medium text-rose-600 dark:text-rose-400">오답</p>
+              <p className="text-xs font-medium text-rose-600 dark:text-rose-400">{PROBLEM_SUMMARY_LABELS.wrong}</p>
               <p className="mt-1 text-base font-semibold text-rose-600 dark:text-rose-400">{wrongProblems}문제</p>
             </div>
           </div>

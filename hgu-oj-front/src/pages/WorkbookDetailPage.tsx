@@ -8,6 +8,7 @@ import { useWorkbook, useWorkbookProblems } from '../hooks/useWorkbooks';
 import { Problem } from '../types';
 import { problemService } from '../services/problemService';
 import { resolveProblemStatus } from '../utils/problemStatus';
+import { PROBLEM_STATUS_LABELS, ProblemStatusKey } from '../constants/problemStatus';
 
 export const WorkbookDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -20,7 +21,7 @@ export const WorkbookDetailPage: React.FC = () => {
   const [searchField, setSearchField] = useState<'title' | 'tag' | 'number'>('title');
   const [sortField, setSortField] = useState<'number' | 'submission' | 'accuracy'>('number');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'solved' | 'wrong' | 'untouched'>('all');
+  const [statusFilter, setStatusFilter] = useState<'all' | ProblemStatusKey>('all');
 
   const handleProblemClick = (problemId: number) => {
     const params = new URLSearchParams();
@@ -126,9 +127,9 @@ export const WorkbookDetailPage: React.FC = () => {
     const matchesStatusFilter = (problem: Problem) => {
       const status = resolveProblemStatus(problem);
       if (statusFilter === 'all') return true;
-      if (statusFilter === 'solved') return status === 'solved';
-      if (statusFilter === 'wrong') return status === 'wrong';
-      if (statusFilter === 'untouched') return status === 'untouched';
+      if (statusFilter === PROBLEM_STATUS_LABELS.solved) return status === PROBLEM_STATUS_LABELS.solved;
+      if (statusFilter === PROBLEM_STATUS_LABELS.wrong) return status === PROBLEM_STATUS_LABELS.wrong;
+      if (statusFilter === PROBLEM_STATUS_LABELS.untouched) return status === PROBLEM_STATUS_LABELS.untouched;
       return true;
     };
 
@@ -213,8 +214,15 @@ export const WorkbookDetailPage: React.FC = () => {
   };
 
   const handleStatusFilterChange = (value: string) => {
-    const next = (value || 'all') as typeof statusFilter;
-    setStatusFilter(next);
+    if (value === 'all') {
+      setStatusFilter('all');
+      return;
+    }
+    if (Object.values(PROBLEM_STATUS_LABELS).includes(value as ProblemStatusKey)) {
+      setStatusFilter(value as ProblemStatusKey);
+    } else {
+      setStatusFilter('all');
+    }
   };
 
 
@@ -336,9 +344,9 @@ export const WorkbookDetailPage: React.FC = () => {
                   className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-28"
                 >
                   <option value="all">전체</option>
-                  <option value="untouched">미시도</option>
-                  <option value="solved">정답</option>
-                  <option value="wrong">오답</option>
+                  <option value={PROBLEM_STATUS_LABELS.untouched}>{PROBLEM_STATUS_LABELS.untouched}</option>
+                  <option value={PROBLEM_STATUS_LABELS.solved}>{PROBLEM_STATUS_LABELS.solved}</option>
+                  <option value={PROBLEM_STATUS_LABELS.wrong}>{PROBLEM_STATUS_LABELS.wrong}</option>
                 </select>
                 <button
                   type="button"

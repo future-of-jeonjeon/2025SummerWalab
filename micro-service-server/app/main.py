@@ -1,41 +1,49 @@
-from fastapi import FastAPI
-from app.config.settings import settings
-from app.security.cors import setup_cors
-import logging
+import asyncio
+from contextlib import asynccontextmanager, suppress
 from datetime import datetime
 
-from sqlalchemy import text
+from fastapi import FastAPI
 from sqlalchemy.orm import configure_mappers
-from app.config.database import get_session, engine, Base
 
 from app.auth import routes as auth_routes
-from app.problem import routes as problem_routes
-from app.workbook import routes as workbook_routes
+from app.code_autosave import routes as auto_save_routes
+from app.code_autosave.listener import code_save_listener
+from app.config.settings import settings
 from app.execution import routes as execution_routes
+from app.problem import routes as problem_routes
+from app.security.cors import setup_cors
+from app.utils.logging import logger
+from app.workbook import routes as workbook_routes
 
-app = FastAPI(**settings.fastapi_kwargs)
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    logger.info("lifespan started")
+    listener_task = asyncio.create_task(code_save_listener())
+    configure_mappers()
+    logger.info("DB mappers configured.")
+    try:
+        yield
+    finally:
+        listener_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await listener_task
+
+
+app = FastAPI(lifespan=lifespan, **settings.fastapi_kwargs)
 setup_cors(app)
-logging.basicConfig(level=logging.INFO)
-
 app.include_router(auth_routes.router)
 app.include_router(problem_routes.router)
 app.include_router(workbook_routes.router)
 app.include_router(execution_routes.router)
+app.include_router(auto_save_routes.router)
 
 
-@app.on_event("startup")
-async def startup_event():
-    try:
-        configure_mappers()
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        logging.info("DB init success")
-    except Exception:
-        logging.exception("DB init fail")
-
-def root():
+@app.get("/")
+async def root():
     return {"status": "ok", "message": "Service is running"}
 
 
-def health_check():
+@app.get("/health")
+async def health_check():
     return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}

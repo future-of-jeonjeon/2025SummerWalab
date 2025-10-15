@@ -1,12 +1,24 @@
 from __future__ import annotations
 
+import os
+import sys
 from logging.config import fileConfig
 
 from alembic import context
 from sqlalchemy import pool
 from sqlalchemy.ext.asyncio import async_engine_from_config
 
+# Add the project root directory to the Python path
+# This is crucial for Alembic to find your model modules
+sys.path.insert(0, os.path.realpath(os.path.join(os.path.dirname(__file__), '..')))
+
+# Import your models here to ensure they are registered with Base.metadata
 from app.config.database import Base, DATABASE_URL
+# import app.auth.models
+import app.user.models
+import app.problem.models
+import app.workbook.models
+import app.code_autosave.models
 
 
 def _sync_database_url() -> str:
@@ -26,6 +38,12 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 
+def _include_object(object_, name, type_, reflected, compare_to):
+    if type_ == "table":
+        return name.startswith("micro_")
+    return True
+
+
 def run_migrations_offline() -> None:
     url = _sync_database_url()
     context.configure(
@@ -33,6 +51,7 @@ def run_migrations_offline() -> None:
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        include_object=_include_object,
     )
 
     with context.begin_transaction():
@@ -50,7 +69,11 @@ def run_migrations_online() -> None:
     )
 
     def do_run_migrations(connection):
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(
+            connection=connection,
+            target_metadata=target_metadata,
+            include_object=_include_object,
+        )
         with context.begin_transaction():
             context.run_migrations()
 

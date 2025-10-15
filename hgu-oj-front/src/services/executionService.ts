@@ -32,13 +32,13 @@ const languageMap: Record<string, string> = {
 export const executionService = {
   run: async ({ language, code, input }: RunRequest): Promise<RawRunResult> => {
     const lang = languageMap[language] || language;
-    const apiBase = ((import.meta.env.VITE_API_URL as string | undefined) || '').replace(/\/$/, '');
+    const MS_API_BASE = ((import.meta.env.VITE_MS_API_BASE as string | undefined) || '').replace(/\/$/, '');
 
-    if (!apiBase) {
+    if (!MS_API_BASE) {
       throw new Error('API base URL is not configured.');
     }
 
-    const resp = await fetch(`${apiBase}/execution/run`, {
+    const resp = await fetch(`${MS_API_BASE}/execution/run`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',

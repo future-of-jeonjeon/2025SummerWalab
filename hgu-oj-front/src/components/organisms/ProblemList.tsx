@@ -2,6 +2,7 @@ import React from 'react';
 import { Problem } from '../../types';
 import { Button } from '../atoms/Button';
 import { resolveProblemStatus } from '../../utils/problemStatus';
+import { PROBLEM_STATUS_LABELS } from '../../constants/problemStatus';
 
 interface ProblemListProps {
   problems: Problem[];
@@ -70,23 +71,21 @@ export const ProblemList: React.FC<ProblemListProps> = ({
     );
   };
 
-  const resolveStatusState = (problem: Problem) => resolveProblemStatus(problem);
+  const resolveStatusState = (problem: Problem) => (showStatus ? resolveProblemStatus(problem) : undefined);
 
   const getStatusBadge = (problem: Problem) => {
+    if (!showStatus) return undefined;
     const state = resolveStatusState(problem);
-    if (!showStatus && state !== 'solved' && state !== 'wrong') {
-      return undefined;
-    }
 
-    if (state === 'solved') {
+    if (state === PROBLEM_STATUS_LABELS.solved) {
       return {
-        label: '정답',
+        label: PROBLEM_STATUS_LABELS.solved,
         className: 'bg-green-100 text-green-700 border border-green-200',
       };
     }
-    if (state === 'wrong') {
+    if (state === PROBLEM_STATUS_LABELS.wrong) {
       return {
-        label: '오답',
+        label: PROBLEM_STATUS_LABELS.wrong,
         className: 'bg-red-100 text-red-600 border border-red-200',
       };
     }
@@ -181,7 +180,6 @@ export const ProblemList: React.FC<ProblemListProps> = ({
         <div className="divide-y divide-gray-200">
           {problems.map((problem) => {
             const badge = getStatusBadge(problem);
-            const statusState = resolveStatusState(problem);
             return (
               <div
                 key={problem.id}
@@ -197,11 +195,6 @@ export const ProblemList: React.FC<ProblemListProps> = ({
                       <div className="text-sm font-medium text-gray-900 hover:text-blue-600">
                         {problem.title}
                       </div>
-                      {statusState === 'untouched' && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-200 text-slate-700">
-                          미시도
-                        </span>
-                      )}
                       {badge && (
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${badge.className}`}>
                           {badge.label}
@@ -230,11 +223,6 @@ export const ProblemList: React.FC<ProblemListProps> = ({
                       <div className="text-sm font-medium text-gray-900 hover:text-blue-600">
                         {problem.title}
                       </div>
-                      {statusState === 'untouched' && (
-                        <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-200 text-slate-700">
-                          미시도
-                        </span>
-                      )}
                       {badge && (
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap ${badge.className}`}>
                           {badge.label}

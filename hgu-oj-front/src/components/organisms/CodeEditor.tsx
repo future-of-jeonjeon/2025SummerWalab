@@ -4,6 +4,7 @@ import { LanguageOption, ExecutionResult } from '../../types';
 import { Button } from '../atoms/Button';
 import { Card } from '../atoms/Card';
 import codeTemplates from '../../config/codeTemplates.json';
+import { codeAutoSaveService } from '../../services/codeAutoSaveService';
 
 interface CodeEditorProps {
   initialCode?: string;
@@ -32,6 +33,99 @@ const languageOptions: LanguageOption[] = [
 
 const defaultCode: Record<string, string> = codeTemplates as Record<string, string>;
 
+const DEFAULT_AUTO_SAVE_INTERVAL_MS = 15000;
+const resolveAutoSaveIntervalMs = () => {
+  const rawEnv =
+    (import.meta.env.VITE_CODE_AUTO_SAVE_INTERVAL_SECONDS as string | undefined) ??
+    (import.meta.env.VITE_CODE_AUTOSAVE_INTERVAL_SECONDS as string | undefined);
+  const parsed = rawEnv ? Number(rawEnv) : NaN;
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return parsed * 1000;
+  }
+  return DEFAULT_AUTO_SAVE_INTERVAL_MS;
+};
+
+const DEFAULT_AUTO_SAVE_CACHE_TTL_MS = 30 * 1000;
+const resolveAutoSaveCacheTtlMs = () => {
+  const rawEnv =
+    (import.meta.env.VITE_CODE_AUTO_SAVE_CACHE_TTL_SECONDS as string | undefined) ??
+    (import.meta.env.VITE_CODE_AUTOSAVE_CACHE_TTL_SECONDS as string | undefined);
+  const parsed = rawEnv ? Number(rawEnv) : NaN;
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return parsed * 1000;
+  }
+  return DEFAULT_AUTO_SAVE_CACHE_TTL_MS;
+};
+
+type CachedCodeEntry = {
+  value: string;
+  expiresAt: number;
+};
+
+const writeCachedCode = (storageKey: string, value: string, ttlMs: number) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  const storage = window.sessionStorage;
+  if (!value || ttlMs <= 0) {
+    storage.removeItem(storageKey);
+    return;
+  }
+  const payload: CachedCodeEntry = {
+    value,
+    expiresAt: Date.now() + ttlMs,
+  };
+  storage.setItem(storageKey, JSON.stringify(payload));
+};
+
+const purgeExpiredCodeCache = (prefix: string) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  const storage = window.sessionStorage;
+  const keysToRemove: string[] = [];
+  const now = Date.now();
+  for (let i = 0; i < storage.length; i += 1) {
+    const key = storage.key(i);
+    if (!key || !key.startsWith(prefix)) continue;
+    const raw = storage.getItem(key);
+    if (!raw) continue;
+    try {
+      const parsed = JSON.parse(raw) as CachedCodeEntry | string;
+      if (typeof parsed === 'string') {
+        keysToRemove.push(key);
+        continue;
+      }
+      if (parsed && typeof parsed === 'object' && typeof parsed.expiresAt === 'number' && parsed.expiresAt <= now) {
+        keysToRemove.push(key);
+      }
+    } catch {
+      keysToRemove.push(key);
+    }
+  }
+  keysToRemove.forEach((key) => storage.removeItem(key));
+};
+
+const clearCodeCacheForPrefix = (prefix: string) => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  const storage = window.sessionStorage;
+  const keysToRemove: string[] = [];
+  for (let i = 0; i < storage.length; i += 1) {
+    const key = storage.key(i);
+    if (key && key.startsWith(prefix)) {
+      keysToRemove.push(key);
+    }
+  }
+  keysToRemove.forEach((key) => storage.removeItem(key));
+};
+
+type PendingSaveRequest = {
+  force: boolean;
+  indicator: 'auto' | 'manual';
+};
+
 export const CodeEditor: React.FC<CodeEditorProps> = ({
   initialCode = '',
   initialLanguage = 'javascript',
@@ -48,6 +142,8 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   onThemeChange,
   className = '',
 }) => {
+  const autoSaveIntervalMs = useMemo(() => resolveAutoSaveIntervalMs(), []);
+  const autoSaveCacheTtlMs = useMemo(() => resolveAutoSaveCacheTtlMs(), []);
   // Storage keys
   const codeKey = useMemo(() => `oj:code:${problemId ?? 'global'}:`, [problemId]);
   const langKey = useMemo(() => `oj:lang:${problemId ?? 'global'}`, [problemId]);
@@ -58,8 +154,6 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     return saved || initialLanguage;
   });
   const [code, setCode] = useState(() => {
-    const saved = localStorage.getItem(codeKey + language);
-    if (saved != null) return saved;
     if (initialCode) return initialCode;
     return defaultCode[language] || '';
   });
@@ -86,6 +180,49 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const [draggingIOSplit, setDraggingIOSplit] = useState(false);
   const editorRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const codeRef = useRef<string>(code);
+  const languageRef = useRef<string>(language);
+  const lastAutoSavedRef = useRef<string>(code);
+  const isAutoSavingRef = useRef(false);
+  const pendingAutoSaveRef = useRef<PendingSaveRequest | null>(null);
+  const feedbackTimeoutRef = useRef<number | null>(null);
+  const fadeOutTimeoutRef = useRef<number | null>(null);
+  const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
+  const [saveFeedbackVisible, setSaveFeedbackVisible] = useState(false);
+  const userEditedRef = useRef(false);
+  const showSaveFeedback = useCallback((message: string) => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    if (feedbackTimeoutRef.current != null) {
+      window.clearTimeout(feedbackTimeoutRef.current);
+      feedbackTimeoutRef.current = null;
+    }
+    if (fadeOutTimeoutRef.current != null) {
+      window.clearTimeout(fadeOutTimeoutRef.current);
+      fadeOutTimeoutRef.current = null;
+    }
+    setSaveFeedback(message);
+    setSaveFeedbackVisible(true);
+    feedbackTimeoutRef.current = window.setTimeout(() => {
+      setSaveFeedbackVisible(false);
+      fadeOutTimeoutRef.current = window.setTimeout(() => {
+        setSaveFeedback(null);
+        fadeOutTimeoutRef.current = null;
+      }, 320);
+    }, 1700);
+  }, []);
+
+  useEffect(() => () => {
+    if (feedbackTimeoutRef.current != null) {
+      window.clearTimeout(feedbackTimeoutRef.current);
+      feedbackTimeoutRef.current = null;
+    }
+    if (fadeOutTimeoutRef.current != null) {
+      window.clearTimeout(fadeOutTimeoutRef.current);
+      fadeOutTimeoutRef.current = null;
+    }
+  }, []);
 
   const handleResizeMove = useCallback((e: MouseEvent) => {
     if (!draggingIO || !containerRef.current) return;
@@ -140,18 +277,86 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     localStorage.setItem('oj:layout:ioInnerSplitPct', String(ioSplitPct));
   }, [ioSplitPct]);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      languageRef.current = initialLanguage;
+      setLanguage((prev) => (prev === initialLanguage ? prev : initialLanguage));
+      const baseCode = initialCode || defaultCode[initialLanguage] || '';
+      if (codeRef.current !== baseCode) {
+        codeRef.current = baseCode;
+        setCode(baseCode);
+      }
+      userEditedRef.current = false;
+      lastAutoSavedRef.current = '';
+      return;
+    }
+
+    clearCodeCacheForPrefix(codeKey);
+    purgeExpiredCodeCache(codeKey);
+    const savedLanguage = localStorage.getItem(langKey) || initialLanguage;
+    languageRef.current = savedLanguage;
+    setLanguage((prev) => (prev === savedLanguage ? prev : savedLanguage));
+    const baseCode = initialCode || defaultCode[savedLanguage] || '';
+    if (codeRef.current !== baseCode) {
+      codeRef.current = baseCode;
+      setCode(baseCode);
+    }
+    userEditedRef.current = false;
+    lastAutoSavedRef.current = '';
+  }, [codeKey, langKey, initialCode, initialLanguage]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    const handleUnload = () => {
+      clearCodeCacheForPrefix(codeKey);
+    };
+    window.addEventListener('beforeunload', handleUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleUnload);
+    };
+  }, [codeKey]);
+
+  useEffect(() => {
+    codeRef.current = code;
+  }, [code]);
+
+  useEffect(() => {
+    languageRef.current = language;
+  }, [language]);
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== 'undefined' && feedbackTimeoutRef.current != null) {
+        window.clearTimeout(feedbackTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const handleCodeChange = (value: string | undefined) => {
     const newCode = value || '';
+    codeRef.current = newCode;
     setCode(newCode);
+    userEditedRef.current = true;
     onCodeChange?.(newCode);
   };
 
   const handleLanguageChange = (newLanguage: string) => {
-    setLanguage(newLanguage);
-    const saved = localStorage.getItem(codeKey + newLanguage);
-    setCode(saved ?? defaultCode[newLanguage] ?? '');
+    if (language !== newLanguage) {
+      setLanguage(newLanguage);
+    }
+    languageRef.current = newLanguage;
+    const nextCode = defaultCode[newLanguage] ?? '';
+    codeRef.current = nextCode;
+    setCode(nextCode);
+    userEditedRef.current = false;
+    lastAutoSavedRef.current = '';
     onLanguageChange?.(newLanguage);
     localStorage.setItem(langKey, newLanguage);
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.removeItem(codeKey + newLanguage);
+    }
   };
 
   const handleExecute = () => {
@@ -168,13 +373,90 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     editorRef.current = editor;
   };
 
-  // Autosave to localStorage with debounce
+  const triggerAutoSave = useCallback(async (options?: { force?: boolean; indicator?: 'auto' | 'manual' }) => {
+    const force = options?.force ?? false;
+    const indicator = options?.indicator ?? 'auto';
+    const successMessage = '저장완료';
+    const noChangeMessage = indicator === 'manual' ? successMessage : null;
+
+    if (!problemId || problemId <= 0) {
+      pendingAutoSaveRef.current = null;
+      return;
+    }
+
+    const currentLanguage = languageRef.current;
+    if (!currentLanguage) {
+      pendingAutoSaveRef.current = null;
+      return;
+    }
+
+    const currentCode = codeRef.current;
+    if (!force) {
+      if (!userEditedRef.current) {
+        pendingAutoSaveRef.current = null;
+        return;
+      }
+      if (currentCode === lastAutoSavedRef.current) {
+        userEditedRef.current = false;
+        pendingAutoSaveRef.current = null;
+        return;
+      }
+    } else if (currentCode === lastAutoSavedRef.current && !userEditedRef.current) {
+      pendingAutoSaveRef.current = null;
+      if (noChangeMessage) {
+        showSaveFeedback(noChangeMessage);
+      }
+      return;
+    }
+
+    if (isAutoSavingRef.current) {
+      pendingAutoSaveRef.current = { force, indicator };
+      return;
+    }
+
+    isAutoSavingRef.current = true;
+    try {
+      await codeAutoSaveService.save({
+        problemId,
+        language: currentLanguage,
+        code: currentCode,
+      });
+      lastAutoSavedRef.current = currentCode;
+      writeCachedCode(codeKey + currentLanguage, currentCode, autoSaveCacheTtlMs);
+      showSaveFeedback(successMessage);
+      if (codeRef.current === currentCode) {
+        userEditedRef.current = false;
+      }
+    } catch (error) {
+      console.error('자동 저장 실패', error);
+      if (indicator === 'manual') {
+        showSaveFeedback('저장 실패');
+      }
+    } finally {
+      isAutoSavingRef.current = false;
+      const pending = pendingAutoSaveRef.current;
+      pendingAutoSaveRef.current = null;
+      if (pending) {
+        void triggerAutoSave(pending);
+      }
+    }
+  }, [autoSaveCacheTtlMs, codeKey, problemId, showSaveFeedback]);
+
+  const handleManualSave = useCallback(() => {
+    writeCachedCode(codeKey + languageRef.current, codeRef.current, autoSaveCacheTtlMs);
+    void triggerAutoSave({ force: true, indicator: 'manual' });
+  }, [autoSaveCacheTtlMs, codeKey, triggerAutoSave]);
+
+  // Autosave to sessionStorage with debounce
   useEffect(() => {
-    const t = setTimeout(() => {
-      localStorage.setItem(codeKey + language, code);
+    if (typeof window === 'undefined') {
+      return undefined;
+    }
+    const t = window.setTimeout(() => {
+      writeCachedCode(codeKey + language, code, autoSaveCacheTtlMs);
     }, 400);
-    return () => clearTimeout(t);
-  }, [code, language, codeKey]);
+    return () => window.clearTimeout(t);
+  }, [code, language, codeKey, autoSaveCacheTtlMs]);
 
   // Keyboard shortcuts: Run (Ctrl/Cmd+Enter), Save (Ctrl/Cmd+S)
   useEffect(() => {
@@ -190,13 +472,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       }
       if (e.key.toLowerCase() === 's') {
         e.preventDefault();
-        localStorage.setItem(codeKey + language, code);
-        // lightweight visual flash by toggling a data attribute
-        const el = document.getElementById('oj-save-indicator');
-        if (el) {
-          el.style.opacity = '1';
-          setTimeout(() => { if (el) el.style.opacity = '0'; }, 600);
-        }
+        handleManualSave();
       }
       if (e.key.toLowerCase() === 'i' && e.shiftKey) {
         e.preventDefault();
@@ -205,7 +481,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     };
     window.addEventListener('keydown', listener);
     return () => window.removeEventListener('keydown', listener);
-  }, [code, language, input, onExecute, codeKey]);
+  }, [code, language, input, onExecute, handleManualSave]);
 
   // Persist theme
   useEffect(() => {
@@ -221,6 +497,52 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   useEffect(() => {
     onThemeChange?.(editorTheme);
   }, [editorTheme, onThemeChange]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') {
+      return;
+    }
+    if (!problemId || problemId <= 0) {
+      return;
+    }
+    if (autoSaveIntervalMs <= 0) {
+      return;
+    }
+    const id = window.setInterval(() => {
+      void triggerAutoSave();
+    }, autoSaveIntervalMs);
+    return () => {
+      window.clearInterval(id);
+    };
+  }, [autoSaveIntervalMs, problemId, triggerAutoSave]);
+
+  useEffect(() => {
+    if (!problemId || problemId <= 0) {
+      return;
+    }
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const serverCode = await codeAutoSaveService.fetch({ problemId, language });
+        if (cancelled) return;
+        const normalized = serverCode ?? '';
+        userEditedRef.current = false;
+        lastAutoSavedRef.current = normalized;
+        writeCachedCode(codeKey + language, normalized, autoSaveCacheTtlMs);
+        if (!userEditedRef.current && normalized.length > 0 && normalized !== codeRef.current) {
+          userEditedRef.current = false;
+          codeRef.current = normalized;
+          setCode(normalized);
+        }
+      } catch (error) {
+        console.error('서버 코드 불러오기 실패', error);
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [problemId, language, codeKey, autoSaveCacheTtlMs]);
 
   const isDarkTheme = editorTheme === 'dark';
 
@@ -275,12 +597,14 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
               <option value="dark">Dark</option>
             </select>
           </div>
-          <div
-            id="oj-save-indicator"
-            className={`text-xs opacity-0 transition-opacity ${isDarkTheme ? 'text-emerald-400' : 'text-green-600'}`}
-          >
-            Saved
-          </div>
+          {saveFeedback && (
+            <div
+              id="oj-save-indicator"
+              className={`text-xs font-medium transition-all duration-500 ease-out ${isDarkTheme ? 'text-emerald-400' : 'text-green-600'} ${saveFeedbackVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1'}`}
+            >
+              {saveFeedback}
+            </div>
+          )}
         </div>
         <div className="flex gap-2">
           <Button
@@ -290,10 +614,20 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             onClick={() => {
               if (confirm('현재 언어의 기본 템플릿으로 초기화할까요?')) {
                 const def = defaultCode[language] || '';
+                codeRef.current = def;
                 setCode(def);
               }
             }}
           >초기화</Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className={isDarkTheme ? 'border-slate-600 text-slate-200 hover:bg-slate-800' : ''}
+            onClick={handleManualSave}
+            title="Ctrl/Cmd+S"
+          >
+            저장
+          </Button>
           <Button
             variant="secondary"
             size="sm"

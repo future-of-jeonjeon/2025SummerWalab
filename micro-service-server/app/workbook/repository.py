@@ -1,13 +1,12 @@
 from typing import List, Optional
 
 from sqlalchemy import select
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.utils.databse import transactional
 from app.problem.models import Problem
 from app.workbook.models import Workbook, WorkbookProblem
-
 
 WORKBOOK_WITH_RELATIONS = (
     selectinload(Workbook.problems)
@@ -15,6 +14,7 @@ WORKBOOK_WITH_RELATIONS = (
     .selectinload(Problem.tags),
     selectinload(Workbook.problems).selectinload(WorkbookProblem.tags),
 )
+
 
 @transactional
 async def save(workbook: Workbook, db: AsyncSession) -> Optional[Workbook]:

@@ -29,6 +29,10 @@ services:
     restart: always
     volumes:
       - ./data/redis:/data
+    command: >
+      redis-server
+      --notify-keyspace-events Ex 
+      --databases 16
 
   oj-judge:
     networks:
@@ -93,7 +97,7 @@ services:
       - "9000:8000"
     environment:
       - SSO_INTROSPECT_URL=http://oj-backend:8000/api/sso
-      - REDIS_URL=redis://oj-redis:6379/0
+      - REDIS_URL=redis://oj-redis:6379
       - REDIS_SESSION_PREFIX="ms:session:"
       - TOKEN_COOKIE_NAME=ms_token
       - LOCAL_TOKEN_TTL_SECONDS=1800
@@ -103,12 +107,15 @@ services:
       - DB_HOST=${POSTGRES_HOST}
       - DB_PORT=${POSTGRES_PORT}
       - DB_NAME=${POSTGRES_DB}
+      - CODE_SAVE_TTL_SECONDS=5
+      - REDIS_CODE_SAVE_PREFIX=ms:autosave
     volumes:
       - ./data/backend/test_case:/test_case:rw 
     depends_on:
       - oj-redis 
       - oj-frontend
       - oj-backend
+      - oj-judge
 
 networks:
   judge-network:

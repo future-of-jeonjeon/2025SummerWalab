@@ -6,11 +6,12 @@ import { problemService } from '../services/problemService';
 import { contestService } from '../services/contestService';
 import { workbookService } from '../services/workbookService';
 import { resolveProblemStatus } from '../utils/problemStatus';
+import { PROBLEM_STATUS_LABELS, PROBLEM_SUMMARY_LABELS } from '../constants/problemStatus';
 import { CodeEditor } from '../components/organisms/CodeEditor';
 import { Button } from '../components/atoms/Button';
 import { Contest, ExecutionResult, Problem } from '../types';
 import { executionService } from '../services/executionService';
-import { submissionService, SubmissionListItem } from '../services/submissionService';
+import { submissionService, SubmissionDetail, SubmissionListItem } from '../services/submissionService';
 import { useAuthStore } from '../stores/authStore';
 
 type StatusTone = 'success' | 'error' | 'warning' | 'info';
@@ -251,6 +252,12 @@ export const ProblemDetailPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [manualStatus, setManualStatus] = useState<string | undefined>();
   const [activeSection, setActiveSection] = useState<'description' | 'problem-list' | 'submissions'>('description');
+  const [isSubmissionModalOpen, setSubmissionModalOpen] = useState(false);
+  const [selectedSubmissionId, setSelectedSubmissionId] = useState<number | string | null>(null);
+  const [selectedSubmissionSummary, setSelectedSubmissionSummary] = useState<SubmissionListItem | null>(null);
+  const [selectedSubmissionDetail, setSelectedSubmissionDetail] = useState<SubmissionDetail | null>(null);
+  const [submissionModalLoading, setSubmissionModalLoading] = useState(false);
+  const [submissionModalError, setSubmissionModalError] = useState<string | null>(null);
   const [editorTheme, setEditorTheme] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('oj:editorTheme');
     return saved === 'light' || saved === 'dark' ? saved : 'dark';
@@ -261,6 +268,28 @@ export const ProblemDetailPage: React.FC = () => {
   const copyFeedbackTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
   const contestTimeOffsetRef = useRef(0);
+
+  const requireAuthentication = useCallback((): boolean => {
+    if (isAuthenticated) {
+      return true;
+    }
+    alert('로그인이 필요합니다. 로그인 페이지로 이동합니다.');
+    navigate('/login', { replace: true });
+    return false;
+  }, [isAuthenticated, navigate]);
+
+  const openSubmissionModal = useCallback(() => {
+    setSubmissionModalOpen(true);
+  }, []);
+
+  const closeSubmissionModal = useCallback(() => {
+    setSubmissionModalOpen(false);
+    setSelectedSubmissionDetail(null);
+    setSelectedSubmissionSummary(null);
+    setSubmissionModalError(null);
+    setSubmissionModalLoading(false);
+    setSelectedSubmissionId(null);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -485,6 +514,7 @@ export const ProblemDetailPage: React.FC = () => {
   }, [contestContextId, submissionProblemKey]);
 
   const handleExecute = async (code: string, language: string, input?: string) => {
+    if (!requireAuthentication()) return;
     setIsExecuting(true);
     try {
       const raw = await executionService.run({ language, code, input });
@@ -503,18 +533,16 @@ export const ProblemDetailPage: React.FC = () => {
         errorMsg = detail ? `${errField}: ${detail}` : errField;
       }
       const time = (last?.cpu_time ?? last?.real_time ?? (raw as any).time ?? (raw as any).cpu_time ?? (raw as any).real_time ?? 0) as number;
-      let memory = Number(last?.memory ?? (raw as any).memory ?? 0);
-      // Heuristic: if memory looks like bytes, convert to KB
-      if (memory > 0 && memory > 10_000) {
-        memory = Math.round(memory / 1024);
-      }
+      const executionTimeMs = Number.isFinite(time) ? Math.max(0, Math.round(time)) : 0;
+      const memoryRaw = Number(last?.memory ?? (raw as any).memory ?? 0);
+      const memoryUsageKb = normalizeMemoryToKB(Number.isFinite(memoryRaw) ? memoryRaw : 0) ?? 0;
       const status: ExecutionResult['status'] = errorMsg ? 'ERROR' : ((last?.exit_code ?? 0) === 0 ? 'SUCCESS' : 'ERROR');
       const finalOutput = output || (!errorMsg ? JSON.stringify(raw, null, 2) : '');
       setExecutionResult({
         output: finalOutput,
         error: errorMsg,
-        executionTime: Math.max(0, Math.round(time)),
-        memoryUsage: Math.max(0, Math.round(memory)),
+        executionTime: executionTimeMs,
+        memoryUsage: Math.max(0, memoryUsageKb),
         status,
       });
     } catch (err: any) {
@@ -531,11 +559,7 @@ export const ProblemDetailPage: React.FC = () => {
   };
 
   const handleSubmit = async (code: string, language: string) => {
-    if (!isAuthenticated) {
-      alert('로그인이 필요합니다. 로그인 페이지로 이동합니다.');
-      navigate('/login', { replace: true });
-      return;
-    }
+    if (!requireAuthentication()) return;
     setIsSubmitting(true);
     try {
       const targetProblemId = contestContextId ? (contestProblem?.id ?? problemId) : problemId;
@@ -582,7 +606,7 @@ export const ProblemDetailPage: React.FC = () => {
   }, [problemId, stopSubmissionPolling]);
 
   const rawProblemStatus = useMemo(() => {
-    if (!problem) return undefined;
+    if (!problem || !isAuthenticated) return undefined;
     const fromProblem = problem.myStatus ?? (problem as any).my_status;
     if (fromProblem != null && String(fromProblem).trim().length > 0) {
       const raw = String(fromProblem).trim();
@@ -629,16 +653,44 @@ export const ProblemDetailPage: React.FC = () => {
     return '문제 목록';
   }, [contestContextId, workbookContextId]);
 
-  const sectionOptions = useMemo(
-    () => [
-      { id: 'description' as const, label: '문제 내용' },
-      { id: 'problem-list' as const, label: problemListLabel },
-      { id: 'submissions' as const, label: '내 제출' },
-    ],
-    [problemListLabel],
+  const showProblemListSection = useMemo(
+    () => Boolean(contestContextId) || Boolean(workbookContextId),
+    [contestContextId, workbookContextId],
   );
 
-  const isProblemListActive = activeSection === 'problem-list';
+  const sectionOptions = useMemo(() => {
+    const options = [{ id: 'description' as const, label: '문제 내용' }];
+    if (showProblemListSection) {
+      options.push({ id: 'problem-list' as const, label: problemListLabel });
+    }
+    options.push({ id: 'submissions' as const, label: '내 제출' });
+    return options;
+  }, [problemListLabel, showProblemListSection]);
+
+  useEffect(() => {
+    if (!showProblemListSection && activeSection === 'problem-list') {
+      setActiveSection('description');
+    }
+  }, [showProblemListSection, activeSection]);
+
+  useEffect(() => {
+    if (activeSection !== 'submissions' && isSubmissionModalOpen) {
+      closeSubmissionModal();
+    }
+  }, [activeSection, isSubmissionModalOpen, closeSubmissionModal]);
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setSelectedSubmissionId(null);
+      setSelectedSubmissionSummary(null);
+      setSelectedSubmissionDetail(null);
+      setSubmissionModalError(null);
+      setSubmissionModalLoading(false);
+      setSubmissionModalOpen(false);
+    }
+  }, [isAuthenticated]);
+
+  const isProblemListActive = showProblemListSection && activeSection === 'problem-list';
 
   const {
     data: contestProblemList,
@@ -647,7 +699,7 @@ export const ProblemDetailPage: React.FC = () => {
   } = useQuery({
     queryKey: ['contest-problem-list', contestContextId],
     queryFn: () => contestService.getContestProblems(contestContextId!),
-    enabled: !!contestContextId,
+    enabled: showProblemListSection && !!contestContextId,
   });
 
   const {
@@ -682,20 +734,25 @@ export const ProblemDetailPage: React.FC = () => {
   const problemListItems = useMemo<Problem[]>(() => {
     if (contestContextId) return contestProblemList ?? [];
     if (workbookContextId) return workbookProblemList ?? [];
+    if (!isAuthenticated) return [];
     return globalProblemList ?? [];
-  }, [contestContextId, contestProblemList, workbookContextId, workbookProblemList, globalProblemList]);
+  }, [contestContextId, contestProblemList, workbookContextId, workbookProblemList, globalProblemList, isAuthenticated]);
 
   const problemListError = contestContextId
     ? contestProblemListError
     : workbookContextId
       ? workbookProblemListError
-      : globalProblemListError;
+      : isAuthenticated
+        ? globalProblemListError
+        : null;
 
   const isLoadingProblemList = contestContextId
     ? isLoadingContestProblemList
     : workbookContextId
       ? isLoadingWorkbookProblemList
-      : isLoadingGlobalProblemList;
+      : isAuthenticated
+        ? isLoadingGlobalProblemList
+        : false;
 
   const { data: contestRankProgress } = useQuery({
     queryKey: ['contest-rank-progress', contestContextId, authUser?.id],
@@ -738,9 +795,9 @@ export const ProblemDetailPage: React.FC = () => {
     problemListItems.forEach((item) => {
       const override = overrides.get(item.id);
       const status = resolveProblemStatus(item, override ? { override } : undefined);
-      if (status === 'solved') {
+      if (status === PROBLEM_STATUS_LABELS.solved) {
         stats.solved += 1;
-      } else if (status === 'untouched') {
+      } else if (status === PROBLEM_STATUS_LABELS.untouched) {
         stats.untouched += 1;
       } else {
         stats.wrong += 1;
@@ -761,7 +818,7 @@ export const ProblemDetailPage: React.FC = () => {
     queryFn: () => (submissionProblemKey
       ? submissionService.getMySubmissions(submissionProblemKey, { contestId: contestContextId ?? undefined })
       : Promise.resolve({ items: [], total: 0 })),
-    enabled: activeSection === 'submissions' && !!submissionProblemKey,
+    enabled: activeSection === 'submissions' && isAuthenticated && !!submissionProblemKey,
     staleTime: 30_000,
   });
 
@@ -818,6 +875,238 @@ export const ProblemDetailPage: React.FC = () => {
       ?? (submission.statistic_info as any)?.memory_cost;
     return getNumericValue(candidate);
   };
+
+  const getStatisticMetric = (stats: Record<string, unknown> | null | undefined, keys: string[]): number | undefined => {
+    if (!stats) return undefined;
+    for (const key of keys) {
+      const candidate = (stats as Record<string, unknown>)[key];
+      const numeric = getNumericValue(candidate);
+      if (numeric != null) {
+        return numeric;
+      }
+    }
+    return undefined;
+  };
+
+  const resolveSubmissionId = useCallback((submission: SubmissionListItem | SubmissionDetail | null | undefined): number | string | undefined => {
+    if (!submission) return undefined;
+    const candidates = [
+      (submission as SubmissionListItem).submissionId,
+      submission.id,
+      (submission as any).submission_id,
+      (submission as any).submissionID,
+      (submission as any).submissionid,
+      (submission as any).run_id,
+      (submission as any).runId,
+    ];
+    for (const candidate of candidates) {
+      if (candidate === undefined || candidate === null) continue;
+      if (typeof candidate === 'number') {
+        if (Number.isFinite(candidate)) return candidate;
+        continue;
+      }
+      if (typeof candidate === 'string') {
+        const trimmed = candidate.trim();
+        if (!trimmed) continue;
+        const parsed = Number(trimmed);
+        return Number.isFinite(parsed) ? parsed : trimmed;
+      }
+    }
+    return undefined;
+  }, []);
+
+  const resolveSubmissionStatusCode = useCallback((submission: SubmissionDetail | SubmissionListItem | null | undefined): string | undefined => {
+    if (!submission) return undefined;
+    const rawStatusField = typeof submission.status === 'string' && submission.status.trim().length > 0 ? submission.status : undefined;
+    if (rawStatusField) return rawStatusField;
+    const resultField = (submission as SubmissionListItem).result;
+    if (resultField !== undefined && resultField !== null) {
+      const mapped = judgeResultToStatus[String(resultField)];
+      return mapped ?? String(resultField);
+    }
+    const statisticResult = (submission as any)?.statistic_info?.result;
+    if (statisticResult !== undefined && statisticResult !== null) {
+      const mapped = judgeResultToStatus[String(statisticResult)];
+      return mapped ?? String(statisticResult);
+    }
+    return undefined;
+  }, []);
+
+  const handleSubmissionCardClick = useCallback(async (submission: SubmissionListItem) => {
+    if (!requireAuthentication()) return;
+    setSelectedSubmissionSummary(submission);
+    const resolvedId = resolveSubmissionId(submission);
+    if (!resolvedId) {
+      setSelectedSubmissionId(null);
+      setSelectedSubmissionDetail(null);
+      setSubmissionModalError('제출 ID를 확인할 수 없습니다.');
+      setSubmissionModalLoading(false);
+      openSubmissionModal();
+      return;
+    }
+    setSelectedSubmissionId(resolvedId);
+    setSubmissionModalLoading(true);
+    setSubmissionModalError(null);
+    setSelectedSubmissionDetail(null);
+    openSubmissionModal();
+    try {
+      const detail = await submissionService.getSubmission(resolvedId);
+      setSelectedSubmissionDetail(detail);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : '제출 정보를 불러오지 못했습니다.';
+      setSubmissionModalError(message);
+    } finally {
+      setSubmissionModalLoading(false);
+    }
+  }, [openSubmissionModal, requireAuthentication, resolveSubmissionId]);
+
+  const normalizeMemoryToKB = (value: number | undefined): number | undefined => {
+    if (value == null || Number.isNaN(value)) return undefined;
+    if (value === 0) return 0;
+    const absValue = Math.abs(value);
+    const kb = absValue / 1024;
+    if (!Number.isFinite(kb)) return undefined;
+    const rounded = Math.max(1, Math.round(kb));
+    return value < 0 ? -rounded : rounded;
+  };
+
+  const formatExecutionTimeValue = (value: number | undefined): string => {
+    if (value == null || Number.isNaN(value)) return '-';
+    const rounded = Math.round(value);
+    return `${rounded}ms`;
+  };
+
+  const formatMemoryUsageValue = (value: number | undefined): string => {
+    if (value == null || Number.isNaN(value)) return '-';
+    const normalized = normalizeMemoryToKB(value);
+    if (normalized == null || Number.isNaN(normalized)) return '-';
+    return `${normalized}KB`;
+  };
+
+  const submissionListContent = !isAuthenticated ? (
+    <div className={`py-8 text-center space-y-3 ${subtleTextClass}`}>
+      <div>로그인 후 내 제출 기록을 확인할 수 있습니다.</div>
+      <Button
+        variant={isDarkTheme ? 'outline' : 'primary'}
+        size="sm"
+        onClick={() => requireAuthentication()}
+      >
+        로그인 하러가기
+      </Button>
+    </div>
+  ) : isLoadingSubmissions ? (
+    <div className={`py-8 text-center ${subtleTextClass}`}>
+      내 제출을 불러오는 중입니다...
+    </div>
+  ) : mySubmissions.length === 0 ? (
+    <div className={`py-8 text-center ${subtleTextClass}`}>
+      아직 제출 기록이 없습니다.
+    </div>
+  ) : (
+    <div className="space-y-3">
+      {mySubmissions.map((submission, index) => {
+        const statusCode = resolveSubmissionStatusCode(submission);
+        const statusMeta = describeStatus(statusCode) ?? {
+          label: statusCode ?? '채점 중',
+          tone: 'info' as StatusTone,
+          code: statusCode?.toString().toUpperCase(),
+        };
+        const toneStyle = toneStyles[statusMeta.tone];
+        const submittedAtRaw = getSubmissionTimestamp(submission);
+        const executionTimeValue = getSubmissionExecutionTime(submission);
+        const memoryUsageValue = getSubmissionMemory(submission);
+        const cardId = resolveSubmissionId(submission);
+        const isActive = selectedSubmissionId != null && cardId != null && String(cardId) === String(selectedSubmissionId);
+        const baseCardClass = isDarkTheme
+          ? 'border-slate-700 bg-slate-900/80 hover:bg-slate-800/70'
+          : 'border-gray-200 bg-white hover:bg-gray-50';
+        const activeCardClass = isDarkTheme
+          ? 'border-blue-400 ring-2 ring-blue-400'
+          : 'border-blue-400 ring-2 ring-blue-400';
+        return (
+          <button
+            type="button"
+            key={String(submission.id ?? index)}
+            onClick={() => handleSubmissionCardClick(submission)}
+            className={`w-full text-left rounded-lg border p-4 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-400 ${
+              isActive ? activeCardClass : baseCardClass
+            }`}
+          >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex-1 min-w-0 space-y-1">
+                <div className={`text-xs ${isDarkTheme ? 'text-slate-400' : 'text-gray-500'}`}>
+                  {formatDateTime(submittedAtRaw)}
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className={`inline-flex items-center px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide rounded ${toneStyle.badge}`}>
+                    {statusMeta.code ?? ''}
+                  </span>
+                  <span className={`text-sm font-medium ${isDarkTheme ? 'text-slate-100' : 'text-gray-800'}`}>
+                    {statusMeta.label}
+                  </span>
+                  {submission.language && (
+                    <span className={`text-xs ${isDarkTheme ? 'text-slate-300' : 'text-gray-500'}`}>
+                      {submission.language}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div className="flex flex-wrap items-center gap-3 text-sm">
+                <span className={`${isDarkTheme ? 'text-slate-200' : 'text-gray-700'}`}>
+                  {formatExecutionTimeValue(executionTimeValue)}
+                </span>
+                <span className={`${isDarkTheme ? 'text-slate-200' : 'text-gray-700'}`}>
+                  {formatMemoryUsageValue(memoryUsageValue)}
+                </span>
+              </div>
+            </div>
+            <div className={`mt-3 text-right text-xs font-medium ${isDarkTheme ? 'text-blue-300' : 'text-blue-600'}`}>
+              제출 상세 보기
+            </div>
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  const modalSubmission = selectedSubmissionDetail ?? selectedSubmissionSummary;
+  const modalSubmissionCombined = useMemo<SubmissionListItem | null>(() => {
+    if (!modalSubmission) return null;
+    return { ...(selectedSubmissionSummary ?? {}), ...(selectedSubmissionDetail ?? {}) } as SubmissionListItem;
+  }, [modalSubmission, selectedSubmissionDetail, selectedSubmissionSummary]);
+  const modalStatusCode = resolveSubmissionStatusCode(modalSubmission);
+  const modalStatusMeta = modalStatusCode
+    ? describeStatus(modalStatusCode) ?? {
+      label: modalStatusCode,
+      tone: 'info' as StatusTone,
+      code: modalStatusCode.toString().toUpperCase(),
+    }
+    : undefined;
+  const modalToneStyle = modalStatusMeta ? toneStyles[modalStatusMeta.tone] : toneStyles.info;
+  const detailStats = selectedSubmissionDetail?.statistic_info ?? null;
+  const modalExecutionTimeValue = detailStats
+    ? getStatisticMetric(detailStats, ['time_cost', 'cpu_time', 'time', 'execution_time', 'real_time'])
+    : undefined;
+  const modalMemoryValueFromStats = detailStats
+    ? getStatisticMetric(detailStats, ['memory_cost', 'memory_usage', 'memory', 'memory_peak', 'memory_cost_bytes'])
+    : undefined;
+  const modalExecutionTime = modalExecutionTimeValue ?? (modalSubmissionCombined ? getSubmissionExecutionTime(modalSubmissionCombined) : undefined);
+  const modalMemoryUsage = modalMemoryValueFromStats ?? (modalSubmissionCombined ? getSubmissionMemory(modalSubmissionCombined) : undefined);
+  const modalSubmittedAt = modalSubmissionCombined ? getSubmissionTimestamp(modalSubmissionCombined) : undefined;
+  const modalLanguage = modalSubmissionCombined?.language
+    ?? (modalSubmissionCombined as any)?.language_name
+    ?? '-';
+  const modalProblemIdentifier = modalSubmissionCombined?.problem
+    ?? (modalSubmissionCombined as any)?.problem_id
+    ?? (modalSubmissionCombined as any)?.problemId
+    ?? '-';
+  const modalSubmissionIdDisplay = modalSubmissionCombined
+    ? resolveSubmissionId(modalSubmissionCombined)
+    : selectedSubmissionId;
+  const modalCode = selectedSubmissionDetail?.code ?? (modalSubmissionCombined as any)?.code ?? null;
+  const modalCodeDisplay = typeof modalCode === 'string' && modalCode.trim().length > 0
+    ? modalCode
+    : '코드를 불러올 수 없습니다.';
 
   useEffect(() => {
     if (!manualStatus) return;
@@ -961,19 +1250,19 @@ export const ProblemDetailPage: React.FC = () => {
             </div>
             <div className="flex flex-wrap items-center justify-end gap-4 text-xs">
               <div className="flex flex-col items-center">
-                <span className={`${isDarkTheme ? 'text-slate-300' : 'text-slate-500'}`}>전체</span>
+                <span className={`${isDarkTheme ? 'text-slate-300' : 'text-slate-500'}`}>{PROBLEM_SUMMARY_LABELS.total}</span>
                 <span className={`text-2xl font-bold ${isDarkTheme ? 'text-slate-100' : 'text-slate-900'}`}>{contestProblemStats?.total ?? '-'}</span>
               </div>
               <div className="flex flex-col items-center">
-                <span className="text-indigo-500 dark:text-indigo-300">미응시</span>
+                <span className="text-indigo-500 dark:text-indigo-300">{PROBLEM_SUMMARY_LABELS.untouched}</span>
                 <span className={`text-2xl font-bold ${isDarkTheme ? 'text-indigo-300' : 'text-indigo-600'}`}>{contestProblemStats?.untouched ?? '-'}</span>
               </div>
               <div className="flex flex-col items-center">
-                <span className="text-emerald-600 dark:text-emerald-300">정답</span>
+                <span className="text-emerald-600 dark:text-emerald-300">{PROBLEM_SUMMARY_LABELS.solved}</span>
                 <span className={`text-2xl font-bold ${isDarkTheme ? 'text-emerald-300' : 'text-emerald-600'}`}>{contestProblemStats?.solved ?? '-'}</span>
               </div>
               <div className="flex flex-col items-center">
-                <span className="text-rose-600 dark:text-rose-300">오답</span>
+                <span className="text-rose-600 dark:text-rose-300">{PROBLEM_SUMMARY_LABELS.wrong}</span>
                 <span className={`text-2xl font-bold ${isDarkTheme ? 'text-rose-300' : 'text-rose-600'}`}>{contestProblemStats?.wrong ?? '-'}</span>
               </div>
             </div>
@@ -1006,8 +1295,10 @@ export const ProblemDetailPage: React.FC = () => {
                 <div className="flex-1 flex flex-col gap-1">
                   <h1 className={`text-xl font-semibold flex items-center gap-2 ${headingTextClass}`}>
                     {problem.title}
-                    {problem.solved && (
-                      <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded bg-green-100 text-green-700">Solved</span>
+                    {isAuthenticated && problem.solved && (
+                      <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded bg-green-100 text-green-700">
+                        {PROBLEM_STATUS_LABELS.solved}
+                      </span>
                     )}
                   </h1>
                   <div className={`flex flex-wrap items-center gap-3 text-xs ${subtleTextClass}`}>
@@ -1022,7 +1313,16 @@ export const ProblemDetailPage: React.FC = () => {
                   <button
                     key={tab.id}
                     type="button"
-                    onClick={() => setActiveSection(tab.id)}
+                    onClick={() => {
+                      if (tab.id === 'submissions') {
+                        if (!isAuthenticated) {
+                          requireAuthentication();
+                        }
+                        setActiveSection('submissions');
+                      } else {
+                        setActiveSection(tab.id);
+                      }
+                    }}
                     className={`${tabBaseClass} ${activeSection === tab.id ? tabActiveClass : tabInactiveClass}`}
                   >
                     {tab.label}
@@ -1135,6 +1435,10 @@ export const ProblemDetailPage: React.FC = () => {
                     <div className={`py-8 text-center ${subtleTextClass}`}>
                       문제 목록을 불러오지 못했습니다.
                     </div>
+                  ) : (!contestContextId && !workbookContextId && !isAuthenticated) ? (
+                    <div className={`py-8 text-center ${subtleTextClass}`}>
+                      로그인 후 문제 목록을 확인할 수 있습니다.
+                    </div>
                   ) : problemListItems.length === 0 ? (
                     <div className={`py-8 text-center ${subtleTextClass}`}>
                       표시할 문제가 없습니다.
@@ -1183,67 +1487,7 @@ export const ProblemDetailPage: React.FC = () => {
                 </section>
               ) : (
                 <section className="space-y-4">
-                  {isLoadingSubmissions ? (
-                    <div className={`py-8 text-center ${subtleTextClass}`}>
-                      내 제출을 불러오는 중입니다...
-                    </div>
-                  ) : mySubmissions.length === 0 ? (
-                    <div className={`py-8 text-center ${subtleTextClass}`}>
-                      아직 제출 기록이 없습니다.
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {mySubmissions.map((submission, index) => {
-                          const rawStatusField = typeof submission.status === 'string' && submission.status.trim().length > 0 ? submission.status : undefined;
-                          const fallbackFromResult = submission.result != null ? judgeResultToStatus[String(submission.result)] ?? String(submission.result) : undefined;
-                          const statusCode = rawStatusField ?? fallbackFromResult;
-                          const statusMeta = describeStatus(statusCode) ?? {
-                            label: statusCode ?? '채점 중',
-                            tone: 'info' as StatusTone,
-                            code: statusCode?.toString().toUpperCase(),
-                          };
-                          const toneStyle = toneStyles[statusMeta.tone];
-                          const submittedAtRaw = getSubmissionTimestamp(submission);
-                          const executionTimeValue = getSubmissionExecutionTime(submission);
-                          const memoryUsageValue = getSubmissionMemory(submission);
-                          return (
-                            <div
-                              key={String(submission.id ?? index)}
-                              className={`rounded-lg border ${isDarkTheme ? 'border-slate-700 bg-slate-900/80 hover:bg-slate-800/70' : 'border-gray-200 bg-white hover:bg-gray-50'} p-4 transition-colors`}
-                            >
-                              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                                <div className="flex-1 min-w-0 space-y-1">
-                                  <div className={`text-xs ${isDarkTheme ? 'text-slate-400' : 'text-gray-500'}`}>
-                                    {formatDateTime(submittedAtRaw)}
-                                  </div>
-                                  <div className="flex flex-wrap items-center gap-2">
-                                    <span className={`inline-flex items-center px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide rounded ${toneStyle.badge}`}>
-                                      {statusMeta.code ?? ''}
-                                    </span>
-                                    <span className={`text-sm font-medium ${isDarkTheme ? 'text-slate-100' : 'text-gray-800'}`}>
-                                      {statusMeta.label}
-                                    </span>
-                                    {submission.language && (
-                                      <span className={`text-xs ${isDarkTheme ? 'text-slate-300' : 'text-gray-500'}`}>
-                                        {submission.language}
-                                      </span>
-                                    )}
-                                  </div>
-                                </div>
-                                <div className="flex flex-wrap items-center gap-3 text-sm">
-                                  <span className={`${isDarkTheme ? 'text-slate-200' : 'text-gray-700'}`}>
-                                    {executionTimeValue != null ? `${executionTimeValue}ms` : '-'}
-                                  </span>
-                                  <span className={`${isDarkTheme ? 'text-slate-200' : 'text-gray-700'}`}>
-                                    {memoryUsageValue != null ? `${memoryUsageValue}KB` : '-'}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                    </div>
-                  )}
+                  {submissionListContent}
                 </section>
               )}
             </div>
@@ -1292,6 +1536,78 @@ export const ProblemDetailPage: React.FC = () => {
           />
         </div>
       </div>
+      {isSubmissionModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          onClick={closeSubmissionModal}
+        >
+          <div
+            className={`max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-lg shadow-xl ${isDarkTheme ? 'bg-slate-900 text-slate-100 border border-slate-700' : 'bg-white text-gray-900'}`}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className={`flex items-center justify-between border-b px-5 py-3 ${isDarkTheme ? 'border-slate-700' : 'border-gray-200'}`}>
+              <h3 className="text-lg font-semibold">
+                {modalSubmissionIdDisplay ? `제출 ${modalSubmissionIdDisplay}` : '제출 상세'}
+              </h3>
+              <button
+                type="button"
+                onClick={closeSubmissionModal}
+                className={`rounded-md px-3 py-1 text-sm font-medium transition ${
+                  isDarkTheme
+                    ? 'bg-slate-800 text-slate-200 hover:bg-slate-700'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                닫기
+              </button>
+            </div>
+            <div className="max-h-[70vh] overflow-y-auto px-5 py-4 space-y-5">
+              {submissionModalLoading ? (
+                <div className="flex h-48 items-center justify-center">
+                  <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
+                </div>
+              ) : submissionModalError ? (
+                <div className={`py-12 text-center text-sm ${isDarkTheme ? 'text-rose-300' : 'text-red-600'}`}>
+                  {submissionModalError}
+                </div>
+              ) : modalSubmissionCombined ? (
+                <>
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span className={`inline-flex items-center px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide rounded ${modalToneStyle.badge}`}>
+                        {modalStatusMeta?.code ?? 'INFO'}
+                      </span>
+                      <span className={`text-sm font-semibold ${isDarkTheme ? 'text-slate-100' : 'text-gray-900'}`}>
+                        {modalStatusMeta?.label ?? '채점 중'}
+                      </span>
+                    </div>
+                  </div>
+                  <div className={`grid gap-3 text-sm ${isDarkTheme ? 'text-slate-200' : 'text-gray-700'} sm:grid-cols-2`}>
+                    <div><span className="font-semibold">제출 ID:</span> {modalSubmissionIdDisplay ?? '-'}</div>
+                    <div><span className="font-semibold">문제 ID:</span> {modalProblemIdentifier ?? '-'}</div>
+                    <div><span className="font-semibold">언어:</span> {modalLanguage ?? '-'}</div>
+                    <div><span className="font-semibold">제출 시각:</span> {modalSubmittedAt ? formatDateTime(modalSubmittedAt) : '-'}</div>
+                    <div><span className="font-semibold">실행 시간:</span> {formatExecutionTimeValue(modalExecutionTime)}</div>
+                    <div><span className="font-semibold">메모리:</span> {formatMemoryUsageValue(modalMemoryUsage)}</div>
+                  </div>
+                  <div>
+                    <h4 className={`mb-2 font-semibold ${isDarkTheme ? 'text-slate-100' : 'text-gray-900'}`}>소스 코드</h4>
+                    <pre className={`overflow-x-auto rounded-md border px-4 py-3 text-xs leading-5 ${
+                      isDarkTheme ? 'border-slate-700 bg-slate-950 text-slate-100' : 'border-gray-200 bg-gray-900 text-gray-100'
+                    }`}>
+{modalCodeDisplay}
+                    </pre>
+                  </div>
+                </>
+              ) : (
+                <div className={`py-12 text-center text-sm ${isDarkTheme ? 'text-slate-400' : 'text-gray-500'}`}>
+                  제출 정보를 불러오지 못했습니다.
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

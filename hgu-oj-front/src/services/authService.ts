@@ -2,6 +2,7 @@ import { api } from './api';
 import { LoginForm, LoginResponse, UserProfile } from '../types';
 
 const API_BASE_URL = ((import.meta.env.VITE_API_URL as string | undefined) || '').replace(/\/$/, '');
+const MS_API_BASE = ((import.meta.env.VITE_MS_API_BASE as string | undefined) || '').replace(/\/$/, '');
 
 export const authService = {
   // Online Judge 로그인
@@ -27,11 +28,11 @@ export const authService = {
 
   // Micro-service 로그인
   loginToMicroService: async (token: string): Promise<void> => {
-    if (!API_BASE_URL) {
+    if (!MS_API_BASE) {
       throw new Error('API base URL is not configured.');
     }
 
-    await fetch(`${API_BASE_URL}/auth/login`, {
+    await fetch(`${MS_API_BASE}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
@@ -71,11 +72,11 @@ export const authService = {
     await api.get('/logout');
 
     // Micro-service 로그아웃
-    if (!API_BASE_URL) {
+    if (!MS_API_BASE) {
       throw new Error('API base URL is not configured.');
     }
 
-    await fetch(`${API_BASE_URL}/auth/logout`, {
+    await fetch(`${MS_API_BASE}/auth/logout`, {
       method: 'POST',
       credentials: 'include',
     });

@@ -1,6 +1,7 @@
 import React from 'react';
 import { Problem } from '../../types';
 import { resolveProblemStatus } from '../../utils/problemStatus';
+import { PROBLEM_STATUS_LABELS } from '../../constants/problemStatus';
 
 interface ContestProblemListProps {
   problems: Problem[];
@@ -12,30 +13,28 @@ interface ContestProblemListProps {
   sortOrder?: 'asc' | 'desc';
 }
 
-const getStatusBadge = (problem: Problem, overrideState?: string) => {
+const getStatusBadge = (problem: Problem, overrideState?: string): { label: string; className: string } | null => {
   const state = resolveProblemStatus(problem, { override: overrideState });
   switch (state) {
-    case 'solved':
+    case PROBLEM_STATUS_LABELS.solved:
       return {
-        label: '정답',
+        label: PROBLEM_STATUS_LABELS.solved,
         className: 'bg-green-100 text-green-700 border border-green-200',
       };
-    case 'wrong':
+    case PROBLEM_STATUS_LABELS.wrong:
       return {
-        label: '틀림',
+        label: PROBLEM_STATUS_LABELS.wrong,
         className: 'bg-red-100 text-red-600 border border-red-200',
       };
     case 'attempted':
       return {
-        label: '시도',
+        label: PROBLEM_STATUS_LABELS.attempted,
         className: 'bg-amber-100 text-amber-700 border border-amber-200',
       };
-    case 'untouched':
+    case PROBLEM_STATUS_LABELS.untouched:
+      return null;
     default:
-      return {
-        label: '미시도',
-        className: 'bg-gray-100 text-gray-600 border border-gray-300',
-      };
+      return null;
   }
 };
 
@@ -143,9 +142,11 @@ export const ContestProblemList: React.FC<ContestProblemListProps> = ({
                   </p>
                 </div>
                 <div className="flex justify-center">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 text-[11px] font-semibold rounded-full ${badge.className}`}>
-                    {badge.label}
-                  </span>
+                  {badge && (
+                    <span className={`inline-flex items-center px-2.5 py-0.5 text-[11px] font-semibold rounded-full ${badge.className}`}>
+                      {badge.label}
+                    </span>
+                  )}
                 </div>
                 <div className="text-sm text-gray-500 text-center">
                   {submissions}회

@@ -5,11 +5,14 @@ import { Problem, ProblemFilter } from '../types';
 import { ProblemList } from '../components/organisms/ProblemList';
 import { useProblemStore } from '../stores/problemStore';
 import { resolveProblemStatus } from '../utils/problemStatus';
+import { useAuthStore } from '../stores/authStore';
+import { PROBLEM_STATUS_LABELS, ProblemStatusKey } from '../constants/problemStatus';
 
 export const ProblemListPage: React.FC = () => {
   const navigate = useNavigate();
   const { filter, setFilter } = useProblemStore();
   const [searchQuery, setSearchQuery] = useState('');
+  const { isAuthenticated } = useAuthStore();
 
   const { data, isLoading, error } = useProblems(filter);
 
@@ -72,7 +75,7 @@ export const ProblemListPage: React.FC = () => {
     const searchField = filter.searchField ?? 'title';
     const sortField = filter.sortField ?? 'number';
     const sortOrder = filter.sortOrder ?? 'asc';
-    const statusFilter = filter.statusFilter ?? 'all';
+    const statusFilter = isAuthenticated ? (filter.statusFilter ?? 'all') : 'all';
 
     const matchesQuery = (problem: any) => {
       if (!query) return true;
@@ -96,11 +99,12 @@ export const ProblemListPage: React.FC = () => {
     const filterResult = items
       .filter(matchesQuery)
       .filter((problem) => {
+        if (!isAuthenticated) return true;
         const status = resolveProblemStatus(problem);
         if (statusFilter === 'all') return true;
-        if (statusFilter === 'solved') return status === 'solved';
-        if (statusFilter === 'wrong') return status === 'wrong';
-        if (statusFilter === 'untouched') return status === 'untouched';
+        if (statusFilter === PROBLEM_STATUS_LABELS.solved) return status === PROBLEM_STATUS_LABELS.solved;
+        if (statusFilter === PROBLEM_STATUS_LABELS.wrong) return status === PROBLEM_STATUS_LABELS.wrong;
+        if (statusFilter === PROBLEM_STATUS_LABELS.untouched) return status === PROBLEM_STATUS_LABELS.untouched;
         return true;
       });
 
@@ -148,7 +152,13 @@ export const ProblemListPage: React.FC = () => {
     });
 
     return sorted;
-  }, [data?.data, searchQuery, filter.searchField, filter.sortField, filter.sortOrder, filter.statusFilter]);
+  }, [data?.data, searchQuery, filter.searchField, filter.sortField, filter.sortOrder, filter.statusFilter, isAuthenticated]);
+
+  useEffect(() => {
+    if (!isAuthenticated && (filter.statusFilter && filter.statusFilter !== 'all')) {
+      setFilter({ statusFilter: 'all' });
+    }
+  }, [isAuthenticated, filter.statusFilter, setFilter]);
 
   const handlePageChange = (page: number) => {
     setFilter({ page });
@@ -202,27 +212,29 @@ export const ProblemListPage: React.FC = () => {
                   검색
                 </button>
               </form>
-              <div className="flex w-full sm:w-auto sm:min-w-[220px]">
-                <label htmlFor="problem-status-filter" className="sr-only">문제 상태 필터</label>
-                <select
-                  id="problem-status-filter"
-                  value={filter.statusFilter ?? 'all'}
-                  onChange={(event) => handleStatusFilterChange(event.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-28"
-                >
-                  <option value="all">전체</option>
-                  <option value="untouched">미시도</option>
-                  <option value="solved">정답</option>
-                  <option value="wrong">오답</option>
-                </select>
-                <button
-                  type="button"
-                  onClick={handleResetFilters}
-                  className="ml-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 text-center shadow-sm transition hover:border-blue-400 hover:text-blue-600"
-                >
-                  초기화
-                </button>
-              </div>
+              {isAuthenticated && (
+                <div className="flex w-full sm:w-auto sm:min-w-[220px]">
+                  <label htmlFor="problem-status-filter" className="sr-only">문제 상태 필터</label>
+                  <select
+                    id="problem-status-filter"
+                    value={filter.statusFilter ?? 'all'}
+                    onChange={(event) => handleStatusFilterChange(event.target.value)}
+                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-28"
+                  >
+                    <option value="all">전체</option>
+                    <option value={PROBLEM_STATUS_LABELS.untouched}>{PROBLEM_STATUS_LABELS.untouched}</option>
+                    <option value={PROBLEM_STATUS_LABELS.solved}>{PROBLEM_STATUS_LABELS.solved}</option>
+                    <option value={PROBLEM_STATUS_LABELS.wrong}>{PROBLEM_STATUS_LABELS.wrong}</option>
+                  </select>
+                  <button
+                    type="button"
+                    onClick={handleResetFilters}
+                    className="ml-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 text-center shadow-sm transition hover:border-blue-400 hover:text-blue-600"
+                  >
+                    초기화
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -237,7 +249,7 @@ export const ProblemListPage: React.FC = () => {
           onSortChange={handleSortToggle}
           sortField={filter.sortField ?? 'number'}
           sortOrder={filter.sortOrder ?? 'asc'}
-          showStatus
+          showStatus={isAuthenticated}
         />
       </div>
     </div>
