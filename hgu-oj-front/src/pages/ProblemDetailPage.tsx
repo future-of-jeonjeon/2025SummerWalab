@@ -1581,11 +1581,6 @@ export const ProblemDetailPage: React.FC = () => {
                         {modalStatusMeta?.label ?? '채점 중'}
                       </span>
                     </div>
-                    {modalStatusMeta?.message && (
-                      <p className={`text-xs ${isDarkTheme ? 'text-slate-300' : 'text-gray-600'}`}>
-                        {modalStatusMeta.message}
-                      </p>
-                    )}
                   </div>
                   <div className={`grid gap-3 text-sm ${isDarkTheme ? 'text-slate-200' : 'text-gray-700'} sm:grid-cols-2`}>
                     <div><span className="font-semibold">제출 ID:</span> {modalSubmissionIdDisplay ?? '-'}</div>

@@ -13,3 +13,9 @@ $ python3 -m venv .venv
 $ source .venv/bin/activate
 ```
 
+
+### 엔티티 수정시
+
+```bash 
+$ alembic revision --autogenerate           
+```

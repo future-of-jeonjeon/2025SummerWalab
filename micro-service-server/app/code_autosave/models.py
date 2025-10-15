@@ -1,10 +1,13 @@
-from sqlalchemy import Column, Integer, String, DateTime, func, Text, ForeignKey
+from sqlalchemy import Column, Integer, String, DateTime, func, Text, ForeignKey, UniqueConstraint
 from app.config.database import Base
 
 
 class ProblemCode(Base):
     __tablename__ = "micro_problem_code"
-    __table_args__ = {"schema": "public"}
+    __table_args__ = (
+        UniqueConstraint('problem_id', 'user_id', 'language', name='uq_micro_problem_code_pul'),
+        {"schema": "public"},
+    )
 
     id = Column(Integer, primary_key=True, index=True)
 

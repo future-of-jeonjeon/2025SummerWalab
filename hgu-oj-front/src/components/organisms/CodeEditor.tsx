@@ -186,7 +186,9 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const isAutoSavingRef = useRef(false);
   const pendingAutoSaveRef = useRef<PendingSaveRequest | null>(null);
   const feedbackTimeoutRef = useRef<number | null>(null);
+  const fadeOutTimeoutRef = useRef<number | null>(null);
   const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
+  const [saveFeedbackVisible, setSaveFeedbackVisible] = useState(false);
   const userEditedRef = useRef(false);
   const showSaveFeedback = useCallback((message: string) => {
     if (typeof window === 'undefined') {
@@ -194,12 +196,32 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     }
     if (feedbackTimeoutRef.current != null) {
       window.clearTimeout(feedbackTimeoutRef.current);
+      feedbackTimeoutRef.current = null;
+    }
+    if (fadeOutTimeoutRef.current != null) {
+      window.clearTimeout(fadeOutTimeoutRef.current);
+      fadeOutTimeoutRef.current = null;
     }
     setSaveFeedback(message);
+    setSaveFeedbackVisible(true);
     feedbackTimeoutRef.current = window.setTimeout(() => {
-      setSaveFeedback(null);
+      setSaveFeedbackVisible(false);
+      fadeOutTimeoutRef.current = window.setTimeout(() => {
+        setSaveFeedback(null);
+        fadeOutTimeoutRef.current = null;
+      }, 320);
+    }, 1700);
+  }, []);
+
+  useEffect(() => () => {
+    if (feedbackTimeoutRef.current != null) {
+      window.clearTimeout(feedbackTimeoutRef.current);
       feedbackTimeoutRef.current = null;
-    }, 2000);
+    }
+    if (fadeOutTimeoutRef.current != null) {
+      window.clearTimeout(fadeOutTimeoutRef.current);
+      fadeOutTimeoutRef.current = null;
+    }
   }, []);
 
   const handleResizeMove = useCallback((e: MouseEvent) => {
@@ -354,8 +376,8 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const triggerAutoSave = useCallback(async (options?: { force?: boolean; indicator?: 'auto' | 'manual' }) => {
     const force = options?.force ?? false;
     const indicator = options?.indicator ?? 'auto';
-    const successMessage = indicator === 'manual' ? '저장 완료' : '자동 저장 완료';
-    const noChangeMessage = indicator === 'manual' ? '이미 저장된 코드입니다' : null;
+    const successMessage = '저장완료';
+    const noChangeMessage = indicator === 'manual' ? successMessage : null;
 
     if (!problemId || problemId <= 0) {
       pendingAutoSaveRef.current = null;
@@ -575,12 +597,14 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
               <option value="dark">Dark</option>
             </select>
           </div>
-          <div
-            id="oj-save-indicator"
-            className={`text-xs font-medium transition-opacity duration-300 ${isDarkTheme ? 'text-emerald-400' : 'text-green-600'} ${saveFeedback ? 'opacity-100' : 'opacity-0'}`}
-          >
-            {saveFeedback || '저장됨'}
-          </div>
+          {saveFeedback && (
+            <div
+              id="oj-save-indicator"
+              className={`text-xs font-medium transition-all duration-500 ease-out ${isDarkTheme ? 'text-emerald-400' : 'text-green-600'} ${saveFeedbackVisible ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-1'}`}
+            >
+              {saveFeedback}
+            </div>
+          )}
         </div>
         <div className="flex gap-2">
           <Button
