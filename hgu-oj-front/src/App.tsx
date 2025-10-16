@@ -14,6 +14,7 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import { NavBar } from './components/organisms/NavBar';
 import { AdminPage } from './pages/AdminPage';
+import MyPage from './pages/MyPage';
 
 const AppShell: React.FC = () => {
   const location = useLocation();
@@ -32,6 +33,7 @@ const AppShell: React.FC = () => {
         <Route path="/contests" element={<ContestListPage />} />
         <Route path="/contests/:id" element={<ContestDetailPage />} />
         <Route path="/admin" element={<AdminPage />} />
+        <Route path="/mypage" element={<MyPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>

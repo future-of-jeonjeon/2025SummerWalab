@@ -17,6 +17,7 @@ const invalidateUserScopedQueries = () => {
     'workbook-problems',
     'workbook-problem-list',
     'workbook',
+    'mypage',
   ]);
 
   queryClient.invalidateQueries({

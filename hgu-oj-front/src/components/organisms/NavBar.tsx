@@ -75,6 +75,18 @@ export const NavBar: React.FC = () => {
             >
               대회
             </Link>
+            {isAuthenticated && (
+              <Link
+                to="/mypage"
+                className={`text-sm font-medium transition-colors duration-200 px-3 py-2 focus:outline-none ${
+                  isActive('/mypage')
+                    ? 'text-blue-600 font-semibold border-b-2 border-blue-600'
+                    : 'text-black hover:text-gray-600'
+                }`}
+              >
+                마이페이지
+              </Link>
+            )}
             {isAdmin && (
               <Link
                 to="/admin"
