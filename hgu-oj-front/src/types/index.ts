@@ -198,6 +198,34 @@ export interface BaseComponentProps {
   children?: React.ReactNode;
 }
 
+// 마이페이지 관련 타입
+export interface MyProfile {
+  id: number;
+  username: string;
+  avatarUrl: string;
+  solvedCount: number;
+  wrongCount: number;
+  streak: number;
+  displayName?: string;
+}
+
+export interface HeatmapEntry {
+  date: string;
+  count: number;
+}
+
+export interface MySolvedProblem {
+  id: number;
+  title: string;
+  difficulty?: string;
+}
+
+export interface MyWrongProblem {
+  id: number;
+  title: string;
+  lastTriedAt?: string;
+}
+
 // 폼 관련 타입
 export interface LoginForm {
   username: string;
