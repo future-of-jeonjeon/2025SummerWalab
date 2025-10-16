@@ -25,9 +25,97 @@ import {
   JudgeServer,
   ServiceHealthStatus,
 } from '../types';
+import { RichTextEditor } from '../components/molecules/RichTextEditor';
 
 const templateMap = codeTemplates as Record<string, string>;
 const availableLanguages = Object.keys(templateMap);
+const canonicalLanguageSet = new Set(availableLanguages);
+const LANGUAGE_ALIAS_MAP: Record<string, string> = {
+  c: 'c',
+  c11: 'c',
+  c99: 'c',
+  cgcc: 'c',
+  cclang: 'c',
+  cpp: 'cpp',
+  'c++': 'cpp',
+  cplusplus: 'cpp',
+  'g++': 'cpp',
+  gplusplus: 'cpp',
+  cpp17: 'cpp',
+  java: 'java',
+  openjdk: 'java',
+  java11: 'java',
+  javascript: 'javascript',
+  js: 'javascript',
+  node: 'javascript',
+  nodejs: 'javascript',
+  javascriptes: 'javascript',
+  python: 'python',
+  py: 'python',
+  python3: 'python',
+  python37: 'python',
+};
+
+const LANGUAGE_BACKEND_VALUE_MAP: Record<string, string> = {
+  javascript: 'JavaScript',
+  python: 'Python3',
+  java: 'Java',
+  cpp: 'C++',
+  c: 'C',
+};
+
+const getLanguageBackendValue = (key: string): string => LANGUAGE_BACKEND_VALUE_MAP[key] ?? key;
+
+const getLanguageLabel = (key: string): string => {
+  const backend = getLanguageBackendValue(key);
+  if (backend === key) {
+    return key.charAt(0).toUpperCase() + key.slice(1);
+  }
+  return backend;
+};
+
+const normalizeLanguageKey = (value: string): string | null => {
+  if (typeof value !== 'string') {
+    return null;
+  }
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+  const lower = trimmed.toLowerCase();
+  if (canonicalLanguageSet.has(lower)) {
+    return lower;
+  }
+  const sanitized = lower.replace(/[\s._-]+/g, '');
+  if (canonicalLanguageSet.has(sanitized)) {
+    return sanitized;
+  }
+  const alias =
+    LANGUAGE_ALIAS_MAP[lower] ??
+    LANGUAGE_ALIAS_MAP[sanitized];
+
+  if (alias && canonicalLanguageSet.has(alias)) {
+    return alias;
+  }
+
+  return canonicalLanguageSet.has(trimmed) ? trimmed : null;
+};
+
+const normalizeLanguageList = (languages: unknown): string[] => {
+  if (!Array.isArray(languages)) {
+    return [];
+  }
+  const collected = new Set<string>();
+  for (const entry of languages) {
+    const normalized = normalizeLanguageKey(typeof entry === 'string' ? entry : String(entry));
+    if (normalized) {
+      collected.add(normalized);
+    }
+  }
+  return availableLanguages.filter((lang) => collected.has(lang));
+};
+const toBackendLanguageList = (languages: string[]): string[] =>
+  languages.map((lang) => getLanguageBackendValue(lang));
 const USER_PAGE_SIZE = 20;
 const PROBLEM_EDIT_PAGE_SIZE = 10;
 
@@ -794,7 +882,12 @@ export const AdminPage: React.FC = () => {
       setProblemEditMessage({});
       try {
         const detail = await adminService.getAdminProblemDetail(problemId);
-        setSelectedProblemDetail(detail);
+        const resolvedLanguages = normalizeLanguageList(detail.languages);
+        const sanitizedDetail: AdminProblemDetail = {
+          ...detail,
+          languages: resolvedLanguages.length > 0 ? resolvedLanguages : [...availableLanguages],
+        };
+        setSelectedProblemDetail(sanitizedDetail);
         setProblemEditForm({
           displayId: detail.displayId ?? '',
           title: detail.title ?? '',
@@ -812,7 +905,7 @@ export const AdminPage: React.FC = () => {
           ioInput: detail.ioMode.input,
           ioOutput: detail.ioMode.output,
           samples: detail.samples.length > 0 ? detail.samples : [{ input: '', output: '' }],
-          languages: detail.languages.length > 0 ? detail.languages : [...availableLanguages],
+          languages: sanitizedDetail.languages,
         });
       } catch (error) {
         const message = error instanceof Error ? error.message : '문제 정보를 불러오지 못했습니다.';
@@ -863,14 +956,23 @@ export const AdminPage: React.FC = () => {
   };
 
   const handleProblemEditLanguageToggle = (language: string, checked: boolean) => {
+    const normalized = normalizeLanguageKey(language);
+    if (!normalized) {
+      return;
+    }
     updateProblemEditForm((prev) => {
-      const current = new Set(prev.languages.map((lang) => String(lang)));
+      const current = new Set(
+        prev.languages
+          .map((lang) => normalizeLanguageKey(lang))
+          .filter((lang): lang is string => Boolean(lang)),
+      );
       if (checked) {
-        current.add(language);
+        current.add(normalized);
       } else {
-        current.delete(language);
+        current.delete(normalized);
       }
-      return { ...prev, languages: Array.from(current) };
+      const ordered = availableLanguages.filter((lang) => current.has(lang));
+      return { ...prev, languages: ordered };
     });
   };
 
@@ -896,6 +998,16 @@ export const AdminPage: React.FC = () => {
       .map((tag) => tag.trim())
       .filter((tag) => tag.length > 0);
 
+    const normalizedFormLanguages = normalizeLanguageList(problemEditForm.languages);
+    const fallbackLanguages = normalizeLanguageList(selectedProblemDetail.languages);
+    const resolvedLanguages =
+      normalizedFormLanguages.length > 0
+        ? normalizedFormLanguages
+        : fallbackLanguages.length > 0
+          ? fallbackLanguages
+          : [...availableLanguages];
+    const backendLanguages = toBackendLanguageList(resolvedLanguages);
+
     const payload: UpdateProblemPayload = {
       id: selectedProblemDetail.id,
       _id: problemEditForm.displayId.trim(),
@@ -908,7 +1020,7 @@ export const AdminPage: React.FC = () => {
       test_case_score: selectedProblemDetail.testCaseScore,
       time_limit: timeLimit,
       memory_limit: memoryLimit,
-      languages: problemEditForm.languages.length > 0 ? problemEditForm.languages : selectedProblemDetail.languages,
+      languages: backendLanguages,
       template: selectedProblemDetail.template,
       rule_type: selectedProblemDetail.ruleType,
       io_mode: {
@@ -942,7 +1054,12 @@ export const AdminPage: React.FC = () => {
     setProblemEditMessage({});
     try {
       const updated = await adminService.updateAdminProblem(payload);
-      setSelectedProblemDetail(updated);
+      const normalizedUpdatedLanguages = normalizeLanguageList(updated.languages);
+      const sanitizedUpdated: AdminProblemDetail = {
+        ...updated,
+        languages: normalizedUpdatedLanguages.length > 0 ? normalizedUpdatedLanguages : [...availableLanguages],
+      };
+      setSelectedProblemDetail(sanitizedUpdated);
       setProblemEditForm({
         displayId: updated.displayId ?? '',
         title: updated.title ?? '',
@@ -960,7 +1077,7 @@ export const AdminPage: React.FC = () => {
         ioInput: updated.ioMode.input,
         ioOutput: updated.ioMode.output,
         samples: updated.samples.length > 0 ? updated.samples : [{ input: '', output: '' }],
-        languages: updated.languages.length > 0 ? updated.languages : [...availableLanguages],
+        languages: sanitizedUpdated.languages,
       });
       setProblemEditMessage({ success: '문제 정보를 수정했습니다.' });
       setProblemEditList((prev) =>
@@ -2140,11 +2257,19 @@ export const AdminPage: React.FC = () => {
   };
 
   const toggleLanguage = (language: string) => {
+    const normalized = normalizeLanguageKey(language);
+    if (!normalized) {
+      return;
+    }
     setProblemLanguages((prev) => {
-      if (prev.includes(language)) {
-        return prev.filter((lang) => lang !== language);
+      const current = new Set(prev);
+      if (current.has(normalized)) {
+        current.delete(normalized);
+      } else {
+        current.add(normalized);
       }
-      return [...prev, language];
+      const ordered = availableLanguages.filter((lang) => current.has(lang));
+      return ordered;
     });
   };
 
@@ -2205,6 +2330,8 @@ export const AdminPage: React.FC = () => {
       return;
     }
 
+    const backendLanguages = toBackendLanguageList(problemLanguages);
+
     const payload: CreateProblemPayload = {
       _id: problemForm.displayId.trim(),
       title: problemForm.title.trim(),
@@ -2216,9 +2343,10 @@ export const AdminPage: React.FC = () => {
       test_case_score: [] as Array<{ input_name: string; output_name: string; score: number }>,
       time_limit: Number(problemForm.timeLimit) || 1000,
       memory_limit: Number(problemForm.memoryLimit) || 256,
-      languages: problemLanguages,
+      languages: backendLanguages,
       template: problemLanguages.reduce<Record<string, string>>((acc, lang) => {
-        acc[lang] = templateMap[lang] || '';
+        const backendKey = getLanguageBackendValue(lang);
+        acc[backendKey] = templateMap[lang] || '';
         return acc;
       }, {}),
       rule_type: problemForm.ruleType,
@@ -3426,34 +3554,27 @@ export const AdminPage: React.FC = () => {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">설명</label>
-                <textarea
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
-                  rows={4}
-                  value={problemForm.description}
-                  onChange={(e) => setProblemForm((prev) => ({ ...prev, description: e.target.value }))}
+              <RichTextEditor
+                label="문제 설명"
+                value={problemForm.description}
+                placeholder="문제 설명을 입력하세요."
+                onChange={(html: string) => setProblemForm((prev) => ({ ...prev, description: html }))}
+              />
+              <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
+                <RichTextEditor
+                  label="입력 설명"
+                  value={problemForm.inputDescription}
+                  placeholder="입력 형식을 설명해주세요."
+                  onChange={(html: string) => setProblemForm((prev) => ({ ...prev, inputDescription: html }))}
+                  className="md:col-span-1"
                 />
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">입력 설명</label>
-                  <textarea
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
-                    rows={3}
-                    value={problemForm.inputDescription}
-                    onChange={(e) => setProblemForm((prev) => ({ ...prev, inputDescription: e.target.value }))}
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">출력 설명</label>
-                  <textarea
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
-                    rows={3}
-                    value={problemForm.outputDescription}
-                    onChange={(e) => setProblemForm((prev) => ({ ...prev, outputDescription: e.target.value }))}
-                  />
-                </div>
+                <RichTextEditor
+                  label="출력 설명"
+                  value={problemForm.outputDescription}
+                  placeholder="출력 형식을 설명해주세요."
+                  onChange={(html: string) => setProblemForm((prev) => ({ ...prev, outputDescription: html }))}
+                  className="md:col-span-1"
+                />
               </div>
 
               <div className="space-y-4">
@@ -3469,7 +3590,7 @@ export const AdminPage: React.FC = () => {
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">예제 입력 #{index + 1}</label>
                         <textarea
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8] resize-none"
                           rows={3}
                           value={sample.input}
                           onChange={(e) => handleSampleChange(index, 'input', e.target.value)}
@@ -3478,7 +3599,7 @@ export const AdminPage: React.FC = () => {
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">예제 출력 #{index + 1}</label>
                         <textarea
-                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
+                          className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8] resize-none"
                           rows={3}
                           value={sample.output}
                           onChange={(e) => handleSampleChange(index, 'output', e.target.value)}
@@ -3500,13 +3621,16 @@ export const AdminPage: React.FC = () => {
                 <h3 className="text-lg font-semibold text-gray-900">지원 언어</h3>
                 <div className="flex flex-wrap gap-3">
                   {availableLanguages.map((language) => (
-                    <label key={language} className="inline-flex items-center space-x-2 text-sm text-gray-700 border border-gray-300 rounded-md px-3 py-1">
+                    <label
+                      key={language}
+                      className="inline-flex items-center space-x-2 rounded-md border border-gray-300 px-3 py-1 text-sm text-gray-700"
+                    >
                       <input
                         type="checkbox"
                         checked={problemLanguages.includes(language)}
                         onChange={() => toggleLanguage(language)}
                       />
-                      <span>{language}</span>
+                      <span>{getLanguageLabel(language)}</span>
                     </label>
                   ))}
                 </div>
@@ -3601,9 +3725,9 @@ export const AdminPage: React.FC = () => {
                 </Button>
               </div>
 
-              <section className="grid gap-6 lg:grid-cols-[320px_1fr]">
-                <div className="space-y-3">
-                  <div className="flex items-center justify-between">
+              <section className="space-y-6">
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                     <h3 className="text-sm font-medium text-gray-900">문제 목록</h3>
                     <span className="text-xs text-gray-500">총 {problemEditTotal.toLocaleString()}개</span>
                   </div>
@@ -3615,42 +3739,44 @@ export const AdminPage: React.FC = () => {
                     ) : problemEditList.length === 0 ? (
                       <div className="px-4 py-6 text-sm text-gray-500">검색 결과가 없습니다.</div>
                     ) : (
-                      <table className="min-w-full divide-y divide-gray-200 text-left">
-                        <thead className="bg-gray-50">
-                          <tr>
-                            <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-gray-500">표시 ID</th>
-                            <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-gray-500">제목</th>
-                            <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-gray-500">난이도</th>
-                            <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-gray-500">공개</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-100">
-                          {problemEditList.map((problem) => {
-                            const isActive = selectedProblemId === problem.id;
-                            return (
-                              <tr
-                                key={`problem-edit-row-${problem.id}`}
-                                className={`cursor-pointer transition-colors ${isActive ? 'bg-[#113F67]/10' : 'hover:bg-gray-50'}`}
-                                onClick={() => setSelectedProblemId(problem.id)}
-                              >
-                                <td className="px-3 py-2 text-sm text-gray-900">{problem.displayId ?? problem.id}</td>
-                                <td className="px-3 py-2 text-sm text-gray-700">
-                                  <div className="font-medium text-gray-900">{problem.title}</div>
-                                  {problem.tags && problem.tags.length > 0 && (
-                                    <div className="mt-0.5 text-xs text-gray-500 truncate">{problem.tags.join(', ')}</div>
-                                  )}
-                                </td>
-                                <td className="px-3 py-2 text-sm text-gray-700">{problem.difficulty}</td>
-                                <td className="px-3 py-2 text-sm">
-                                  <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${problem.visible ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}>
-                                    {problem.visible ? '공개' : '비공개'}
-                                  </span>
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200 text-left">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-gray-500">표시 ID</th>
+                              <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-gray-500">제목</th>
+                              <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-gray-500">난이도</th>
+                              <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-gray-500">공개</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-gray-100">
+                            {problemEditList.map((problem) => {
+                              const isActive = selectedProblemId === problem.id;
+                              return (
+                                <tr
+                                  key={`problem-edit-row-${problem.id}`}
+                                  className={`cursor-pointer transition-colors ${isActive ? 'bg-[#113F67]/10' : 'hover:bg-gray-50'}`}
+                                  onClick={() => setSelectedProblemId(problem.id)}
+                                >
+                                  <td className="px-3 py-2 text-sm text-gray-900">{problem.displayId ?? problem.id}</td>
+                                  <td className="px-3 py-2 text-sm text-gray-700">
+                                    <div className="font-medium text-gray-900">{problem.title}</div>
+                                    {problem.tags && problem.tags.length > 0 && (
+                                      <div className="mt-0.5 text-xs text-gray-500 truncate">{problem.tags.join(', ')}</div>
+                                    )}
+                                  </td>
+                                  <td className="px-3 py-2 text-sm text-gray-700">{problem.difficulty}</td>
+                                  <td className="px-3 py-2 text-sm">
+                                    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${problem.visible ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}>
+                                      {problem.visible ? '공개' : '비공개'}
+                                    </span>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
                     )}
                   </div>
                   <div className="flex items-center justify-between text-xs text-gray-500">
@@ -3684,10 +3810,10 @@ export const AdminPage: React.FC = () => {
                   </div>
                 ) : !problemEditForm ? (
                   <div className="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
-                    수정할 문제를 목록에서 선택하세요.
+                    수정할 문제를 선택하세요.
                   </div>
                 ) : (
-                  <form onSubmit={handleProblemEditSubmit} className="space-y-5">
+                  <form onSubmit={handleProblemEditSubmit} className="space-y-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
                     {problemEditMessage.error && (
                       <div className="rounded-md bg-red-50 px-4 py-2 text-sm text-red-600">{problemEditMessage.error}</div>
                     )}
@@ -3773,42 +3899,35 @@ export const AdminPage: React.FC = () => {
                       />
                     </div>
 
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">문제 설명</label>
-                      <textarea
-                        className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
-                        rows={4}
-                        value={problemEditForm.description}
-                        onChange={(e) => handleProblemEditFieldChange('description', e.target.value)}
-                      />
-                    </div>
+                    <RichTextEditor
+                      label="문제 설명"
+                      value={problemEditForm.description}
+                      placeholder="문제 설명을 입력하세요."
+                      onChange={(html: string) => handleProblemEditFieldChange('description', html)}
+                    />
 
                     <div className="grid gap-4 md:grid-cols-2">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">입력 설명</label>
-                        <textarea
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
-                          rows={3}
-                          value={problemEditForm.inputDescription}
-                          onChange={(e) => handleProblemEditFieldChange('inputDescription', e.target.value)}
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">출력 설명</label>
-                        <textarea
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
-                          rows={3}
-                          value={problemEditForm.outputDescription}
-                          onChange={(e) => handleProblemEditFieldChange('outputDescription', e.target.value)}
-                        />
-                      </div>
+                      <RichTextEditor
+                        label="입력 설명"
+                        value={problemEditForm.inputDescription}
+                        placeholder="입력 형식을 설명해주세요."
+                        onChange={(html: string) => handleProblemEditFieldChange('inputDescription', html)}
+                        className="md:col-span-1"
+                      />
+                      <RichTextEditor
+                        label="출력 설명"
+                        value={problemEditForm.outputDescription}
+                        placeholder="출력 형식을 설명해주세요."
+                        onChange={(html: string) => handleProblemEditFieldChange('outputDescription', html)}
+                        className="md:col-span-1"
+                      />
                     </div>
 
                     <div className="grid gap-4 md:grid-cols-2">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">힌트</label>
                         <textarea
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#58A0C8] resize-none"
                           rows={2}
                           value={problemEditForm.hint}
                           onChange={(e) => handleProblemEditFieldChange('hint', e.target.value)}
@@ -3817,7 +3936,7 @@ export const AdminPage: React.FC = () => {
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-1">출처</label>
                         <textarea
-                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
+                          className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#58A0C8] resize-none"
                           rows={2}
                           value={problemEditForm.source}
                           onChange={(e) => handleProblemEditFieldChange('source', e.target.value)}
@@ -3851,7 +3970,7 @@ export const AdminPage: React.FC = () => {
                               <div>
                                 <label className="block text-xs font-medium text-gray-600 mb-1">입력</label>
                                 <textarea
-                                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
+                                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#58A0C8] resize-none"
                                   rows={3}
                                   value={sample.input}
                                   onChange={(e) => handleProblemEditSampleChange(index, 'input', e.target.value)}
@@ -3860,7 +3979,7 @@ export const AdminPage: React.FC = () => {
                               <div>
                                 <label className="block text-xs font-medium text-gray-600 mb-1">출력</label>
                                 <textarea
-                                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
+                                  className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#58A0C8] resize-none"
                                   rows={3}
                                   value={sample.output}
                                   onChange={(e) => handleProblemEditSampleChange(index, 'output', e.target.value)}
@@ -3878,13 +3997,16 @@ export const AdminPage: React.FC = () => {
                         {availableLanguages.map((language) => {
                           const checked = problemEditForm.languages.includes(language);
                           return (
-                            <label key={`problem-edit-language-${language}`} className="inline-flex items-center gap-2 text-xs text-gray-700">
+                            <label
+                              key={`problem-edit-language-${language}`}
+                              className="inline-flex items-center gap-2 text-xs text-gray-700"
+                            >
                               <input
                                 type="checkbox"
                                 checked={checked}
                                 onChange={(e) => handleProblemEditLanguageToggle(language, e.target.checked)}
                               />
-                              <span>{language}</span>
+                              <span>{getLanguageLabel(language)}</span>
                             </label>
                           );
                         })}

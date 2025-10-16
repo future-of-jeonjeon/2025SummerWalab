@@ -12,6 +12,26 @@ import {
   AdminContestListResponse,
 } from '../types';
 
+const parseBoolean = (value: unknown): boolean => {
+  if (typeof value === 'boolean') {
+    return value;
+  }
+
+  if (typeof value === 'number') {
+    return value !== 0;
+  }
+
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) {
+      return false;
+    }
+    return normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'y';
+  }
+
+  return Boolean(value);
+};
+
 export interface CreateProblemPayload {
   _id: string;
   title: string;
@@ -689,6 +709,15 @@ const adaptProblem = (raw: any): Problem => {
   const difficulty = String(raw.difficulty ?? raw?.Difficulty ?? 'Mid');
   const normalizedDifficulty =
     difficulty === 'Low' || difficulty === 'High' ? difficulty : 'Mid';
+  const rawVisibilitySources: unknown[] = [
+    raw?.visible,
+    raw?.is_public,
+    raw?.isPublic,
+    raw?.public,
+    raw?.Visible,
+  ];
+  const resolvedVisibility = rawVisibilitySources.find((item) => item !== undefined && item !== null);
+  const visible = parseBoolean(resolvedVisibility);
 
   return {
     id: Number(raw.id ?? raw.problem_id ?? raw.problemId ?? 0) || 0,
@@ -709,6 +738,8 @@ const adaptProblem = (raw: any): Problem => {
     createdBy: raw.created_by ?? raw.createdBy,
     myStatus: raw.my_status ?? raw.myStatus,
     solved: raw.solved,
+    visible,
+    isPublic: visible,
   };
 };
 
@@ -741,6 +772,12 @@ const adaptAdminProblemDetail = (raw: any): AdminProblemDetail => {
     : [];
 
   const ioModeRaw = raw?.io_mode ?? raw?.ioMode ?? { io_mode: 'standard', input: 'input.txt', output: 'output.txt' };
+  const rawVisible =
+    raw?.visible ??
+    raw?.is_public ??
+    raw?.isPublic ??
+    raw?.public ??
+    raw?.Visible;
 
   return {
     id: Number(raw?.id) || 0,
@@ -766,11 +803,11 @@ const adaptAdminProblemDetail = (raw: any): AdminProblemDetail => {
     spjLanguage: raw?.spj_language ?? raw?.spjLanguage ?? null,
     spjCode: raw?.spj_code ?? raw?.spjCode ?? null,
     spjCompileOk: Boolean(raw?.spj_compile_ok ?? raw?.spjCompileOk),
-    visible: Boolean(raw?.visible),
+    visible: parseBoolean(rawVisible),
     difficulty: normalizedDifficulty as AdminProblemDetail['difficulty'],
     tags,
     hint: raw?.hint ?? null,
     source: raw?.source ?? null,
-    shareSubmission: Boolean(raw?.share_submission ?? raw?.shareSubmission),
+    shareSubmission: parseBoolean(raw?.share_submission ?? raw?.shareSubmission),
   };
 };
