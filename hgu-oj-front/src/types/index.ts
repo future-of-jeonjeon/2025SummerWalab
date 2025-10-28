@@ -34,6 +34,8 @@ export interface Problem {
     username: string;
     realName?: string;
   };
+  visible?: boolean;
+  isPublic?: boolean;
   // Optional fields from OJ profile enrichment
   myStatus?: string;
   solved?: boolean;

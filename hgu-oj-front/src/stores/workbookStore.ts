@@ -1,7 +1,6 @@
 import { create } from 'zustand';
-import { Workbook } from '../types';
 
-interface WorkbookFilter {
+export interface WorkbookFilter {
   search?: string;
   page?: number;
   limit?: number;

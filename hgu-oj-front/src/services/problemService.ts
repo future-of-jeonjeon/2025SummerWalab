@@ -1,4 +1,4 @@
-import { api, apiClient } from './api';
+import { api } from './api';
 import { Problem, PaginatedResponse, ProblemFilter } from '../types';
 import { mapDifficulty } from '../lib/difficulty';
 

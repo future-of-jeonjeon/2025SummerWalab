@@ -32,6 +32,13 @@ interface StatusToneStyle {
   icon: React.ReactNode;
 }
 
+type ProblemSectionId = 'description' | 'problem-list' | 'submissions';
+
+interface SectionOption {
+  id: ProblemSectionId;
+  label: string;
+}
+
 const toneStyles: Record<StatusTone, StatusToneStyle> = {
   success: {
     container: 'bg-green-50 border-green-200',
@@ -251,7 +258,7 @@ export const ProblemDetailPage: React.FC = () => {
   const [isExecuting, setIsExecuting] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [manualStatus, setManualStatus] = useState<string | undefined>();
-  const [activeSection, setActiveSection] = useState<'description' | 'problem-list' | 'submissions'>('description');
+  const [activeSection, setActiveSection] = useState<ProblemSectionId>('description');
   const [isSubmissionModalOpen, setSubmissionModalOpen] = useState(false);
   const [selectedSubmissionId, setSelectedSubmissionId] = useState<number | string | null>(null);
   const [selectedSubmissionSummary, setSelectedSubmissionSummary] = useState<SubmissionListItem | null>(null);
@@ -658,12 +665,12 @@ export const ProblemDetailPage: React.FC = () => {
     [contestContextId, workbookContextId],
   );
 
-  const sectionOptions = useMemo(() => {
-    const options = [{ id: 'description' as const, label: '문제 내용' }];
+  const sectionOptions = useMemo<SectionOption[]>(() => {
+    const options: SectionOption[] = [{ id: 'description', label: '문제 내용' }];
     if (showProblemListSection) {
-      options.push({ id: 'problem-list' as const, label: problemListLabel });
+      options.push({ id: 'problem-list', label: problemListLabel });
     }
-    options.push({ id: 'submissions' as const, label: '내 제출' });
+    options.push({ id: 'submissions', label: '내 제출' });
     return options;
   }, [problemListLabel, showProblemListSection]);
 

@@ -79,7 +79,7 @@ export const ProblemCard: React.FC<ProblemCardProps> = ({
         <Button
           variant="primary"
           size="sm"
-          onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
+          onClick={(e) => {
             e.stopPropagation();
             onSolve?.(problem.id);
           }}

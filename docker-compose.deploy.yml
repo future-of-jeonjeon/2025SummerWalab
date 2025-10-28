@@ -1,29 +1,29 @@
 services:
-  oj-frontend:
-    networks:
-      - judge-network
-    platform: linux/amd64
-    build:
-      context: ./OnlineJudgeFE
-      args:
-        VUE_APP_GOOGLE_CLIENT_ID: ${VUE_APP_GOOGLE_CLIENT_ID}
-        VUE_APP_GOOGLE_CLIENT_SECRET: ${VUE_APP_GOOGLE_CLIENT_SECRET}
-        VUE_APP_GOOGLE_REDIRECT_URI: ${VUE_APP_GOOGLE_REDIRECT_URI}
-    container_name: oj-frontend
-    env_file: .env
-    environment:
-      - TARGET=http://oj-backend:8000
-      - TARGET_HOST=judge.walab.info
-      - PORT=8080
-      - VUE_APP_GOOGLE_CLIENT_ID=${VUE_APP_GOOGLE_CLIENT_ID}
-      - VUE_APP_GOOGLE_CLIENT_SECRET=${VUE_APP_GOOGLE_CLIENT_SECRET}
-      - VUE_APP_GOOGLE_REDIRECT_URI=${VUE_APP_GOOGLE_REDIRECT_URI}
-    expose:
-      - "8080"
-    depends_on:
-      - oj-backend
+  # hgu-oj-front:
+  #   image: hgu-oj-front:latest
+  #   networks:
+  #     - judge-network
+  #   platform: linux/amd64
+  #   # build:
+  #   #   context: ./hgu-oj-front
+  #   #   args:
+  #   #     VITE_API_URL: ${HGU_FRONT_VITE_API_URL:-/api}
+  #   #     VITE_MS_API_BASE: ${HGU_FRONT_VITE_MS_API_BASE:-/ms-api}
+  #   #     VITE_CODE_AUTO_SAVE_INTERVAL_SECONDS: ${VITE_CODE_AUTO_SAVE_INTERVAL_SECONDS:-5}
+  #   #     VITE_CODE_AUTO_SAVE_CACHE_TTL_SECONDS: ${VITE_CODE_AUTO_SAVE_CACHE_TTL_SECONDS:-10}
+  #   container_name: hgu-oj-front
+  #   environment:
+  #     - FRONT_PORT=8080
+  #     - BACKEND_API=http://oj-backend:8000
+  #     - MICRO_API=http://oj-micro-service:8000
+  #   expose:
+  #     - "8080"
+  #   depends_on:
+  #     - oj-backend
+  #     - oj-micro-service
 
   oj-redis:
+    container_name: hgu-oj-redis
     networks:
       - judge-network
     platform: linux/amd64
@@ -33,6 +33,7 @@ services:
       - ./data/redis:/data
 
   oj-judge:
+    container_name: hgu-oj-judge-1
     networks:
       - judge-network
     platform: linux/amd64
@@ -65,6 +66,7 @@ services:
       TOKEN: ${JUDGE_SERVER_TOKEN}
 
   oj-judge-2:
+    container_name: hgu-oj-judge-2
     networks:
       - judge-network
     platform: linux/amd64
@@ -97,6 +99,7 @@ services:
       TOKEN: ${JUDGE_SERVER_TOKEN}
 
   oj-judge-3:
+    container_name: hgu-oj-judge-3
     networks:
       - judge-network
     platform: linux/amd64
@@ -129,6 +132,7 @@ services:
       TOKEN: ${JUDGE_SERVER_TOKEN}
   
   oj-judge-4:
+    container_name: hgu-oj-judge-4
     networks:
       - judge-network
     platform: linux/amd64
@@ -161,6 +165,7 @@ services:
       TOKEN: ${JUDGE_SERVER_TOKEN}
   
   oj-judge-5:
+    container_name: hgu-oj-judge-5
     networks:
       - judge-network
     platform: linux/amd64
@@ -193,12 +198,14 @@ services:
       TOKEN: ${JUDGE_SERVER_TOKEN}
 
   oj-backend:
+    image: hgu-oj-backend:latest
     networks:
       - judge-network
     extra_hosts:
       - "host.docker.internal:host-gateway"
     platform: linux/amd64
-    build: ./OnlineJudge
+    # build: ./OnlineJudge
+    container_name: hgu-oj-backend
     restart: always
     depends_on:
       - oj-redis
@@ -222,6 +229,42 @@ services:
       - ALLOWED_HOSTS=*
       - CSRF_TRUSTED_ORIGINS=http://judge.walab.info,https://judge.walab.info  
       - USE_X_FORWARDED_HOST=true
+    expose:
+      - "8080"
+
+  oj-micro-service:
+    image: hgu-oj-micro-service:latest
+    networks:
+      - judge-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    platform: linux/amd64
+    # build: ./micro-service-server
+    restart: always
+    container_name: hgu-oj-micro-service
+    ports:
+      - "9000:8000"
+    environment:
+      - SSO_INTROSPECT_URL=http://oj-backend:8000/api/sso
+      - REDIS_URL=redis://oj-redis:6379
+      - 'REDIS_SESSION_PREFIX=ms:session:'
+      - TOKEN_COOKIE_NAME=ms_token
+      - LOCAL_TOKEN_TTL_SECONDS=1800
+      - TEST_CASE_DATA_PATH=/test_case
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_HOST=${POSTGRES_HOST}
+      - DB_PORT=${POSTGRES_PORT}
+      - DB_NAME=${POSTGRES_DB}
+      - CODE_SAVE_TTL_SECONDS=5
+      - 'REDIS_CODE_SAVE_PREFIX=ms:autosave'
+    volumes:
+      - ./data/backend/test_case:/test_case:rw
+    depends_on:
+      - oj-redis
+      - oj-backend
+    expose:
+      - "8080"
 
 networks:
   judge-network:

@@ -2,13 +2,14 @@ set -euo pipefail
 
 OUT="deploy.tgz"
 
-echo "[1/3] Building frontend/backend (amd64)..."
+echo "[1/3] Building frontend/backend/micro-service (amd64)..."
 docker compose -f docker-compose.deploy.yml build --no-cache --pull
 
-echo "[2/3] Saving frontend/backend images..."
+echo "[2/3] Saving frontend/backend/micro-service images..."
 docker save \
-  2025summerwalab-oj-frontend \
-  2025summerwalab-oj-backend \
+  hgu-oj-front:latest \
+  hgu-oj-backend:latest \
+  hgu-oj-micro-service:latest \
   -o images.tar
 
 echo "[3/3] Creating bundle (tgz)..."

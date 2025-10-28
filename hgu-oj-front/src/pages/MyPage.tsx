@@ -118,7 +118,6 @@ export const MyPage: React.FC = () => {
   } = useQuery<HeatmapEntry[]>({
     queryKey: ['mypage', 'heatmap', monthsRange],
     queryFn: () => myPageService.getMyHeatmap({ months: monthsRange }),
-    keepPreviousData: true,
   });
 
   const {
@@ -128,7 +127,6 @@ export const MyPage: React.FC = () => {
   } = useQuery<{ items: MySolvedProblem[]; total: number }>({
     queryKey: ['mypage', 'solved', solvedPage, PAGE_SIZE],
     queryFn: () => myPageService.getSolvedProblems({ page: solvedPage, pageSize: PAGE_SIZE }),
-    keepPreviousData: true,
   });
 
   const {
@@ -138,23 +136,21 @@ export const MyPage: React.FC = () => {
   } = useQuery<{ items: MyWrongProblem[]; total: number }>({
     queryKey: ['mypage', 'wrong', wrongPage, PAGE_SIZE],
     queryFn: () => myPageService.getWrongProblems({ page: wrongPage, pageSize: PAGE_SIZE }),
-    keepPreviousData: true,
   });
 
   const calendarWeeks = useMemo(
-    () => buildCalendarWeeks(today, monthsRange, heatmap ?? []),
+    () => buildCalendarWeeks(today, monthsRange, heatmap),
     [today, monthsRange, heatmap],
   );
 
   const monthSummary = useMemo(() => {
-    const entries = heatmap ?? [];
-    if (!entries.length) {
+    if (!heatmap.length) {
       return { total: 0, activeDays: 0, maxCount: 0 };
     }
     let total = 0;
     let activeDays = 0;
     let maxCount = 0;
-    entries.forEach((item) => {
+    heatmap.forEach((item) => {
       total += item.count;
       if (item.count > 0) {
         activeDays += 1;
