@@ -26,6 +26,7 @@ import {
   ServiceHealthStatus,
 } from '../types';
 import { RichTextEditor } from '../components/molecules/RichTextEditor';
+import { OrganizationAdminSection } from '../components/admin/organization/OrganizationAdminSection';
 
 const templateMap = codeTemplates as Record<string, string>;
 const availableLanguages = Object.keys(templateMap);
@@ -229,7 +230,8 @@ type AdminSection =
   | 'workbook'
   | 'workbook-manage'
   | 'user'
-  | 'server';
+  | 'server'
+  | 'organization';
 
 export const AdminPage: React.FC = () => {
   const navigate = useNavigate();
@@ -1534,6 +1536,7 @@ export const AdminPage: React.FC = () => {
 
   const sections: Array<{ key: AdminSection; label: string; helper: string }> = [
     { key: 'server', label: '서버 관리', helper: '채점 서버와 서비스 상태 모니터링' },
+    { key: 'organization', label: '조직 관리', helper: '조직 목록과 구성원 관리 도구' },
     { key: 'problem', label: '문제 등록', helper: '단일 문제 생성 및 메타데이터 관리' },
     { key: 'bulk', label: '문제 대량 등록', helper: 'JSON ZIP 업로드로 여러 문제 처리' },
     { key: 'problem-edit', label: '문제 수정', helper: '기존 문제 조회 및 정보 수정' },
@@ -2696,6 +2699,8 @@ export const AdminPage: React.FC = () => {
     }
 
     switch (activeSection) {
+      case 'organization':
+        return <OrganizationAdminSection />;
       case 'server': {
         const activeJudgeServers = judgeServers.filter((item) => item.status === 'normal' && !item.is_disabled).length;
         const totalJudgeServers = judgeServers.length;

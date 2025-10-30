@@ -47,8 +47,14 @@ do
     sleep 8
 done
 
-addgroup -g 903 spj
-adduser -u 900 -S -G spj server
+# create group/user only if missing (idempotent)
+if ! getent group spj >/dev/null 2>&1; then
+    addgroup -S -g 903 spj || true
+fi
+
+if ! id -u server >/dev/null 2>&1; then
+    adduser -S -u 900 -G spj server || true
+fi
 
 chown -R server:spj $DATA
 find $DATA/test_case -type d -exec chmod 710 {} \;

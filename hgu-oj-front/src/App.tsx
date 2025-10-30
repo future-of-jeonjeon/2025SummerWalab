@@ -1,8 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './hooks/useQueryClient';
-import { useAuthStore } from './stores/authStore';
 import { HomePage } from './pages/HomePage';
 import { ProblemListPage } from './pages/ProblemListPage';
 import { ProblemDetailPage } from './pages/ProblemDetailPage';

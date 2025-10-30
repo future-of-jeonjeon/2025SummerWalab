@@ -337,3 +337,27 @@ export interface AdminContestListResponse {
   offset: number;
   limit: number;
 }
+
+export interface OrganizationMember {
+  id: number;
+  username: string;
+  realName?: string;
+  email?: string;
+  adminType?: string;
+}
+
+export interface Organization {
+  id: number;
+  name: string;
+  description?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  members?: OrganizationMember[];
+}
+
+export interface OrganizationListResponse {
+  items: Organization[];
+  total: number;
+  page: number;
+  size: number;
+}

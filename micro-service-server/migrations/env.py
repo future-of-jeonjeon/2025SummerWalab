@@ -19,6 +19,7 @@ import app.user.models
 import app.problem.models
 import app.workbook.models
 import app.code_autosave.models
+import app.organization.models
 
 
 def _sync_database_url() -> str:

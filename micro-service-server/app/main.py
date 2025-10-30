@@ -14,6 +14,7 @@ from app.problem import routes as problem_routes
 from app.security.cors import setup_cors
 from app.utils.logging import logger
 from app.workbook import routes as workbook_routes
+from app.organization import routes as organization_routes
 
 
 @asynccontextmanager
@@ -37,6 +38,7 @@ app.include_router(problem_routes.router)
 app.include_router(workbook_routes.router)
 app.include_router(execution_routes.router)
 app.include_router(auto_save_routes.router)
+app.include_router(organization_routes.router)
 
 
 @app.get("/")

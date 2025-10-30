@@ -4,7 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.utils.databse import transactional
+from app.utils.database import transactional
 from app.problem.models import Problem
 from app.workbook.models import Workbook, WorkbookProblem
 

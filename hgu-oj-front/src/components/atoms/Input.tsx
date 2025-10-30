@@ -11,6 +11,8 @@ interface InputProps extends BaseComponentProps {
   error?: string;
   label?: string;
   required?: boolean;
+  maxLength?: number;
+  minLength?: number;
 }
 
 export const Input: React.FC<InputProps> = ({
@@ -23,6 +25,8 @@ export const Input: React.FC<InputProps> = ({
   error,
   label,
   required = false,
+  maxLength,
+  minLength,
   className = '',
 }) => {
   const baseClasses = 'w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-[#58A0C8] focus:border-[#58A0C8] disabled:opacity-50 disabled:cursor-not-allowed';
@@ -47,6 +51,8 @@ export const Input: React.FC<InputProps> = ({
         onKeyDown={onKeyDown}
         disabled={disabled}
         required={required}
+        maxLength={maxLength}
+        minLength={minLength}
         className={classes}
       />
       {error && (
