@@ -1,24 +1,15 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, Navigate } from 'react-router-dom';
 import { Card } from '../components/atoms/Card';
 import { Button } from '../components/atoms/Button';
+import { ProblemProgressCard } from '../components/molecules/ProblemProgressCard';
+import { useProblemCount } from '../hooks/useProblemCount';
 import { useAuthStore } from '../stores/authStore';
 import { myPageService } from '../services/myPageService';
-import { HeatmapEntry, MyProfile, MySolvedProblem, MyWrongProblem } from '../types';
+import { MyProfile, MySolvedProblem, MyWrongProblem } from '../types';
 
 const PAGE_SIZE = 20;
-
-const pad2 = (value: number): string => String(value).padStart(2, '0');
-
-const toDateKey = (value: string): string => {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) {
-    const normalized = value.slice(0, 10);
-    return normalized;
-  }
-  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
-};
 
 const formatDisplayDate = (value?: string): string => {
   if (!value) return '-';
@@ -31,72 +22,10 @@ const formatDisplayDate = (value?: string): string => {
   });
 };
 
-const getHeatmapLevel = (count: number): string => {
-  if (!count) return 'bg-gray-100 border border-gray-200';
-  if (count < 2) return 'bg-emerald-100';
-  if (count < 5) return 'bg-emerald-300';
-  if (count < 10) return 'bg-emerald-500';
-  return 'bg-emerald-700';
-};
-
-interface CalendarDay {
-  date: string;
-  count: number;
-}
-
-interface CalendarWeek {
-  key: string;
-  days: CalendarDay[];
-}
-
-const buildCalendarWeeks = (endDate: Date, months: number, heatmapData: HeatmapEntry[]): CalendarWeek[] => {
-  const startDate = new Date(endDate);
-  startDate.setDate(1);
-  startDate.setMonth(startDate.getMonth() - months + 1);
-  const heatmapMap = heatmapData.reduce<Record<string, number>>((acc, entry) => {
-    const key = toDateKey(entry.date);
-    acc[key] = entry.count;
-    return acc;
-  }, {});
-
-  const weeks: CalendarWeek[] = [];
-  let currentWeek: CalendarDay[] = [];
-
-  const cursor = new Date(startDate);
-  const startOffset = cursor.getDay();
-  for (let i = 0; i < startOffset; i += 1) {
-    currentWeek.push({ date: '', count: 0 });
-  }
-
-  while (cursor <= endDate) {
-    const key = `${cursor.getFullYear()}-${pad2(cursor.getMonth() + 1)}-${pad2(cursor.getDate())}`;
-    currentWeek.push({
-      date: key,
-      count: heatmapMap[key] ?? 0,
-    });
-    if (currentWeek.length === 7) {
-      weeks.push({ key: `week-${weeks.length}`, days: currentWeek });
-      currentWeek = [];
-    }
-    cursor.setDate(cursor.getDate() + 1);
-  }
-
-  if (currentWeek.length > 0) {
-    while (currentWeek.length < 7) {
-      currentWeek.push({ date: '', count: 0 });
-    }
-    weeks.push({ key: `week-${weeks.length}`, days: currentWeek });
-  }
-
-  return weeks;
-};
-
 const calcTotalPages = (total: number, pageSize: number) => Math.max(1, Math.ceil(Math.max(0, total) / pageSize));
 
 export const MyPage: React.FC = () => {
   const { isAuthenticated } = useAuthStore();
-  const today = new Date();
-  const [monthsRange, setMonthsRange] = useState(6);
 
   const [solvedPage, setSolvedPage] = useState(1);
   const [wrongPage, setWrongPage] = useState(1);
@@ -109,16 +38,6 @@ export const MyPage: React.FC = () => {
     queryKey: ['mypage', 'profile'],
     queryFn: myPageService.getMyProfile,
     staleTime: 60 * 1000,
-  });
-
-  const {
-    data: heatmap = [],
-    isLoading: heatmapLoading,
-    error: heatmapError,
-  } = useQuery<HeatmapEntry[]>({
-    queryKey: ['mypage', 'heatmap', monthsRange],
-    queryFn: () => myPageService.getMyHeatmap({ months: monthsRange }),
-    keepPreviousData: true,
   });
 
   const {
@@ -141,41 +60,22 @@ export const MyPage: React.FC = () => {
     keepPreviousData: true,
   });
 
-  const calendarWeeks = useMemo(
-    () => buildCalendarWeeks(today, monthsRange, heatmap ?? []),
-    [today, monthsRange, heatmap],
-  );
-
-  const monthSummary = useMemo(() => {
-    const entries = heatmap ?? [];
-    if (!entries.length) {
-      return { total: 0, activeDays: 0, maxCount: 0 };
-    }
-    let total = 0;
-    let activeDays = 0;
-    let maxCount = 0;
-    entries.forEach((item) => {
-      total += item.count;
-      if (item.count > 0) {
-        activeDays += 1;
-      }
-      if (item.count > maxCount) {
-        maxCount = item.count;
-      }
-    });
-    return { total, activeDays, maxCount };
-  }, [heatmap]);
+  const {
+    total: totalProblemCount,
+    isLoading: problemCountLoading,
+    error: problemCountError,
+  } = useProblemCount();
 
   const solvedTotalPages = calcTotalPages(solvedResponse?.total ?? 0, PAGE_SIZE);
   const wrongTotalPages = calcTotalPages(wrongResponse?.total ?? 0, PAGE_SIZE);
 
-  const handleRangeChange = (months: number) => {
-    setMonthsRange(months);
-  };
-
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
+
+  const solvedCount = profile?.solvedCount ?? 0;
+  const progressError = profileError ?? problemCountError;
+  const progressLoading = profileLoading || problemCountLoading;
 
   const renderError = (error: unknown, fallback: string) => {
     if (error instanceof Error) {
@@ -242,104 +142,19 @@ export const MyPage: React.FC = () => {
         </Card>
       </section>
 
-      <section aria-labelledby="mypage-heatmap" className="space-y-6 lg:space-y-4">
+      <section aria-labelledby="mypage-progress" className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 id="mypage-heatmap" className="text-lg font-semibold text-gray-900">제출 잔디</h2>
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <span>최근</span>
-            <Button
-              variant={monthsRange === 3 ? 'primary' : 'outline'}
-              size="sm"
-              onClick={() => handleRangeChange(3)}
-            >
-              3개월
-            </Button>
-            <Button
-              variant={monthsRange === 6 ? 'primary' : 'outline'}
-              size="sm"
-              onClick={() => handleRangeChange(6)}
-            >
-              6개월
-            </Button>
-            <Button
-              variant={monthsRange === 12 ? 'primary' : 'outline'}
-              size="sm"
-              onClick={() => handleRangeChange(12)}
-            >
-              12개월
-            </Button>
-          </div>
-        </div>
-        <div className="flex flex-col lg:flex-row lg:items-start lg:gap-16">
-          {heatmapLoading ? (
-            <Card className="text-gray-500 lg:flex-1">제출 기록을 불러오는 중입니다...</Card>
-          ) : heatmapError ? (
-            <Card className="text-red-500 lg:flex-1">
-              제출 기록을 불러오지 못했습니다: {renderError(heatmapError, '')}
-            </Card>
-          ) : (
-            <Card className="lg:w-auto px-6 py-5">
-              <div className="flex flex-col lg:flex-row lg:items-start lg:gap-10">
-                <div className="w-full lg:w-[240px] bg-slate-50 border border-slate-200 rounded-lg px-4 py-4 flex-shrink-0">
-                  <p className="text-[11px] font-semibold text-slate-600">최근 {monthsRange}개월 제출</p>
-                  <p className="mt-2 text-[28px] font-bold text-slate-900">{monthSummary.total}</p>
-                  <dl className="mt-4 space-y-3 text-[11px] text-slate-600">
-                    <div className="flex items-center justify-between">
-                      <dt>활성 일수</dt>
-                      <dd className="font-semibold text-slate-800">{monthSummary.activeDays}일</dd>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <dt>최다 제출</dt>
-                      <dd className="font-semibold text-slate-800">{monthSummary.maxCount}회</dd>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <dt>평균</dt>
-                      <dd className="font-semibold text-slate-800">
-                        {monthSummary.activeDays > 0 ? (monthSummary.total / monthSummary.activeDays).toFixed(1) : '0.0'}회
-                      </dd>
-                    </div>
-                  </dl>
-                </div>
-
-                <div className="flex-1">
-                  <div className="flex gap-[6px]">
-                    <div className="flex gap-[4px]">
-                      {calendarWeeks.map((week) => (
-                        <div key={week.key} className="flex flex-col gap-[4px]">
-                          {week.days.map((day, idx) => {
-                            if (!day.date) {
-                              return <div key={`${week.key}-${idx}`} className="h-3 w-3 rounded-sm bg-transparent" aria-hidden="true" />;
-                            }
-                            const dateObj = new Date(day.date);
-                            const label = `${dateObj.getFullYear()}-${pad2(dateObj.getMonth() + 1)}-${pad2(dateObj.getDate())} 제출 ${day.count}회`;
-                            return (
-                              <div
-                                key={`${week.key}-${idx}`}
-                                className={`h-3 w-3 rounded-sm transition-colors duration-200 ${getHeatmapLevel(day.count)}`}
-                                title={label}
-                              />
-                            );
-                          })}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="mt-5 flex items-center justify-center gap-2 text-[10px] text-slate-500">
-                    <span>적음</span>
-                    <div className="flex items-center gap-[3px]">
-                      <div className="h-3 w-3 rounded-sm border border-gray-200 bg-gray-100" />
-                      <div className="h-3 w-3 rounded-sm bg-emerald-100" />
-                      <div className="h-3 w-3 rounded-sm bg-emerald-300" />
-                      <div className="h-3 w-3 rounded-sm bg-emerald-500" />
-                      <div className="h-3 w-3 rounded-sm bg-emerald-700" />
-                    </div>
-                    <span>많음</span>
-                  </div>
-                </div>
-              </div>
-            </Card>
+          <h2 id="mypage-progress" className="text-lg font-semibold text-gray-900">문제 풀이 진행도</h2>
+          {!progressLoading && !progressError && totalProblemCount > 0 && (
+            <span className="text-sm text-gray-500">총 {totalProblemCount}문제 기준</span>
           )}
         </div>
+        <ProblemProgressCard
+          solvedCount={solvedCount}
+          totalCount={totalProblemCount}
+          isLoading={progressLoading}
+          error={progressError}
+        />
       </section>
 
       <section aria-labelledby="mypage-problem-lists" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
