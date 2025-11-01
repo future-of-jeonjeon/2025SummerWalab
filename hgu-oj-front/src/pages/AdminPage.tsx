@@ -6,7 +6,6 @@ import { Button } from '../components/atoms/Button';
 import {
   adminService,
   CreateContestPayload,
-  CreateWorkbookPayload,
   UpdateUserPayload,
   UpdateContestPayload,
 } from '../services/adminService';
@@ -24,8 +23,7 @@ import { BulkProblemManager } from '../components/admin/BulkProblemManager';
 import { ProblemCreateSection } from '../components/admin/ProblemCreateSection';
 import { ProblemEditSection } from '../components/admin/ProblemEditSection';
 import { ServerAdminSection } from '../components/admin/ServerAdminSection';
-import { useProblemSelection, AddProblemResult } from '../hooks/useProblemSelection';
-import { ProblemSelectionSection } from '../components/admin/ProblemSelectionSection';
+import { WorkbookCreateSection } from '../components/admin/WorkbookCreateSection';
 const USER_PAGE_SIZE = 20;
 
 const mapAdminUserToForm = (user: AdminUser): UpdateUserPayload => ({
@@ -102,13 +100,6 @@ type ContestFormState = {
   allowedIpRanges: string;
 };
 
-type WorkbookFormState = {
-  title: string;
-  description: string;
-  category: string;
-  isPublic: boolean;
-};
-
 type AdminSection =
   | 'problem'
   | 'problem-edit'
@@ -154,23 +145,6 @@ export const AdminPage: React.FC = () => {
   const contestFormProblemSearchTimerRef = useRef<number | null>(null);
   const [contestFormProblemSelected, setContestFormProblemSelected] = useState<Problem | null>(null);
   const [contestFormProblemMessage, setContestFormProblemMessage] = useState<{ success?: string; error?: string }>({});
-
-  const [workbookForm, setWorkbookForm] = useState<WorkbookFormState>({
-    title: '',
-    description: '',
-    category: '',
-    isPublic: false,
-  });
-  const [workbookLoading, setWorkbookLoading] = useState(false);
-  const [workbookMessage, setWorkbookMessage] = useState<{ success?: string; error?: string }>({});
-  const {
-    selectedProblems: selectedWorkbookProblems,
-    addProblem: addWorkbookProblem,
-    removeProblem: removeWorkbookProblem,
-    clear: clearWorkbookProblems,
-  } = useProblemSelection();
-  const [workbookSelectionMessage, setWorkbookSelectionMessage] = useState<{ success?: string; error?: string }>({});
-  const [workbookSelectionReset, setWorkbookSelectionReset] = useState(0);
 
   const [workbooks, setWorkbooks] = useState<Workbook[]>([]);
   const [isWorkbookListLoading, setIsWorkbookListLoading] = useState(false);
@@ -1469,7 +1443,7 @@ export const AdminPage: React.FC = () => {
         ...prev,
         [workbookId]: { results: [], loading: false, error: null },
       }));
-        setWorkbookProblemFormError((prev) => ({ ...prev, [workbookId]: null }));
+      setWorkbookProblemFormError((prev) => ({ ...prev, [workbookId]: null }));
       return true;
     } catch (error) {
       const message = error instanceof Error ? error.message : '문제 추가 중 오류가 발생했습니다.';
@@ -1478,6 +1452,10 @@ export const AdminPage: React.FC = () => {
     } finally {
       setAddingProblemWorkbookId(null);
     }
+  };
+
+  const handleSelectWorkbookProblemSuggestion = async (workbookId: number, problem: Problem) => {
+    await appendProblemToWorkbook(workbookId, problem);
   };
 
   const tryAppendWorkbookProblemFromInput = async (workbookId: number): Promise<boolean> => {
@@ -1660,73 +1638,6 @@ export const AdminPage: React.FC = () => {
       setContestMessage({ error: message });
     } finally {
       setContestLoading(false);
-    }
-  };
-
-  const handleAddWorkbookProblem = (problem: Problem): AddProblemResult => {
-    const result = addWorkbookProblem(problem);
-    if (!result.success) {
-      setWorkbookSelectionMessage({ error: result.error });
-      return result;
-    }
-    setWorkbookSelectionMessage({});
-    setWorkbookMessage({});
-    return result;
-  };
-
-  const handleSelectWorkbookProblemSuggestion = async (workbookId: number, problem: Problem) => {
-    await appendProblemToWorkbook(workbookId, problem);
-  };
-
-  const handleRemoveWorkbookProblem = (problemId: number) => {
-    removeWorkbookProblem(problemId);
-    setWorkbookSelectionMessage({});
-    setWorkbookMessage({});
-  };
-
-  const handleWorkbookSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setWorkbookMessage({});
-
-  if (!workbookForm.title.trim()) {
-      setWorkbookMessage({ error: '문제집 제목을 입력하세요.' });
-      return;
-    }
-
-    const selectedProblemIds = selectedWorkbookProblems
-      .map((problem) => Number(problem.id))
-      .filter((id) => Number.isInteger(id) && id > 0);
-    const uniqueProblemIds = Array.from(new Set(selectedProblemIds));
-
-    const payload: CreateWorkbookPayload = {
-      title: workbookForm.title.trim(),
-      description: workbookForm.description.trim() || undefined,
-      category: workbookForm.category.trim() || undefined,
-      is_public: workbookForm.isPublic,
-    };
-
-    if (uniqueProblemIds.length > 0) {
-      payload.problemIds = uniqueProblemIds;
-    }
-
-    try {
-      setWorkbookLoading(true);
-      const workbook = await adminService.createWorkbook(payload);
-      setWorkbookMessage({ success: `문제집(ID: ${workbook.id})이 등록되었습니다.` });
-      setWorkbookForm({
-        title: '',
-        description: '',
-        category: '',
-        isPublic: false,
-      });
-      clearWorkbookProblems();
-      setWorkbookSelectionMessage({});
-      setWorkbookSelectionReset((prev) => prev + 1);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : '문제집 등록 중 오류가 발생했습니다.';
-      setWorkbookMessage({ error: message });
-    } finally {
-      setWorkbookLoading(false);
     }
   };
 
@@ -2857,79 +2768,7 @@ export const AdminPage: React.FC = () => {
         );
       case 'workbook':
       default:
-        return (
-          <Card padding="lg">
-            <form onSubmit={handleWorkbookSubmit} className="space-y-6">
-              <div className="space-y-1">
-                <h2 className="text-xl font-semibold text-gray-900">문제집 등록</h2>
-                <p className="text-sm text-gray-500">문제집 메타데이터를 입력하면 즉시 저장됩니다.</p>
-              </div>
-
-              {workbookMessage.error && (
-                <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-600">{workbookMessage.error}</div>
-              )}
-              {workbookMessage.success && (
-                <div className="rounded-md bg-green-50 px-4 py-3 text-sm text-green-600">{workbookMessage.success}</div>
-              )}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                <Input
-                  label="문제집 제목"
-                  value={workbookForm.title}
-                  onChange={(e) => setWorkbookForm((prev) => ({ ...prev, title: e.target.value }))}
-                  required
-                />
-                <Input
-                  label="카테고리"
-                  value={workbookForm.category}
-                  onChange={(e) => setWorkbookForm((prev) => ({ ...prev, category: e.target.value }))}
-                />
-                <div className="md:col-span-2">
-                  <label className="inline-flex items-center space-x-2 text-sm text-gray-700">
-                    <input
-                      type="checkbox"
-                      checked={workbookForm.isPublic}
-                      onChange={(e) => setWorkbookForm((prev) => ({ ...prev, isPublic: e.target.checked }))}
-                    />
-                    <span>공개 문제집으로 설정</span>
-                  </label>
-                </div>
-              </div>
-
-              <div className="space-y-3">
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700">문제 목록</h3>
-                  <p className="mt-1 text-xs text-gray-500">문제집 생성 시 함께 등록할 문제를 검색해 선택하거나 직접 ID를 입력하세요.</p>
-                </div>
-                <ProblemSelectionSection
-                  selectedProblems={selectedWorkbookProblems}
-                  onAddProblem={handleAddWorkbookProblem}
-                  onRemoveProblem={handleRemoveWorkbookProblem}
-                  message={workbookSelectionMessage}
-                  onMessageChange={setWorkbookSelectionMessage}
-                  helperText="문제집 생성 시 함께 등록할 문제를 검색해 선택하거나 직접 ID를 입력하세요."
-                  addButtonLabel="문제 추가"
-                  emptySelectionText="등록할 문제를 추가하세요."
-                  resetSignal={workbookSelectionReset}
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">설명</label>
-                <textarea
-                  className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
-                  rows={4}
-                  value={workbookForm.description}
-                  onChange={(e) => setWorkbookForm((prev) => ({ ...prev, description: e.target.value }))}
-                />
-              </div>
-
-              <div className="flex justify-end">
-                <Button type="submit" loading={workbookLoading}>문제집 등록</Button>
-              </div>
-            </form>
-          </Card>
-        );
+        return <WorkbookCreateSection />;
     }
   };
 
