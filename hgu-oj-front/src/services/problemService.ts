@@ -58,32 +58,21 @@ const normalizeTags = (value: any): string[] | undefined => {
   return tags.length > 0 ? tags : undefined;
 };
 
-const rawMsBase = (import.meta.env.VITE_MS_API_BASE as string | undefined) || '';
-const MS_API_BASE = rawMsBase.replace(/\/$/, '');
-
-const ensureMsBase = () => {
-  if (!MS_API_BASE) {
-    throw new Error('Micro-service API base URL is not configured.');
+const unwrapOjResponse = <T>(payload: any): T => {
+  const hasWrapper =
+    payload &&
+    typeof payload === 'object' &&
+    Object.prototype.hasOwnProperty.call(payload, 'error') &&
+    Object.prototype.hasOwnProperty.call(payload, 'data');
+  if (hasWrapper) {
+    if (payload.error) {
+      const detail = payload.data;
+      const message = typeof detail === 'string' ? detail : '요청이 실패했습니다.';
+      throw new Error(message);
+    }
+    return payload.data as T;
   }
-  return MS_API_BASE;
-};
-
-const buildMsUrl = (path: string, params?: Record<string, unknown>) => {
-  const base = ensureMsBase();
-  const search = new URLSearchParams();
-  if (params) {
-    Object.entries(params).forEach(([key, value]) => {
-      if (value === undefined || value === null || value === '') return;
-      if (Array.isArray(value)) {
-        if (value.length === 0) return;
-        search.append(key, value.join(','));
-      } else {
-        search.append(key, String(value));
-      }
-    });
-  }
-  const query = search.toString();
-  return `${base}${path}${query ? `?${query}` : ''}`;
+  return payload as T;
 };
 
 // 적응형 매퍼: 마이크로서비스 또는 OJ 백엔드 형태 모두 지원
@@ -158,66 +147,42 @@ export const problemService = {
   getProblems: async (filter: ProblemFilter, options?: RequestOptions): Promise<PaginatedResponse<Problem>> => {
     const limit = filter.limit && filter.limit > 0 ? filter.limit : 50;
     const page = filter.page && filter.page > 0 ? filter.page : 1;
+    const offset = (page - 1) * limit;
 
     const params: Record<string, unknown> = {
-      page,
-      page_size: limit,
+      limit,
+      offset,
     };
 
     const searchValue = filter.search?.trim();
     if (searchValue) {
       params.keyword = searchValue;
-      params.search_field = filter.searchField ?? 'title';
     }
 
     if (filter.difficulty) {
       params.difficulty = filter.difficulty;
     }
 
-    const sortOptionMap: Record<string, string> = {
-      number: 'id',
-      submission: 'submission',
-      accuracy: 'accuracy',
-    };
-
-    if (filter.sortField) {
-      params.sort_option = sortOptionMap[filter.sortField] ?? filter.sortField;
-    }
-    if (filter.sortOrder) {
-      params.order = filter.sortOrder;
-    }
-
-    const tags = (filter.tags ?? []).filter((tag) => typeof tag === 'string' && tag.trim().length > 0);
+    const tags = (filter.tags ?? [])
+      .map((tag) => (typeof tag === 'string' ? tag.trim() : ''))
+      .filter((tag) => tag.length > 0);
     if (tags.length > 0) {
-      params.tags = tags;
+      // OJ 백엔드에서는 단일 태그 필터만 지원
+      params.tag = tags[0];
     }
-
-    const url = buildMsUrl('/problem/list', params);
 
     let responseData: any;
-    let response: Response;
     try {
-      response = await fetch(url, {
-        method: 'GET',
+      const response = await apiClient.get('/problem/', {
+        params,
         signal: options?.signal,
-        credentials: 'include',
       });
+      responseData = unwrapOjResponse<any>(response.data);
     } catch (error: any) {
       if (error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') {
         throw error;
       }
       throw new Error(error?.message || '문제 목록을 불러오지 못했습니다.');
-    }
-
-    if (!response.ok) {
-      const detail = await response.text().catch(() => '');
-      throw new Error(detail || `문제 목록을 불러오지 못했습니다. (status ${response.status})`);
-    }
-
-    try {
-      responseData = await response.json();
-    } catch (error) {
-      throw new Error('문제 목록 응답을 파싱하지 못했습니다.');
     }
 
     let items: any[] = [];
@@ -391,36 +356,27 @@ export const problemService = {
   // 문제 검색
   searchProblems: async (query: string, filter?: Omit<ProblemFilter, 'search'>): Promise<PaginatedResponse<Problem>> => {
     // OJ에서는 /problem?keyword= 로 검색 지원
-    const res = await problemService.getProblems({ ...(filter || {}), search: query, limit: 100 });
+    const effectiveLimit = filter?.limit && filter.limit > 0 ? filter.limit : 100;
+    const res = await problemService.getProblems({
+      ...(filter || {}),
+      limit: effectiveLimit,
+      search: query,
+    });
     return res;
   },
 
   getTagCounts: async (options?: RequestOptions): Promise<Array<{ tag: string; count: number }>> => {
-    const url = buildMsUrl('/problem/tags/counts');
-    let response: Response;
     let responseData: any;
     try {
-      response = await fetch(url, {
-        method: 'GET',
+      const response = await apiClient.get('/problem/tags/', {
         signal: options?.signal,
-        credentials: 'include',
       });
+      responseData = unwrapOjResponse<any>(response.data);
     } catch (error: any) {
       if (error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') {
         throw error;
       }
       throw new Error(error?.message || '태그 정보를 불러오지 못했습니다.');
-    }
-
-    if (!response.ok) {
-      const detail = await response.text().catch(() => '');
-      throw new Error(detail || `태그 정보를 불러오지 못했습니다. (status ${response.status})`);
-    }
-
-    try {
-      responseData = await response.json();
-    } catch (error) {
-      throw new Error('태그 정보를 파싱하지 못했습니다.');
     }
 
     const collections = [
@@ -438,7 +394,13 @@ export const problemService = {
           item?.name ??
           item?.label ??
           '';
-        const count = Number(item?.count ?? item?.total ?? item?.value ?? 0);
+        const count = Number(
+          item?.count ??
+          item?.total ??
+          item?.value ??
+          item?.problem_count ??
+          0
+        );
         if (!tag) return null;
         return { tag: String(tag), count };
       })

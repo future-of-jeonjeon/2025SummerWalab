@@ -188,8 +188,6 @@ interface ContestListParams {
 
 const trimTrailingSlash = (value: string) => value.replace(/\/$/, '');
 
-const API_BASE_URL = ((import.meta.env.VITE_API_URL as string | undefined) || '').replace(/\/$/, '');
-
 const MS_API_BASE = trimTrailingSlash(
   (import.meta.env.VITE_MS_API_BASE as string | undefined) || '/ms-api'
 );
@@ -233,28 +231,6 @@ export const adminService = {
   createProblem: async (payload: CreateProblemPayload) => {
     const response = await api.post<any>('/admin/problem/', payload);
     return unwrap(response);
-  },
-
-  bulkImportProblems: async (file: File) => {
-    const formData = new FormData();
-    formData.append('file', file);
-
-    if (!API_BASE_URL) {
-      throw new Error('API base URL is not configured.');
-    }
-
-    const response = await fetch(`${API_BASE_URL}/problem`, {
-      method: 'POST',
-      body: formData,
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
-      const detail = await response.text();
-      throw new Error(detail || `문제 대량 등록에 실패했습니다. (status ${response.status})`);
-    }
-
-    return response.json();
   },
 
   createContest: async (payload: CreateContestPayload) => {
