@@ -88,7 +88,8 @@ export const MyPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 py-8 space-y-8">
+    <div className="min-h-screen bg-gray-50">
+      <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 2xl:max-w-screen-2xl 2xl:px-10 space-y-8">
       <section aria-labelledby="mypage-profile">
         <h1 id="mypage-profile" className="sr-only">마이페이지 프로필</h1>
         <Card className="flex flex-col md:flex-row items-center md:items-start gap-6">
@@ -286,6 +287,7 @@ export const MyPage: React.FC = () => {
           </Card>
         </div>
       </section>
+      </div>
     </div>
   );
 };

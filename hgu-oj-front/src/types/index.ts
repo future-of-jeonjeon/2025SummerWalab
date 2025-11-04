@@ -156,6 +156,29 @@ export interface PaginatedResponse<T> {
   totalPages: number;
 }
 
+// 랭킹 관련 타입
+export interface UserRankingEntry {
+  rank: number;
+  username: string;
+  realName?: string;
+  solvedCount?: number;
+  submissionCount?: number;
+  accuracy?: number;
+  rating?: number;
+  organization?: string;
+  avatarUrl?: string;
+}
+
+export interface OrganizationRankingEntry {
+  rank: number;
+  name: string;
+  description?: string | null;
+  totalMembers?: number;
+  totalSolved?: number;
+  totalSubmission?: number;
+  accuracy?: number;
+}
+
 // IDE 관련 타입
 export interface CodeExecution {
   language: string;

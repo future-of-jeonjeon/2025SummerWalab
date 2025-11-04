@@ -577,8 +577,8 @@ export const AdminPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 py-10">
-      <div className="max-w-6xl mx-auto px-4 space-y-8">
+    <div className="min-h-screen bg-gray-50">
+      <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 2xl:max-w-screen-2xl 2xl:px-10 space-y-8">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">관리자 도구</h1>
           <p className="mt-2 text-sm text-gray-600">좌측 메뉴에서 원하는 기능을 선택하면 관련 폼이 표시됩니다.</p>
