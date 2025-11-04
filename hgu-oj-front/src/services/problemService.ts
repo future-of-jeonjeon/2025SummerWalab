@@ -2,6 +2,12 @@ import { api, apiClient } from './api';
 import { Problem, PaginatedResponse, ProblemFilter } from '../types';
 import { mapDifficulty } from '../lib/difficulty';
 
+const trimTrailingSlash = (value: string) => value.replace(/\/$/, '');
+const MS_API_BASE = trimTrailingSlash((import.meta.env.VITE_MS_API_BASE as string | undefined) || '');
+const MICRO_PROBLEM_TAG_COUNTS_ENDPOINT = MS_API_BASE
+  ? `${MS_API_BASE}/problem/tags/counts`
+  : undefined;
+
 const normalizeStatusValue = (status: any): string | undefined => {
   if (status === null || status === undefined) return undefined;
   const normalized = String(status).trim();
@@ -231,14 +237,40 @@ export const problemService = {
   },
 
   // 문제 상세 조회
-  getProblem: async (id: number): Promise<Problem> => {
+  getProblem: async (identifier: string | number): Promise<Problem> => {
+    const normalized = typeof identifier === 'string' ? identifier.trim() : String(identifier);
+    if (!normalized) {
+      throw new Error('문제를 찾기 위한 식별자가 필요합니다.');
+    }
+    const normalizedLower = normalized.toLowerCase();
+    const numericIdentifier = Number(normalized);
+    const hasNumericIdentifier = Number.isFinite(numericIdentifier);
     const pageSize = 250;
     let currentPage = 1;
     let totalPages = 1;
 
     do {
       const { data, total } = await problemService.getProblems({ page: currentPage, limit: pageSize });
-      const match = data.find((item) => item.id === id);
+      const match = data.find((item) => {
+        const candidateValues = [
+          (item as any)._id,
+          (item as any).displayId,
+          item.displayId,
+          item.id,
+        ];
+        for (const value of candidateValues) {
+          if (value == null) continue;
+          const valueString = String(value).trim();
+          if (!valueString) continue;
+          if (valueString === normalized || valueString.toLowerCase() === normalizedLower) {
+            return true;
+          }
+          if (hasNumericIdentifier && Number(value) === numericIdentifier) {
+            return true;
+          }
+        }
+        return false;
+      });
       if (match) {
         return match;
       }
@@ -250,24 +282,51 @@ export const problemService = {
   },
 
   // 문제 상태 맵 조회 (id -> Problem)
-  getProblemStatusMap: async (ids: number[], options?: { pageSize?: number }): Promise<Record<number, Problem>> => {
-    const uniqueIds = Array.from(new Set(ids.filter((value) => Number.isFinite(value))));
+  getProblemStatusMap: async (
+    ids: Array<string | number>,
+    options?: { pageSize?: number },
+  ): Promise<Record<string, Problem>> => {
+    const uniqueIds = Array.from(
+      new Set(
+        ids
+          .map((value) => {
+            if (value == null) return null;
+            const stringified = typeof value === 'string' ? value.trim() : String(value);
+            return stringified.length > 0 ? stringified : null;
+          })
+          .filter((value): value is string => Boolean(value)),
+      ),
+    );
+
     if (uniqueIds.length === 0) {
       return {};
     }
 
     const pageSize = options?.pageSize && options.pageSize > 0 ? options.pageSize : 250;
-    const found: Record<number, Problem> = {};
+    const found: Record<string, Problem> = {};
     let currentPage = 1;
     let totalPages = 1;
 
-    const idSet = new Set(uniqueIds);
+    const idSet = new Set(uniqueIds.map((value) => value.toLowerCase()));
 
     while (currentPage <= totalPages && Object.keys(found).length < idSet.size) {
       const pageResult = await problemService.getProblems({ page: currentPage, limit: pageSize });
       pageResult.data.forEach((problem) => {
-        if (idSet.has(problem.id)) {
-          found[problem.id] = problem;
+        const candidateValues = [
+          (problem as any)._id,
+          (problem as any).displayId,
+          problem.displayId,
+          problem.id,
+        ];
+        for (const value of candidateValues) {
+          if (value == null) continue;
+          const valueString = String(value).trim();
+          if (!valueString) continue;
+          const key = valueString.toLowerCase();
+          if (idSet.has(key) && !found[valueString]) {
+            found[valueString] = problem;
+            break;
+          }
         }
       });
 
@@ -290,7 +349,7 @@ export const problemService = {
     };
 
     if (typeof identifier === 'number' && Number.isFinite(identifier)) {
-      params.problem_id = identifier;
+      params.problem_id = String(identifier);
     } else if (typeof identifier === 'string' && identifier.trim().length > 0) {
       params.problem_id = identifier.trim();
     }
@@ -367,16 +426,49 @@ export const problemService = {
 
   getTagCounts: async (options?: RequestOptions): Promise<Array<{ tag: string; count: number }>> => {
     let responseData: any;
-    try {
-      const response = await apiClient.get('/problem/tags/', {
-        signal: options?.signal,
-      });
-      responseData = unwrapOjResponse<any>(response.data);
-    } catch (error: any) {
-      if (error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') {
-        throw error;
+    let lastError: any;
+
+    if (MICRO_PROBLEM_TAG_COUNTS_ENDPOINT) {
+      try {
+        const response = await fetch(MICRO_PROBLEM_TAG_COUNTS_ENDPOINT, {
+          method: 'GET',
+          credentials: 'include',
+          signal: options?.signal,
+        });
+        if (!response.ok) {
+          const error = new Error(`HTTP error! status: ${response.status}`);
+          (error as any).status = response.status;
+          throw error;
+        }
+        responseData = await response.json();
+      } catch (error: any) {
+        if (error?.name === 'AbortError') {
+          throw error;
+        }
+        const status = error?.status ?? error?.response?.status;
+        if (status !== 404) {
+          lastError = error;
+        }
       }
-      throw new Error(error?.message || '태그 정보를 불러오지 못했습니다.');
+    }
+
+    if (responseData === undefined) {
+      try {
+        const response = await apiClient.get('/problem/tags/', {
+          signal: options?.signal,
+        });
+        responseData = unwrapOjResponse<any>(response.data);
+        lastError = undefined;
+      } catch (error: any) {
+        if (error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') {
+          throw error;
+        }
+        throw new Error(error?.message || '태그 정보를 불러오지 못했습니다.');
+      }
+    }
+
+    if (responseData === undefined) {
+      throw new Error(lastError?.message || '태그 정보를 불러오지 못했습니다.');
     }
 
     const collections = [

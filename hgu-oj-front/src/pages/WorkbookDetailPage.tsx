@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Card } from '../components/atoms/Card';
@@ -23,10 +23,28 @@ export const WorkbookDetailPage: React.FC = () => {
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [statusFilter, setStatusFilter] = useState<'all' | ProblemStatusKey>('all');
 
-  const handleProblemClick = (problemId: number) => {
+  const getProblemExternalId = useCallback((problem: Problem | undefined): string | undefined => {
+    if (!problem) return undefined;
+    const candidates = [
+      (problem as any)._id ?? problem._id,
+      problem.displayId,
+      problem.id,
+    ];
+    for (const candidate of candidates) {
+      if (candidate === null || candidate === undefined) continue;
+      const key = String(candidate).trim();
+      if (key.length > 0) {
+        return key;
+      }
+    }
+    return undefined;
+  }, []);
+
+  const handleProblemClick = (problemKey: string) => {
     const params = new URLSearchParams();
     params.set('workbookId', String(workbookId));
-    navigate(`/problems/${problemId}?${params.toString()}`);
+    if (!problemKey) return;
+    navigate(`/problems/${encodeURIComponent(problemKey)}?${params.toString()}`);
   };
 
   const handleBackClick = () => {
@@ -57,25 +75,28 @@ export const WorkbookDetailPage: React.FC = () => {
       .filter((problem): problem is Problem => Boolean(problem));
   }, [problems]);
 
-  const problemIds = useMemo(
-    () => normalizedProblems.map((problem) => problem.id).filter((id): id is number => Number.isFinite(id)),
+  const problemIdentifiers = useMemo(
+    () => normalizedProblems
+      .map((problem) => getProblemExternalId(problem))
+      .filter((value): value is string => Boolean(value)),
     [normalizedProblems],
   );
 
-  const problemIdKey = problemIds.join('-');
+  const problemIdKey = problemIdentifiers.join('-');
 
   const { data: statusMap, isLoading: statusLoading } = useQuery(
     {
       queryKey: ['problem-status-map', problemIdKey],
-      queryFn: () => problemService.getProblemStatusMap(problemIds),
-      enabled: problemIds.length > 0,
+      queryFn: () => problemService.getProblemStatusMap(problemIdentifiers),
+      enabled: problemIdentifiers.length > 0,
     },
   );
 
   const enrichedProblems = useMemo(() => {
     if (!statusMap) return normalizedProblems;
     return normalizedProblems.map((problem) => {
-      const override = statusMap[problem.id];
+      const key = getProblemExternalId(problem);
+      const override = key ? statusMap[key] : undefined;
       if (!override) return problem;
       const overrideAny = override as any;
       return {
@@ -86,7 +107,7 @@ export const WorkbookDetailPage: React.FC = () => {
         acceptedNumber: override.acceptedNumber ?? overrideAny.accepted_number ?? problem.acceptedNumber,
       };
     });
-  }, [normalizedProblems, statusMap]);
+  }, [getProblemExternalId, normalizedProblems, statusMap]);
 
   const processedProblems = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();

@@ -1,7 +1,7 @@
 import { api } from './api';
 
 export interface SubmitSolutionRequest {
-  problemId: number;
+  problemId: string | number;
   code: string;
   language: string;
   contestId?: number;
@@ -95,7 +95,7 @@ export const submissionService = {
     const judgeLanguage = languageMap[language] || language;
 
     const payload: Record<string, unknown> = {
-      problem_id: problemId,
+      problem_id: String(problemId),
       language: judgeLanguage,
       code,
     };
