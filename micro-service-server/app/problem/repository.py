@@ -66,3 +66,14 @@ async def fetch_filtered_problems(
     total_count = total_result.scalar() or 0
 
     return problems, total_count
+
+
+async def count_contest_problems(session: AsyncSession, contest_id: int) -> int:
+    stmt = (
+        select(func.count())
+        .select_from(Problem)
+        .where(Problem.contest_id == contest_id)
+        .where(Problem.visible.is_(True))
+    )
+    result = await session.execute(stmt)
+    return result.scalar() or 0

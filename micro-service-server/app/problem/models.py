@@ -49,6 +49,7 @@ class Problem(Base):
     # created_by_id가 User 테이블의 id를 참조하도록 설정
     created_by_id = Column(Integer, ForeignKey('public.user.id'), nullable=False)  # 'public.user.id'로 정확히 참조
     created_by = relationship("User", back_populates="created_problems")  # 양방향 관계 설정
+    contest_id = Column(Integer, ForeignKey('public.contest.id'), nullable=True)
 
     time_limit = Column(Integer, nullable=False)
     memory_limit = Column(Integer, nullable=False)

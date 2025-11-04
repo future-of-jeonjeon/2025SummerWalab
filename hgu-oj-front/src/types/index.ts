@@ -76,6 +76,7 @@ export interface Contest {
   contestType?: string;
   realTimeRank?: boolean;
   now?: string;
+  problemCount?: number;
 }
 
 export interface ContestAnnouncement {

@@ -195,8 +195,14 @@ export const WorkbookDetailPage: React.FC = () => {
         <div className="text-red-600 text-lg mb-4">
           문제집을 찾을 수 없습니다.
         </div>
-        <Button variant="secondary" onClick={handleBackClick}>
-          문제집 목록으로 돌아가기
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleBackClick}
+          className="h-9 w-9 rounded-full border-slate-300 px-0 py-0 text-lg text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+        >
+          <span aria-hidden="true">←</span>
+          <span className="sr-only">문제집 목록으로 돌아가기</span>
         </Button>
       </div>
     );
@@ -258,11 +264,13 @@ export const WorkbookDetailPage: React.FC = () => {
         <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-4">
           <div className="flex-shrink-0">
             <Button
-              variant="secondary"
+              variant="outline"
+              size="sm"
               onClick={handleBackClick}
-              className="w-full min-w-[200px] whitespace-nowrap lg:w-auto"
+              className="h-9 w-9 rounded-full border-slate-300 px-0 py-0 text-lg text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
             >
-              ← 문제집 목록으로 돌아가기
+              <span aria-hidden="true">←</span>
+              <span className="sr-only">문제집 목록으로 돌아가기</span>
             </Button>
           </div>
 

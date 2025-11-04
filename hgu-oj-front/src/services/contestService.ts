@@ -3,6 +3,36 @@ import { Contest, ContestAnnouncement, ContestAccess, ContestRankEntry, Paginate
 import { SubmissionListItem } from './submissionService';
 import { mapProblem } from '../utils/problemMapper';
 
+const trimTrailingSlash = (value: string) => value.replace(/\/$/, '');
+const rawMicroBase = (import.meta.env.VITE_MS_API_BASE as string | undefined) || '';
+const MICRO_API_BASE = rawMicroBase ? trimTrailingSlash(rawMicroBase) : '';
+
+const fetchContestProblemCount = async (contestId: number): Promise<number | undefined> => {
+  if (!MICRO_API_BASE) {
+    return undefined;
+  }
+  try {
+    const response = await fetch(`${MICRO_API_BASE}/problem/contest/${contestId}/count`, {
+      method: 'GET',
+      credentials: 'include',
+    });
+    if (!response.ok) {
+      return undefined;
+    }
+    const data = await response.json();
+    const numeric = Number(
+      data?.count ??
+      data?.total ??
+      data?.problem_count ??
+      data?.problemCount ??
+      data,
+    );
+    return Number.isFinite(numeric) && numeric >= 0 ? numeric : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
 const mapContest = (raw: any): Contest => ({
   id: raw.id,
   title: raw.title,
@@ -26,6 +56,26 @@ const mapContest = (raw: any): Contest => ({
   contestType: raw.contest_type ?? raw.contestType,
   realTimeRank: raw.real_time_rank ?? raw.realTimeRank,
   now: raw.now,
+  problemCount: (() => {
+    const candidates = [
+      raw.problem_count,
+      raw.problemCount,
+      raw.problem_number,
+      raw.problemNumber,
+      raw.total_problem,
+      raw.totalProblem,
+    ];
+    for (const candidate of candidates) {
+      const numeric = Number(candidate);
+      if (Number.isFinite(numeric) && numeric >= 0) {
+        return numeric;
+      }
+    }
+    if (Array.isArray(raw.problems)) {
+      return raw.problems.length;
+    }
+    return undefined;
+  })(),
 });
 
 export const contestService = {
@@ -50,7 +100,14 @@ export const contestService = {
   // 대회 상세 조회
   getContest: async (id: number): Promise<Contest> => {
     const response = await api.get<any>('/contest/', { id });
-    return mapContest(response.data);
+    const contest = mapContest(response.data);
+    if (contest.problemCount == null) {
+      const microCount = await fetchContestProblemCount(id);
+      if (microCount !== undefined) {
+        contest.problemCount = microCount;
+      }
+    }
+    return contest;
   },
 
   getContestAnnouncements: async (contestId: number): Promise<ContestAnnouncement[]> => {

@@ -19,6 +19,13 @@ async def get_tag_count(db: AsyncSession = Depends(get_session)):
     return await service.get_tag_count()
 
 
+@router.get("/contest/{contest_id}/count")
+async def get_contest_problem_count(contest_id: int, db: AsyncSession = Depends(get_session)):
+    service = ProblemService(db)
+    count = await service.get_contest_problem_count(contest_id)
+    return {"contest_id": contest_id, "count": count}
+
+
 # 태그 필터링, 정렬 한번에 묶어서
 @router.get("/list", response_model=ProblemListResponse)
 async def get_filter_sorted_problems(

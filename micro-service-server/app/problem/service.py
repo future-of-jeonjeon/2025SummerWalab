@@ -119,3 +119,6 @@ class ProblemService:
             return mapping.get(standardized, difficulty_value.strip())
 
         return difficulty_value
+
+    async def get_contest_problem_count(self, contest_id: int) -> int:
+        return await problem_repository.count_contest_problems(self.db, contest_id)

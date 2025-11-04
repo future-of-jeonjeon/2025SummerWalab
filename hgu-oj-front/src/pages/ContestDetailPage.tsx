@@ -106,7 +106,7 @@ const [problemStatusFilter, setProblemStatusFilter] = useState<'all' | ProblemSt
   const startTimeMs = useMemo(() => (contest?.startTime ? new Date(contest.startTime).getTime() : Number.NaN), [contest?.startTime]);
   const endTimeMs = useMemo(() => (contest?.endTime ? new Date(contest.endTime).getTime() : Number.NaN), [contest?.endTime]);
 
-  const canViewProtectedContent = hasAccess && contestPhase === 'running';
+  const canViewProtectedContent = hasAccess && contestPhase !== 'before';
 
   useEffect(() => {
     const queryTab = parseTabFromSearch(location.search, tabs);
@@ -506,7 +506,18 @@ const [problemStatusFilter, setProblemStatusFilter] = useState<'all' | ProblemSt
     );
   }, [canViewProtectedContent, problemsLoading, problems, myRankProgress]);
 
-  const totalProblems = contestProblemStats.total || (problems?.length ?? 0);
+  const totalProblems = useMemo(() => {
+    if (contestProblemStats.total > 0) {
+      return contestProblemStats.total;
+    }
+    if (Array.isArray(problems) && problems.length > 0) {
+      return problems.length;
+    }
+    if (typeof contest?.problemCount === 'number' && contest.problemCount >= 0) {
+      return contest.problemCount;
+    }
+    return 0;
+  }, [contestProblemStats.total, problems, contest?.problemCount]);
   const solvedProblems = contestProblemStats.solved;
   const wrongProblems = contestProblemStats.wrong;
   const remainingProblems = Math.max(totalProblems - solvedProblems - wrongProblems, 0);
@@ -611,26 +622,26 @@ const [problemStatusFilter, setProblemStatusFilter] = useState<'all' | ProblemSt
       <div className="space-y-6">
         <Card className="border-0 bg-white p-8 shadow-lg dark:border-slate-800 dark:bg-slate-900">
           <div className="space-y-8">
-            <div className="space-y-4">
-              <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
-                <div className="space-y-3">
-                  <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-                    {contest.title}
-                  </h1>
-                  {contestStatus && (
-                    <div className="inline-flex items-center rounded-full bg-emerald-100 px-3 py-1 text-sm font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
-                      {statusLabel[contestStatus] ?? contestStatus}
-                    </div>
-                  )}
-                </div>
+            <div className="grid gap-4 sm:grid-cols-3">
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">시작 시간</p>
+                <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap">{startTimeDisplay}</p>
               </div>
+              <div>
+                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">종료 시간</p>
+                <p className="mt-1 text-lg font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap">{endTimeDisplay}</p>
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-200">남은 시간</p>
+                <p className={`mt-1 text-2xl font-black tracking-tight ${timeTextClass} sm:text-[28px] whitespace-nowrap`}>{timeLeftDisplay}</p>
+              </div>
+            </div>
 
             <div className="prose max-w-none text-lg font-semibold leading-relaxed text-slate-700 dark:prose-invert dark:text-slate-200">
               <div dangerouslySetInnerHTML={{ __html: contest.description }} />
             </div>
           </div>
-        </div>
-      </Card>
+        </Card>
 
         {requiresPassword && !hasAccess && (
           <Card className="border border-blue-200/70 bg-blue-50/70 p-6 dark:border-blue-400/40 dark:bg-blue-900/20 dark:text-blue-100">
@@ -982,16 +993,19 @@ const [problemStatusFilter, setProblemStatusFilter] = useState<'all' | ProblemSt
       <div className="mb-8 grid gap-4 lg:grid-cols-[minmax(0,1.45fr)_minmax(220px,0.55fr)]">
         <div className="rounded-xl bg-slate-100/80 px-6 py-6 text-sm dark:bg-slate-800/70">
           <div className="flex flex-col gap-4">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3 max-w-full">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => navigate('/contests')}
+                className="h-9 w-9 flex-shrink-0 rounded-full border-slate-300 px-0 py-0 text-lg text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+              >
+                <span aria-hidden="true">←</span>
+                <span className="sr-only">대회 목록으로 돌아가기</span>
+              </Button>
               <div className="flex flex-wrap items-center gap-3">
-                <Button
-                  variant="secondary"
-                  onClick={() => navigate('/contests')}
-                  className="w-fit min-w-[200px] whitespace-nowrap"
-                >
-                  ← 대회 목록으로 돌아가기
-                </Button>
-                <h1 className="ml-2 text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100 whitespace-nowrap lg:ml-8">
+                <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100 break-words">
                   {contest.title}
                 </h1>
                 {contestStatus && (
@@ -1001,22 +1015,9 @@ const [problemStatusFilter, setProblemStatusFilter] = useState<'all' | ProblemSt
                 )}
               </div>
             </div>
-            <div className="flex w-full flex-wrap items-end justify-end gap-6 text-right pl-0 sm:flex-nowrap lg:gap-12 lg:pl-[calc(200px+1rem)]">
-              <div className="text-left w-full sm:w-auto sm:min-w-[160px] lg:ml-6">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">시작 시간</p>
-                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap">{startTimeDisplay}</p>
-              </div>
-              <div className="text-left w-full sm:w-auto sm:min-w-[160px]">
-                <p className="text-[11px] font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">종료 시간</p>
-                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap">{endTimeDisplay}</p>
-              </div>
-              <div className="w-full sm:w-auto sm:min-w-[160px]">
-                <p className="text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-200">남은 시간</p>
-                <p className={`text-2xl font-black tracking-tight ${timeTextClass} sm:text-[28px] whitespace-nowrap`}>{timeLeftDisplay}</p>
-              </div>
-            </div>
           </div>
         </div>
+      </div>
 
         <div className="rounded-xl bg-white px-4 py-6 text-sm shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700 justify-self-end w-full">
           <div className="grid grid-cols-2 gap-y-4 gap-x-3 sm:gap-x-4">

@@ -224,11 +224,39 @@ export const ProblemDetailPage: React.FC = () => {
 
   const getProblemExternalIdentifier = useCallback((source?: Problem | null): string | undefined => {
     if (!source) return undefined;
+
+    const rawId = (source as any).id ?? source.id;
+    if (rawId !== null && rawId !== undefined) {
+      const idString = String(rawId).trim();
+      if (idString.length > 0) {
+        return idString;
+      }
+    }
+
+    const fallbackCandidates = [
+      source.displayId,
+      (source as any)._id ?? source._id,
+    ];
+
+    for (const candidate of fallbackCandidates) {
+      if (candidate === null || candidate === undefined) continue;
+      const key = String(candidate).trim();
+      if (key.length > 0) {
+        return key;
+      }
+    }
+    return undefined;
+  }, []);
+
+  const getProblemLegacyIdentifier = useCallback((source?: Problem | null): string | undefined => {
+    if (!source) return undefined;
+
     const candidates = [
       (source as any)._id ?? source._id,
       source.displayId,
-      source.id,
+      (source as any).id ?? source.id,
     ];
+
     for (const candidate of candidates) {
       if (candidate === null || candidate === undefined) continue;
       const key = String(candidate).trim();
@@ -505,16 +533,16 @@ export const ProblemDetailPage: React.FC = () => {
 
   const submissionProblemKey = useMemo(() => {
     if (contestContextId) {
-      if (contestProblemDisplayId && contestProblemDisplayId.trim().length > 0) {
-        return contestProblemDisplayId.trim();
-      }
-      const contestKey = getProblemExternalIdentifier(contestProblem);
+      const contestKey = getProblemLegacyIdentifier(contestProblem);
       if (contestKey) {
         return contestKey;
       }
+      if (contestProblemDisplayId && contestProblemDisplayId.trim().length > 0) {
+        return contestProblemDisplayId.trim();
+      }
       return problemIdentifier || undefined;
     }
-    const practiceKey = getProblemExternalIdentifier(problem);
+    const practiceKey = getProblemLegacyIdentifier(problem);
     if (practiceKey) {
       return practiceKey;
     }
@@ -523,7 +551,7 @@ export const ProblemDetailPage: React.FC = () => {
     contestContextId,
     contestProblem,
     contestProblemDisplayId,
-    getProblemExternalIdentifier,
+    getProblemLegacyIdentifier,
     problem,
     problemIdentifier,
   ]);
