@@ -6,8 +6,8 @@ import { mapDifficulty } from '../../lib/difficulty';
 
 interface ProblemCardProps {
   problem: Problem;
-  onSolve?: (problemId: number) => void;
-  onClick?: (problemId: number) => void;
+  onSolve?: (problemKey: string) => void;
+  onClick?: (problemKey: string) => void;
   showOrder?: boolean;
   order?: number;
 }
@@ -41,11 +41,27 @@ export const ProblemCard: React.FC<ProblemCardProps> = ({
     }
   };
 
+  const resolveProblemKey = () => {
+    const candidates = [
+      (problem as any)._id ?? problem._id,
+      problem.displayId,
+      problem.id,
+    ];
+    for (const candidate of candidates) {
+      if (candidate === null || candidate === undefined) continue;
+      const key = String(candidate).trim();
+      if (key.length > 0) return key;
+    }
+    return '';
+  };
+
   const handleClick = () => {
+    const key = resolveProblemKey();
+    if (!key) return;
     if (onClick) {
-      onClick(problem.id);
+      onClick(key);
     } else if (onSolve) {
-      onSolve(problem.id);
+      onSolve(key);
     }
   };
 
@@ -81,7 +97,9 @@ export const ProblemCard: React.FC<ProblemCardProps> = ({
           size="sm"
           onClick={(e: React.MouseEvent<HTMLButtonElement>) => {
             e.stopPropagation();
-            onSolve?.(problem.id);
+            const key = resolveProblemKey();
+            if (!key) return;
+            onSolve?.(key);
           }}
         >
           풀기

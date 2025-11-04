@@ -49,8 +49,9 @@ export const ProblemListPage: React.FC = () => {
     queryFn: ({ signal }) => problemService.getTagCounts({ signal }),
   });
 
-  const handleProblemClick = (problemId: number) => {
-    navigate(`/problems/${problemId}`);
+  const handleProblemClick = (problemKey: string) => {
+    if (!problemKey) return;
+    navigate(`/problems/${encodeURIComponent(problemKey)}`);
   };
 
   useEffect(() => {

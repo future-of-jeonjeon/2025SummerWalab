@@ -10,7 +10,7 @@ import { getTagColor } from '../../utils/tagColor';
 
 interface ProblemListProps {
   problems: Problem[];
-  onProblemClick: (problemId: number) => void;
+  onProblemClick: (problemKey: string) => void;
   onSearch?: (query: string) => void;
   onFilterChange?: (filter: { difficulty?: string }) => void;
   currentFilter?: { difficulty?: string };
@@ -278,7 +278,12 @@ export const ProblemList: React.FC<ProblemListProps> = ({
                         onClick={(event) => {
                           event.preventDefault();
                           event.stopPropagation();
-                          onProblemClick(problem.id);
+                          const keyCandidate = problem._id ?? problem.displayId ?? problem.id;
+                          if (keyCandidate === null || keyCandidate === undefined) {
+                            return;
+                          }
+                          const key = String(keyCandidate);
+                          onProblemClick(key);
                         }}
                         className="text-sm font-semibold text-gray-900 hover:text-blue-600 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                       >
@@ -317,7 +322,12 @@ export const ProblemList: React.FC<ProblemListProps> = ({
                         onClick={(event) => {
                           event.preventDefault();
                           event.stopPropagation();
-                          onProblemClick(problem.id);
+                          const keyCandidate = problem._id ?? problem.displayId ?? problem.id;
+                          if (keyCandidate === null || keyCandidate === undefined) {
+                            return;
+                          }
+                          const key = String(keyCandidate);
+                          onProblemClick(key);
                         }}
                         className="text-sm font-semibold text-gray-900 hover:text-blue-600 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
                       >

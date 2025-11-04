@@ -192,7 +192,8 @@ export const ProblemDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const problemId = id ? parseInt(id, 10) : 0;
+  const rawRouteId = (id ?? '').trim();
+  const problemIdentifier = rawRouteId;
   const contestContextId = useMemo(() => {
     const searchParams = new URLSearchParams(location.search);
     const raw = searchParams.get('contestId');
@@ -221,26 +222,43 @@ export const ProblemDetailPage: React.FC = () => {
 
   const shouldFetchRegularProblem = !contestContextId;
 
+  const getProblemExternalIdentifier = useCallback((source?: Problem | null): string | undefined => {
+    if (!source) return undefined;
+    const candidates = [
+      (source as any)._id ?? source._id,
+      source.displayId,
+      source.id,
+    ];
+    for (const candidate of candidates) {
+      if (candidate === null || candidate === undefined) continue;
+      const key = String(candidate).trim();
+      if (key.length > 0) {
+        return key;
+      }
+    }
+    return undefined;
+  }, []);
+
   const {
     data: fallbackProblem,
     isLoading: regularProblemLoading,
     error: regularProblemError,
-  } = useProblem(problemId, { enabled: shouldFetchRegularProblem });
+  } = useProblem(problemIdentifier, { enabled: shouldFetchRegularProblem && !!problemIdentifier });
 
   const {
     data: contestProblem,
     isLoading: contestProblemLoading,
     error: contestProblemError,
   } = useQuery({
-    queryKey: ['contest-problem', contestContextId, contestProblemDisplayId ?? problemId],
+    queryKey: ['contest-problem', contestContextId, contestProblemDisplayId ?? problemIdentifier],
     queryFn: () => {
       if (!contestContextId) {
         throw new Error('contestId is required');
       }
-      const identifier = contestProblemDisplayId ?? problemId;
+      const identifier = contestProblemDisplayId ?? problemIdentifier;
       return problemService.getContestProblem(contestContextId, identifier);
     },
-    enabled: !!contestContextId,
+    enabled: !!contestContextId && (!!contestProblemDisplayId || !!problemIdentifier),
   });
 
   const problem = contestContextId ? contestProblem : fallbackProblem;
@@ -466,15 +484,15 @@ export const ProblemDetailPage: React.FC = () => {
           : false;
         const reachedAttemptLimit = submissionPollAttemptsRef.current >= MAX_SUBMISSION_POLL_ATTEMPTS;
         if (hasStats || (!isProgress && normalizedStatus) || reachedAttemptLimit) {
-          if (problemId > 0) {
-            queryClient.invalidateQueries({ queryKey: ['problem', problemId] });
+          if (problemIdentifier) {
+            queryClient.invalidateQueries({ queryKey: ['problem', problemIdentifier] });
           }
           stopSubmissionPolling();
           return;
         }
       } catch (pollError) {
-        if (problemId > 0) {
-          queryClient.invalidateQueries({ queryKey: ['problem', problemId] });
+        if (problemIdentifier) {
+          queryClient.invalidateQueries({ queryKey: ['problem', problemIdentifier] });
         }
         stopSubmissionPolling();
         return;
@@ -483,27 +501,32 @@ export const ProblemDetailPage: React.FC = () => {
     };
 
     submissionPollTimerRef.current = setTimeout(poll, 1000);
-  }, [mapJudgeResult, problemId, queryClient, stopSubmissionPolling]);
+  }, [mapJudgeResult, problemIdentifier, queryClient, stopSubmissionPolling]);
 
   const submissionProblemKey = useMemo(() => {
     if (contestContextId) {
-      if (contestProblemDisplayId) return contestProblemDisplayId;
-      if (contestProblem?.displayId) return String(contestProblem.displayId);
-      if (contestProblem?.id != null) return String(contestProblem.id);
-      return undefined;
+      if (contestProblemDisplayId && contestProblemDisplayId.trim().length > 0) {
+        return contestProblemDisplayId.trim();
+      }
+      const contestKey = getProblemExternalIdentifier(contestProblem);
+      if (contestKey) {
+        return contestKey;
+      }
+      return problemIdentifier || undefined;
     }
-    if (!problem) return undefined;
-    if (problem.displayId && problem.displayId.trim().length > 0) {
-      return problem.displayId.trim();
+    const practiceKey = getProblemExternalIdentifier(problem);
+    if (practiceKey) {
+      return practiceKey;
     }
-    if (Number.isFinite(problem.id)) {
-      return String(problem.id);
-    }
-    if (Number.isFinite(problemId) && problemId > 0) {
-      return String(problemId);
-    }
-    return undefined;
-  }, [contestContextId, contestProblemDisplayId, contestProblem?.displayId, contestProblem?.id, problem, problemId]);
+    return problemIdentifier || undefined;
+  }, [
+    contestContextId,
+    contestProblem,
+    contestProblemDisplayId,
+    getProblemExternalIdentifier,
+    problem,
+    problemIdentifier,
+  ]);
 
   const submissionQueryKey = useMemo(() => {
     if (!submissionProblemKey) return null;
@@ -562,7 +585,13 @@ export const ProblemDetailPage: React.FC = () => {
     if (!requireAuthentication()) return;
     setIsSubmitting(true);
     try {
-      const targetProblemId = contestContextId ? (contestProblem?.id ?? problemId) : problemId;
+      const targetProblemId = contestContextId
+        ? getProblemExternalIdentifier(contestProblem) ?? problemIdentifier
+        : getProblemExternalIdentifier(problem) ?? problemIdentifier;
+
+      if (!targetProblemId) {
+        throw new Error('문제 식별자를 확인할 수 없습니다.');
+      }
 
       const result = await submissionService.submitSolution({
         problemId: targetProblemId,
@@ -603,7 +632,7 @@ export const ProblemDetailPage: React.FC = () => {
     setManualStatus(undefined);
     stopSubmissionPolling();
     submissionPollAttemptsRef.current = 0;
-  }, [problemId, stopSubmissionPolling]);
+  }, [problemIdentifier, stopSubmissionPolling]);
 
   const rawProblemStatus = useMemo(() => {
     if (!problem || !isAuthenticated) return undefined;
@@ -1169,28 +1198,30 @@ export const ProblemDetailPage: React.FC = () => {
   }, [contestContextId, workbookContextId, navigate]);
 
   const openProblemFromList = useCallback((target: Problem) => {
-    if (!target || target.id === problemId) return;
+    if (!target) return;
+    const targetKey = getProblemExternalIdentifier(target);
+    if (!targetKey || targetKey === problemIdentifier) return;
 
     if (contestContextId) {
       const params = new URLSearchParams();
       params.set('contestId', String(contestContextId));
-      const displayValue = target.displayId ?? target.id;
+      const displayValue = target.displayId ?? target.id ?? targetKey;
       if (displayValue !== undefined && displayValue !== null) {
         params.set('displayId', String(displayValue));
       }
-      navigate(`/problems/${target.id}?${params.toString()}`);
+      navigate(`/problems/${encodeURIComponent(targetKey)}?${params.toString()}`);
       return;
     }
 
     if (workbookContextId) {
       const params = new URLSearchParams();
       params.set('workbookId', String(workbookContextId));
-      navigate(`/problems/${target.id}?${params.toString()}`);
+      navigate(`/problems/${encodeURIComponent(targetKey)}?${params.toString()}`);
       return;
     }
 
-    navigate(`/problems/${target.id}`);
-  }, [contestContextId, workbookContextId, navigate, problemId]);
+    navigate(`/problems/${encodeURIComponent(targetKey)}`);
+  }, [contestContextId, getProblemExternalIdentifier, problemIdentifier, workbookContextId, navigate]);
 
   if (isLoading) {
     return (
@@ -1446,11 +1477,12 @@ export const ProblemDetailPage: React.FC = () => {
                   ) : (
                     <div className="space-y-2">
                       {problemListItems.map((item) => {
-                        const isCurrentProblem = item.id === problem.id;
-                        const problemIdentifier = item.displayId ?? item.id;
+                        const itemKey = getProblemExternalIdentifier(item);
+                        const isCurrentProblem = itemKey ? itemKey === problemIdentifier : false;
+                        const displayIdentifier = item.displayId ?? (item as any)._id ?? item.id;
                         return (
                           <button
-                            key={`${problemIdentifier}-${item.id}`}
+                            key={`${itemKey ?? displayIdentifier}-${item.id}`}
                             type="button"
                             onClick={() => !isCurrentProblem && openProblemFromList(item)}
                             className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition ${
@@ -1466,7 +1498,7 @@ export const ProblemDetailPage: React.FC = () => {
                             <div className="flex items-center justify-between gap-4">
                               <div className="flex-1 min-w-0">
                                 <div className="truncate text-sm font-semibold">
-                                  {problemIdentifier} · {item.title}
+                                  {displayIdentifier} · {item.title}
                                 </div>
                               </div>
                               {isCurrentProblem ? (
@@ -1523,7 +1555,7 @@ export const ProblemDetailPage: React.FC = () => {
         {/* Right: Editor + I/O split */}
         <div className={`flex-1 min-w-0 flex flex-col ${isDarkTheme ? 'bg-slate-900 text-slate-100' : 'bg-white text-gray-900'}`}>
           <CodeEditor
-            problemId={problemId}
+            problemId={problem?.id}
             samples={problem.samples}
             onExecute={handleExecute}
             onSubmit={handleSubmit}

@@ -798,13 +798,16 @@ const [problemStatusFilter, setProblemStatusFilter] = useState<'all' | ProblemSt
         <ContestProblemList
           problems={processedContestProblems}
           onProblemClick={(problem) => {
-            const displayId = problem.displayId ?? problem.id;
+            const displayId = problem.displayId ?? (problem as any)._id ?? problem.id;
             const query = new URLSearchParams();
             query.set('contestId', String(contestId));
             if (displayId != null) {
               query.set('displayId', String(displayId));
             }
-            navigate(`/problems/${problem.id}?${query.toString()}`);
+            const externalId = String(problem._id ?? problem.displayId ?? problem.id ?? '').trim();
+            if (externalId) {
+              navigate(`/problems/${encodeURIComponent(externalId)}?${query.toString()}`);
+            }
           }}
           disabled={contestPhase !== 'running'}
           statusOverrides={myRankProgress}

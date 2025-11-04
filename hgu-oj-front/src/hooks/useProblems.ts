@@ -12,11 +12,23 @@ export const useProblems = (filter: ProblemFilter) => {
 };
 
 // 문제 상세 조회 훅
-export const useProblem = (id: number, options?: { enabled?: boolean }) => {
+export const useProblem = (identifier: string | number | null | undefined, options?: { enabled?: boolean }) => {
+  const key =
+    typeof identifier === 'number'
+      ? identifier
+      : typeof identifier === 'string'
+        ? identifier.trim()
+        : undefined;
+
   return useQuery({
-    queryKey: ['problem', id],
-    queryFn: () => problemService.getProblem(id),
-    enabled: options?.enabled ?? !!id,
+    queryKey: ['problem', key],
+    queryFn: () => {
+      if (!key) {
+        throw new Error('Problem identifier is required');
+      }
+      return problemService.getProblem(key);
+    },
+    enabled: (options?.enabled ?? true) && !!key,
   });
 };
 

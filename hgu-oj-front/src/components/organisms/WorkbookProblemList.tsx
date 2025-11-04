@@ -5,8 +5,8 @@ import { mapDifficulty } from '../../lib/difficulty';
 
 interface WorkbookProblemListProps {
   problems: WorkbookProblem[];
-  onProblemClick?: (problemId: number) => void;
-  onSolve?: (problemId: number) => void;
+  onProblemClick?: (problemKey: string) => void;
+  onSolve?: (problemKey: string) => void;
 }
 
 export const WorkbookProblemList: React.FC<WorkbookProblemListProps> = ({
@@ -63,10 +63,13 @@ export const WorkbookProblemList: React.FC<WorkbookProblemListProps> = ({
           }
 
           const displayOrder = index + 1;
+          const externalId = String(
+            (problem as any)._id ?? problem._id ?? problem.displayId ?? problem.id ?? '',
+          ).trim();
 
           return (
             <div
-              key={item.id ?? `${problem.id}-${index}`}
+              key={item.id ?? `${externalId || problem.id}-${index}`}
               className="px-6 py-4 hover:bg-gray-50 transition-colors"
             >
               <div className="grid grid-cols-12 gap-4 items-center">
@@ -77,7 +80,10 @@ export const WorkbookProblemList: React.FC<WorkbookProblemListProps> = ({
                   <button
                     type="button"
                     className="text-left text-sm font-medium text-blue-600 hover:underline"
-                    onClick={() => onProblemClick?.(problem.id)}
+                    onClick={() => {
+                      if (!externalId) return;
+                      onProblemClick?.(externalId);
+                    }}
                   >
                     {problem.title}
                   </button>
@@ -98,7 +104,10 @@ export const WorkbookProblemList: React.FC<WorkbookProblemListProps> = ({
                     variant="primary"
                     size="sm"
                     className="px-4"
-                    onClick={() => onSolve?.(problem.id)}
+                    onClick={() => {
+                      if (!externalId) return;
+                      onSolve?.(externalId);
+                    }}
                   >
                     풀기
                   </Button>
