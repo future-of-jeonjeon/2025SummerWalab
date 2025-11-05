@@ -101,7 +101,6 @@ export const WorkbookListPage: React.FC = () => {
           isLoading={isLoading}
           error={error}
           searchQuery={searchQuery}
-          onSearchChange={handleSearchChange}
           onWorkbookClick={handleWorkbookClick}
           onPageChange={handlePageChange}
           currentPage={1}

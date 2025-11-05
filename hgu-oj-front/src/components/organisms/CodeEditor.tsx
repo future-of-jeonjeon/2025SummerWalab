@@ -717,7 +717,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
                         title="샘플 입력 적용"
                       >
                         <option value="" disabled>샘플</option>
-                        {samples.map((s, i) => (
+                        {samples.map((_, i) => (
                           <option key={i} value={i}>예제 {i + 1}</option>
                         ))}
                       </select>

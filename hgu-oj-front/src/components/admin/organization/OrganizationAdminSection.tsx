@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Card } from '../../atoms/Card';
 import { Button } from '../../atoms/Button';
 import { Input } from '../../atoms/Input';
@@ -7,7 +7,7 @@ import { OrganizationForm, OrganizationFormValues } from './OrganizationForm';
 import { OrganizationMemberManager } from './OrganizationMemberManager';
 import { organizationService } from '../../../services/organizationService';
 import { adminService } from '../../../services/adminService';
-import { Organization } from '../../../types';
+import { Organization, OrganizationListResponse } from '../../../types';
 
 const PAGE_SIZE = 20;
 
@@ -42,10 +42,10 @@ export const OrganizationAdminSection: React.FC = () => {
     isFetching: isListFetching,
     error: listError,
     refetch: refetchList,
-  } = useQuery({
+  } = useQuery<OrganizationListResponse, Error>({
     queryKey: ['admin', 'organizations', { page }],
     queryFn: ({ signal }) => organizationService.list({ page, size: PAGE_SIZE }, { signal }),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   const organizations = useFilteredOrganizations(listData?.items ?? [], search);
@@ -64,13 +64,13 @@ export const OrganizationAdminSection: React.FC = () => {
     data: selectedOrganization,
     isLoading: isDetailLoading,
     error: detailError,
-  } = useQuery({
+  } = useQuery<Organization, Error>({
     queryKey: ['admin', 'organizations', 'detail', selectedId],
     enabled: selectedId !== null,
     queryFn: ({ signal }) => organizationService.get(selectedId!, { signal }),
   });
 
-  const createMutation = useMutation({
+  const createMutation = useMutation<Organization, Error, OrganizationFormValues>({
     mutationFn: (values: OrganizationFormValues) => organizationService.create(values),
     onSuccess: (organization: Organization) => {
       setFeedbackMessage('조직이 생성되었습니다.');
@@ -85,7 +85,7 @@ export const OrganizationAdminSection: React.FC = () => {
     },
   });
 
-  const updateMutation = useMutation({
+  const updateMutation = useMutation<Organization, Error, OrganizationFormValues>({
     mutationFn: (values: OrganizationFormValues) =>
       organizationService.update(selectedId!, values),
     onSuccess: (organization: Organization) => {
@@ -99,7 +99,7 @@ export const OrganizationAdminSection: React.FC = () => {
     },
   });
 
-  const deleteMutation = useMutation({
+  const deleteMutation = useMutation<void, Error, number>({
     mutationFn: (organizationId: number) => organizationService.remove(organizationId),
     onSuccess: () => {
       setFeedbackMessage('조직이 삭제되었습니다.');
@@ -108,7 +108,7 @@ export const OrganizationAdminSection: React.FC = () => {
     },
   });
 
-  const addMemberMutation = useMutation({
+  const addMemberMutation = useMutation<Organization, Error, number>({
     mutationFn: (userId: number) => organizationService.addMember(selectedId!, userId),
     onSuccess: (organization: Organization) => {
       setFeedbackMessage('구성원이 추가되었습니다.');
@@ -121,7 +121,7 @@ export const OrganizationAdminSection: React.FC = () => {
     },
   });
 
-  const removeMemberMutation = useMutation({
+  const removeMemberMutation = useMutation<Organization, Error, number>({
     mutationFn: (userId: number) => organizationService.removeMember(selectedId!, userId),
     onSuccess: (organization: Organization) => {
       setFeedbackMessage('구성원 정보가 업데이트되었습니다.');
@@ -160,12 +160,9 @@ export const OrganizationAdminSection: React.FC = () => {
     if (!listData) {
       return 1;
     }
-    const pageSize = listData.size || PAGE_SIZE;
-    const total = listData.total || listData.items.length;
-    if (pageSize <= 0) {
-      return 1;
-    }
-    return Math.max(1, Math.ceil(total / pageSize));
+    const pageSize = listData.size > 0 ? listData.size : PAGE_SIZE;
+    const total = typeof listData.total === 'number' ? listData.total : listData.items?.length ?? 0;
+    return pageSize > 0 ? Math.max(1, Math.ceil(total / pageSize)) : 1;
   }, [listData]);
 
   const canGoPrev = page > 1;
@@ -354,8 +351,12 @@ export const OrganizationAdminSection: React.FC = () => {
                 <OrganizationMemberManager
                   members={selectedOrganization.members}
                   onSearchUsers={handleUserSearch}
-                  onAddMember={(userId) => addMemberMutation.mutateAsync(userId)}
-                  onRemoveMember={(userId) => removeMemberMutation.mutateAsync(userId)}
+                  onAddMember={async (userId) => {
+                    await addMemberMutation.mutateAsync(userId);
+                  }}
+                  onRemoveMember={async (userId) => {
+                    await removeMemberMutation.mutateAsync(userId);
+                  }}
                 />
               </Card>
             </>

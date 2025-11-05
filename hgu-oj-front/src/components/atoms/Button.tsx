@@ -1,24 +1,23 @@
 import React from 'react';
 import { BaseComponentProps } from '../../types';
 
-interface ButtonProps extends BaseComponentProps {
+type NativeButtonProps = Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'className'>;
+
+interface ButtonProps extends BaseComponentProps, NativeButtonProps {
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
   size?: 'sm' | 'md' | 'lg';
-  disabled?: boolean;
   loading?: boolean;
-  onClick?: (e?: React.MouseEvent<HTMLButtonElement>) => void;
-  type?: 'button' | 'submit' | 'reset';
 }
 
 export const Button: React.FC<ButtonProps> = ({
   children,
   variant = 'primary',
   size = 'md',
-  disabled = false,
+  disabled,
   loading = false,
-  onClick,
   type = 'button',
   className = '',
+  ...rest
 }) => {
   const baseClasses = 'inline-flex items-center justify-center font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-950 disabled:opacity-50 disabled:cursor-not-allowed';
 
@@ -36,13 +35,14 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   const classes = `${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`;
+  const isDisabled = Boolean(disabled || loading);
 
   return (
     <button
       type={type}
       className={classes}
-      disabled={disabled || loading}
-      onClick={onClick}
+      disabled={isDisabled}
+      {...rest}
     >
       {loading && (
         <svg className="animate-spin -ml-1 mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24">

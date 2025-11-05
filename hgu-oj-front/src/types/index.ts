@@ -41,6 +41,8 @@ export interface Problem {
   acceptedNumber?: number;
   ruleType?: string;
   totalScore?: number;
+  visible?: boolean;
+  isPublic?: boolean;
 }
 
 // 제출 관련 타입

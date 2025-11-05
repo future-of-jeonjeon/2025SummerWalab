@@ -1,7 +1,6 @@
 import { api } from './api';
 import { LoginForm, LoginResponse, UserProfile } from '../types';
 
-const API_BASE_URL = ((import.meta.env.VITE_API_URL as string | undefined) || '').replace(/\/$/, '');
 const MS_API_BASE = ((import.meta.env.VITE_MS_API_BASE as string | undefined) || '').replace(/\/$/, '');
 
 export const authService = {
