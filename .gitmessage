@@ -1,0 +1,14 @@
+# Example git log
+# Date:   Thu Sep 18 00:59:47 2025 +0900
+#     feat: 제출 조건 추가 (#26)
+
+# Write commit titles in the following format so git log stays consistent:
+# feat: 제출 조건 추가 (#26)
+<type>: <summary> (#<issue-number>)
+
+# Provide additional context when needed (wrap at ~72 chars):
+# - what and why of the change
+# - follow-up tasks
+
+# Tests: describe how you verified the change
+# Tests: e.g. yarn test ProblemDetailPage

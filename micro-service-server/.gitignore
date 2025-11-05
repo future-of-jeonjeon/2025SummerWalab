@@ -1,0 +1,96 @@
+
+
+# ------------------------------
+# OS: macOS
+# ------------------------------
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+.fseventsd
+Icon?
+
+# ------------------------------
+# Python / FastAPI
+# ------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Packaging / build
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# Tooling caches
+.mypy_cache/
+.pytest_cache/
+.coverage
+.coverage.*
+.cache/
+.tox/
+.nox/
+.pyre/
+.pytype/
+.ruff_cache/
+coverage.xml
+htmlcov/
+
+# Environment files & local secrets
+.env
+.env.*
+!.env.example
+*.local
+*.secret
+
+# Logs & runtime artifacts
+*.log
+*.pid
+*.pid.lock
+uvicorn.log
+
+# Type checkers / linters / formatters
+.pyright/
+.pdm.toml
+pip-wheel-metadata/
+
+# Editors: VS Code
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# Editors: JetBrains / PyCharm
+.idea
+.idea/*
+!.idea/runConfigurations/
+!.idea/inspectionProfiles/
+!.idea/codeStyles/
+*.iml
+
+# Misc
+*.swp
+*.swo
+*.orig
+*.bak
+
+# Node (if you have a simple frontend in the FastAPI project)
+node_modules/
+*.tsbuildinfo
+
+# Docker (optional local-only files)
+*.env.docker.local
+
+# End of file

@@ -3,6 +3,11 @@ from datetime import timedelta
 from importlib import import_module
 
 import qrcode
+
+from google.oauth2 import id_token
+from google.auth.transport import requests
+
+import requests as external_requests
 from django.conf import settings
 from django.contrib import auth
 from django.template.loader import render_to_string
@@ -152,7 +157,7 @@ class CheckTFARequiredAPI(APIView):
         return self.success({"result": result})
 
 
-class UserLoginAPI(APIView):
+class UserLoginAPI(CSRFExemptAPIView):
     @validate_serializer(UserLoginSerializer)
     def post(self, request):
         """
@@ -206,7 +211,7 @@ class UsernameOrEmailCheck(APIView):
         return self.success(result)
 
 
-class UserRegisterAPI(APIView):
+class UserRegisterAPI(CSRFExemptAPIView):
     @validate_serializer(UserRegisterSerializer)
     def post(self, request):
         """
@@ -230,6 +235,71 @@ class UserRegisterAPI(APIView):
         user.save()
         UserProfile.objects.create(user=user)
         return self.success("Succeeded")
+
+
+from django.conf import settings
+
+class GoogleOAuthCallbackAPI(APIView):
+    def get(self, request):
+        code = request.GET.get("code")
+        if not code:
+            return self.error("Authorization code is missing")
+        client_id = settings.GOOGLE_CLIENT_ID
+        client_secret = settings.GOOGLE_CLIENT_SECRET
+        redirect_uri = settings.GOOGLE_REDIRECT_URI
+        token_url = "https://oauth2.googleapis.com/token"
+        token_data = {
+            "code": code,
+            "client_id": client_id,
+            "client_secret": client_secret,
+            "redirect_uri": redirect_uri,
+            "grant_type": "authorization_code"
+        }
+
+        #requset token to google
+        token_res = external_requests.post(token_url, data=token_data)
+        if token_res.status_code != 200:
+            return self.error("Failed to retrieve token")
+
+        # parse token
+        token_json = token_res.json()
+        id_token_value = token_json.get("id_token")
+        if not id_token_value:
+            return self.error("ID token not found")
+
+        try:
+            # parse user info
+            idinfo = id_token.verify_oauth2_token(id_token_value, requests.Request(), client_id)
+            email = idinfo.get("email")
+            name = idinfo.get("name")
+
+            if not email:
+                return self.error("Email not found in token")
+
+            email = email.lower()
+            name = name.lower()
+
+            # check user exist
+            user = User.objects.filter(email=email).first()
+            created = False
+
+            # register
+            if not user:
+                if User.objects.filter(username=name).exists():
+                    name = name + "_" + rand_str(4)
+                # create user and user profile
+                user = User.objects.create(username=name, email=email)
+                UserProfile.objects.create(user=user)
+                created = True
+
+            # create session
+            auth.login(request, user)
+            return self.success({
+                "username": user.username,
+                "created": created
+            })
+        except ValueError:
+            return self.error("Invalid ID token")
 
 
 class UserChangeEmailAPI(APIView):
@@ -433,4 +503,5 @@ class SSOAPI(CSRFExemptAPIView):
             user = User.objects.get(auth_token=request.data["token"])
         except User.DoesNotExist:
             return self.error("User does not exist")
-        return self.success({"username": user.username, "avatar": user.userprofile.avatar, "admin_type": user.admin_type})
+        return self.success(
+            {"username": user.username, "avatar": user.userprofile.avatar, "admin_type": user.admin_type})

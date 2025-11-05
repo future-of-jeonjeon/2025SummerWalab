@@ -102,7 +102,9 @@ devMiddleware.waitUntilValid(() => {
     if (autoOpenBrowser && process.env.NODE_ENV !== 'testing') {
       opn(uri)
     }
-    server = app.listen(port)
+    // Docker 환경을 위한 호스트 바인딩
+    const host = process.env.HOST || '0.0.0.0'
+    server = app.listen(port, host)
     _resolve()
   })
 })
