@@ -8,7 +8,6 @@ interface WorkbookListProps {
   isLoading: boolean;
   error: Error | null;
   searchQuery: string;
-  onSearchChange: (query: string) => void;
   onWorkbookClick: (workbookId: number) => void;
   onPageChange: (page: number) => void;
   currentPage: number;
@@ -20,7 +19,6 @@ export const WorkbookList: React.FC<WorkbookListProps> = ({
   isLoading,
   error,
   searchQuery,
-  onSearchChange,
   onWorkbookClick,
   onPageChange,
   currentPage,

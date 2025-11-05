@@ -9,7 +9,6 @@ import { resolveProblemStatus } from '../utils/problemStatus';
 import { useAuthStore } from '../stores/authStore';
 import { PROBLEM_STATUS_LABELS } from '../constants/problemStatus';
 import { TagFilterBar } from '../components/problems/TagFilterBar';
-import { extractProblemTags } from '../utils/problemTags';
 import { getTagColor } from '../utils/tagColor';
 import { problemService } from '../services/problemService';
 

@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { rankingService } from '../services/rankingService';
 import {
   OrganizationRankingEntry,
+  PaginatedResponse,
   UserRankingEntry,
 } from '../types';
 import { RankingSection } from '../components/ranking/RankingSection';
@@ -162,28 +163,28 @@ export const RankingPage: React.FC = () => {
     data,
     isLoading,
     error,
-  } = useQuery({
+  } = useQuery<PaginatedResponse<UserRankingEntry>, Error>({
     queryKey: ['ranking', 'user', 'ACM', page, USER_RANKING_PAGE_SIZE],
     queryFn: ({ signal }) =>
       rankingService.getUserRankings(
         { page, limit: USER_RANKING_PAGE_SIZE, rule: 'ACM' },
         { signal },
       ),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   const {
     data: organizationData,
     isLoading: isOrganizationLoading,
     error: organizationError,
-  } = useQuery({
+  } = useQuery<PaginatedResponse<OrganizationRankingEntry>, Error>({
     queryKey: ['ranking', 'organization', organizationPage, ORGANIZATION_RANKING_PAGE_SIZE],
     queryFn: ({ signal }) =>
       rankingService.getOrganizationRankings(
         { page: organizationPage, limit: ORGANIZATION_RANKING_PAGE_SIZE },
         { signal },
       ),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   const userColumns = useMemo(() => buildUserColumns(), []);

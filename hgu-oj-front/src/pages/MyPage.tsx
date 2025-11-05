@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { Link, Navigate } from 'react-router-dom';
 import { Card } from '../components/atoms/Card';
 import { Button } from '../components/atoms/Button';
@@ -44,20 +44,20 @@ export const MyPage: React.FC = () => {
     data: solvedResponse,
     isLoading: solvedLoading,
     error: solvedError,
-  } = useQuery<{ items: MySolvedProblem[]; total: number }>({
+  } = useQuery<{ items: MySolvedProblem[]; total: number }, Error>({
     queryKey: ['mypage', 'solved', solvedPage, PAGE_SIZE],
     queryFn: () => myPageService.getSolvedProblems({ page: solvedPage, pageSize: PAGE_SIZE }),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   const {
     data: wrongResponse,
     isLoading: wrongLoading,
     error: wrongError,
-  } = useQuery<{ items: MyWrongProblem[]; total: number }>({
+  } = useQuery<{ items: MyWrongProblem[]; total: number }, Error>({
     queryKey: ['mypage', 'wrong', wrongPage, PAGE_SIZE],
     queryFn: () => myPageService.getWrongProblems({ page: wrongPage, pageSize: PAGE_SIZE }),
-    keepPreviousData: true,
+    placeholderData: keepPreviousData,
   });
 
   const {

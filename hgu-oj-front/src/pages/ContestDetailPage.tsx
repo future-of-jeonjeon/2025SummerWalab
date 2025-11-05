@@ -270,6 +270,14 @@ const [problemStatusFilter, setProblemStatusFilter] = useState<'all' | ProblemSt
   const [submissionModalError, setSubmissionModalError] = useState<string | null>(null);
   const [selectedSubmissionDetail, setSelectedSubmissionDetail] = useState<SubmissionDetail | null>(null);
 
+  const selectedSubmissionCreatedAt = useMemo(() => {
+    if (!selectedSubmissionDetail) {
+      return '-';
+    }
+    const raw = selectedSubmissionDetail.create_time ?? selectedSubmissionDetail.createTime;
+    return typeof raw === 'string' ? formatDateTime(raw) : '-';
+  }, [selectedSubmissionDetail]);
+
   const closeSubmissionModal = useCallback(() => {
     setSubmissionModalOpen(false);
     setSubmissionModalLoading(false);
@@ -659,11 +667,11 @@ const [problemStatusFilter, setProblemStatusFilter] = useState<'all' | ProblemSt
                 }}
                 className="w-full sm:w-64 rounded-lg border border-blue-200 bg-white px-4 py-2 text-blue-900 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300 dark:border-blue-400/60 dark:bg-slate-900 dark:text-blue-100"
                 placeholder="비밀번호"
-                disabled={passwordMutation.isLoading}
+                disabled={passwordMutation.isPending}
               />
               <Button
                 type="submit"
-                loading={passwordMutation.isLoading}
+                loading={passwordMutation.isPending}
               >
                 입장하기
               </Button>
@@ -1110,7 +1118,7 @@ const [problemStatusFilter, setProblemStatusFilter] = useState<'all' | ProblemSt
                     <div><span className="font-semibold">문제 ID:</span> {selectedSubmissionDetail.problem ?? selectedSubmissionDetail.problem_id ?? selectedSubmissionDetail.problemId ?? '-'}</div>
                     <div><span className="font-semibold">결과:</span> {getJudgeResultLabel(selectedSubmissionDetail.result ?? selectedSubmissionDetail.status)}</div>
                     <div><span className="font-semibold">언어:</span> {selectedSubmissionDetail.language ?? selectedSubmissionDetail.language_name ?? '-'}</div>
-                    <div><span className="font-semibold">제출 시각:</span> {selectedSubmissionDetail.create_time ? formatDateTime(selectedSubmissionDetail.create_time) : selectedSubmissionDetail.createTime ? formatDateTime(selectedSubmissionDetail.createTime) : '-'}</div>
+                    <div><span className="font-semibold">제출 시각:</span> {selectedSubmissionCreatedAt}</div>
                   </div>
                   <div>
                     <h4 className="mb-2 font-semibold text-gray-900">소스 코드</h4>

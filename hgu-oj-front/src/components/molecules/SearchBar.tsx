@@ -27,17 +27,6 @@ export const SearchBar: React.FC<SearchBarProps> = ({
     }
   };
 
-  const handleClear = () => {
-    if (onChange) {
-      onChange('');
-    } else {
-      setInternalQuery('');
-    }
-    if (onSearch) {
-      onSearch('');
-    }
-  };
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const newValue = e.target.value;
     if (onChange) {
