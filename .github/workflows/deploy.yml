@@ -17,15 +17,17 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: '20.19.0'
 
       - name: Build front page
         run: |
           cd ./hgu-oj-front
-          echo "VITE_API_URL=${{ vars.VITE_API_URL }}" >> .env
-          echo "VITE_MS_API_BASE=${{ vars.VITE_MS_API_BASE }}" >> .env
-          echo "VITE_CODE_AUTO_SAVE_INTERVAL_SECONDS=${{ vars.VITE_CODE_AUTO_SAVE_INTERVAL_SECONDS }}" >> .env
-          echo "VITE_CODE_AUTO_SAVE_CACHE_TTL_SECONDS=${{ vars.VITE_CODE_AUTO_SAVE_CACHE_TTL_SECONDS }}" >> .env
+          cat <<'EOF' > .env
+          VITE_API_URL=${{ vars.VITE_API_URL }}
+          VITE_MS_API_BASE=${{ vars.VITE_MS_API_BASE }}
+          VITE_CODE_AUTO_SAVE_INTERVAL_SECONDS=${{ vars.VITE_CODE_AUTO_SAVE_INTERVAL_SECONDS }}
+          VITE_CODE_AUTO_SAVE_CACHE_TTL_SECONDS=${{ vars.VITE_CODE_AUTO_SAVE_CACHE_TTL_SECONDS }}
+          EOF
           npm ci
           npm install -D @types/node
           npm run build
