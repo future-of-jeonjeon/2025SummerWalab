@@ -133,6 +133,39 @@ export const contestService = {
     }));
   },
 
+  createContestAnnouncement: async (payload: { contestId: number; title: string; content: string; visible: boolean }): Promise<ContestAnnouncement> => {
+    const response = await api.post<ContestAnnouncement>('/admin/contest/announcement', {
+      contest_id: payload.contestId,
+      title: payload.title,
+      content: payload.content,
+      visible: payload.visible,
+    });
+    if (!response.success) {
+      throw new Error(response.message || '공지사항을 추가하지 못했습니다.');
+    }
+    return response.data;
+  },
+
+  updateContestAnnouncement: async (payload: { id: number; title?: string; content?: string; visible?: boolean }): Promise<ContestAnnouncement> => {
+    const response = await api.put<ContestAnnouncement>('/admin/contest/announcement', {
+      id: payload.id,
+      title: payload.title,
+      content: payload.content,
+      visible: payload.visible,
+    });
+    if (!response.success) {
+      throw new Error(response.message || '공지사항을 수정하지 못했습니다.');
+    }
+    return response.data;
+  },
+
+  deleteContestAnnouncement: async (id: number): Promise<void> => {
+    const response = await api.delete(`/admin/contest/announcement?id=${id}`);
+    if (!response.success) {
+      throw new Error(response.message || '공지사항을 삭제하지 못했습니다.');
+    }
+  },
+
   getContestProblems: async (contestId: number): Promise<Problem[]> => {
     const response = await api.get<any[]>('/contest/problem', { contest_id: contestId });
     if (!response.success) {

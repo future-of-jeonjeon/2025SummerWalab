@@ -212,7 +212,7 @@ export interface ProblemFilter {
   page?: number;
   limit?: number;
   searchField?: 'title' | 'tag' | 'number';
-  sortField?: 'number' | 'submission' | 'accuracy';
+  sortField?: 'title' | 'number' | 'submission' | 'accuracy';
   sortOrder?: 'asc' | 'desc';
   statusFilter?: 'all' | 'solved' | 'wrong' | 'untouched';
   tags?: string[];

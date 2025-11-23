@@ -21,9 +21,10 @@ interface ProblemListProps {
   showStats?: boolean;
   showStatus?: boolean;
   showOriginalId?: boolean;
-  onSortChange?: (field: 'number' | 'submission' | 'accuracy') => void;
-  sortField?: 'number' | 'submission' | 'accuracy';
+  onSortChange?: (field: 'number' | 'title' | 'submission' | 'accuracy') => void;
+  sortField?: 'number' | 'title' | 'submission' | 'accuracy';
   sortOrder?: 'asc' | 'desc';
+  primarySortField?: 'number' | 'title';
 }
 
 export const ProblemList: React.FC<ProblemListProps> = ({
@@ -42,10 +43,11 @@ export const ProblemList: React.FC<ProblemListProps> = ({
   onSortChange,
   sortField,
   sortOrder,
+  primarySortField = 'number',
 }) => {
   const renderSortableHeader = (
     label: string,
-    field: 'number' | 'submission' | 'accuracy',
+    field: 'number' | 'title' | 'submission' | 'accuracy',
     align: 'left' | 'center' | 'right' = 'center'
   ) => {
     if (!onSortChange) {
@@ -223,12 +225,25 @@ export const ProblemList: React.FC<ProblemListProps> = ({
         <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
           {showStats ? (
             <div className="grid grid-cols-[120px_minmax(0,1fr)_220px_110px_120px_120px] items-center gap-4">
-              <div className="flex h-full items-center justify-center">
-                {renderSortableHeader('번호', 'number')}
-              </div>
-              <div className="flex h-full items-center text-left text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
-                제목
-              </div>
+              {primarySortField === 'title' ? (
+                <>
+                  <div className="flex h-full items-center justify-center text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                    번호
+                  </div>
+                  <div className="flex h-full items-center">
+                    {renderSortableHeader('제목', 'title', 'left')}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex h-full items-center justify-center">
+                    {renderSortableHeader('번호', 'number')}
+                  </div>
+                  <div className="flex h-full items-center text-left text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                    제목
+                  </div>
+                </>
+              )}
               <div className="flex h-full items-center justify-end text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
                 태그
               </div>
@@ -244,12 +259,25 @@ export const ProblemList: React.FC<ProblemListProps> = ({
             </div>
           ) : (
             <div className="grid grid-cols-[150px_minmax(0,1fr)_220px_110px] items-center gap-4">
-              <div className="flex h-full items-center justify-center">
-                {renderSortableHeader('번호', 'number')}
-              </div>
-              <div className="flex h-full items-center text-left text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
-                제목
-              </div>
+              {primarySortField === 'title' ? (
+                <>
+                  <div className="flex h-full items-center justify-center text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                    번호
+                  </div>
+                  <div className="flex h-full items-center">
+                    {renderSortableHeader('제목', 'title', 'left')}
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="flex h-full items-center justify-center">
+                    {renderSortableHeader('번호', 'number')}
+                  </div>
+                  <div className="flex h-full items-center text-left text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                    제목
+                  </div>
+                </>
+              )}
               <div className="flex h-full items-center justify-end text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
                 태그
               </div>
@@ -357,24 +385,42 @@ export const ProblemList: React.FC<ProblemListProps> = ({
       {totalPages > 1 && onPageChange && (
         <div className="flex justify-center items-center space-x-2 mt-8">
           <Button
+            onClick={() => onPageChange(1)}
+            disabled={currentPage <= 1}
+            className="px-4 py-2 rounded-lg text-white bg-slate-500 hover:bg-slate-600 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            처음
+          </Button>
+          <Button
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage <= 1}
-            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-gray-900"
+            className="px-4 py-2 rounded-lg text-white bg-slate-500 hover:bg-slate-600 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             이전
           </Button>
           
           <div className="flex space-x-1">
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-              const page = i + 1;
+            {(() => {
+              const windowSize = Math.min(5, totalPages);
+              const halfWindow = Math.floor(windowSize / 2);
+              let start = currentPage - halfWindow;
+              if (start < 1) {
+                start = 1;
+              }
+              const end = Math.min(totalPages, start + windowSize - 1);
+              if (end - start + 1 < windowSize) {
+                start = Math.max(1, end - windowSize + 1);
+              }
+              return Array.from({ length: end - start + 1 }, (_, idx) => start + idx);
+            })().map((page) => {
               return (
                 <Button
                   key={page}
                   onClick={() => onPageChange(page)}
-                  className={`px-3 py-2 rounded-lg ${
+                  className={`px-3 py-2 rounded-lg font-semibold ${
                     currentPage === page
                       ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 hover:bg-gray-300 text-gray-900'
+                      : 'bg-slate-300 border border-slate-400 text-slate-800 hover:border-blue-500'
                   }`}
                 >
                   {page}
@@ -386,9 +432,16 @@ export const ProblemList: React.FC<ProblemListProps> = ({
           <Button
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage >= totalPages}
-            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg text-gray-900"
+            className="px-4 py-2 rounded-lg text-white bg-slate-500 hover:bg-slate-600 disabled:opacity-60 disabled:cursor-not-allowed"
           >
             다음
+          </Button>
+          <Button
+            onClick={() => onPageChange(totalPages)}
+            disabled={currentPage >= totalPages}
+            className="px-4 py-2 rounded-lg text-white bg-slate-500 hover:bg-slate-600 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            마지막
           </Button>
         </div>
       )}

@@ -160,7 +160,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
             page: 1,
             limit: 20,
             searchField: 'title',
-            sortField: 'number',
+            sortField: 'title',
             sortOrder: 'asc',
             statusFilter: 'all',
           });

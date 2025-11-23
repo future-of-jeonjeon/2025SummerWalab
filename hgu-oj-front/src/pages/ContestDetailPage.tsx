@@ -69,7 +69,14 @@ export const ContestDetailPage: React.FC = () => {
   );
 
   const { user: authUser } = useAuthStore();
+  const isRootUser = useMemo(() => authUser?.username?.toLowerCase() === 'root', [authUser?.username]);
+  const normalizedAdminType = useMemo(() => (authUser?.admin_type ?? '').toLowerCase().replace(/[_-]+/g, ' '), [authUser?.admin_type]);
+  const isSuperAdmin = useMemo(() => normalizedAdminType.includes('super admin'), [normalizedAdminType]);
+  const hasPrivilegedAccess = isRootUser || isSuperAdmin;
   const isAdminUser = useMemo(() => authUser?.admin_type?.includes('Admin') ?? false, [authUser?.admin_type]);
+  const contestOwnerId = contest?.createdBy?.id ?? (contest as any)?.created_by_id ?? null;
+  const isContestOwner = Boolean(authUser?.id && contestOwnerId && authUser.id === contestOwnerId);
+  const canManageAnnouncements = hasPrivilegedAccess || isContestOwner;
 
   const tabs = useMemo(() => {
     const list = [...baseTabs];
@@ -81,6 +88,8 @@ export const ContestDetailPage: React.FC = () => {
 
   const [contestPhase, setContestPhase] = useState<'before' | 'running' | 'after'>('before');
   const [serverClock, setServerClock] = useState('--:--:--');
+  const isContestRunning = contestPhase === 'running';
+  const contestLockedForUser = !hasPrivilegedAccess && !isContestRunning;
 
   const {
     data: accessData,
@@ -97,7 +106,14 @@ export const ContestDetailPage: React.FC = () => {
   const [problemSearchField, setProblemSearchField] = useState<'title' | 'tag' | 'number'>('title');
   const [problemSortField, setProblemSortField] = useState<'number' | 'submission' | 'accuracy'>('number');
   const [problemSortOrder, setProblemSortOrder] = useState<'asc' | 'desc'>('asc');
-const [problemStatusFilter, setProblemStatusFilter] = useState<'all' | ProblemStatusKey>('all');
+  const [problemStatusFilter, setProblemStatusFilter] = useState<'all' | ProblemStatusKey>('all');
+  const [announcementForm, setAnnouncementForm] = useState<{ id: number | null; title: string; content: string; visible: boolean }>({
+    id: null,
+    title: '',
+    content: '',
+    visible: true,
+  });
+  const [announcementFormError, setAnnouncementFormError] = useState<string | null>(null);
 
   const offsetRef = useRef(0);
   const intervalRef = useRef<number | null>(null);
@@ -106,7 +122,7 @@ const [problemStatusFilter, setProblemStatusFilter] = useState<'all' | ProblemSt
   const startTimeMs = useMemo(() => (contest?.startTime ? new Date(contest.startTime).getTime() : Number.NaN), [contest?.startTime]);
   const endTimeMs = useMemo(() => (contest?.endTime ? new Date(contest.endTime).getTime() : Number.NaN), [contest?.endTime]);
 
-  const canViewProtectedContent = hasAccess && contestPhase !== 'before';
+  const canViewProtectedContent = (hasAccess || hasPrivilegedAccess) && (hasPrivilegedAccess || contestPhase !== 'before');
 
   useEffect(() => {
     const queryTab = parseTabFromSearch(location.search, tabs);
@@ -120,6 +136,13 @@ const [problemStatusFilter, setProblemStatusFilter] = useState<'all' | ProblemSt
       setHasAccess(true);
     }
   }, [contest, requiresPassword]);
+
+  useEffect(() => {
+    if (hasPrivilegedAccess) {
+      setHasAccess(true);
+      setPasswordError(null);
+    }
+  }, [hasPrivilegedAccess]);
 
   useEffect(() => {
     if (accessData?.access) {
@@ -197,12 +220,13 @@ const [problemStatusFilter, setProblemStatusFilter] = useState<'all' | ProblemSt
     };
   }, [startTimeMs, endTimeMs]);
 
+  const canFetchAnnouncements = canViewProtectedContent || canManageAnnouncements;
   const {
     data: announcements = [] as ContestAnnouncement[],
     isLoading: announcementsLoading,
     error: announcementsError,
     refetch: refetchAnnouncements,
-  } = useContestAnnouncements(contestId, canViewProtectedContent);
+  } = useContestAnnouncements(contestId, canFetchAnnouncements);
 
   const {
     data: problems = [] as Problem[],
@@ -265,6 +289,52 @@ const [problemStatusFilter, setProblemStatusFilter] = useState<'all' | ProblemSt
     return Array.from(map.values()).sort((a, b) => a.userId - b.userId);
   }, [contestSubmissions]);
 
+  const resetAnnouncementForm = () => {
+    setAnnouncementForm({ id: null, title: '', content: '', visible: true });
+    setAnnouncementFormError(null);
+  };
+
+  const createAnnouncementMutation = useMutation({
+    mutationFn: (payload: { title: string; content: string; visible: boolean }) => {
+      if (!contestId) {
+        return Promise.reject(new Error('유효하지 않은 대회입니다.'));
+      }
+      return contestService.createContestAnnouncement({ contestId, ...payload });
+    },
+    onSuccess: () => {
+      resetAnnouncementForm();
+      refetchAnnouncements();
+    },
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : '공지 저장에 실패했습니다.';
+      setAnnouncementFormError(message);
+    },
+  });
+
+  const updateAnnouncementMutation = useMutation({
+    mutationFn: (payload: { id: number; title: string; content: string; visible: boolean }) =>
+      contestService.updateContestAnnouncement(payload),
+    onSuccess: () => {
+      resetAnnouncementForm();
+      refetchAnnouncements();
+    },
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : '공지 수정에 실패했습니다.';
+      setAnnouncementFormError(message);
+    },
+  });
+
+  const deleteAnnouncementMutation = useMutation({
+    mutationFn: (announcementId: number) => contestService.deleteContestAnnouncement(announcementId),
+    onSuccess: () => {
+      refetchAnnouncements();
+    },
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : '공지 삭제에 실패했습니다.';
+      setAnnouncementFormError(message);
+    },
+  });
+
   const [isSubmissionModalOpen, setSubmissionModalOpen] = useState(false);
   const [submissionModalLoading, setSubmissionModalLoading] = useState(false);
   const [submissionModalError, setSubmissionModalError] = useState<string | null>(null);
@@ -297,6 +367,39 @@ const [problemStatusFilter, setProblemStatusFilter] = useState<'all' | ProblemSt
   const handleContestProblemSearchFieldChange = (value: string) => {
     const nextField = (value || 'title') as typeof problemSearchField;
     setProblemSearchField(nextField);
+  };
+
+  const handleAnnouncementEdit = (announcement: ContestAnnouncement) => {
+    setAnnouncementForm({
+      id: announcement.id,
+      title: announcement.title,
+      content: announcement.content,
+      visible: Boolean(announcement.visible),
+    });
+    setAnnouncementFormError(null);
+  };
+
+  const handleAnnouncementDelete = (announcementId: number) => {
+    if (!window.confirm('이 공지를 삭제하시겠습니까?')) {
+      return;
+    }
+    deleteAnnouncementMutation.mutate(announcementId);
+  };
+
+  const handleAnnouncementFormSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const title = announcementForm.title.trim();
+    const content = announcementForm.content.trim();
+    if (!title || !content) {
+      setAnnouncementFormError('제목과 내용을 모두 입력해주세요.');
+      return;
+    }
+    const visible = announcementForm.visible;
+    if (announcementForm.id) {
+      updateAnnouncementMutation.mutate({ id: announcementForm.id, title, content, visible });
+    } else {
+      createAnnouncementMutation.mutate({ title, content, visible });
+    }
   };
 
   const handleContestProblemSortToggle = (field: 'number' | 'submission' | 'accuracy') => {
@@ -542,7 +645,10 @@ const [problemStatusFilter, setProblemStatusFilter] = useState<'all' | ProblemSt
     if (!tabConfig?.requiresAccess) {
       return false;
     }
-    if (contestPhase !== 'running') {
+    if (hasPrivilegedAccess) {
+      return false;
+    }
+    if (!isContestRunning) {
       return true;
     }
     return !hasAccess;
@@ -688,11 +794,12 @@ const [problemStatusFilter, setProblemStatusFilter] = useState<'all' | ProblemSt
   };
 
   const renderAnnouncements = () => {
-    if (contestPhase !== 'running') {
+    const canViewAnnouncements = canManageAnnouncements || !contestLockedForUser;
+    if (!canViewAnnouncements) {
       return <div className="text-sm text-gray-600">대회 진행 중에만 공지를 확인할 수 있습니다.</div>;
     }
 
-    if (!hasAccess) {
+    if (!hasAccess && !canManageAnnouncements && !hasPrivilegedAccess) {
       return <div className="text-sm text-gray-600">비밀번호 인증 후 공지를 확인할 수 있습니다.</div>;
     }
 
@@ -708,33 +815,104 @@ const [problemStatusFilter, setProblemStatusFilter] = useState<'all' | ProblemSt
       return <div className="text-sm text-red-600">공지사항을 불러오는 중 오류가 발생했습니다.</div>;
     }
 
-    if (!announcements.length) {
-      return (
-        <div className="flex min-h-[120px] items-center justify-center py-6 text-center text-base text-gray-500">
-          등록된 공지가 없습니다.
-        </div>
-      );
-    }
+    const isEditingAnnouncement = Boolean(announcementForm.id);
+    const isSavingAnnouncement = createAnnouncementMutation.isPending || updateAnnouncementMutation.isPending;
+    const deletingAnnouncementId = deleteAnnouncementMutation.variables as number | undefined;
 
     return (
       <div className="space-y-4">
-        {announcements.map((announcement) => (
-          <Card key={announcement.id} className="p-5">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-lg font-semibold text-gray-800">{announcement.title}</h3>
-              <span className="text-xs text-gray-500">{formatDateTime(announcement.createdAt)}</span>
-            </div>
-            <div className="prose prose-sm max-w-none text-gray-700">
-              <div dangerouslySetInnerHTML={{ __html: announcement.content }} />
-            </div>
+        {canManageAnnouncements && (
+          <Card className="border border-blue-200/70 bg-blue-50/70 p-5 dark:border-blue-400/40 dark:bg-blue-900/20 dark:text-blue-100">
+            <h3 className="text-lg font-semibold text-blue-800 dark:text-blue-100 mb-3">
+              {isEditingAnnouncement ? '공지 수정' : '새 공지 작성'}
+            </h3>
+            <form className="space-y-3" onSubmit={handleAnnouncementFormSubmit}>
+              <input
+                type="text"
+                value={announcementForm.title}
+                onChange={(event) => setAnnouncementForm((prev) => ({ ...prev, title: event.target.value }))}
+                className="w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm text-blue-900 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300 dark:border-blue-400/60 dark:bg-slate-900 dark:text-blue-100"
+                placeholder="공지 제목"
+                disabled={isSavingAnnouncement}
+              />
+              <textarea
+                value={announcementForm.content}
+                onChange={(event) => setAnnouncementForm((prev) => ({ ...prev, content: event.target.value }))}
+                className="min-h-[120px] w-full rounded-lg border border-blue-200 bg-white px-3 py-2 text-sm text-blue-900 focus:border-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-300 dark:border-blue-400/60 dark:bg-slate-900 dark:text-blue-100"
+                placeholder="공지 내용을 입력하세요"
+                disabled={isSavingAnnouncement}
+              />
+              <label className="inline-flex items-center gap-2 text-sm text-blue-800 dark:text-blue-100">
+                <input
+                  type="checkbox"
+                  checked={announcementForm.visible}
+                  onChange={(event) => setAnnouncementForm((prev) => ({ ...prev, visible: event.target.checked }))}
+                  className="h-4 w-4 rounded border-blue-400 text-blue-600 focus:ring-blue-500"
+                  disabled={isSavingAnnouncement}
+                />
+                공개 상태
+              </label>
+              {announcementFormError && (
+                <div className="text-sm text-red-600">{announcementFormError}</div>
+              )}
+              <div className="flex flex-wrap gap-2">
+                <Button type="submit" loading={isSavingAnnouncement}>
+                  {isEditingAnnouncement ? '공지 수정' : '공지 등록'}
+                </Button>
+                {isEditingAnnouncement && (
+                  <Button type="button" variant="ghost" onClick={resetAnnouncementForm} disabled={isSavingAnnouncement}>
+                    취소
+                  </Button>
+                )}
+              </div>
+            </form>
           </Card>
-        ))}
+        )}
+
+        {announcements.length === 0 ? (
+          <div className="flex min-h-[120px] items-center justify-center py-6 text-center text-base text-gray-500">
+            등록된 공지가 없습니다.
+          </div>
+        ) : (
+          announcements.map((announcement) => {
+            const isDeleting = deletingAnnouncementId === announcement.id && deleteAnnouncementMutation.isPending;
+            return (
+              <Card key={announcement.id} className="p-5">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between mb-2">
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-800">{announcement.title}</h3>
+                    <span className="text-xs text-gray-500">{formatDateTime(announcement.createdAt)}</span>
+                  </div>
+                  {canManageAnnouncements && (
+                    <div className="flex gap-2">
+                      <Button variant="outline" size="sm" onClick={() => handleAnnouncementEdit(announcement)}>
+                        수정
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700"
+                        onClick={() => handleAnnouncementDelete(announcement.id)}
+                        disabled={isDeleting}
+                      >
+                        삭제
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                <div className="prose prose-sm max-w-none text-gray-700">
+                  <div dangerouslySetInnerHTML={{ __html: announcement.content }} />
+                </div>
+              </Card>
+            );
+          })
+        )}
       </div>
     );
   };
 
   const renderProblems = () => {
-    if (contestPhase !== 'running') {
+    if (contestLockedForUser) {
       return (
         <div className="text-sm text-gray-600">
           {contestPhase === 'before'
@@ -744,7 +922,7 @@ const [problemStatusFilter, setProblemStatusFilter] = useState<'all' | ProblemSt
       );
     }
 
-    if (!hasAccess) {
+    if (!hasAccess && !hasPrivilegedAccess) {
       return <div className="text-sm text-gray-600">비밀번호 인증 후 문제를 확인할 수 있습니다.</div>;
     }
 
@@ -828,7 +1006,7 @@ const [problemStatusFilter, setProblemStatusFilter] = useState<'all' | ProblemSt
               navigate(`/problems/${encodeURIComponent(externalId)}?${query.toString()}`);
             }
           }}
-          disabled={contestPhase !== 'running'}
+          disabled={contestLockedForUser}
           statusOverrides={myRankProgress}
           onSortChange={handleContestProblemSortToggle}
           sortField={problemSortField}
@@ -867,7 +1045,7 @@ const [problemStatusFilter, setProblemStatusFilter] = useState<'all' | ProblemSt
   }
 
   const renderRank = () => {
-    if (contestPhase !== 'running') {
+    if (contestLockedForUser) {
       return (
         <div className="text-sm text-gray-600">
           {contestPhase === 'before'
@@ -877,7 +1055,7 @@ const [problemStatusFilter, setProblemStatusFilter] = useState<'all' | ProblemSt
       );
     }
 
-    if (!hasAccess) {
+    if (!hasAccess && !hasPrivilegedAccess) {
       return <div className="text-sm text-gray-600">비밀번호 인증 후 랭크를 확인할 수 있습니다.</div>;
     }
 
@@ -988,7 +1166,7 @@ const [problemStatusFilter, setProblemStatusFilter] = useState<'all' | ProblemSt
   return (
     <>
     <div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 py-8">
-      {contestPhase !== 'running' && (
+      {contestLockedForUser && (
         <Card className="mb-6 border border-amber-200 bg-amber-50 px-6 py-4 text-amber-800 dark:border-amber-500/40 dark:bg-amber-900/30 dark:text-amber-100">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
             <span className="font-semibold">

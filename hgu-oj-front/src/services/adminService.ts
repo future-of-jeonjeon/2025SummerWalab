@@ -10,6 +10,7 @@ import {
   JudgeServerListResponse,
   AdminContest,
   AdminContestListResponse,
+  ContestAnnouncement,
 } from '../types';
 
 const parseBoolean = (value: unknown): boolean => {
@@ -235,6 +236,16 @@ export const adminService = {
 
   createContest: async (payload: CreateContestPayload) => {
     const response = await api.post<any>('/admin/contest/', payload);
+    return unwrap(response);
+  },
+
+  createContestAnnouncement: async (payload: { contestId: number; title: string; content: string; visible: boolean }) => {
+    const response = await api.post<ContestAnnouncement>('/admin/contest/announcement/', {
+      contest_id: payload.contestId,
+      title: payload.title,
+      content: payload.content,
+      visible: payload.visible,
+    });
     return unwrap(response);
   },
 

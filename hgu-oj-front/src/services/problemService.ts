@@ -7,6 +7,10 @@ const MS_API_BASE = trimTrailingSlash((import.meta.env.VITE_MS_API_BASE as strin
 const MICRO_PROBLEM_TAG_COUNTS_ENDPOINT = MS_API_BASE
   ? `${MS_API_BASE}/problem/tags/counts`
   : undefined;
+const MICRO_PROBLEM_LIST_ENDPOINT = MS_API_BASE
+  ? `${MS_API_BASE}/problem/list`
+  : undefined;
+const DEFAULT_PAGE_LIMIT = 50;
 
 const normalizeStatusValue = (status: any): string | undefined => {
   if (status === null || status === undefined) return undefined;
@@ -148,85 +152,158 @@ type RequestOptions = {
   signal?: AbortSignal;
 };
 
-export const problemService = {
-  // 문제 목록 조회
-  getProblems: async (filter: ProblemFilter, options?: RequestOptions): Promise<PaginatedResponse<Problem>> => {
-    const limit = filter.limit && filter.limit > 0 ? filter.limit : 50;
-    const page = filter.page && filter.page > 0 ? filter.page : 1;
-    const offset = (page - 1) * limit;
+const fetchOjProblemList = async (
+  filter: ProblemFilter,
+  options?: RequestOptions,
+): Promise<PaginatedResponse<Problem>> => {
+  const limit = filter.limit && filter.limit > 0 ? filter.limit : DEFAULT_PAGE_LIMIT;
+  const page = filter.page && filter.page > 0 ? filter.page : 1;
+  const offset = (page - 1) * limit;
 
-    const params: Record<string, unknown> = {
-      limit,
-      offset,
-    };
+  const params: Record<string, unknown> = {
+    limit,
+    offset,
+  };
 
-    const searchValue = filter.search?.trim();
-    if (searchValue) {
-      params.keyword = searchValue;
+  const searchValue = filter.search?.trim();
+  if (searchValue) {
+    params.keyword = searchValue;
+  }
+
+  if (filter.difficulty) {
+    params.difficulty = filter.difficulty;
+  }
+
+  const tags = (filter.tags ?? [])
+    .map((tag) => (typeof tag === 'string' ? tag.trim() : ''))
+    .filter((tag) => tag.length > 0);
+  if (tags.length > 0) {
+    // OJ 백엔드에서는 단일 태그 필터만 지원
+    params.tag = tags[0];
+  }
+
+  let responseData: any;
+  try {
+    const response = await apiClient.get('/problem/', {
+      params,
+      signal: options?.signal,
+    });
+    responseData = unwrapOjResponse<any>(response.data);
+  } catch (error: any) {
+    if (error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') {
+      throw error;
+    }
+    throw new Error(error?.message || '문제 목록을 불러오지 못했습니다.');
+  }
+
+  let items: any[] = [];
+  let total = 0;
+  let totalPages = 1;
+
+  const candidateCollections = [
+    responseData?.problems,
+    responseData?.data?.problems,
+    responseData?.results,
+    responseData?.data?.results,
+  ];
+  const candidateTotals = [
+    responseData?.total,
+    responseData?.data?.total,
+    responseData?.count,
+    responseData?.data?.count,
+  ];
+  const candidatePages = [
+    responseData?.total_pages,
+    responseData?.totalPages,
+    responseData?.data?.total_pages,
+    responseData?.data?.totalPages,
+  ];
+
+  const foundCollection = candidateCollections.find((collection) => Array.isArray(collection));
+  if (Array.isArray(foundCollection)) {
+    items = foundCollection;
+  }
+  const foundTotal = candidateTotals.find((value) => typeof value === 'number');
+  if (typeof foundTotal === 'number') {
+    total = foundTotal;
+  }
+  const foundTotalPages = candidatePages.find((value) => typeof value === 'number');
+  if (typeof foundTotalPages === 'number') {
+    totalPages = foundTotalPages;
+  } else if (limit > 0) {
+    totalPages = Math.max(1, Math.ceil(total / limit));
+  }
+
+  const adapted = items.map((problem) => adaptProblem(problem));
+
+  return {
+    data: adapted,
+    total,
+    page,
+    limit,
+    totalPages,
+  };
+};
+
+const buildMicroProblemListParams = (filter: ProblemFilter) => {
+  const params = new URLSearchParams();
+  const page = filter.page && filter.page > 0 ? filter.page : 1;
+  const limit = filter.limit && filter.limit > 0 ? filter.limit : DEFAULT_PAGE_LIMIT;
+  const sortField = filter.sortField ?? 'title';
+  const sortMap: Record<string, string> = {
+    title: 'title',
+    number: 'id',
+    submission: 'submission',
+    accuracy: 'accuracy',
+  };
+  const sortOption = sortMap[sortField] ?? 'title';
+  const order = (filter.sortOrder ?? 'asc').toLowerCase() === 'desc' ? 'desc' : 'asc';
+
+  params.set('page', String(page));
+  params.set('page_size', String(Math.min(Math.max(limit, 1), 250)));
+  params.set('sort_option', sortOption);
+  params.set('order', order);
+
+  const tags = Array.from(
+    new Set(
+      (filter.tags ?? [])
+        .map((tag) => (typeof tag === 'string' ? tag.trim() : ''))
+        .filter((tag) => tag.length > 0),
+    ),
+  );
+  tags.forEach((tag) => params.append('tags', tag));
+
+  return params;
+};
+
+const fetchMicroProblemList = async (
+  filter: ProblemFilter,
+  options?: RequestOptions,
+): Promise<PaginatedResponse<Problem>> => {
+  if (!MICRO_PROBLEM_LIST_ENDPOINT) {
+    return fetchOjProblemList(filter, options);
+  }
+  const params = buildMicroProblemListParams(filter);
+
+  try {
+    const response = await fetch(`${MICRO_PROBLEM_LIST_ENDPOINT}?${params.toString()}`, {
+      method: 'GET',
+      credentials: 'include',
+      signal: options?.signal,
+    });
+
+    if (!response.ok) {
+      throw new Error(`문제 목록을 불러오지 못했습니다. (status ${response.status})`);
     }
 
-    if (filter.difficulty) {
-      params.difficulty = filter.difficulty;
-    }
+    const payload = await response.json();
+    const rawProblems = Array.isArray(payload?.problems) ? payload.problems : [];
+    const adapted = rawProblems.map((problem: any) => adaptProblem(problem));
+    const total = Number(payload?.total ?? rawProblems.length) || 0;
+    const page = Number(payload?.page ?? filter.page ?? 1) || 1;
+    const limit = Number(payload?.page_size ?? filter.limit ?? DEFAULT_PAGE_LIMIT) || DEFAULT_PAGE_LIMIT;
+    const totalPages = limit > 0 ? Math.max(1, Math.ceil(total / limit)) : 1;
 
-    const tags = (filter.tags ?? [])
-      .map((tag) => (typeof tag === 'string' ? tag.trim() : ''))
-      .filter((tag) => tag.length > 0);
-    if (tags.length > 0) {
-      // OJ 백엔드에서는 단일 태그 필터만 지원
-      params.tag = tags[0];
-    }
-
-    let responseData: any;
-    try {
-      const response = await apiClient.get('/problem/', {
-        params,
-        signal: options?.signal,
-      });
-      responseData = unwrapOjResponse<any>(response.data);
-    } catch (error: any) {
-      if (error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') {
-        throw error;
-      }
-      throw new Error(error?.message || '문제 목록을 불러오지 못했습니다.');
-    }
-
-    let items: any[] = [];
-    let total = 0;
-    let totalPages = 1;
-
-    const candidateCollections = [
-      responseData?.problems,
-      responseData?.data?.problems,
-      responseData?.results,
-      responseData?.data?.results,
-      Array.isArray(responseData) ? responseData : undefined,
-    ];
-
-    const collection = candidateCollections.find((entry) => Array.isArray(entry));
-    if (Array.isArray(collection)) {
-      items = collection;
-    }
-
-    const totalCandidates = [
-      responseData?.total,
-      responseData?.data?.total,
-      responseData?.meta?.total,
-      items.length,
-    ];
-    total = Number(totalCandidates.find((value) => value !== undefined && value !== null)) || items.length;
-
-    const totalPagesCandidates = [
-      responseData?.total_pages,
-      responseData?.data?.total_pages,
-      responseData?.meta?.total_pages,
-      Math.ceil(total / limit),
-    ];
-    totalPages =
-      Number(totalPagesCandidates.find((value) => value !== undefined && value !== null)) ||
-      Math.max(1, Math.ceil(total / limit));
-
-    const adapted = items.map(adaptProblem);
     return {
       data: adapted,
       total,
@@ -234,7 +311,20 @@ export const problemService = {
       limit,
       totalPages,
     };
-  },
+  } catch (error: any) {
+    if (error?.name === 'AbortError') {
+      throw error;
+    }
+    return fetchOjProblemList(filter, options);
+  }
+};
+
+export const problemService = {
+  // 문제 목록 조회 (기존 OJ 백엔드)
+  getProblems: fetchOjProblemList,
+
+  // 마이크로서비스 기반 문제 목록
+  getMicroProblemList: fetchMicroProblemList,
 
   // 문제 상세 조회
   getProblem: async (identifier: string | number): Promise<Problem> => {

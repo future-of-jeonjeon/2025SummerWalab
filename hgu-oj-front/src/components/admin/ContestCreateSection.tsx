@@ -18,6 +18,12 @@ type ContestFormState = {
   allowedIpRanges: string;
 };
 
+type ContestAnnouncementDraft = {
+  title: string;
+  content: string;
+  visible: boolean;
+};
+
 const initialContestForm: ContestFormState = {
   title: '',
   description: '',
@@ -45,6 +51,13 @@ export const ContestCreateSection: React.FC = () => {
   const contestFormProblemSearchTimerRef = useRef<number | null>(null);
   const [contestFormProblemSelected, setContestFormProblemSelected] = useState<Problem | null>(null);
   const [contestFormProblemMessage, setContestFormProblemMessage] = useState<{ success?: string; error?: string }>({});
+  const [contestFormAnnouncements, setContestFormAnnouncements] = useState<ContestAnnouncementDraft[]>([]);
+  const [contestFormAnnouncementDraft, setContestFormAnnouncementDraft] = useState<ContestAnnouncementDraft>({
+    title: '',
+    content: '',
+    visible: true,
+  });
+  const [contestFormAnnouncementMessage, setContestFormAnnouncementMessage] = useState<{ success?: string; error?: string }>({});
 
   useEffect(() => {
     return () => {
@@ -113,6 +126,11 @@ export const ContestCreateSection: React.FC = () => {
   const handleContestFormProblemDisplayIdChange = (value: string) => {
     setContestFormProblemDisplayId(value);
     setContestFormProblemMessage({});
+  };
+
+  const handleContestAnnouncementDraftChange = (updates: Partial<ContestAnnouncementDraft>) => {
+    setContestFormAnnouncementDraft((prev) => ({ ...prev, ...updates }));
+    setContestFormAnnouncementMessage({});
   };
 
   const handleSelectContestFormProblemSuggestion = (problem: Problem) => {
@@ -207,6 +225,22 @@ export const ContestCreateSection: React.FC = () => {
     setContestFormProblems((prev) => prev.filter((item) => item.problem.id !== problemId));
   };
 
+  const handleAddContestAnnouncement = () => {
+    const title = contestFormAnnouncementDraft.title.trim();
+    const content = contestFormAnnouncementDraft.content.trim();
+    if (!title || !content) {
+      setContestFormAnnouncementMessage({ error: '공지 제목과 내용을 모두 입력하세요.' });
+      return;
+    }
+    setContestFormAnnouncements((prev) => [...prev, { title, content, visible: contestFormAnnouncementDraft.visible }]);
+    setContestFormAnnouncementDraft({ title: '', content: '', visible: true });
+    setContestFormAnnouncementMessage({ success: '공지를 임시 목록에 추가했습니다.' });
+  };
+
+  const handleRemoveContestAnnouncement = (index: number) => {
+    setContestFormAnnouncements((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
   const handleContestSubmit: React.FormEventHandler<HTMLFormElement> = async (event) => {
     event.preventDefault();
     setContestMessage({});
@@ -245,6 +279,7 @@ export const ContestCreateSection: React.FC = () => {
       const created = await adminService.createContest(payload);
 
       let problemError: string | undefined;
+      let announcementError: string | undefined;
       if (created?.id && contestFormProblems.length > 0) {
         const failures: string[] = [];
         for (const item of contestFormProblems) {
@@ -260,10 +295,31 @@ export const ContestCreateSection: React.FC = () => {
         }
       }
 
-      if (problemError) {
+      if (created?.id && contestFormAnnouncements.length > 0) {
+        const announcementFailures: string[] = [];
+        for (const announcement of contestFormAnnouncements) {
+          try {
+            await adminService.createContestAnnouncement({
+              contestId: created.id,
+              title: announcement.title,
+              content: announcement.content,
+              visible: announcement.visible,
+            });
+          } catch (error) {
+            const message = error instanceof Error ? error.message : '공지를 등록하지 못했습니다.';
+            announcementFailures.push(`${announcement.title}: ${message}`);
+          }
+        }
+        if (announcementFailures.length > 0) {
+          announcementError = announcementFailures.join('\n');
+        }
+      }
+
+      if (problemError || announcementError) {
+        const combinedError = [problemError, announcementError].filter(Boolean).join('\n');
         setContestMessage({
-          success: `대회(ID: ${created?.id})를 생성했지만 일부 문제 추가에 실패했습니다.`,
-          error: problemError,
+          success: `대회(ID: ${created?.id})를 생성했지만 일부 항목 처리에 실패했습니다.`,
+          error: combinedError,
         });
       } else {
         setContestMessage({ success: `대회(ID: ${created?.id})가 등록되었습니다.` });
@@ -271,6 +327,9 @@ export const ContestCreateSection: React.FC = () => {
 
       setContestForm(initialContestForm);
       setContestFormProblems([]);
+      setContestFormAnnouncements([]);
+      setContestFormAnnouncementDraft({ title: '', content: '', visible: true });
+      setContestFormAnnouncementMessage({});
       setContestFormProblemInput('');
       setContestFormProblemDisplayId('');
       setContestFormProblemSelected(null);
@@ -367,6 +426,76 @@ export const ContestCreateSection: React.FC = () => {
             value={contestForm.description}
             onChange={(event) => setContestForm((prev) => ({ ...prev, description: event.target.value }))}
           />
+        </div>
+
+        <div className="rounded-lg border border-gray-200 p-4">
+          <div className="mb-3">
+            <h3 className="text-lg font-semibold text-gray-900">대회 공지 추가</h3>
+            <p className="text-sm text-gray-500">대회 생성 시 함께 등록할 공지를 작성해 임시 목록에 추가하세요.</p>
+          </div>
+          {contestFormAnnouncementMessage.error && (
+            <div className="mb-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{contestFormAnnouncementMessage.error}</div>
+          )}
+          {contestFormAnnouncementMessage.success && (
+            <div className="mb-2 rounded-md bg-green-50 px-3 py-2 text-sm text-green-600">{contestFormAnnouncementMessage.success}</div>
+          )}
+          <div className="grid gap-3 md:grid-cols-2">
+            <input
+              type="text"
+              placeholder="공지 제목"
+              value={contestFormAnnouncementDraft.title}
+              onChange={(event) => handleContestAnnouncementDraftChange({ title: event.target.value })}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
+            />
+            <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+              <input
+                type="checkbox"
+                checked={contestFormAnnouncementDraft.visible}
+                onChange={(event) => handleContestAnnouncementDraftChange({ visible: event.target.checked })}
+              />
+              <span>공지 공개</span>
+            </label>
+          </div>
+          <textarea
+            placeholder="공지 내용을 입력하세요"
+            className="mt-3 w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
+            rows={3}
+            value={contestFormAnnouncementDraft.content}
+            onChange={(event) => handleContestAnnouncementDraftChange({ content: event.target.value })}
+          />
+          <div className="mt-3 flex items-center gap-3">
+            <Button type="button" onClick={handleAddContestAnnouncement}>
+              공지 추가
+            </Button>
+            {contestFormAnnouncements.length > 0 && (
+              <span className="text-sm text-gray-600">임시 공지 {contestFormAnnouncements.length}건</span>
+            )}
+          </div>
+
+          {contestFormAnnouncements.length > 0 && (
+            <div className="mt-4 space-y-2">
+              {contestFormAnnouncements.map((announcement, index) => (
+                <div key={`contest-announcement-${index}`} className="rounded-md border border-gray-200 px-3 py-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-sm font-semibold text-gray-900">
+                        {announcement.title}
+                        {!announcement.visible && <span className="ml-2 text-xs text-gray-500">(비공개)</span>}
+                      </p>
+                      <p className="text-xs text-gray-500 line-clamp-2">{announcement.content}</p>
+                    </div>
+                    <button
+                      type="button"
+                      className="text-xs text-red-600 hover:text-red-700"
+                      onClick={() => handleRemoveContestAnnouncement(index)}
+                    >
+                      삭제
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         <div>
@@ -476,4 +605,3 @@ export const ContestCreateSection: React.FC = () => {
     </Card>
   );
 };
-

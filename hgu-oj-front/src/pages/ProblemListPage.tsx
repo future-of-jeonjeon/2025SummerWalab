@@ -11,6 +11,7 @@ import { PROBLEM_STATUS_LABELS } from '../constants/problemStatus';
 import { TagFilterBar } from '../components/problems/TagFilterBar';
 import { getTagColor } from '../utils/tagColor';
 import { problemService } from '../services/problemService';
+import { extractProblemTags } from '../utils/problemTags';
 
 const normalizeTags = (tags: string[]): string[] => {
   const unique = new Set(
@@ -39,6 +40,7 @@ export const ProblemListPage: React.FC = () => {
   const { isAuthenticated } = useAuthStore();
 
   const { data, isLoading, error } = useProblems(filter);
+  const microProblems = useMemo(() => (data?.data ?? []) as Problem[], [data?.data]);
   const {
     data: tagCountsData,
     isLoading: isTagCountsLoading,
@@ -47,6 +49,40 @@ export const ProblemListPage: React.FC = () => {
     queryKey: ['problem', 'tag-counts'],
     queryFn: ({ signal }) => problemService.getTagCounts({ signal }),
   });
+
+  const problemIdentifiers = useMemo(() => {
+    return microProblems
+      .map((problem) => problem.displayId ?? problem._id ?? problem.id)
+      .filter((value): value is string | number => value !== undefined && value !== null)
+      .map((value) => String(value).trim())
+      .filter((value) => value.length > 0);
+  }, [microProblems]);
+
+  const {
+    data: statusMap,
+  } = useQuery({
+    queryKey: ['problem', 'status-map', problemIdentifiers],
+    queryFn: () => problemService.getProblemStatusMap(problemIdentifiers),
+    enabled: isAuthenticated && problemIdentifiers.length > 0,
+  });
+
+  const normalizedStatusMap = useMemo(() => {
+    if (!statusMap) {
+      return {} as Record<string, Problem>;
+    }
+    return Object.entries(statusMap).reduce<Record<string, Problem>>((acc, [key, value]) => {
+      if (!value) return acc;
+      const candidates = [key, value.displayId, (value as any)._id, value.id];
+      candidates.forEach((candidate) => {
+        if (candidate === undefined || candidate === null) return;
+        const normalized = String(candidate).trim().toLowerCase();
+        if (normalized) {
+          acc[normalized] = value;
+        }
+      });
+      return acc;
+    }, {});
+  }, [statusMap]);
 
   const handleProblemClick = (problemKey: string) => {
     if (!problemKey) return;
@@ -69,13 +105,8 @@ export const ProblemListPage: React.FC = () => {
     setFilter({ search: searchQuery.trim(), page: 1 });
   };
 
-  const handleSearchFieldChange = (value: string) => {
-    const searchField = (value || 'title') as ProblemFilter['searchField'];
-    setFilter({ searchField, page: 1 });
-  };
-
-  const handleSortToggle = (field: 'number' | 'submission' | 'accuracy') => {
-    const currentField = filter.sortField ?? 'number';
+  const handleSortToggle = (field: 'number' | 'title' | 'submission' | 'accuracy') => {
+    const currentField = filter.sortField ?? 'title';
     const currentOrder = filter.sortOrder ?? 'asc';
     if (currentField === field) {
       const nextOrder = currentOrder === 'asc' ? 'desc' : 'asc';
@@ -95,7 +126,7 @@ export const ProblemListPage: React.FC = () => {
     setFilter({
       search: '',
       searchField: 'title',
-      sortField: 'number',
+      sortField: 'title',
       sortOrder: 'asc',
       statusFilter: 'all',
       page: 1,
@@ -151,12 +182,13 @@ export const ProblemListPage: React.FC = () => {
   };
 
   const processedProblems = useMemo(() => {
-    const items = (data?.data ?? []) as Problem[];
+    const items = microProblems;
     const query = searchQuery.trim().toLowerCase();
     const searchField = filter.searchField ?? 'title';
-    const sortField = filter.sortField ?? 'number';
+    const sortField = filter.sortField ?? 'title';
     const sortOrder = filter.sortOrder ?? 'asc';
     const statusFilter = isAuthenticated ? (filter.statusFilter ?? 'all') : 'all';
+    const requiredTags = selectedTags.map((tag) => tag.toLowerCase());
 
     const matchesQuery = (problem: any) => {
       if (!query) return true;
@@ -177,7 +209,41 @@ export const ProblemListPage: React.FC = () => {
       return (problem.title ?? '').toLowerCase().includes(query);
     };
 
-    const filterResult = items
+    const matchesSelectedTags = (problem: Problem) => {
+      if (requiredTags.length === 0) {
+        return true;
+      }
+      const normalizedTags = extractProblemTags(problem)
+        .map((tag) => tag.toLowerCase());
+      if (normalizedTags.length === 0) {
+        return false;
+      }
+      return requiredTags.every((tag) => normalizedTags.includes(tag));
+    };
+
+    const hydratedItems = items.map((problem) => {
+      if (!isAuthenticated) {
+        return problem;
+      }
+      const candidates = [problem.displayId, problem._id, (problem as any)._id, problem.id];
+      for (const candidate of candidates) {
+        if (candidate === undefined || candidate === null) continue;
+        const key = String(candidate).trim().toLowerCase();
+        if (!key) continue;
+        const statusSource = normalizedStatusMap[key];
+        if (statusSource) {
+          return {
+            ...problem,
+            myStatus: statusSource.myStatus ?? (statusSource as any).my_status ?? problem.myStatus,
+            solved: statusSource.solved ?? problem.solved,
+          };
+        }
+      }
+      return problem;
+    });
+
+    const filterResult = hydratedItems
+      .filter(matchesSelectedTags)
       .filter(matchesQuery)
       .filter((problem) => {
         if (!isAuthenticated) return true;
@@ -189,18 +255,14 @@ export const ProblemListPage: React.FC = () => {
         return true;
       });
 
-    const safeNumber = (value: unknown) => {
-      const numeric = Number(value);
-      return Number.isNaN(numeric) ? null : numeric;
-    };
+    const extractIdentifier = (problem: any) => (problem.displayId ?? problem._id ?? problem.id ?? '').toString();
 
-    const getProblemNumber = (problem: any) => {
-      const raw = (problem.displayId ?? problem._id ?? problem.id ?? '').toString();
-      const numericOnly = raw.replace(/[^0-9]/g, '');
-      return {
-        numeric: numericOnly ? safeNumber(numericOnly) : null,
-        raw,
-      };
+    const getNumericOrder = (problem: any) => {
+      const identifier = extractIdentifier(problem);
+      const numericOnly = identifier.replace(/[^0-9]/g, '');
+      if (!numericOnly) return null;
+      const numeric = Number(numericOnly);
+      return Number.isNaN(numeric) ? null : numeric;
     };
 
     const getAccuracy = (problem: any) => {
@@ -216,17 +278,28 @@ export const ProblemListPage: React.FC = () => {
         result = (a.submissionNumber ?? 0) - (b.submissionNumber ?? 0);
       } else if (sortField === 'accuracy') {
         result = getAccuracy(a) - getAccuracy(b);
-      } else {
-        const aNum = getProblemNumber(a);
-        const bNum = getProblemNumber(b);
-        if (typeof aNum.numeric === 'number' && typeof bNum.numeric === 'number') {
-          result = aNum.numeric - bNum.numeric;
-        } else if (typeof aNum.numeric === 'number') {
+      } else if (sortField === 'number') {
+        const aNum = getNumericOrder(a);
+        const bNum = getNumericOrder(b);
+        if (typeof aNum === 'number' && typeof bNum === 'number') {
+          result = aNum - bNum;
+        } else if (typeof aNum === 'number') {
           result = -1;
-        } else if (typeof bNum.numeric === 'number') {
+        } else if (typeof bNum === 'number') {
           result = 1;
         } else {
-          result = aNum.raw.localeCompare(bNum.raw, undefined, { numeric: true, sensitivity: 'base' });
+          const idA = extractIdentifier(a);
+          const idB = extractIdentifier(b);
+          result = idA.localeCompare(idB, undefined, { numeric: true, sensitivity: 'base' });
+        }
+      } else {
+        const titleA = (a.title ?? '').trim();
+        const titleB = (b.title ?? '').trim();
+        result = titleA.localeCompare(titleB, undefined, { sensitivity: 'base' });
+        if (result === 0) {
+          const idA = extractIdentifier(a);
+          const idB = extractIdentifier(b);
+          result = idA.localeCompare(idB, undefined, { numeric: true, sensitivity: 'base' });
         }
       }
       return sortOrder === 'desc' ? -result : result;
@@ -234,13 +307,15 @@ export const ProblemListPage: React.FC = () => {
 
     return sorted;
   }, [
-    data?.data,
+    microProblems,
     searchQuery,
     filter.searchField,
     filter.sortField,
     filter.sortOrder,
     filter.statusFilter,
     isAuthenticated,
+    selectedTags,
+    normalizedStatusMap,
   ]);
 
   const tagStats = useMemo(() => {
@@ -260,14 +335,14 @@ export const ProblemListPage: React.FC = () => {
   }, [tagCountsError]);
 
   const hasActiveFilters = useMemo(() => {
-    const sortField = filter.sortField ?? 'number';
+    const sortField = filter.sortField ?? 'title';
     const sortOrder = filter.sortOrder ?? 'asc';
     const statusFilter = filter.statusFilter ?? 'all';
     const searchValue = filter.search?.trim() ?? '';
     return (
       selectedTags.length > 0 ||
       searchValue.length > 0 ||
-      sortField !== 'number' ||
+      sortField !== 'title' ||
       sortOrder !== 'asc' ||
       statusFilter !== 'all'
     );
@@ -298,95 +373,70 @@ export const ProblemListPage: React.FC = () => {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 py-8">
         {/* Header */}
-        <div className="mb-6">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-center gap-3 lg:ml-2">
-              <span className="text-sm text-gray-500">전체 문제 수</span>
-              <span className="text-2xl font-bold text-blue-600">{data?.total || 0}</span>
-            </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end sm:gap-3">
-              <form onSubmit={handleSearchSubmit} className="flex w-full sm:w-auto sm:min-w-[360px]">
-                <label htmlFor="problem-search" className="sr-only">문제 검색</label>
-                <input
-                  id="problem-search"
-                  type="search"
-                  value={searchQuery}
-                  onChange={(event) => handleSearchChange(event.target.value)}
-                  placeholder="검색어를 입력하세요"
-                  className="w-full rounded-l-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      <div className="mb-6">
+        <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
+          {(isTagCountsLoading || tagCountsErrorMessage || tagStats.length > 0) && (
+            <div className="flex flex-1 flex-col gap-3">
+              {isTagCountsLoading && (
+                <div className="text-sm text-gray-500">태그를 불러오는 중입니다...</div>
+              )}
+              {!isTagCountsLoading && tagCountsErrorMessage && (
+                <div className="text-sm text-red-600">{tagCountsErrorMessage}</div>
+              )}
+              {!isTagCountsLoading && !tagCountsErrorMessage && tagStats.length > 0 && (
+                <TagFilterBar
+                  tags={tagStats}
+                  selectedTags={selectedTags}
+                  onToggle={handleTagToggle}
+                  collapsible
                 />
-                <select
-                  value={filter.searchField ?? 'title'}
-                  onChange={(e) => handleSearchFieldChange(e.target.value)}
-                  className="w-28 border-y border-r border-gray-300 bg-white px-2 text-sm font-medium text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="title">제목</option>
-                  <option value="tag">태그</option>
-                  <option value="number">번호</option>
-                </select>
-                <button
-                  type="submit"
-                  className="min-w-[60px] rounded-r-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white text-center shadow-sm transition hover:bg-blue-700"
-                >
-                  검색
-                </button>
-              </form>
-              {isAuthenticated && (
-                <div className="flex w-full sm:w-auto sm:min-w-[220px]">
-                  <label htmlFor="problem-status-filter" className="sr-only">문제 상태 필터</label>
-                  <select
-                    id="problem-status-filter"
-                    value={filter.statusFilter ?? 'all'}
-                    onChange={(event) => handleStatusFilterChange(event.target.value)}
-                    className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-28"
-                  >
-                    <option value="all">전체</option>
-                    <option value={PROBLEM_STATUS_LABELS.untouched}>{PROBLEM_STATUS_LABELS.untouched}</option>
-                    <option value={PROBLEM_STATUS_LABELS.solved}>{PROBLEM_STATUS_LABELS.solved}</option>
-                    <option value={PROBLEM_STATUS_LABELS.wrong}>{PROBLEM_STATUS_LABELS.wrong}</option>
-                  </select>
-                  <button
-                    type="button"
-                    onClick={handleResetFilters}
-                    className="ml-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 text-center shadow-sm transition hover:border-blue-400 hover:text-blue-600"
-                  >
-                    초기화
-                  </button>
-                </div>
               )}
             </div>
-          </div>
-        </div>
-
-        {(isTagCountsLoading || tagCountsErrorMessage || tagStats.length > 0) && (
-          <div className="mb-6 space-y-3">
-            {hasActiveFilters && (
-              <div className="flex justify-start">
+          )}
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end sm:gap-3 xl:w-auto">
+            <form onSubmit={handleSearchSubmit} className="flex w-full sm:w-auto sm:min-w-[360px]">
+              <label htmlFor="problem-search" className="sr-only">문제 검색</label>
+              <input
+                id="problem-search"
+                type="search"
+                value={searchQuery}
+                onChange={(event) => handleSearchChange(event.target.value)}
+                placeholder="제목을 입력하세요"
+                className="w-full rounded-l-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button
+                type="submit"
+                className="min-w-[60px] rounded-r-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white text-center shadow-sm transition hover:bg-blue-700"
+              >
+                검색
+              </button>
+            </form>
+            {isAuthenticated && (
+              <div className="flex w-full sm:w-auto sm:min-w-[220px]">
+                <label htmlFor="problem-status-filter" className="sr-only">문제 상태 필터</label>
+                <select
+                  id="problem-status-filter"
+                  value={filter.statusFilter ?? 'all'}
+                  onChange={(event) => handleStatusFilterChange(event.target.value)}
+                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-28"
+                >
+                  <option value="all">전체</option>
+                  <option value={PROBLEM_STATUS_LABELS.untouched}>{PROBLEM_STATUS_LABELS.untouched}</option>
+                  <option value={PROBLEM_STATUS_LABELS.solved}>{PROBLEM_STATUS_LABELS.solved}</option>
+                  <option value={PROBLEM_STATUS_LABELS.wrong}>{PROBLEM_STATUS_LABELS.wrong}</option>
+                </select>
                 <button
                   type="button"
                   onClick={handleResetFilters}
-                  className="inline-flex items-center gap-2 rounded-full border border-gray-300 bg-white px-4 py-2 text-xs font-semibold text-gray-600 transition hover:bg-gray-100 hover:text-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-1"
+                  className="ml-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 text-center shadow-sm transition hover:border-blue-400 hover:text-blue-600"
                 >
-                  ↺ 태그 재설정
+                  초기화
                 </button>
               </div>
             )}
-            {isTagCountsLoading && (
-              <div className="text-sm text-gray-500">태그를 불러오는 중입니다...</div>
-            )}
-            {!isTagCountsLoading && tagCountsErrorMessage && (
-              <div className="text-sm text-red-600">{tagCountsErrorMessage}</div>
-            )}
-            {!isTagCountsLoading && !tagCountsErrorMessage && tagStats.length > 0 && (
-              <TagFilterBar
-                tags={tagStats}
-                selectedTags={selectedTags}
-                onToggle={handleTagToggle}
-                collapsible
-              />
-            )}
           </div>
-        )}
+        </div>
+      </div>
 
         <ProblemList
           problems={processedProblems}
@@ -396,8 +446,9 @@ export const ProblemListPage: React.FC = () => {
           currentPage={filter.page || 1}
           onPageChange={handlePageChange}
           onSortChange={handleSortToggle}
-          sortField={filter.sortField ?? 'number'}
+          sortField={filter.sortField ?? 'title'}
           sortOrder={filter.sortOrder ?? 'asc'}
+          primarySortField="title"
           showStatus={isAuthenticated}
         />
       </div>
