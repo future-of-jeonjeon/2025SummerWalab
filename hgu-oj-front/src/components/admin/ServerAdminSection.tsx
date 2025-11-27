@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Card } from '../atoms/Card';
 import { Button } from '../atoms/Button';
+import { Sparkline } from '../atoms/Sparkline';
 import { adminService } from '../../services/adminService';
 import { JudgeServer, ServiceHealthStatus, SystemMetrics } from '../../types';
 
@@ -13,8 +14,6 @@ const formatLatency = (value?: number) => {
   }
   return `${Math.round(value)} ms`;
 };
-
-
 
 export const ServerAdminSection: React.FC = () => {
   const [judgeServers, setJudgeServers] = useState<JudgeServer[]>([]);
@@ -29,10 +28,18 @@ export const ServerAdminSection: React.FC = () => {
   const [updatingJudgeServerId, setUpdatingJudgeServerId] = useState<number | null>(null);
   const [deletingJudgeServerHostname, setDeletingJudgeServerHostname] = useState<string | null>(null);
 
-
   const [systemMetrics, setSystemMetrics] = useState<SystemMetrics | null>(null);
   const [isGraphExpanded, setIsGraphExpanded] = useState(false);
+  const [isQueueGraphExpanded, setIsQueueGraphExpanded] = useState(false);
+  const [isLatencyGraphExpanded, setIsLatencyGraphExpanded] = useState(false);
 
+  // 스파크라인용 히스토리 상태 (초기값은 0으로 채움)
+  const [queueHistory, setQueueHistory] = useState<number[]>(() =>
+    Array.from({ length: 90 }, () => 0)
+  );
+  const [latencyHistory, setLatencyHistory] = useState<number[]>(() =>
+    Array.from({ length: 90 }, () => 0)
+  );
 
   const fetchJudgeServers = useCallback(async () => {
     setJudgeServerError(null);
@@ -77,6 +84,10 @@ export const ServerAdminSection: React.FC = () => {
     try {
       const metrics = await adminService.getSystemMetrics();
       setSystemMetrics(metrics);
+
+      // 실시간 데이터 누적 (최대 90개 유지)
+      setQueueHistory((prev) => [...prev.slice(1), metrics.queue_size]);
+      setLatencyHistory((prev) => [...prev.slice(1), metrics.max_wait_time]);
     } catch (error) {
       console.error('Failed to fetch system metrics:', error);
     }
@@ -89,7 +100,7 @@ export const ServerAdminSection: React.FC = () => {
 
     const intervalId = setInterval(() => {
       void fetchSystemMetrics();
-    }, 3000);
+    }, 1000);
 
     return () => clearInterval(intervalId);
   }, [fetchJudgeServers, refreshMicroServiceHealth, fetchSystemMetrics]);
@@ -273,31 +284,116 @@ export const ServerAdminSection: React.FC = () => {
               {isGraphExpanded && (
                 <div className="p-5 pt-0 border-t border-gray-100">
                   <div className="relative h-32 w-full flex items-end gap-1 mt-4">
-                    {systemMetrics.history.map((item, i) => (
-                      <div
-                        key={i}
-                        className={`flex-1 rounded-t-sm transition-all duration-300 group relative ${item.count > 20 ? 'bg-red-400 hover:bg-red-500' : 'bg-blue-100 hover:bg-blue-200'}`}
-                        style={{ height: `${Math.min(item.count * 2, 100)}%` }}
-                      >
-                        <div className="absolute bottom-full left-1/2 mb-1 -translate-x-1/2 hidden group-hover:block z-10">
-                          <div className="bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap shadow-lg">
-                            {item.time} - {item.count}
+                    {(() => {
+                      const maxCount = Math.max(...systemMetrics.history.map(h => h.count), 20); // 최소 스케일 20
+                      return systemMetrics.history.map((item, i) => (
+                        <div
+                          key={i}
+                          className={`flex-1 rounded-t-sm transition-all duration-300 group relative ${item.count > maxCount * 0.8 ? 'bg-red-400 hover:bg-red-500' : 'bg-blue-100 hover:bg-blue-200'}`}
+                          style={{ height: `${Math.max((item.count / maxCount) * 100, 2)}%` }}
+                        >
+                          <div className="absolute bottom-full left-1/2 mb-1 -translate-x-1/2 hidden group-hover:block z-10">
+                            <div className="bg-gray-800 text-white text-xs rounded py-1 px-2 whitespace-nowrap shadow-lg">
+                              {item.time} - {item.count}
+                            </div>
+                            <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4px] border-t-gray-800 absolute left-1/2 -translate-x-1/2 top-full"></div>
                           </div>
-                          <div className="w-0 h-0 border-l-[4px] border-l-transparent border-r-[4px] border-r-transparent border-t-[4px] border-t-gray-800 absolute left-1/2 -translate-x-1/2 top-full"></div>
                         </div>
+                      ));
+                    })()}
+                  </div>
+                  <div className="flex w-full gap-1 mt-2 border-t border-gray-100 pt-2">
+                    {systemMetrics.history.map((item, i) => (
+                      <div key={i} className="flex-1 flex justify-center">
+                        {i % 10 === 0 && (
+                          <span className="text-[10px] text-gray-400 whitespace-nowrap transform -rotate-45 origin-top-left sm:rotate-0 sm:origin-center">
+                            {item.time}
+                          </span>
+                        )}
                       </div>
                     ))}
-                  </div>
-                  <div className="mt-2 flex justify-between text-xs text-gray-400 border-t border-gray-100 pt-2">
-                    <span>60분 전</span>
-                    <span>30분 전</span>
-                    <span>지금</span>
                   </div>
                 </div>
               )}
             </section>
           )}
-        </div>
+          {systemMetrics && (
+            <section className="rounded-lg border border-gray-200 bg-white shadow-sm">
+              <div
+                className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors rounded-t-lg"
+                onClick={() => setIsQueueGraphExpanded(!isQueueGraphExpanded)}
+              >
+                <h4 className="text-sm font-bold text-gray-700">실시간 대기열 추이 (Last 90s)</h4>
+                <button
+                  type="button"
+                  className="text-gray-500 hover:text-gray-700 focus:outline-none"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className={`h-5 w-5 transform transition-transform duration-200 ${isQueueGraphExpanded ? 'rotate-180' : ''}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+              {isQueueGraphExpanded && (
+                <div className="p-5 pt-0 border-t border-gray-100">
+                  <div className="h-24 mt-4">
+                    <Sparkline data={queueHistory} color={systemMetrics.queue_size > 10 ? '#ef4444' : '#3b82f6'} fill height={96} />
+                  </div>
+                  <div className="flex justify-between mt-2 text-[10px] text-gray-400 px-1">
+                    <span>-90s</span>
+                    <span>-60s</span>
+                    <span>-30s</span>
+                    <span>Now</span>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+
+          {/* 실시간 지연시간 추이 */}
+          {systemMetrics && (
+            <section className="rounded-lg border border-gray-200 bg-white shadow-sm">
+              <div
+                className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 transition-colors rounded-t-lg"
+                onClick={() => setIsLatencyGraphExpanded(!isLatencyGraphExpanded)}
+              >
+                <h4 className="text-sm font-bold text-gray-700">실시간 지연시간 추이 (Last 90s)</h4>
+                <button
+                  type="button"
+                  className="text-gray-500 hover:text-gray-700 focus:outline-none"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className={`h-5 w-5 transform transition-transform duration-200 ${isLatencyGraphExpanded ? 'rotate-180' : ''}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+              </div>
+              {isLatencyGraphExpanded && (
+                <div className="p-5 pt-0 border-t border-gray-100">
+                  <div className="h-24 mt-4">
+                    <Sparkline data={latencyHistory} color={systemMetrics.max_wait_time > 3 ? '#f97316' : '#10b981'} fill height={96} />
+                  </div>
+                  <div className="flex justify-between mt-2 text-[10px] text-gray-400 px-1">
+                    <span>-90s</span>
+                    <span>-60s</span>
+                    <span>-30s</span>
+                    <span>Now</span>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
+        </div >
 
         <section className="space-y-3">
           <div>
@@ -412,10 +508,8 @@ export const ServerAdminSection: React.FC = () => {
             </table>
           </div>
         </section>
-      </div>
-
-
-    </Card>
+      </div >
+    </Card >
   );
 };
 

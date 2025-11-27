@@ -649,7 +649,39 @@ export const adminService = {
       throw new Error(`시스템 지표를 가져오지 못했습니다. (status ${response.status})`);
     }
 
-    return response.json();
+    const data: SystemMetrics = await response.json();
+
+    // 최근 60분 데이터 채우기 (빈 시간은 0으로)
+    const filledHistory: Array<{ time: string; count: number }> = [];
+    const now = new Date();
+    // 백엔드(UTC) 시간을 로컬 시간으로 변환하여 Map 생성
+    const historyMap = new Map(data.history.map((item) => {
+      // item.time은 "HH:mm" (UTC) 형식
+      const [utcHours, utcMinutes] = item.time.split(':').map(Number);
+      const date = new Date();
+      date.setUTCHours(utcHours, utcMinutes, 0, 0);
+
+      // 로컬 시간 문자열로 변환 ("HH:mm")
+      const localHours = String(date.getHours()).padStart(2, '0');
+      const localMinutes = String(date.getMinutes()).padStart(2, '0');
+      return [`${localHours}:${localMinutes}`, item.count];
+    }));
+
+    for (let i = 59; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 60000);
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      const timeStr = `${hours}:${minutes}`;
+      filledHistory.push({
+        time: timeStr,
+        count: historyMap.get(timeStr) ?? 0,
+      });
+    }
+
+    return {
+      ...data,
+      history: filledHistory,
+    };
   },
 };
 
