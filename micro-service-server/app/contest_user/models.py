@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, Integer, UniqueConstraint
+from sqlalchemy import Column, DateTime, Integer, String, UniqueConstraint
 from sqlalchemy.sql import func
 
 from app.config.database import Base
@@ -14,7 +14,11 @@ class ContestUser(Base):
     id = Column(Integer, primary_key=True, index=True)
     contest_id = Column(Integer, nullable=False, index=True)
     user_id = Column(Integer, nullable=False, index=True)
-    created_at = Column("created_time", DateTime(timezone=True), server_default=func.now(), nullable=False)
+    status = Column(String(20), nullable=False, default="approved")
+    approved_by = Column(Integer, nullable=True)
+    approved_at = Column(DateTime(timezone=True), nullable=True)
+    created_time = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    updated_time = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class Contest(Base):
