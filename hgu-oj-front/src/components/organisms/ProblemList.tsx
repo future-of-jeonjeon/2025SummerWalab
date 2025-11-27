@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { ReactNode, useCallback, useMemo, useState } from 'react';
 import { Problem } from '../../types';
 import { Button } from '../atoms/Button';
 import { resolveProblemStatus } from '../../utils/problemStatus';
@@ -25,6 +25,7 @@ interface ProblemListProps {
   sortField?: 'number' | 'title' | 'submission' | 'accuracy';
   sortOrder?: 'asc' | 'desc';
   primarySortField?: 'number' | 'title';
+  getRowNumber?: (problem: Problem, index: number) => React.ReactNode;
 }
 
 export const ProblemList: React.FC<ProblemListProps> = ({
@@ -44,6 +45,7 @@ export const ProblemList: React.FC<ProblemListProps> = ({
   sortField,
   sortOrder,
   primarySortField = 'number',
+  getRowNumber,
 }) => {
   const renderSortableHeader = (
     label: string,
@@ -288,8 +290,11 @@ export const ProblemList: React.FC<ProblemListProps> = ({
           )}
         </div>
         <div className="divide-y divide-gray-200">
-          {problems.map((problem) => {
+          {problems.map((problem, index) => {
             const badge = getStatusBadge(problem);
+            const resolvedNumber = getRowNumber
+              ? getRowNumber(problem, index)
+              : (showOriginalId ? problem._id ?? problem.displayId ?? problem.id : problem.displayId ?? problem.id);
             return (
               <div
                 key={problem.id}
@@ -298,7 +303,7 @@ export const ProblemList: React.FC<ProblemListProps> = ({
                 {showStats ? (
                   <div className="grid grid-cols-[120px_minmax(0,1fr)_220px_110px_120px_120px] items-center gap-4">
                     <div className="flex h-full items-center justify-center text-sm font-medium text-gray-900">
-                      {showOriginalId ? problem._id ?? problem.displayId ?? problem.id : problem.displayId ?? problem.id}
+                      {resolvedNumber}
                     </div>
                     <div className="flex h-full items-center justify-start gap-2 text-left">
                       <button
@@ -342,7 +347,7 @@ export const ProblemList: React.FC<ProblemListProps> = ({
                 ) : (
                   <div className="grid grid-cols-[150px_minmax(0,1fr)_220px_110px] items-center gap-4">
                     <div className="flex h-full items-center justify-center text-sm font-medium text-gray-900">
-                      {showOriginalId ? problem._id ?? problem.displayId ?? problem.id : problem.displayId ?? problem.id}
+                      {resolvedNumber}
                     </div>
                     <div className="flex h-full items-center justify-start gap-2 text-left">
                       <button

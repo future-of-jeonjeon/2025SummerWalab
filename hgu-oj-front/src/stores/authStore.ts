@@ -14,6 +14,7 @@ const invalidateUserScopedQueries = () => {
     'contest-problem-list',
     'contest-rank-progress',
     'contest-rank',
+    'contest-membership',
     'workbook-problems',
     'workbook-problem-list',
     'workbook',

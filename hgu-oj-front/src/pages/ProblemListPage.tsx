@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useProblems } from '../hooks/useProblems';
@@ -358,6 +358,17 @@ export const ProblemListPage: React.FC = () => {
     setFilter({ page });
   };
 
+  const pageSize = filter.limit ?? 20;
+  const rowNumberBase = useMemo(() => {
+    const currentPage = filter.page ?? 1;
+    return Math.max((currentPage - 1) * pageSize, 0);
+  }, [filter.page, pageSize]);
+
+  const resolveProblemRowNumber = useCallback(
+    (_problem: Problem, index: number) => rowNumberBase + index + 1,
+    [rowNumberBase],
+  );
+
   if (error) {
     return (
       <div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 py-8">
@@ -450,6 +461,7 @@ export const ProblemListPage: React.FC = () => {
           sortOrder={filter.sortOrder ?? 'asc'}
           primarySortField="title"
           showStatus={isAuthenticated}
+          getRowNumber={resolveProblemRowNumber}
         />
       </div>
     </div>

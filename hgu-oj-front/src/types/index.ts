@@ -113,6 +113,32 @@ export interface ContestRankEntry {
   submissionInfo?: Record<string, unknown>;
 }
 
+export type ContestUserStatusValue = 'approved' | 'pending' | 'rejected';
+
+export interface ContestJoinStatus {
+  contestId: number;
+  userId: number;
+  joined: boolean;
+  joinedAt?: string;
+  isAdmin: boolean;
+  status?: ContestUserStatusValue;
+  requiresApproval?: boolean;
+}
+
+export interface ContestUserRegistration {
+  userId: number;
+  username?: string | null;
+  status: ContestUserStatusValue;
+  appliedAt?: string;
+  decidedAt?: string;
+  decidedBy?: number | null;
+}
+
+export interface ContestUserRegistrationList {
+  approved: ContestUserRegistration[];
+  pending: ContestUserRegistration[];
+}
+
 // 문제집 관련 타입
 export interface Workbook {
   id: number;
