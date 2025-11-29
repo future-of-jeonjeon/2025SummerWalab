@@ -15,7 +15,7 @@ async def create_workbook(
         *,
         problems_data: Optional[list[int]] = None,
 ) -> Workbook:
-    user = await user_repo.find_by_username(db, userdata.username)
+    user = await user_repo.find_user_by_username(db, userdata.username)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     workbook = _create_workbook_by_data(workbook_data, user.id)

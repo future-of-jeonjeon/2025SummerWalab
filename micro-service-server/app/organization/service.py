@@ -40,7 +40,7 @@ async def list_organizations(page: int, size: int, db: AsyncSession):
 @transactional
 async def add_organization_user(organization_id: int, user_id: int, db: AsyncSession):
     organization = await _get_organization_by_id(organization_id, db)
-    user = await user_repo.find_by_id(user_id, db)
+    user = await user_repo.find_user_by_id(user_id, db)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if user not in organization.members:
