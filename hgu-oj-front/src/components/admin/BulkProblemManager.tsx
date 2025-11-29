@@ -57,13 +57,15 @@ export const BulkProblemManager: React.FC = () => {
       return;
     }
 
+    const form = event.currentTarget;
+
     try {
       setIsImporting(true);
       const result = await adminProblemBulkService.importProblems(importFile);
       const count = typeof result?.import_count === 'number' ? result.import_count : 0;
       setImportMessage({ success: `총 ${count}개의 문제를 처리했습니다.` });
       setImportFile(null);
-      const fileInput = event.currentTarget.querySelector('input[type="file"]') as HTMLInputElement | null;
+      const fileInput = form.querySelector('input[type="file"]') as HTMLInputElement | null;
       if (fileInput) {
         fileInput.value = '';
       }

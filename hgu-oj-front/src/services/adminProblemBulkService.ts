@@ -13,9 +13,9 @@ const buildAdminProblemUrl = (path: string) => `${ADMIN_PROBLEM_API_BASE}${path}
 const isWrappedResponse = <T>(payload: unknown): payload is WrappedResponse<T> =>
   Boolean(
     payload &&
-      typeof payload === 'object' &&
-      Object.prototype.hasOwnProperty.call(payload, 'error') &&
-      Object.prototype.hasOwnProperty.call(payload, 'data')
+    typeof payload === 'object' &&
+    Object.prototype.hasOwnProperty.call(payload, 'error') &&
+    Object.prototype.hasOwnProperty.call(payload, 'data')
   );
 
 const unwrapResponse = <T>(payload: unknown): T => {
@@ -120,11 +120,39 @@ export const adminProblemBulkService = {
     const formData = new FormData();
     formData.append('file', file);
 
+    const MS_API_BASE = ((import.meta.env.VITE_MS_API_BASE as string | undefined) || '').replace(/\/$/, '');
+
+    if (!MS_API_BASE) {
+      throw new Error('Microservice API base URL is not configured.');
+    }
+
     try {
-      const response = await apiClient.post(buildAdminProblemUrl('/import_problem/'), formData, {
+      // Microservice endpoint: POST /problem
+      // Use full URL to override apiClient's baseURL
+      const response = await apiClient.post(`${MS_API_BASE}/problem`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
-      return unwrapResponse<ImportProblemsResult>(response.data);
+
+      // Adapt response to match expected interface
+      const data = response.data;
+      // If the response is wrapped (legacy style), unwrap it. 
+      // But the new service returns the list directly (or wrapped depending on global interceptors).
+      // Assuming standard FastAPI response which is the list directly.
+      // However, if apiClient has interceptors that expect wrapped response, we might need to be careful.
+      // Let's assume response.data is the list of problems.
+
+      if (Array.isArray(data)) {
+        return { import_count: data.length };
+      }
+
+      // Fallback if it's wrapped or different structure
+      const unwrapped = unwrapResponse<any>(data);
+      if (Array.isArray(unwrapped)) {
+        return { import_count: unwrapped.length };
+      }
+
+      return { import_count: 0 };
+
     } catch (error) {
       const message = extractErrorMessage(error, '문제 대량 등록에 실패했습니다.');
       throw new Error(message);
