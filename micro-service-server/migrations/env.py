@@ -69,11 +69,19 @@ def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
 
+    def process_revision_directives(context, revision, directives):
+        if config.cmd_opts.autogenerate:
+            script = directives[0]
+            if script.upgrade_ops.is_empty():
+                directives[:] = []
+                print("[env.py] No changes detected in schema. Skipping migration generation.")
+
     def do_run_migrations(connection):
         context.configure(
             connection=connection,
             target_metadata=target_metadata,
             include_object=_include_object,
+            process_revision_directives=process_revision_directives,
         )
         with context.begin_transaction():
             context.run_migrations()

@@ -22,7 +22,15 @@ import app.monitoring.routes as monitoring_routes
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+
     logger.info("lifespan started")
+    
+    # Auto-create tables for new models (JPA-like behavior for new tables)
+    from app.config.database import engine, Base
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    logger.info("Auto-DDL: Checked/Created tables.")
+
     listener_task = asyncio.create_task(code_save_listener())
     configure_mappers()
     logger.info("DB mappers configured.")

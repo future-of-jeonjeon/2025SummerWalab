@@ -21,18 +21,18 @@ def upgrade() -> None:
     tables = inspector.get_table_names(schema="public")
     if "problem_tags" not in tables:
         return
-    op.drop_constraint(
-        "problem_tags_problem_id_866ecb8d_fk_problem_id",
-        "problem_tags",
-        type_="foreignkey",
-        schema="public",
-    )
-    op.drop_constraint(
-        "problem_tags_problemtag_id_72d20571_fk_problem_tag_id",
-        "problem_tags",
-        type_="foreignkey",
-        schema="public",
-    )
+
+    # Dynamically find and drop existing foreign keys
+    fks = inspector.get_foreign_keys("problem_tags", schema="public")
+    for fk in fks:
+        if fk["referred_table"] in ["problem", "problem_tag"]:
+            op.drop_constraint(
+                fk["name"],
+                "problem_tags",
+                type_="foreignkey",
+                schema="public",
+            )
+
     op.create_foreign_key(
         "problem_tags_problem_id_fkey",
         "problem_tags",
@@ -61,18 +61,18 @@ def downgrade() -> None:
     tables = inspector.get_table_names(schema="public")
     if "problem_tags" not in tables:
         return
-    op.drop_constraint(
-        "problem_tags_problem_id_fkey",
-        "problem_tags",
-        type_="foreignkey",
-        schema="public",
-    )
-    op.drop_constraint(
-        "problem_tags_problemtag_id_fkey",
-        "problem_tags",
-        type_="foreignkey",
-        schema="public",
-    )
+
+    # Dynamically find and drop existing foreign keys
+    fks = inspector.get_foreign_keys("problem_tags", schema="public")
+    for fk in fks:
+        if fk["referred_table"] in ["problem", "problem_tag"]:
+            op.drop_constraint(
+                fk["name"],
+                "problem_tags",
+                type_="foreignkey",
+                schema="public",
+            )
+
     op.create_foreign_key(
         "problem_tags_problem_id_fkey",
         "problem_tags",
