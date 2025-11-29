@@ -6,6 +6,8 @@ import { problemService } from '../services/problemService';
 import { submissionService, SubmissionListItem } from '../services/submissionService';
 import { contestService } from '../services/contestService';
 import { rankingService } from '../services/rankingService';
+import { useAuthStore } from '../stores/authStore';
+import { userService } from '../services/userService';
 
 type RecentProblem = {
   id: number;
@@ -109,6 +111,23 @@ const HighlightPanel = <Item,>({
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuthStore();
+
+  React.useEffect(() => {
+    const checkUserInfo = async () => {
+      if (isAuthenticated) {
+        try {
+          await userService.getUserDetail();
+        } catch (error: any) {
+          // 404 means user info is missing in MS server
+          if (error.response?.status === 404) {
+            navigate('/user-info');
+          }
+        }
+      }
+    };
+    checkUserInfo();
+  }, [isAuthenticated, navigate]);
 
   const {
     data: recentProblemsData,

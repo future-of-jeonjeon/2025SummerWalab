@@ -34,7 +34,7 @@ class UserData(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     user = relationship("User")
-    user_id = Column(Integer, ForeignKey("user.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("public.user.id"), nullable=False)
     name = Column(Text, nullable=False)
     student_id = Column(Text, nullable=False, unique=True)
     major_id = Column(Integer, nullable=False)

@@ -21,12 +21,13 @@ async def check_user_data(
 
 @router.post("/data", response_model=SubUserData)
 async def save_user_data(
+        sub_user_data: SubUserData,
         user_date: UserData = Depends(get_userdata),
         db: AsyncSession = Depends(get_session)) -> SubUserData:
-    return await serv.save_user_data(user_date, db)
+    return await serv.save_user_data(sub_user_data, user_date, db)
 
 
-@router.post("/data", response_model=SubUserData)
+@router.get("/data", response_model=SubUserData)
 async def get_user_data(
         user_date: UserData = Depends(get_userdata),
         db: AsyncSession = Depends(get_session)) -> SubUserData:
@@ -35,6 +36,7 @@ async def get_user_data(
 
 @router.put("/data", response_model=SubUserData)
 async def update_user_data(
+        sub_user_data: SubUserData,
         user_date: UserData = Depends(get_userdata),
         db: AsyncSession = Depends(get_session)) -> SubUserData:
-    return await serv.update_user_data(user_date, db)
+    return await serv.update_user_data(sub_user_data, user_date, db)

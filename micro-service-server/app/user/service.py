@@ -22,7 +22,7 @@ async def save_user_data(sub_user_data: SubUserData, user_data: UserData, db: As
 
     user = await repo.find_user_by_id(user_data.user_id, db)
     if not user:
-        exception.data_not_found("UserData")
+        exception.data_not_found("User")
 
     entity = _create_user_data_from_schema(sub_user_data)
     saved_entity = await repo.save_user_data(entity, db)
