@@ -53,6 +53,7 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401) {
       // 토큰 만료 시 로그아웃 처리
       localStorage.removeItem('token');
+      localStorage.removeItem('auth-storage'); // Zustand persist storage 제거
       window.location.href = '/login';
     }
     return Promise.reject(error);
