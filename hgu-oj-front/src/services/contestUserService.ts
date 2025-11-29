@@ -1,4 +1,5 @@
 import { ContestJoinStatus, ContestUserRegistrationList, ContestUserRegistration, ContestUserStatusValue } from '../types';
+import { apiClient, MS_API_BASE } from './api';
 
 type RawContestUserStatus = {
   contest_id?: number;
@@ -42,10 +43,6 @@ const normalizeContestUserStatusValue = (value?: string): ContestUserStatusValue
     : undefined;
 };
 
-const trimTrailingSlash = (value: string) => value.replace(/\/$/, '');
-
-const rawBase = (import.meta.env.VITE_MS_API_BASE as string | undefined) || '/ms/api';
-const MS_API_BASE = trimTrailingSlash(rawBase);
 const CONTEST_USER_API = `${MS_API_BASE}/contest-users`;
 
 const ensureBaseUrl = () => {
@@ -55,17 +52,7 @@ const ensureBaseUrl = () => {
   return CONTEST_USER_API;
 };
 
-const parseJson = async (response: Response) => {
-  const text = await response.text();
-  if (!text) {
-    return null;
-  }
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
-};
+
 
 const buildStatus = (payload: RawContestUserStatus | null, fallbackContestId: number): ContestJoinStatus => {
   const contestId = Number(payload?.contest_id ?? payload?.contestId ?? fallbackContestId);
@@ -106,22 +93,15 @@ const request = async <T>(
 ): Promise<T> => {
   const base = ensureBaseUrl();
   const url = `${base}${path}`;
-  const response = await fetch(url, {
+
+  const response = await apiClient.request({
+    url,
     method: options?.method ?? 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      ...(options?.headers ?? {}),
-    },
-    credentials: 'include',
-    body: options?.body,
+    headers: options?.headers as any,
+    data: options?.body,
   });
 
-  if (!response.ok) {
-    const payload = await parseJson(response);
-    const detail = typeof payload?.detail === 'string' ? payload.detail : null;
-    throw new Error(detail || `요청에 실패했습니다. (${response.status})`);
-  }
-  const data = (await parseJson(response)) as T | RawContestUserStatus | null;
+  const data = response.data as T | RawContestUserStatus | null;
   if ((data as RawContestUserStatus | null)?.contest_id !== undefined || fallbackContestId) {
     return buildStatus(data as RawContestUserStatus | null, fallbackContestId ?? 0) as T;
   }

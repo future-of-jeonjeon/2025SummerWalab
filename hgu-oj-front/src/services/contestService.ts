@@ -1,25 +1,18 @@
-import { api } from './api';
+import { api, apiClient, MS_API_BASE } from './api';
 import { Contest, ContestAnnouncement, ContestAccess, ContestRankEntry, PaginatedResponse, Problem } from '../types';
 import { SubmissionListItem } from './submissionService';
 import { mapProblem } from '../utils/problemMapper';
 
 const trimTrailingSlash = (value: string) => value.replace(/\/$/, '');
-const rawMicroBase = (import.meta.env.VITE_MS_API_BASE as string | undefined) || '';
-const MICRO_API_BASE = rawMicroBase ? trimTrailingSlash(rawMicroBase) : '';
+const MICRO_API_BASE = MS_API_BASE ? trimTrailingSlash(MS_API_BASE) : '';
 
 const fetchContestProblemCount = async (contestId: number): Promise<number | undefined> => {
   if (!MICRO_API_BASE) {
     return undefined;
   }
   try {
-    const response = await fetch(`${MICRO_API_BASE}/problem/contest/${contestId}/count`, {
-      method: 'GET',
-      credentials: 'include',
-    });
-    if (!response.ok) {
-      return undefined;
-    }
-    const data = await response.json();
+    const response = await apiClient.get<any>(`${MICRO_API_BASE}/problem/contest/${contestId}/count`);
+    const data = response.data;
     const numeric = Number(
       data?.count ??
       data?.total ??
@@ -44,14 +37,14 @@ const mapContest = (raw: any): Contest => ({
   visible: raw.visible,
   createdBy: raw.created_by
     ? {
-        id: raw.created_by.id,
-        username: raw.created_by.username,
-        realName: raw.created_by.real_name ?? raw.created_by.realName,
-      }
+      id: raw.created_by.id,
+      username: raw.created_by.username,
+      realName: raw.created_by.real_name ?? raw.created_by.realName,
+    }
     : raw.createdBy ?? {
-        id: 0,
-        username: '알 수 없음',
-      },
+      id: 0,
+      username: '알 수 없음',
+    },
   status: raw.status ?? raw.contest_status,
   contestType: raw.contest_type ?? raw.contestType,
   realTimeRank: raw.real_time_rank ?? raw.realTimeRank,
@@ -87,7 +80,7 @@ export const contestService = {
     ruleType?: string;
     status?: string;
   }): Promise<PaginatedResponse<Contest>> => {
-    const response = await api.get<{results: any[], total: number}>('/contests/', params);
+    const response = await api.get<{ results: any[], total: number }>('/contests/', params);
     return {
       data: response.data.results.map(mapContest),
       total: response.data.total,
@@ -125,10 +118,10 @@ export const contestService = {
       createdAt: raw.create_time ?? raw.created_at ?? raw.createdAt,
       createdBy: raw.created_by
         ? {
-            id: raw.created_by.id,
-            username: raw.created_by.username,
-            realName: raw.created_by.real_name ?? raw.created_by.realName,
-          }
+          id: raw.created_by.id,
+          username: raw.created_by.username,
+          realName: raw.created_by.real_name ?? raw.created_by.realName,
+        }
         : raw.createdBy,
     }));
   },
@@ -216,10 +209,10 @@ export const contestService = {
       id: raw.id,
       user: raw.user
         ? {
-            id: raw.user.id,
-            username: raw.user.username,
-            realName: raw.user.real_name ?? raw.user.realName,
-          }
+          id: raw.user.id,
+          username: raw.user.username,
+          realName: raw.user.real_name ?? raw.user.realName,
+        }
         : { id: 0, username: '알 수 없음' },
       acceptedNumber: raw.accepted_number ?? raw.acceptedNumber,
       submissionNumber: raw.submission_number ?? raw.submissionNumber,

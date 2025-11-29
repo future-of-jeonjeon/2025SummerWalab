@@ -1,4 +1,4 @@
-const MS_API_BASE = ((import.meta.env.VITE_MS_API_BASE as string | undefined) || '').replace(/\/$/, '');
+import { apiClient, MS_API_BASE } from './api';
 
 export interface AutoSavePayload {
   problemId: number;
@@ -17,22 +17,11 @@ export const codeAutoSaveService = {
       throw new Error('API base URL is not configured.');
     }
 
-    const response = await fetch(`${MS_API_BASE}/code/${problemId}`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify({
-        problem_id: problemId,
-        language,
-        code,
-      }),
+    await apiClient.post(`${MS_API_BASE}/code/${problemId}`, {
+      problem_id: problemId,
+      language,
+      code,
     });
-
-    if (!response.ok) {
-      throw new Error(`자동 저장 요청 실패 (${response.status})`);
-    }
   },
 
   async fetch({ problemId, language }: FetchCodeParams): Promise<string> {
@@ -45,18 +34,9 @@ export const codeAutoSaveService = {
       language,
     });
 
-    const response = await fetch(`${MS_API_BASE}/code/${problemId}?${params.toString()}`, {
-      method: 'GET',
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
-      throw new Error(`코드 불러오기 실패 (${response.status})`);
-    }
-
-    const raw = await response.text();
     try {
-      const payload = raw ? JSON.parse(raw) : '';
+      const response = await apiClient.get<any>(`${MS_API_BASE}/code/${problemId}?${params.toString()}`);
+      const payload = response.data;
       if (typeof payload === 'string') {
         return payload;
       }
@@ -65,7 +45,7 @@ export const codeAutoSaveService = {
       }
       return '';
     } catch (error) {
-      return raw ?? '';
+      return '';
     }
   },
 };

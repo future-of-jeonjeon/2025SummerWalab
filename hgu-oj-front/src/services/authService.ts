@@ -1,7 +1,7 @@
-import { api } from './api';
+import { api, apiClient, MS_API_BASE } from './api';
 import { LoginForm, LoginResponse, UserProfile } from '../types';
 
-const MS_API_BASE = ((import.meta.env.VITE_MS_API_BASE as string | undefined) || '').replace(/\/$/, '');
+
 
 export const authService = {
   // Online Judge 로그인
@@ -44,12 +44,7 @@ export const authService = {
       throw new Error('API base URL is not configured.');
     }
 
-    await fetch(`${MS_API_BASE}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ token }),
-    });
+    await apiClient.post(`${MS_API_BASE}/auth/login`, { token });
   },
 
   // 사용자 프로필 조회
@@ -84,14 +79,12 @@ export const authService = {
     await api.get('/logout');
 
     // Micro-service 로그아웃
+    // Micro-service 로그아웃
     if (!MS_API_BASE) {
       throw new Error('API base URL is not configured.');
     }
 
-    await fetch(`${MS_API_BASE}/auth/logout`, {
-      method: 'POST',
-      credentials: 'include',
-    });
+    await apiClient.post(`${MS_API_BASE}/auth/logout`);
   },
 
   // 인증 상태 확인

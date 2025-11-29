@@ -1,4 +1,4 @@
-import { api, apiClient } from './api';
+import { api, apiClient, MS_API_BASE } from './api';
 import {
   ApiResponse,
   Workbook,
@@ -190,10 +190,6 @@ interface ContestListParams {
 
 const trimTrailingSlash = (value: string) => value.replace(/\/$/, '');
 
-const MS_API_BASE = trimTrailingSlash(
-  (import.meta.env.VITE_MS_API_BASE as string | undefined) || '/ms-api'
-);
-
 const WORKBOOK_API_BASE = trimTrailingSlash(`${MS_API_BASE}/workbook`);
 
 const buildWorkbookUrl = (path = '') => `${WORKBOOK_API_BASE}${path}`;
@@ -251,67 +247,23 @@ export const adminService = {
   },
 
   createWorkbook: async (payload: CreateWorkbookPayload): Promise<Workbook> => {
-    const response = await fetch(buildWorkbookUrl('/'), {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify(payload),
-    });
-
-    if (!response.ok) {
-      const detail = await response.text();
-      throw new Error(detail || `문제집 등록에 실패했습니다. (status ${response.status})`);
-    }
-
-    return response.json();
+    const response = await apiClient.post<Workbook>(buildWorkbookUrl('/'), payload);
+    return response.data;
   },
 
   getWorkbooks: async (): Promise<Workbook[]> => {
-    const response = await fetch(buildWorkbookUrl('/all'), {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
-      const detail = await response.text();
-      throw new Error(detail || `문제집 목록을 가져오지 못했습니다. (status ${response.status})`);
-    }
-
-    return response.json();
+    const response = await apiClient.get<Workbook[]>(buildWorkbookUrl('/all'));
+    return response.data;
   },
 
   deleteWorkbook: async (id: number): Promise<void> => {
-    const response = await fetch(buildWorkbookUrl(`/${id}`), {
-      method: 'DELETE',
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
-      const detail = await response.text();
-      throw new Error(detail || `문제집 삭제에 실패했습니다. (status ${response.status})`);
-    }
+    await apiClient.delete(buildWorkbookUrl(`/${id}`));
   },
 
   getWorkbookProblems: async (id: number): Promise<WorkbookProblem[]> => {
-    const response = await fetch(buildWorkbookUrl(`/${id}/problems`), {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-    });
+    const response = await apiClient.get<any[]>(buildWorkbookUrl(`/${id}/problems`));
+    const data = response.data;
 
-    if (!response.ok) {
-      const detail = await response.text();
-      throw new Error(detail || `문제집 문제 목록을 가져오지 못했습니다. (status ${response.status})`);
-    }
-
-    const data = await response.json();
     if (!Array.isArray(data)) {
       return [];
     }
@@ -326,42 +278,17 @@ export const adminService = {
   },
 
   updateWorkbookProblems: async (workbookId: number, problemIds: number[]): Promise<void> => {
-    const response = await fetch(buildWorkbookUrl(`/${workbookId}/problems`), {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify({ problems: problemIds }),
-    });
-
-    if (!response.ok) {
-      const detail = await response.text();
-      throw new Error(detail || `문제집 문제 구성을 저장하지 못했습니다. (status ${response.status})`);
-    }
+    await apiClient.put(buildWorkbookUrl(`/${workbookId}/problems`), { problems: problemIds });
   },
 
   updateWorkbookMeta: async (workbookId: number, payload: UpdateWorkbookPayload): Promise<Workbook> => {
-    const response = await fetch(buildWorkbookUrl(`/${workbookId}`), {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      body: JSON.stringify({
-        title: payload.title,
-        description: payload.description ?? null,
-        category: payload.category ?? null,
-        is_public: payload.is_public ?? false,
-      }),
+    const response = await apiClient.put<Workbook>(buildWorkbookUrl(`/${workbookId}`), {
+      title: payload.title,
+      description: payload.description ?? null,
+      category: payload.category ?? null,
+      is_public: payload.is_public ?? false,
     });
-
-    if (!response.ok) {
-      const detail = await response.text();
-      throw new Error(detail || `문제집 정보를 수정하지 못했습니다. (status ${response.status})`);
-    }
-
-    return response.json();
+    return response.data;
   },
 
   getContests: async ({ page = 1, limit = 20, keyword }: ContestListParams = {}): Promise<AdminContestListResponse> => {
@@ -600,56 +527,25 @@ export const adminService = {
     const target = MICRO_SERVICE_HEALTH_URL;
     const started = performance.now();
     try {
-      const response = await fetch(target, {
-        method: 'GET',
-        credentials: 'include',
-        cache: 'no-store',
-      });
+      await apiClient.get(target);
       const latency = performance.now() - started;
-      if (!response.ok) {
-        const detail = await response.text();
-        return {
-          ok: false,
-          latency,
-          message: detail || 'status ' + response.status,
-        };
-      }
-
-      const contentType = response.headers.get('content-type') || '';
-      if (contentType.includes('application/json')) {
-        await response.json().catch(() => null);
-      } else {
-        await response.text().catch(() => '');
-      }
-
       return {
         ok: true,
         latency,
       };
-    } catch (error) {
+    } catch (error: any) {
       const latency = performance.now() - started;
       return {
         ok: false,
         latency,
-        message: error instanceof Error ? error.message : '알 수 없는 오류입니다.',
+        message: error.message || '알 수 없는 오류입니다.',
       };
     }
   },
 
   getSystemMetrics: async (): Promise<SystemMetrics> => {
-    const response = await fetch(`${MS_API_BASE}/monitor/judge-status`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
-      throw new Error(`시스템 지표를 가져오지 못했습니다. (status ${response.status})`);
-    }
-
-    const data: SystemMetrics = await response.json();
+    const response = await apiClient.get<SystemMetrics>(`${MS_API_BASE}/monitor/judge-status`);
+    const data = response.data;
 
     // 최근 60분 데이터 채우기 (빈 시간은 0으로)
     const filledHistory: Array<{ time: string; count: number }> = [];

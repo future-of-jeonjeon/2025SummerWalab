@@ -1,9 +1,6 @@
-import { api, apiClient } from './api';
+import { api, apiClient, MS_API_BASE } from './api';
 import { Problem, PaginatedResponse, ProblemFilter } from '../types';
 import { mapDifficulty } from '../lib/difficulty';
-
-const trimTrailingSlash = (value: string) => value.replace(/\/$/, '');
-const MS_API_BASE = trimTrailingSlash((import.meta.env.VITE_MS_API_BASE as string | undefined) || '');
 const MICRO_PROBLEM_TAG_COUNTS_ENDPOINT = MS_API_BASE
   ? `${MS_API_BASE}/problem/tags/counts`
   : undefined;
@@ -286,17 +283,10 @@ const fetchMicroProblemList = async (
   const params = buildMicroProblemListParams(filter);
 
   try {
-    const response = await fetch(`${MICRO_PROBLEM_LIST_ENDPOINT}?${params.toString()}`, {
-      method: 'GET',
-      credentials: 'include',
+    const response = await apiClient.get<any>(`${MICRO_PROBLEM_LIST_ENDPOINT}?${params.toString()}`, {
       signal: options?.signal,
     });
-
-    if (!response.ok) {
-      throw new Error(`문제 목록을 불러오지 못했습니다. (status ${response.status})`);
-    }
-
-    const payload = await response.json();
+    const payload = response.data;
     const rawProblems = Array.isArray(payload?.problems) ? payload.problems : [];
     const adapted = rawProblems.map((problem: any) => adaptProblem(problem));
     const total = Number(payload?.total ?? rawProblems.length) || 0;
@@ -520,17 +510,10 @@ export const problemService = {
 
     if (MICRO_PROBLEM_TAG_COUNTS_ENDPOINT) {
       try {
-        const response = await fetch(MICRO_PROBLEM_TAG_COUNTS_ENDPOINT, {
-          method: 'GET',
-          credentials: 'include',
+        const response = await apiClient.get<any>(MICRO_PROBLEM_TAG_COUNTS_ENDPOINT, {
           signal: options?.signal,
         });
-        if (!response.ok) {
-          const error = new Error(`HTTP error! status: ${response.status}`);
-          (error as any).status = response.status;
-          throw error;
-        }
-        responseData = await response.json();
+        responseData = response.data;
       } catch (error: any) {
         if (error?.name === 'AbortError') {
           throw error;

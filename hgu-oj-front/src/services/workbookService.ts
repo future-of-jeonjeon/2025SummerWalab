@@ -1,14 +1,13 @@
 import { Problem, Workbook } from '../types';
+import { apiClient, MS_API_BASE } from './api';
 import { mapProblem } from '../utils/problemMapper';
 import { WorkbookFilter } from '../stores/workbookStore';
 
 const trimTrailingSlash = (value: string) => value.replace(/\/$/, '');
 
-const MS_API_BASE = trimTrailingSlash(
-  (import.meta.env.VITE_MS_API_BASE as string | undefined) || '/ms-api'
-);
 
-const MICRO_API_BASE = `${MS_API_BASE}/workbook`;
+
+const MICRO_API_BASE = `${trimTrailingSlash(MS_API_BASE)}/workbook`;
 
 const buildUrl = (path = '', params?: Record<string, string | number | undefined>) => {
   const searchParams = new URLSearchParams();
@@ -30,37 +29,13 @@ export const workbookService = {
       limit: filter?.limit,
     });
 
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const workbooks = await response.json();
-    return workbooks as Workbook[];
+    const response = await apiClient.get<Workbook[]>(url);
+    return response.data;
   },
 
   getWorkbook: async (id: number): Promise<Workbook> => {
-    const response = await fetch(buildUrl(`/${id}`), {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const workbook = await response.json();
-    return workbook;
+    const response = await apiClient.get<Workbook>(buildUrl(`/${id}`));
+    return response.data;
   },
 
   getWorkbookProblems: async (id: number): Promise<{
@@ -74,27 +49,16 @@ export const workbookService = {
     }>;
     workbook: Workbook;
   }> => {
-    const response = await fetch(buildUrl(`/${id}/problems`), {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
-      throw new Error(`HTTP error! status: ${response.status}`);
-    }
-
-    const rawProblems = await response.json();
+    const response = await apiClient.get<any[]>(buildUrl(`/${id}/problems`));
+    const rawProblems = response.data;
 
     const normalizedProblems = (Array.isArray(rawProblems) ? rawProblems : [])
       .map((item: any) => {
         const rawProblem = item.problem
           ? {
-              ...item.problem,
-              tags: item.problem?.tags ?? item.tags ?? item.problem_tags ?? item.problemTags,
-            }
+            ...item.problem,
+            tags: item.problem?.tags ?? item.tags ?? item.problem_tags ?? item.problemTags,
+          }
           : undefined;
 
         return {

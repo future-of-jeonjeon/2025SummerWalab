@@ -1,4 +1,5 @@
 import { Organization, OrganizationListResponse, OrganizationMember } from '../types';
+import { apiClient, MS_API_BASE } from './api';
 
 type RequestOptions = {
   signal?: AbortSignal;
@@ -52,10 +53,6 @@ export type OrganizationListParams = {
   size?: number;
 };
 
-const trimTrailingSlash = (value: string) => value.replace(/\/$/, '');
-
-const rawBase = (import.meta.env.VITE_MS_API_BASE as string | undefined) || '/ms/api';
-const MS_API_BASE = trimTrailingSlash(rawBase);
 const ORGANIZATION_API_BASE = `${MS_API_BASE}/organization`;
 
 const ensureBase = () => {
@@ -92,18 +89,7 @@ const buildUrl = (path = '', params?: Record<string, unknown>) => {
   return `${base}${normalizedPath}${query ? `?${query}` : ''}`;
 };
 
-const parseJson = async <T>(response: Response): Promise<T | null> => {
-  const text = await response.text();
-  if (!text) {
-    return null;
-  }
-  try {
-    return JSON.parse(text) as T;
-  } catch (error) {
-    console.warn('Failed to parse JSON from organization service response', error);
-    return null;
-  }
-};
+
 
 const isRawOrganization = (value: unknown): value is RawOrganization =>
   typeof value === 'object' && value !== null;
@@ -130,8 +116,8 @@ const adaptOrganization = (raw: RawOrganization | undefined): Organization => {
 
   const members = Array.isArray(raw.members)
     ? raw.members
-        .map((member) => adaptMember(member))
-        .filter((member) => member.id !== 0 || member.username.trim().length > 0)
+      .map((member) => adaptMember(member))
+      .filter((member) => member.id !== 0 || member.username.trim().length > 0)
     : undefined;
 
   const rawId = raw.id ?? raw.organization_id ?? 0;
@@ -164,9 +150,9 @@ const adaptListResponse = (
     const rawPayload = payload as RawOrganizationListResponse;
     const rawItems =
       Array.isArray(rawPayload.items) ? rawPayload.items :
-      Array.isArray(rawPayload.results) ? rawPayload.results :
-      Array.isArray(rawPayload.data) ? rawPayload.data :
-      [];
+        Array.isArray(rawPayload.results) ? rawPayload.results :
+          Array.isArray(rawPayload.data) ? rawPayload.data :
+            [];
 
     const items = rawItems.map((item) => adaptOrganization(item));
 
@@ -190,11 +176,7 @@ const adaptListResponse = (
   };
 };
 
-const ensureOk = (response: Response) => {
-  if (!response.ok) {
-    throw new Error(`Organization request failed with status ${response.status}`);
-  }
-};
+
 
 export const organizationService = {
   list: async (
@@ -202,25 +184,14 @@ export const organizationService = {
     options?: RequestOptions,
   ): Promise<OrganizationListResponse> => {
     const url = buildUrl('', { page, size });
-    const response = await fetch(url, {
-      method: 'GET',
-      credentials: 'include',
-      signal: options?.signal,
-    });
-    ensureOk(response);
-    const payload = await parseJson<unknown>(response);
-    return adaptListResponse(payload, { page, size });
+    const response = await apiClient.get<unknown>(url, { signal: options?.signal });
+    return adaptListResponse(response.data, { page, size });
   },
 
   get: async (organizationId: number, options?: RequestOptions): Promise<Organization> => {
     const url = buildUrl(`/${organizationId}`);
-    const response = await fetch(url, {
-      method: 'GET',
-      credentials: 'include',
-      signal: options?.signal,
-    });
-    ensureOk(response);
-    const payload = await parseJson<RawOrganization | null>(response);
+    const response = await apiClient.get<RawOrganization>(url, { signal: options?.signal });
+    const payload = response.data;
     if (!payload) {
       throw new Error('Organization detail response is empty.');
     }
@@ -229,17 +200,8 @@ export const organizationService = {
 
   create: async (payload: OrganizationPayload, options?: RequestOptions): Promise<Organization> => {
     const url = buildUrl('/');
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      signal: options?.signal,
-      body: JSON.stringify(payload),
-    });
-    ensureOk(response);
-    const body = await parseJson<RawOrganization | null>(response);
+    const response = await apiClient.post<RawOrganization>(url, payload, { signal: options?.signal });
+    const body = response.data;
     if (!body) {
       throw new Error('Failed to parse organization create response.');
     }
@@ -252,17 +214,8 @@ export const organizationService = {
     options?: RequestOptions,
   ): Promise<Organization> => {
     const url = buildUrl(`/${organizationId}`);
-    const response = await fetch(url, {
-      method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-      signal: options?.signal,
-      body: JSON.stringify(payload),
-    });
-    ensureOk(response);
-    const body = await parseJson<RawOrganization | null>(response);
+    const response = await apiClient.put<RawOrganization>(url, payload, { signal: options?.signal });
+    const body = response.data;
     if (!body) {
       return {
         id: organizationId,
@@ -275,12 +228,7 @@ export const organizationService = {
 
   remove: async (organizationId: number, options?: RequestOptions): Promise<void> => {
     const url = buildUrl(`/${organizationId}`);
-    const response = await fetch(url, {
-      method: 'DELETE',
-      credentials: 'include',
-      signal: options?.signal,
-    });
-    ensureOk(response);
+    await apiClient.delete(url, { signal: options?.signal });
   },
 
   addMember: async (
@@ -289,13 +237,8 @@ export const organizationService = {
     options?: RequestOptions,
   ): Promise<Organization> => {
     const url = buildUrl(`/${organizationId}/users/${userId}`);
-    const response = await fetch(url, {
-      method: 'POST',
-      credentials: 'include',
-      signal: options?.signal,
-    });
-    ensureOk(response);
-    const body = await parseJson<RawOrganization | null>(response);
+    const response = await apiClient.post<RawOrganization>(url, {}, { signal: options?.signal });
+    const body = response.data;
     if (!body) {
       throw new Error('Failed to parse add member response.');
     }
@@ -308,13 +251,8 @@ export const organizationService = {
     options?: RequestOptions,
   ): Promise<Organization> => {
     const url = buildUrl(`/${organizationId}/users/${userId}`);
-    const response = await fetch(url, {
-      method: 'DELETE',
-      credentials: 'include',
-      signal: options?.signal,
-    });
-    ensureOk(response);
-    const body = await parseJson<RawOrganization | null>(response);
+    const response = await apiClient.delete<RawOrganization>(url, { signal: options?.signal });
+    const body = response.data;
     if (!body) {
       return {
         id: organizationId,

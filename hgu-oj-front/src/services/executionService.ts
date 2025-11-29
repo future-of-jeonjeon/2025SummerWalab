@@ -1,4 +1,4 @@
-
+import { apiClient, MS_API_BASE } from './api';
 export interface RunRequest {
   language: string;
   code: string;
@@ -32,21 +32,16 @@ const languageMap: Record<string, string> = {
 export const executionService = {
   run: async ({ language, code, input }: RunRequest): Promise<RawRunResult> => {
     const lang = languageMap[language] || language;
-    const MS_API_BASE = ((import.meta.env.VITE_MS_API_BASE as string | undefined) || '').replace(/\/$/, '');
 
     if (!MS_API_BASE) {
       throw new Error('API base URL is not configured.');
     }
 
-    const resp = await fetch(`${MS_API_BASE}/execution/run`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      credentials: 'include',
-      body: JSON.stringify({ language: lang, code, input: input ?? '' }),
+    const resp = await apiClient.post<RawRunResult>(`${MS_API_BASE}/execution/run`, {
+      language: lang,
+      code,
+      input: input ?? '',
     });
-    if (!resp.ok) {
-      throw new Error(`실행 요청 실패 (${resp.status})`);
-    }
-    return await resp.json();
+    return resp.data;
   },
 };

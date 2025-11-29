@@ -1,16 +1,14 @@
 import { AxiosResponse } from 'axios';
-import { apiClient } from './api';
+import { apiClient, MS_API_BASE } from './api';
 import { OrganizationRankingEntry, PaginatedResponse, UserRankingEntry } from '../types';
 
 const DEFAULT_PAGE_SIZE = 25;
 const trimTrailingSlash = (value: string) => value.replace(/\/$/, '');
 const USER_RANKING_ENDPOINT = ((import.meta.env.VITE_USER_RANKING_ENDPOINT as string | undefined) || '/user_rank').replace(/\/+$/, '');
 
-const rawMsBase = (import.meta.env.VITE_MS_API_BASE as string | undefined) || '/ms/api';
-const MS_API_BASE = trimTrailingSlash(rawMsBase);
 const ORGANIZATION_RANKING_ENDPOINT = trimTrailingSlash(
   (import.meta.env.VITE_ORGANIZATION_RANKING_ENDPOINT as string | undefined)
-    || `${MS_API_BASE}/organization_rank`,
+  || `${MS_API_BASE}/organization_rank`,
 );
 
 type ContestRule = 'ACM' | 'OI';
@@ -259,16 +257,7 @@ export const rankingService = {
     const separator = normalizedBase.includes('?') ? '&' : '?';
     const endpoint = `${normalizedBase}${separator}${searchParams.toString()}`;
 
-    const response = await fetch(endpoint, {
-      credentials: 'include',
-      signal: options.signal,
-    });
-
-    if (!response.ok) {
-      throw new Error(`조직 랭킹을 불러오지 못했습니다. (status ${response.status})`);
-    }
-
-    const payload = await response.json() as {
+    const response = await apiClient.get<{
       items?: Array<Record<string, unknown>>;
       results?: Array<Record<string, unknown>>;
       data?: Array<Record<string, unknown>>;
@@ -278,7 +267,11 @@ export const rankingService = {
       limit?: number;
       page?: number;
       offset?: number;
-    };
+    }>(endpoint, {
+      signal: options.signal,
+    });
+
+    const payload = response.data;
 
     const rawItems = Array.isArray(payload.items)
       ? payload.items
