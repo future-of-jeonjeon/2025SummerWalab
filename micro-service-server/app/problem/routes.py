@@ -1,14 +1,27 @@
+import os
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.database import get_session
 from app.problem.service import ProblemService
-from app.problem.schemas import ProblemListResponse
+from app.problem.schemas import ProblemListResponse, ProblemSchema
+from app.utils.security import authorize_roles
+import app.problem.service as serv
 
 router = APIRouter(prefix="/api/problem", tags=["Problem Management"])
 
+TEST_CASE_BASE_PATH = os.getenv("TEST_CASE_DATA_PATH", "/app/test_cases_data")
+os.makedirs(TEST_CASE_BASE_PATH, exist_ok=True)
+
+
+@authorize_roles("Admin")
+@router.post("", response_model=List[ProblemSchema])
+async def import_problem(
+        file: UploadFile = File(...),
+        db: AsyncSession = Depends(get_session)):
+    return await serv.import_problem(file,db)
 
 # 문제 필터 및 카운트에 필요한 api들
 

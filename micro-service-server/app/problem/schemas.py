@@ -72,3 +72,21 @@ class ProblemListResponse(BaseModel):
     page: int
     page_size: int
     problems: List[ProblemSchema]
+
+
+class ImportProblemSerializer(BaseModel):
+    display_id: str
+    title: str
+    description: Dict[str, str]
+    input_description: Dict[str, str]
+    output_description: Dict[str, str]
+    hint: Dict[str, str]
+    time_limit: int
+    memory_limit: int
+    samples: List[Dict[str, str]]
+    template: Dict[str, Dict[str, str]]
+    rule_type: str
+    source: str
+    spj: Optional[Dict[str, str]]
+    tags: List[str]
+    test_case_score: List[Dict[str, Any]]
