@@ -15,7 +15,7 @@ from app.contest_user.schemas import (
     ContestUserStatus,
     ParticipationStatus,
 )
-from app.user.DTO import UserData
+from app.user.schemas import UserData
 from app.user import repository as user_repository
 from app.utils.database import transactional
 
@@ -132,7 +132,7 @@ async def decide_contest_user(
     if membership is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="참여 신청을 찾을 수 없습니다.")
 
-    user = await user_repository.find_by_id(decision.user_id, db)
+    user = await user_repository.find_user_by_id(decision.user_id, db)
     username = getattr(user, "username", None) if user else None
     decided_at = membership.approved_at if membership.status == APPROVED else membership.updated_time
     return ContestUserDetail(

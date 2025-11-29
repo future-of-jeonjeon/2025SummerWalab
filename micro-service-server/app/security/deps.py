@@ -3,7 +3,7 @@ from app.utils.logging import logger
 from fastapi import HTTPException, Request, status, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.config.database import get_session
-from app.user.DTO import UserData
+from app.user.schemas import UserData
 from app.user.repository import check_user_exists_by_username
 from app.security.security import get_user_session_data
 

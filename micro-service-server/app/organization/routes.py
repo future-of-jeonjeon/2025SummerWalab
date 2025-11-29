@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config.database import get_session
 from app.organization.schemas import OrganizationCreateData, OrganizationUpdateData
 from app.security.deps import get_userdata
-from app.user.DTO import UserData
+from app.user.schemas import UserData
 from app.utils.security import authorize_roles
 import app.organization.service as organization_serv
 

@@ -1,10 +1,10 @@
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.user.DTO import UserData
+from app.user.schemas import UserData
 from app.workbook.models import Workbook, WorkbookProblem
 from app.workbook.schemas import WorkbookCreate, WorkbookUpdate
 from typing import List, Optional
 from fastapi import HTTPException
-import app.user.user_repository as user_repo
+import app.user.repository as user_repo
 import app.workbook.repository as workbook_repo
 
 
@@ -15,7 +15,7 @@ async def create_workbook(
         *,
         problems_data: Optional[list[int]] = None,
 ) -> Workbook:
-    user = await user_repo.find_by_username(db, userdata.username)
+    user = await user_repo.find_user_by_username(db, userdata.username)
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     workbook = _create_workbook_by_data(workbook_data, user.id)

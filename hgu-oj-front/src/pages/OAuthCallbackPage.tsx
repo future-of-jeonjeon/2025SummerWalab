@@ -1,13 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { authService } from '../services/authService';
+
 import { useAuthStore } from '../stores/authStore';
 
 const OAuthCallbackPage: React.FC = () => {
     const navigate = useNavigate();
     const location = useLocation();
-    const { getProfile } = useAuthStore();
-    const [error, setError] = useState<string | null>(null);
+    const { loginWithGoogle, error: storeError } = useAuthStore();
+    const [localError, setLocalError] = useState<string | null>(null);
+    const error = localError || storeError;
     const processedRef = useRef(false);
 
     useEffect(() => {
@@ -19,27 +20,24 @@ const OAuthCallbackPage: React.FC = () => {
             const code = searchParams.get('code');
 
             if (!code) {
-                setError('Authorization code is missing');
+                setLocalError('Authorization code is missing');
                 return;
             }
 
             try {
-                const result = await authService.googleLoginCallback(code);
-                if (result.success) {
-                    // Login successful, fetch profile and redirect
-                    await getProfile();
+                const success = await loginWithGoogle(code);
+                if (success) {
                     navigate('/');
-                } else {
-                    setError(result.message || 'Login failed');
                 }
+                // error is handled by store
             } catch (err) {
                 console.error('Google login error:', err);
-                setError('An error occurred during login');
+                setLocalError('An error occurred during login');
             }
         };
 
         processCallback();
-    }, [location, navigate, getProfile]);
+    }, [location, navigate, loginWithGoogle]);
 
     if (error) {
         return (

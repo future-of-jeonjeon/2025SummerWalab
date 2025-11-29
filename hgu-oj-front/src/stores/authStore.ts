@@ -80,6 +80,7 @@ interface AuthState {
 
 interface AuthActions {
   login: (username: string, password: string, tfaCode?: string) => Promise<boolean>;
+  loginWithGoogle: (code: string) => Promise<boolean>;
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   setUser: (user: UserProfile | null) => void;
@@ -138,6 +139,45 @@ export const useAuthStore = create<AuthState & AuthActions>()(
           return true;
         } catch (error) {
           const errorMessage = error instanceof Error ? error.message : '로그인 중 오류가 발생했습니다.';
+          set({ error: errorMessage, isLoading: false });
+          return false;
+        }
+      },
+
+      loginWithGoogle: async (code: string) => {
+        set({ isLoading: true, error: null });
+
+        try {
+          // 1. Google Login Callback
+          console.log('Starting Google login process...');
+          const loginResponse = await authService.googleLoginCallback(code);
+
+          if (!loginResponse.success) {
+            console.log('Google login failed:', loginResponse.message);
+            set({ error: loginResponse.message || 'Google 로그인에 실패했습니다.', isLoading: false });
+            return false;
+          }
+
+          // 2. SSO 토큰 발급
+          const ssoToken = await authService.getSSOToken();
+
+          // 3. Micro-service 로그인
+          await authService.loginToMicroService(ssoToken);
+
+          // 4. 사용자 프로필 조회
+          const user = await authService.getProfile();
+
+          set({
+            user,
+            isAuthenticated: true,
+            isLoading: false,
+            error: null,
+          });
+          invalidateUserScopedQueries();
+
+          return true;
+        } catch (error) {
+          const errorMessage = error instanceof Error ? error.message : 'Google 로그인 중 오류가 발생했습니다.';
           set({ error: errorMessage, isLoading: false });
           return false;
         }

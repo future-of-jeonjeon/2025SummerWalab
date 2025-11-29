@@ -7,7 +7,7 @@ import httpx
 from dotenv import load_dotenv
 
 from app.config.redis import get_redis
-from app.user.DTO import UserData
+from app.user.schemas import UserData
 from app.user import repository as user_repo
 from app.config.database import SessionLocal
 

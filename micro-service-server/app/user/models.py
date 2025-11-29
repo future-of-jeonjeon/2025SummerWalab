@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from app.config.database import Base
@@ -27,3 +27,14 @@ class User(Base):
 
     # Relationship
     created_problems = relationship("Problem", back_populates="created_by")
+
+class UserData(Base):
+    __tablename__ = "micro_userdata"
+    __table_args__ = {'schema': 'public'}
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    user = relationship("User")
+    user_id = Column(Integer, ForeignKey("public.user.id"), nullable=False)
+    name = Column(Text, nullable=False)
+    student_id = Column(Text, nullable=False, unique=True)
+    major_id = Column(Integer, nullable=False)

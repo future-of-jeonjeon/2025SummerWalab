@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.code_autosave.models import ProblemCode
 from app.config.redis import get_redis_code_save
 from app.utils.database import transactional
-from app.user.DTO import UserData
+from app.user.schemas import UserData
 import app.code_autosave.repository as repo
 
 load_dotenv()

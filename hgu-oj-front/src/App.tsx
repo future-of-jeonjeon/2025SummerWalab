@@ -16,6 +16,7 @@ import { NavBar } from './components/organisms/NavBar';
 import { AdminPage } from './pages/AdminPage';
 import MyPage from './pages/MyPage';
 import { RankingPage } from './pages/RankingPage';
+import UserInfoPage from './pages/UserInfoPage';
 
 const AppShell: React.FC = () => {
   const location = useLocation();
@@ -37,6 +38,7 @@ const AppShell: React.FC = () => {
         <Route path="/ranking" element={<RankingPage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/mypage" element={<MyPage />} />
+        <Route path="/user-info" element={<UserInfoPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>

@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.config.database import get_session
 from app.execution.service import ExecutionService
 from app.security.deps import get_userdata
-from app.user.DTO import UserData
+from app.user.schemas import UserData
 from app.utils.security import authorize_roles
 
 router = APIRouter(prefix="/api/execution", tags=["execution"])

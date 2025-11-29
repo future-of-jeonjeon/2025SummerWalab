@@ -11,7 +11,7 @@ from app.contest_user.schemas import (
 )
 from app.contest_user import service as contest_user_service
 from app.security.deps import get_userdata
-from app.user.DTO import UserData
+from app.user.schemas import UserData
 
 router = APIRouter(prefix="/api/contest-users", tags=["contest-user"])
 
