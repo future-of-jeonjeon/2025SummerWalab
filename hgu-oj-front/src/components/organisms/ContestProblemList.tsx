@@ -16,12 +16,12 @@ interface ContestProblemListProps {
 const getStatusBadge = (problem: Problem, overrideState?: string): { label: string; className: string } | null => {
   const state = resolveProblemStatus(problem, { override: overrideState });
   switch (state) {
-    case PROBLEM_STATUS_LABELS.solved:
+    case 'solved':
       return {
         label: PROBLEM_STATUS_LABELS.solved,
         className: 'bg-green-100 text-green-700 border border-green-200',
       };
-    case PROBLEM_STATUS_LABELS.wrong:
+    case 'wrong':
       return {
         label: PROBLEM_STATUS_LABELS.wrong,
         className: 'bg-red-100 text-red-600 border border-red-200',
@@ -31,7 +31,7 @@ const getStatusBadge = (problem: Problem, overrideState?: string): { label: stri
         label: PROBLEM_STATUS_LABELS.attempted,
         className: 'bg-amber-100 text-amber-700 border border-amber-200',
       };
-    case PROBLEM_STATUS_LABELS.untouched:
+    case 'untouched':
       return null;
     default:
       return null;

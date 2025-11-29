@@ -22,11 +22,12 @@ export const Card: React.FC<CardProps> = ({
     ? 'bg-slate-900 border border-slate-700 text-slate-100'
     : 'bg-white border border-gray-200 text-gray-900';
   const baseClasses = `rounded-lg ${baseColorClasses}`;
-  
+
   const paddingClasses = {
     sm: 'p-3',
     md: 'p-4',
     lg: 'p-6',
+    none: 'p-0',
   };
 
   const shadowClasses = {

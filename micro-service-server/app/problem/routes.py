@@ -1,13 +1,26 @@
+import os
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 
+import app.problem.service as serv
 from app.config.database import get_session
-from app.problem.service import ProblemService
-from app.problem.schemas import ProblemListResponse
+from app.problem.schemas import ProblemListResponse, ProblemSchema
+from app.utils.security import authorize_roles
 
 router = APIRouter(prefix="/api/problem", tags=["Problem Management"])
+
+TEST_CASE_BASE_PATH = os.getenv("TEST_CASE_DATA_PATH", "/app/test_cases_data")
+os.makedirs(TEST_CASE_BASE_PATH, exist_ok=True)
+
+
+@authorize_roles("Admin")
+@router.post("", response_model=List[ProblemSchema])
+async def import_problem(
+        file: UploadFile = File(...),
+        db: AsyncSession = Depends(get_session)):
+    return await serv.import_problem(file, db)
 
 
 # 문제 필터 및 카운트에 필요한 api들
@@ -15,14 +28,12 @@ router = APIRouter(prefix="/api/problem", tags=["Problem Management"])
 # 태그별 문제수 조회할 때 필요한거
 @router.get("/tags/counts")
 async def get_tag_count(db: AsyncSession = Depends(get_session)):
-    service = ProblemService(db)
-    return await service.get_tag_count()
+    return await serv.get_tag_count(db)
 
 
 @router.get("/contest/{contest_id}/count")
 async def get_contest_problem_count(contest_id: int, db: AsyncSession = Depends(get_session)):
-    service = ProblemService(db)
-    count = await service.get_contest_problem_count(contest_id)
+    count = await serv.get_contest_problem_count(contest_id, db)
     return {"contest_id": contest_id, "count": count}
 
 
@@ -40,5 +51,4 @@ async def get_filter_sorted_problems(
         page_size: int = Query(20, ge=1, le=250),
         db: AsyncSession = Depends(get_session)
 ):
-    service = ProblemService(db)
-    return await service.get_filter_sorted_problems(tags, sort_option, order, page, page_size)
+    return await serv.get_filter_sorted_problems(tags, sort_option, order, page, page_size, db)

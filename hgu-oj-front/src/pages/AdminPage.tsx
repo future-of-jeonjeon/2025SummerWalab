@@ -72,7 +72,8 @@ export const AdminPage: React.FC = () => {
   const [userFormLoading, setUserFormLoading] = useState(false);
   const [userDeleteLoading, setUserDeleteLoading] = useState(false);
 
-  const [activeSection, setActiveSection] = useState<AdminSection>('problem');
+  const [activeSection, setActiveSection] = useState<AdminSection>('server');
+  const [expandedCategory, setExpandedCategory] = useState<string | null>('server');
 
   const fetchUsers = useCallback(
     async (page: number = 1, keyword?: string) => {
@@ -279,17 +280,7 @@ export const AdminPage: React.FC = () => {
     };
   }, []);
 
-  const sections: Array<{ key: AdminSection; label: string; helper: string }> = [
-    { key: 'server', label: '서버 관리', helper: '채점 서버와 서비스 상태 모니터링' },
-    { key: 'organization', label: '조직 관리', helper: '조직 목록과 구성원 관리 도구' },
-    { key: 'problem', label: '문제 등록', helper: '단일 문제 생성 및 메타데이터 관리' },
-    { key: 'bulk', label: '문제 일괄 관리', helper: 'OJ 백엔드 기반 대량 등록 및 내보내기' },
-    { key: 'problem-edit', label: '문제 수정', helper: '기존 문제 조회 및 정보 수정' },
-    { key: 'workbook', label: '문제집 등록', helper: '문제집 메타데이터 등록' },
-    { key: 'workbook-manage', label: '문제집 수정', helper: '문제집 목록 확인 및 문제 관리' },
-    { key: 'contest', label: '대회 등록', helper: '대회 일정과 옵션 생성' },
-    { key: 'contest-edit', label: '대회 수정', helper: '대회 정보 조회 및 수정' },
-  ];
+
 
   const renderActiveSection = () => {
     if (!isAuthenticated) {
@@ -417,9 +408,8 @@ export const AdminPage: React.FC = () => {
                               <td className="px-4 py-3 text-sm text-gray-700">{item.admin_type}</td>
                               <td className="px-4 py-3 text-sm text-gray-700">
                                 <span
-                                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${
-                                    item.is_disabled ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
-                                  }`}
+                                  className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${item.is_disabled ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
+                                    }`}
                                 >
                                   {item.is_disabled ? '비활성' : '활성'}
                                 </span>
@@ -585,31 +575,252 @@ export const AdminPage: React.FC = () => {
         </div>
 
         <div className="flex flex-col gap-6 lg:flex-row">
-          <aside className="w-full lg:w-64 flex-none">
-            <Card padding="lg">
-              <nav className="space-y-2">
-                {sections.map((section) => {
-                  const active = activeSection === section.key;
-                  return (
-                    <button
-                      key={section.key}
-                      type="button"
-                      onClick={() => setActiveSection(section.key)}
-                      className={`w-full rounded-md border px-4 py-3 text-left transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#113F67] min-h-[88px] ${
-                        active
-                          ? 'border-[#113F67] bg-[#113F67] text-white shadow-sm'
-                          : 'border-gray-200 bg-white text-gray-900 hover:border-[#113F67] hover:bg-gray-50'
-                      }`}
-                    >
-                      <div className="text-sm font-semibold">{section.label}</div>
-                      <div className={`mt-1 text-xs ${active ? 'text-blue-100' : 'text-gray-500'}`}>
-                        {section.helper}
-                      </div>
-                    </button>
-                  );
-                })}
-              </nav>
-            </Card>
+          <aside className="w-full lg:w-64 flex-none space-y-3">
+            {/* 서버 관리 (단일 메뉴) */}
+            <div className={`rounded-lg border transition-all duration-200 overflow-hidden ${activeSection === 'server' ? 'border-[#113F67] bg-white ring-1 ring-[#113F67]' : 'border-gray-200 bg-white hover:border-gray-300'
+              }`}>
+              <button
+                onClick={() => {
+                  const isExpanded = expandedCategory === 'server';
+                  setExpandedCategory(isExpanded ? null : 'server');
+                }}
+                className="w-full px-4 py-3 text-left focus:outline-none border-b border-transparent"
+              >
+                <div className="flex items-center justify-between">
+                  <span className={`font-semibold ${activeSection === 'server' ? 'text-[#113F67]' : 'text-gray-900'}`}>서버 관리</span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className={`h-4 w-4 text-gray-400 transform transition-transform duration-200 ${expandedCategory === 'server' ? 'rotate-180' : ''}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+                <div className="mt-1 text-xs text-gray-500">채점 서버와 서비스 상태 모니터링</div>
+              </button>
+
+              <div className={`transition-all duration-300 ease-in-out overflow-hidden ${expandedCategory === 'server' ? 'max-h-24 opacity-100' : 'max-h-0 opacity-0'}`}>
+                <div className="bg-gray-50 px-2 py-2 space-y-1 border-t border-gray-100">
+                  <button
+                    onClick={() => setActiveSection('server')}
+                    className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${activeSection === 'server' ? 'bg-[#113F67] text-white font-medium' : 'text-gray-600 hover:bg-gray-200'}`}
+                  >
+                    서버 대시보드
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* 문제 관리 (아코디언) */}
+            <div className={`rounded-lg border transition-all duration-200 overflow-hidden ${['problem', 'problem-edit', 'bulk'].includes(activeSection) ? 'border-[#113F67] bg-white ring-1 ring-[#113F67]' : 'border-gray-200 bg-white hover:border-gray-300'
+              }`}>
+              <button
+                onClick={() => {
+                  const isExpanded = expandedCategory === 'problem';
+                  setExpandedCategory(isExpanded ? null : 'problem');
+                }}
+                className="w-full px-4 py-3 text-left focus:outline-none border-b border-transparent"
+              >
+                <div className="flex items-center justify-between">
+                  <span className={`font-semibold ${['problem', 'problem-edit', 'bulk'].includes(activeSection) ? 'text-[#113F67]' : 'text-gray-900'}`}>문제 관리</span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className={`h-4 w-4 text-gray-400 transform transition-transform duration-200 ${expandedCategory === 'problem' ? 'rotate-180' : ''}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+                <div className="mt-1 text-xs text-gray-500">문제 등록, 수정 및 일괄 관리</div>
+              </button>
+
+              <div className={`transition-all duration-300 ease-in-out overflow-hidden ${expandedCategory === 'problem' ? 'max-h-48 opacity-100' : 'max-h-0 opacity-0'}`}>
+                <div className="bg-gray-50 px-2 py-2 space-y-1 border-t border-gray-100">
+                  <button
+                    onClick={() => setActiveSection('problem')}
+                    className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${activeSection === 'problem' ? 'bg-[#113F67] text-white font-medium' : 'text-gray-600 hover:bg-gray-200'}`}
+                  >
+                    문제 등록
+                  </button>
+                  <button
+                    onClick={() => setActiveSection('problem-edit')}
+                    className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${activeSection === 'problem-edit' ? 'bg-[#113F67] text-white font-medium' : 'text-gray-600 hover:bg-gray-200'}`}
+                  >
+                    문제 수정
+                  </button>
+                  <button
+                    onClick={() => setActiveSection('bulk')}
+                    className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${activeSection === 'bulk' ? 'bg-[#113F67] text-white font-medium' : 'text-gray-600 hover:bg-gray-200'}`}
+                  >
+                    문제 일괄 관리
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* 대회 관리 (아코디언) */}
+            <div className={`rounded-lg border transition-all duration-200 overflow-hidden ${['contest', 'contest-edit'].includes(activeSection) ? 'border-[#113F67] bg-white ring-1 ring-[#113F67]' : 'border-gray-200 bg-white hover:border-gray-300'
+              }`}>
+              <button
+                onClick={() => {
+                  const isExpanded = expandedCategory === 'contest';
+                  setExpandedCategory(isExpanded ? null : 'contest');
+                }}
+                className="w-full px-4 py-3 text-left focus:outline-none"
+              >
+                <div className="flex items-center justify-between">
+                  <span className={`font-semibold ${['contest', 'contest-edit'].includes(activeSection) ? 'text-[#113F67]' : 'text-gray-900'}`}>대회 관리</span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className={`h-4 w-4 text-gray-400 transform transition-transform duration-200 ${expandedCategory === 'contest' ? 'rotate-180' : ''}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+                <div className="mt-1 text-xs text-gray-500">대회 생성 및 설정 수정</div>
+              </button>
+
+              <div className={`transition-all duration-300 ease-in-out overflow-hidden ${expandedCategory === 'contest' ? 'max-h-32 opacity-100' : 'max-h-0 opacity-0'}`}>
+                <div className="bg-gray-50 px-2 py-2 space-y-1 border-t border-gray-100">
+                  <button
+                    onClick={() => setActiveSection('contest')}
+                    className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${activeSection === 'contest' ? 'bg-[#113F67] text-white font-medium' : 'text-gray-600 hover:bg-gray-200'}`}
+                  >
+                    대회 등록
+                  </button>
+                  <button
+                    onClick={() => setActiveSection('contest-edit')}
+                    className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${activeSection === 'contest-edit' ? 'bg-[#113F67] text-white font-medium' : 'text-gray-600 hover:bg-gray-200'}`}
+                  >
+                    대회 수정
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* 문제집 관리 (아코디언) */}
+            <div className={`rounded-lg border transition-all duration-200 overflow-hidden ${['workbook', 'workbook-manage'].includes(activeSection) ? 'border-[#113F67] bg-white ring-1 ring-[#113F67]' : 'border-gray-200 bg-white hover:border-gray-300'
+              }`}>
+              <button
+                onClick={() => {
+                  const isExpanded = expandedCategory === 'workbook';
+                  setExpandedCategory(isExpanded ? null : 'workbook');
+                }}
+                className="w-full px-4 py-3 text-left focus:outline-none"
+              >
+                <div className="flex items-center justify-between">
+                  <span className={`font-semibold ${['workbook', 'workbook-manage'].includes(activeSection) ? 'text-[#113F67]' : 'text-gray-900'}`}>문제집 관리</span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className={`h-4 w-4 text-gray-400 transform transition-transform duration-200 ${expandedCategory === 'workbook' ? 'rotate-180' : ''}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+                <div className="mt-1 text-xs text-gray-500">문제집 구성 및 관리</div>
+              </button>
+
+              <div className={`transition-all duration-300 ease-in-out overflow-hidden ${expandedCategory === 'workbook' ? 'max-h-32 opacity-100' : 'max-h-0 opacity-0'}`}>
+                <div className="bg-gray-50 px-2 py-2 space-y-1 border-t border-gray-100">
+                  <button
+                    onClick={() => setActiveSection('workbook')}
+                    className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${activeSection === 'workbook' ? 'bg-[#113F67] text-white font-medium' : 'text-gray-600 hover:bg-gray-200'}`}
+                  >
+                    문제집 등록
+                  </button>
+                  <button
+                    onClick={() => setActiveSection('workbook-manage')}
+                    className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${activeSection === 'workbook-manage' ? 'bg-[#113F67] text-white font-medium' : 'text-gray-600 hover:bg-gray-200'}`}
+                  >
+                    문제집 수정
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* 사용자 관리 (단일) */}
+            <div className={`rounded-lg border transition-all duration-200 overflow-hidden ${activeSection === 'user' ? 'border-[#113F67] bg-white ring-1 ring-[#113F67]' : 'border-gray-200 bg-white hover:border-gray-300'
+              }`}>
+              <button
+                onClick={() => {
+                  const isExpanded = expandedCategory === 'user';
+                  setExpandedCategory(isExpanded ? null : 'user');
+                }}
+                className="w-full px-4 py-3 text-left focus:outline-none border-b border-transparent"
+              >
+                <div className="flex items-center justify-between">
+                  <span className={`font-semibold ${activeSection === 'user' ? 'text-[#113F67]' : 'text-gray-900'}`}>사용자 관리</span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className={`h-4 w-4 text-gray-400 transform transition-transform duration-200 ${expandedCategory === 'user' ? 'rotate-180' : ''}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+                <div className="mt-1 text-xs text-gray-500">사용자 권한 및 계정 관리</div>
+              </button>
+
+              <div className={`transition-all duration-300 ease-in-out overflow-hidden ${expandedCategory === 'user' ? 'max-h-24 opacity-100' : 'max-h-0 opacity-0'}`}>
+                <div className="bg-gray-50 px-2 py-2 space-y-1 border-t border-gray-100">
+                  <button
+                    onClick={() => setActiveSection('user')}
+                    className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${activeSection === 'user' ? 'bg-[#113F67] text-white font-medium' : 'text-gray-600 hover:bg-gray-200'}`}
+                  >
+                    사용자 목록
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* 조직 관리 (단일) */}
+            <div className={`rounded-lg border transition-all duration-200 overflow-hidden ${activeSection === 'organization' ? 'border-[#113F67] bg-white ring-1 ring-[#113F67]' : 'border-gray-200 bg-white hover:border-gray-300'
+              }`}>
+              <button
+                onClick={() => {
+                  const isExpanded = expandedCategory === 'organization';
+                  setExpandedCategory(isExpanded ? null : 'organization');
+                }}
+                className="w-full px-4 py-3 text-left focus:outline-none border-b border-transparent"
+              >
+                <div className="flex items-center justify-between">
+                  <span className={`font-semibold ${activeSection === 'organization' ? 'text-[#113F67]' : 'text-gray-900'}`}>조직 관리</span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className={`h-4 w-4 text-gray-400 transform transition-transform duration-200 ${expandedCategory === 'organization' ? 'rotate-180' : ''}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </div>
+                <div className="mt-1 text-xs text-gray-500">조직 및 구성원 관리</div>
+              </button>
+
+              <div className={`transition-all duration-300 ease-in-out overflow-hidden ${expandedCategory === 'organization' ? 'max-h-24 opacity-100' : 'max-h-0 opacity-0'}`}>
+                <div className="bg-gray-50 px-2 py-2 space-y-1 border-t border-gray-100">
+                  <button
+                    onClick={() => setActiveSection('organization')}
+                    className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${activeSection === 'organization' ? 'bg-[#113F67] text-white font-medium' : 'text-gray-600 hover:bg-gray-200'}`}
+                  >
+                    조직 목록
+                  </button>
+                </div>
+              </div>
+            </div>
           </aside>
 
           <div className="flex-1">

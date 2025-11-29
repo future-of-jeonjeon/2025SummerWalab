@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import os
 from http.client import HTTPException
 from typing import Any, Dict, Optional
 import copy

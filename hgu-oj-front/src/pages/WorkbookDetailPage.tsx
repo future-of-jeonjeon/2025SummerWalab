@@ -8,7 +8,7 @@ import { useWorkbook, useWorkbookProblems } from '../hooks/useWorkbooks';
 import { Problem } from '../types';
 import { problemService } from '../services/problemService';
 import { resolveProblemStatus } from '../utils/problemStatus';
-import { PROBLEM_STATUS_LABELS, ProblemStatusKey } from '../constants/problemStatus';
+import { PROBLEM_STATUS_LABELS, ProblemStatusKey, isProblemStatusKey } from '../constants/problemStatus';
 
 export const WorkbookDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -148,10 +148,7 @@ export const WorkbookDetailPage: React.FC = () => {
     const matchesStatusFilter = (problem: Problem) => {
       const status = resolveProblemStatus(problem);
       if (statusFilter === 'all') return true;
-      if (statusFilter === PROBLEM_STATUS_LABELS.solved) return status === PROBLEM_STATUS_LABELS.solved;
-      if (statusFilter === PROBLEM_STATUS_LABELS.wrong) return status === PROBLEM_STATUS_LABELS.wrong;
-      if (statusFilter === PROBLEM_STATUS_LABELS.untouched) return status === PROBLEM_STATUS_LABELS.untouched;
-      return true;
+      return status === statusFilter;
     };
 
     const filtered = enrichedProblems.filter(matchesSearch).filter(matchesStatusFilter);
@@ -222,14 +219,15 @@ export const WorkbookDetailPage: React.FC = () => {
     setSearchField(field);
   };
 
-  const handleSortToggle = (field: typeof sortField) => {
+  const handleSortToggle = (field: 'number' | 'submission' | 'accuracy' | 'title') => {
+    const normalizedField: typeof sortField = field === 'title' ? 'number' : field;
     setSortOrder((prevOrder) => {
-      if (sortField === field) {
+      if (sortField === normalizedField) {
         return prevOrder === 'asc' ? 'desc' : 'asc';
       }
       return 'asc';
     });
-    setSortField(field);
+    setSortField(normalizedField);
   };
 
   const handleResetFilters = () => {
@@ -245,8 +243,8 @@ export const WorkbookDetailPage: React.FC = () => {
       setStatusFilter('all');
       return;
     }
-    if (Object.values(PROBLEM_STATUS_LABELS).includes(value as ProblemStatusKey)) {
-      setStatusFilter(value as ProblemStatusKey);
+    if (isProblemStatusKey(value)) {
+      setStatusFilter(value);
     } else {
       setStatusFilter('all');
     }
@@ -373,9 +371,9 @@ export const WorkbookDetailPage: React.FC = () => {
                   className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-28"
                 >
                   <option value="all">전체</option>
-                  <option value={PROBLEM_STATUS_LABELS.untouched}>{PROBLEM_STATUS_LABELS.untouched}</option>
-                  <option value={PROBLEM_STATUS_LABELS.solved}>{PROBLEM_STATUS_LABELS.solved}</option>
-                  <option value={PROBLEM_STATUS_LABELS.wrong}>{PROBLEM_STATUS_LABELS.wrong}</option>
+                  <option value="untouched">{PROBLEM_STATUS_LABELS.untouched}</option>
+                  <option value="solved">{PROBLEM_STATUS_LABELS.solved}</option>
+                  <option value="wrong">{PROBLEM_STATUS_LABELS.wrong}</option>
                 </select>
                 <button
                   type="button"

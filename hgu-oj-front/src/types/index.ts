@@ -113,6 +113,32 @@ export interface ContestRankEntry {
   submissionInfo?: Record<string, unknown>;
 }
 
+export type ContestUserStatusValue = 'approved' | 'pending' | 'rejected';
+
+export interface ContestJoinStatus {
+  contestId: number;
+  userId: number;
+  joined: boolean;
+  joinedAt?: string;
+  isAdmin: boolean;
+  status?: ContestUserStatusValue;
+  requiresApproval?: boolean;
+}
+
+export interface ContestUserRegistration {
+  userId: number;
+  username?: string | null;
+  status: ContestUserStatusValue;
+  appliedAt?: string;
+  decidedAt?: string;
+  decidedBy?: number | null;
+}
+
+export interface ContestUserRegistrationList {
+  approved: ContestUserRegistration[];
+  pending: ContestUserRegistration[];
+}
+
 // 문제집 관련 타입
 export interface Workbook {
   id: number;
@@ -212,7 +238,7 @@ export interface ProblemFilter {
   page?: number;
   limit?: number;
   searchField?: 'title' | 'tag' | 'number';
-  sortField?: 'number' | 'submission' | 'accuracy';
+  sortField?: 'title' | 'number' | 'submission' | 'accuracy';
   sortOrder?: 'asc' | 'desc';
   statusFilter?: 'all' | 'solved' | 'wrong' | 'untouched';
   tags?: string[];
@@ -386,4 +412,12 @@ export interface OrganizationListResponse {
   total: number;
   page: number;
   size: number;
+}
+
+export interface SystemMetrics {
+  max_wait_time: number;
+  queue_size: number;
+  submission_rate: number;
+  history: Array<{ time: string; count: number }>;
+  timestamp: string;
 }

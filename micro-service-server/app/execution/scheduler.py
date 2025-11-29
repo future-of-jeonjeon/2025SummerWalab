@@ -7,7 +7,7 @@ from typing import Optional
 from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.execution.models import JudgeServer
+from app.judge_server.models import JudgeServer
 from app.config.database import SessionLocal
 
 
@@ -20,11 +20,6 @@ class SelectedServer:
 
 
 class ChooseJudgeServerAsync(AbstractAsyncContextManager):
-    """Async context manager to select a judge server and increment/decrement task number.
-
-    Mirrors OnlineJudge's ChooseJudgeServer behavior using SQLAlchemy (async).
-    """
-
     def __init__(self, session: Optional[AsyncSession] = None):
         # A dedicated short-lived session is used for selection/increment/decrement
         # to avoid nested transaction issues with a caller-held session.

@@ -1,5 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { contestService } from '../services/contestService';
+import { contestUserService } from '../services/contestUserService';
+import { ContestJoinStatus } from '../types';
 
 export const useContests = (params?: {
   page?: number;
@@ -57,5 +59,15 @@ export const useContestRank = (contestId: number, enabled: boolean, params?: { l
     queryFn: () => contestService.getContestRank(contestId, params),
     enabled: enabled && !!contestId,
     staleTime: 60 * 1000,
+  });
+};
+
+export const useContestMembership = (contestId: number, enabled: boolean) => {
+  return useQuery<ContestJoinStatus>({
+    queryKey: ['contest-membership', contestId],
+    queryFn: () => contestUserService.getStatus(contestId),
+    enabled: enabled && contestId > 0,
+    staleTime: 60 * 1000,
+    retry: false,
   });
 };

@@ -90,6 +90,36 @@ const extractSubmissionId = (payload: any): number | string | undefined => {
   return undefined;
 };
 
+const normalizeSubmissionList = (payload: any): SubmissionListResponse => {
+  let items: SubmissionListItem[] = [];
+  let total = 0;
+
+  if (Array.isArray(payload)) {
+    items = payload as SubmissionListItem[];
+    total = payload.length;
+  } else if (payload && Array.isArray(payload.results)) {
+    items = payload.results as SubmissionListItem[];
+    total = Number(payload.total ?? payload.count ?? payload.results.length);
+  } else if (payload && Array.isArray(payload.data)) {
+    items = payload.data as SubmissionListItem[];
+    total = Number(payload.total ?? payload.count ?? payload.data.length);
+  }
+
+  return {
+    items,
+    total,
+  };
+};
+
+const requestSubmissionList = async (path: string, params: Record<string, unknown>) => {
+  const response = await api.get<any>(path, params);
+  if (!response.success) {
+    const message = response.message || '제출 목록을 불러오지 못했습니다.';
+    throw new Error(message);
+  }
+  return normalizeSubmissionList(response.data);
+};
+
 export const submissionService = {
   submitSolution: async ({ problemId, code, language, contestId, share }: SubmitSolutionRequest): Promise<SubmitSolutionResponse> => {
     const judgeLanguage = languageMap[language] || language;
@@ -151,31 +181,15 @@ export const submissionService = {
       params.contest_id = String(options.contestId);
     }
 
-    const response = await api.get<any>(basePath, params);
-    if (!response.success) {
-      const message = response.message || '제출 목록을 불러오지 못했습니다.';
-      throw new Error(message);
-    }
-
-    const body = response.data;
-    let items: SubmissionListItem[] = [];
-    let total = 0;
-
-    if (Array.isArray(body)) {
-      items = body as SubmissionListItem[];
-      total = body.length;
-    } else if (body && Array.isArray(body.results)) {
-      items = body.results as SubmissionListItem[];
-      total = Number(body.total ?? body.count ?? body.results.length);
-    } else if (body && Array.isArray(body.data)) {
-      items = body.data as SubmissionListItem[];
-      total = Number(body.total ?? body.count ?? body.data.length);
-    }
-
-    return {
-      items,
-      total,
+    return requestSubmissionList(basePath, params);
+  },
+  getRecentSubmissions: async (options?: { limit?: number }): Promise<SubmissionListResponse> => {
+    const limit = Math.max(1, Math.min(options?.limit ?? 5, 50));
+    const params: Record<string, unknown> = {
+      limit,
+      page: 1,
     };
+    return requestSubmissionList('/submissions', params);
   },
 };
 

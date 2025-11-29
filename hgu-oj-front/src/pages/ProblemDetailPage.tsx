@@ -853,9 +853,9 @@ export const ProblemDetailPage: React.FC = () => {
     problemListItems.forEach((item) => {
       const override = overrides.get(item.id);
       const status = resolveProblemStatus(item, override ? { override } : undefined);
-      if (status === PROBLEM_STATUS_LABELS.solved) {
+      if (status === 'solved') {
         stats.solved += 1;
-      } else if (status === PROBLEM_STATUS_LABELS.untouched) {
+      } else if (status === 'untouched') {
         stats.untouched += 1;
       } else {
         stats.wrong += 1;

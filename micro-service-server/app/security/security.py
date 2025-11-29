@@ -67,6 +67,12 @@ async def get_user_session_data(token: str) -> UserData:
     except ValidationError:
         raise HTTPException(status_code=500, detail="Corrupted session data")
 
+async def sliding_session(token: str):
+    if not token:
+        raise HTTPException(status_code=400, detail="Missing token")
+    redis = await get_redis()
+    redis_key = f"{REDIS_SESSION_PREFIX}{token}"
+    redis.expire(redis_key, LOCAL_TOKEN_TTL_SECONDS)
 
 async def _create_token() -> str:
     return str(uuid.uuid4())

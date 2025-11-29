@@ -10,6 +10,8 @@ import {
   JudgeServerListResponse,
   AdminContest,
   AdminContestListResponse,
+  ContestAnnouncement,
+  SystemMetrics,
 } from '../types';
 
 const parseBoolean = (value: unknown): boolean => {
@@ -235,6 +237,16 @@ export const adminService = {
 
   createContest: async (payload: CreateContestPayload) => {
     const response = await api.post<any>('/admin/contest/', payload);
+    return unwrap(response);
+  },
+
+  createContestAnnouncement: async (payload: { contestId: number; title: string; content: string; visible: boolean }) => {
+    const response = await api.post<ContestAnnouncement>('/admin/contest/announcement/', {
+      contest_id: payload.contestId,
+      title: payload.title,
+      content: payload.content,
+      visible: payload.visible,
+    });
     return unwrap(response);
   },
 
@@ -480,12 +492,12 @@ export const adminService = {
 
     const results: AdminUser[] = Array.isArray(data?.results)
       ? data.results.map((item: unknown) => {
-          const adapt = item as AdminUser;
-          return {
-            ...adapt,
-            real_tfa: adapt.two_factor_auth,
-          };
-        })
+        const adapt = item as AdminUser;
+        return {
+          ...adapt,
+          real_tfa: adapt.two_factor_auth,
+        };
+      })
       : [];
 
     return {
@@ -549,13 +561,13 @@ export const adminService = {
     const data = unwrap(response);
     const servers: JudgeServer[] = Array.isArray(data?.servers)
       ? data.servers.map((item) => ({
-          ...item,
-          cpu_usage: Number(item?.cpu_usage ?? 0),
-          memory_usage: Number(item?.memory_usage ?? 0),
-          task_number: Number(item?.task_number ?? 0),
-          cpu_core: Number(item?.cpu_core ?? 0),
-          is_disabled: Boolean(item?.is_disabled),
-        }))
+        ...item,
+        cpu_usage: Number(item?.cpu_usage ?? 0),
+        memory_usage: Number(item?.memory_usage ?? 0),
+        task_number: Number(item?.task_number ?? 0),
+        cpu_core: Number(item?.cpu_core ?? 0),
+        is_disabled: Boolean(item?.is_disabled),
+      }))
       : [];
 
     return {
@@ -623,6 +635,54 @@ export const adminService = {
       };
     }
   },
+
+  getSystemMetrics: async (): Promise<SystemMetrics> => {
+    const response = await fetch(`${MS_API_BASE}/monitor/judge-status`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      credentials: 'include',
+    });
+
+    if (!response.ok) {
+      throw new Error(`시스템 지표를 가져오지 못했습니다. (status ${response.status})`);
+    }
+
+    const data: SystemMetrics = await response.json();
+
+    // 최근 60분 데이터 채우기 (빈 시간은 0으로)
+    const filledHistory: Array<{ time: string; count: number }> = [];
+    const now = new Date();
+    // 백엔드(UTC) 시간을 로컬 시간으로 변환하여 Map 생성
+    const historyMap = new Map(data.history.map((item) => {
+      // item.time은 "HH:mm" (UTC) 형식
+      const [utcHours, utcMinutes] = item.time.split(':').map(Number);
+      const date = new Date();
+      date.setUTCHours(utcHours, utcMinutes, 0, 0);
+
+      // 로컬 시간 문자열로 변환 ("HH:mm")
+      const localHours = String(date.getHours()).padStart(2, '0');
+      const localMinutes = String(date.getMinutes()).padStart(2, '0');
+      return [`${localHours}:${localMinutes}`, item.count];
+    }));
+
+    for (let i = 59; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 60000);
+      const hours = String(d.getHours()).padStart(2, '0');
+      const minutes = String(d.getMinutes()).padStart(2, '0');
+      const timeStr = `${hours}:${minutes}`;
+      filledHistory.push({
+        time: timeStr,
+        count: historyMap.get(timeStr) ?? 0,
+      });
+    }
+
+    return {
+      ...data,
+      history: filledHistory,
+    };
+  },
 };
 
 const mapAdminContest = (raw: any): AdminContest => {
@@ -634,10 +694,10 @@ const mapAdminContest = (raw: any): AdminContest => {
   const createdByRaw = raw?.created_by ?? raw?.createdBy;
   const createdBy = createdByRaw
     ? {
-        id: createdByRaw.id,
-       username: createdByRaw.username,
-        realName: createdByRaw.real_name ?? createdByRaw.realName,
-      }
+      id: createdByRaw.id,
+      username: createdByRaw.username,
+      realName: createdByRaw.real_name ?? createdByRaw.realName,
+    }
     : undefined;
 
   return {
@@ -726,17 +786,17 @@ const adaptAdminProblemDetail = (raw: any): AdminProblemDetail => {
 
   const samples = Array.isArray(raw?.samples)
     ? raw.samples.map((item: any) => ({
-        input: typeof item?.input === 'string' ? item.input : item?.sample_input ?? '',
-        output: typeof item?.output === 'string' ? item.output : item?.sample_output ?? '',
-      }))
+      input: typeof item?.input === 'string' ? item.input : item?.sample_input ?? '',
+      output: typeof item?.output === 'string' ? item.output : item?.sample_output ?? '',
+    }))
     : [];
 
   const testCaseScore = Array.isArray(raw?.test_case_score)
     ? raw.test_case_score.map((item: any) => ({
-        input_name: item?.input_name ?? item?.inputName ?? '',
-        output_name: item?.output_name ?? item?.outputName ?? '',
-        score: Number(item?.score ?? 0),
-      }))
+      input_name: item?.input_name ?? item?.inputName ?? '',
+      output_name: item?.output_name ?? item?.outputName ?? '',
+      score: Number(item?.score ?? 0),
+    }))
     : [];
 
   const languages = Array.isArray(raw?.languages)
