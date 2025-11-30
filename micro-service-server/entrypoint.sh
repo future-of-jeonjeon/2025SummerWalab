@@ -102,14 +102,20 @@ except KeyboardInterrupt:
     sys.exit(1)
 PY
 
-
-echo "[entrypoint] Checking for schema changes (Auto-DDL)..."
-# Try to generate a migration. If no changes, alembic might exit with 0 or non-zero depending on config,
-# but we want to proceed regardless.
-alembic revision --autogenerate -m "auto_generated_on_startup" || echo "[entrypoint] No changes detected or revision generation failed (safe to ignore if no changes)."
-
-echo "[entrypoint] Running database migrations..."
+echo "[entrypoint] Running database migrations (Pre-check)..."
 alembic upgrade head
+
+if [ "${FASTAPI_ENV:-development}" != "production" ]; then
+    echo "[entrypoint] Development mode detected. Checking for schema changes (Auto-DDL)..."
+    # Try to generate a migration. If no changes, alembic might exit with 0 or non-zero depending on config,
+    # but we want to proceed regardless.
+    alembic revision --autogenerate -m "auto_generated_on_startup" || echo "[entrypoint] No changes detected or revision generation failed (safe to ignore if no changes)."
+    
+    echo "[entrypoint] Applying new changes..."
+    alembic upgrade head
+else
+    echo "[entrypoint] Production mode detected. Skipping auto-generation of migrations."
+fi
 
 echo "[entrypoint] Starting FastAPI server..."
 exec uvicorn app.main:app --host 0.0.0.0 --port 8000
