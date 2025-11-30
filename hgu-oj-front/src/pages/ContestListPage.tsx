@@ -1,9 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useContests } from '../hooks/useContests';
-import { Button } from '../components/atoms/Button';
-import { Card } from '../components/atoms/Card';
-
 export const ContestListPage: React.FC = () => {
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
@@ -42,18 +39,6 @@ export const ContestListPage: React.FC = () => {
     }
   };
 
-  const formatDateRange = (start: string, end: string) => {
-    const startDate = new Date(start);
-    const endDate = new Date(end);
-
-    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
-      return '-';
-    }
-
-    const format = (date: Date) => `${date.getMonth() + 1}월 ${date.getDate()}일`;
-    return `${format(startDate)} ~ ${format(endDate)}`;
-  };
-
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -84,111 +69,150 @@ export const ContestListPage: React.FC = () => {
     );
   }
 
+  const activeContests = data?.data.filter(contest => {
+    const status = getContestStatus(contest).status;
+    return status === 'ongoing' || status === 'upcoming';
+  }).sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()) || [];
+
+  const endedContests = data?.data.filter(contest => {
+    const status = getContestStatus(contest).status;
+    return status === 'ended';
+  }).sort((a, b) => new Date(b.startTime).getTime() - new Date(a.startTime).getTime()) || [];
+
+  const ContestCard = ({ contest }: { contest: any }) => {
+    const statusInfo = getContestStatus(contest);
+    const startTime = new Date(contest.startTime);
+    const endTime = new Date(contest.endTime);
+    const durationMinutes = Math.floor((endTime.getTime() - startTime.getTime()) / (1000 * 60));
+
+    // Format date: YYYY. MM. DD. HH:mm ~ HH:mm
+    const formatDate = (date: Date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${year}. ${month}. ${day}. ${hours}:${minutes}`;
+    };
+
+    const formatEndTime = (date: Date) => {
+      const hours = String(date.getHours()).padStart(2, '0');
+      const minutes = String(date.getMinutes()).padStart(2, '0');
+      return `${hours}:${minutes}`;
+    };
+
+    const dateRange = `${formatDate(startTime)} ~ ${formatEndTime(endTime)}`;
+
+    return (
+      <div
+        className="bg-white rounded-lg border border-gray-200 p-6 hover:shadow-md transition-shadow cursor-pointer flex flex-col sm:flex-row gap-6"
+        onClick={() => handleContestClick(contest.id)}
+      >
+        {/* ID Box */}
+        <div className="flex-shrink-0">
+          <div className="w-16 h-16 bg-slate-900 rounded-lg flex items-center justify-center text-white font-bold text-lg">
+            C{String(contest.id).padStart(2, '0')}
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-col gap-2">
+            <div className="flex items-start justify-between gap-4">
+              <h3 className="text-lg font-bold text-gray-900 truncate">
+                {contest.title}
+              </h3>
+            </div>
+
+            <div className="flex items-center gap-3 text-sm">
+              <span className={`font-bold ${statusInfo.status === 'ongoing' ? 'text-red-500' :
+                statusInfo.status === 'upcoming' ? 'text-blue-500' : 'text-gray-500'
+                }`}>
+                {statusInfo.text}
+              </span>
+              <span className="text-gray-300">|</span>
+              <div className="flex items-center gap-1 text-gray-500">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+                <span>참가자 (0명)</span>
+              </div>
+            </div>
+
+            <div className="flex gap-2 mt-1">
+              {['C++', 'Java', 'Python'].map((lang) => (
+                <span key={lang} className="px-2.5 py-0.5 rounded bg-gray-100 text-gray-600 text-xs font-medium">
+                  {lang}
+                </span>
+              ))}
+            </div>
+
+            <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+              <div className="flex items-center gap-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span>{durationMinutes}분</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                <span>{dateRange}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 py-8">
         {/* Header */}
         <div className="mb-8">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-center gap-3 lg:ml-2">
-              <span className="text-sm text-gray-500">전체 대회 수</span>
-              <span className="text-2xl font-bold text-blue-600">{data?.total || 0}</span>
-            </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-              <form onSubmit={handleSearchSubmit} className="flex w-full sm:w-auto sm:min-w-[320px]">
-                <label htmlFor="contest-search" className="sr-only">대회 검색</label>
-                <input
-                  id="contest-search"
-                  type="search"
-                  value={searchQuery}
-                  onChange={(event) => handleSearchChange(event.target.value)}
-                  placeholder="대회 검색..."
-                  className="w-full rounded-l-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <button
-                  type="submit"
-                  className="min-w-[72px] rounded-r-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white text-center shadow-sm transition hover:bg-blue-700"
-                >
-                  검색
-                </button>
-              </form>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-40"
-              >
-                <option value="">전체</option>
-                <option value="0">진행 중</option>
-                <option value="1">시작 예정</option>
-                <option value="-1">종료됨</option>
-              </select>
-            </div>
-          </div>
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">대회</h1>
+          <p className="text-gray-600">진행 중인 대회에 참여하거나 지난 대회를 확인하세요.</p>
         </div>
 
 
-        {/* 대회 목록 */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-5">
-          {data?.data.length === 0 ? (
-            <div className="col-span-full text-center py-12">
-              <div className="text-gray-600 text-lg mb-4">대회가 없습니다</div>
-              <p className="text-gray-500">다른 검색어를 시도해보세요</p>
-            </div>
-          ) : (
-            data?.data.map((contest) => {
-              const statusInfo = getContestStatus(contest);
-              return (
-                <Card
-                  key={contest.id}
-                  className="mx-auto w-full max-w-[420px] p-4 hover:shadow-lg transition-shadow cursor-pointer h-56 flex flex-col"
-                  onClick={() => handleContestClick(contest.id)}
-                >
-                  {/* 제목과 상태 */}
-                  <div className="flex justify-between items-start mb-2 gap-2">
-                    <h3 className="text-lg font-semibold text-gray-800 line-clamp-2 flex-1">
-                      {contest.title}
-                    </h3>
-                    <div className="flex items-center gap-2">
-                      {contest.contestType?.toLowerCase().includes('password') && (
-                        <span className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-medium text-amber-700">
-                          비밀번호 필요
-                        </span>
-                      )}
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium flex-shrink-0 ${statusInfo.color}`}>
-                        {statusInfo.text}
-                      </span>
-                    </div>
-                  </div>
-                  
-                  {/* 설명 */}
-                  <div className="flex-1 mb-3">
-                    <p className="text-gray-600 text-sm line-clamp-3 h-12 overflow-hidden">
-                      {contest.description.replace(/<[^>]*>/g, '') || '설명이 없습니다.'}
-                    </p>
-                  </div>
-                  
-                  {/* 대회 정보 */}
-                  <div className="flex justify-between items-center text-xs text-gray-500 mb-3">
-                    <span className="truncate flex-1 mr-2">작성자: {contest.createdBy.username}</span>
-                    <span className="whitespace-nowrap font-medium text-slate-600">
-                      {formatDateRange(contest.startTime, contest.endTime)}
-                    </span>
-                  </div>
-                  
-                  {/* 버튼 */}
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleContestClick(contest.id);
-                    }}
-                    className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm py-2 mt-auto"
-                  >
-                    참가하기
-                  </Button>
-                </Card>
-              );
-            })
-          )}
+        {/* Active Contests Section */}
+        <div className="mb-12">
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-2 h-2 rounded-full bg-green-500"></div>
+            <h2 className="text-lg font-bold text-gray-900">진행 중 / 예정</h2>
+          </div>
+          <div className="flex flex-col gap-4">
+            {activeContests.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+                <div className="text-gray-600">진행 중이거나 예정된 대회가 없습니다.</div>
+              </div>
+            ) : (
+              activeContests.map((contest) => (
+                <ContestCard key={contest.id} contest={contest} />
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Ended Contests Section */}
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            <div className="w-2 h-2 rounded-full bg-gray-500"></div>
+            <h2 className="text-lg font-bold text-gray-900">종료된 대회</h2>
+          </div>
+          <div className="flex flex-col gap-4">
+            {endedContests.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-lg border border-gray-200">
+                <div className="text-gray-600">종료된 대회가 없습니다.</div>
+              </div>
+            ) : (
+              endedContests.map((contest) => (
+                <ContestCard key={contest.id} contest={contest} />
+              ))
+            )}
+          </div>
         </div>
       </div>
     </div>
