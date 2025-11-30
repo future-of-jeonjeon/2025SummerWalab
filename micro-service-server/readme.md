@@ -19,3 +19,7 @@ $ source .venv/bin/activate
 ```bash 
 $ alembic revision --autogenerate           
 ```
+
+### 🛠 DB Migration Strategy
+- **Dev:** -  서버 켜질 때 자동 반영됨. 꼬이면 `python reset_db.py`로 초기화.
+- **Collab:** - 마이그레이션 파일도 커밋 필수. 충돌 나면 `alembic merge heads`.

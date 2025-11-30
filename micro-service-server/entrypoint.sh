@@ -103,10 +103,6 @@ except KeyboardInterrupt:
 PY
 
 
-echo "[entrypoint] ⚠️ ONE-TIME RESET: Wiping database as requested..."
-python reset_db.py
-
-
 echo "[entrypoint] Checking for schema changes (Auto-DDL)..."
 # Try to generate a migration. If no changes, alembic might exit with 0 or non-zero depending on config,
 # but we want to proceed regardless.
