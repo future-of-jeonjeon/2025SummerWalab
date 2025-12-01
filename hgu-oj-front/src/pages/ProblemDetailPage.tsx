@@ -507,11 +507,15 @@ export const ProblemDetailPage: React.FC = () => {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
+  const [pollingSubmissionId, setPollingSubmissionId] = useState<number | string | null>(null);
+
   const stopSubmissionPolling = useCallback(() => {
     if (submissionPollTimerRef.current) {
       clearTimeout(submissionPollTimerRef.current);
       submissionPollTimerRef.current = null;
     }
+    setPollingSubmissionId(null);
+    setManualStatus(undefined);
   }, []);
 
   const mapJudgeResult = useCallback((value: number | string | undefined) => {
@@ -519,51 +523,6 @@ export const ProblemDetailPage: React.FC = () => {
     const mapped = judgeResultToStatus[String(value)];
     return mapped;
   }, []);
-
-  const startSubmissionPolling = useCallback((submissionId: number | string) => {
-    if (!submissionId) return;
-    if (typeof submissionId === 'number' && Number.isNaN(submissionId)) return;
-    stopSubmissionPolling();
-    submissionPollAttemptsRef.current = 0;
-
-    const poll = async () => {
-      try {
-        submissionPollAttemptsRef.current += 1;
-        const detail = await submissionService.getSubmission(submissionId);
-        const fallbackStatus = typeof detail?.status === 'string'
-          ? detail.status.trim().toUpperCase()
-          : undefined;
-        const nextStatus = mapJudgeResult(detail?.result as number | string | undefined) ?? fallbackStatus;
-        const normalizedStatus = nextStatus ? String(nextStatus).trim().toUpperCase() : undefined;
-        const normalizedKey = normalizedStatus ? normalizedStatus.replace(/\s+/g, '_') : undefined;
-        if (normalizedStatus) {
-          setManualStatus(normalizedStatus);
-        }
-        const stats = detail?.statistic_info;
-        const hasStats = !!stats && typeof stats === 'object' && Object.keys(stats as Record<string, unknown>).length > 0;
-        const isProgress = normalizedStatus
-          ? progressStatuses.has(normalizedStatus) || (normalizedKey ? progressStatuses.has(normalizedKey) : false)
-          : false;
-        const reachedAttemptLimit = submissionPollAttemptsRef.current >= MAX_SUBMISSION_POLL_ATTEMPTS;
-        if (hasStats || (!isProgress && normalizedStatus) || reachedAttemptLimit) {
-          if (problemIdentifier) {
-            queryClient.invalidateQueries({ queryKey: ['problem', problemIdentifier] });
-          }
-          stopSubmissionPolling();
-          return;
-        }
-      } catch (pollError) {
-        if (problemIdentifier) {
-          queryClient.invalidateQueries({ queryKey: ['problem', problemIdentifier] });
-        }
-        stopSubmissionPolling();
-        return;
-      }
-      submissionPollTimerRef.current = setTimeout(poll, 2000);
-    };
-
-    submissionPollTimerRef.current = setTimeout(poll, 1000);
-  }, [mapJudgeResult, problemIdentifier, queryClient, stopSubmissionPolling]);
 
   const submissionProblemKey = useMemo(() => {
     if (contestContextId) {
@@ -597,6 +556,58 @@ export const ProblemDetailPage: React.FC = () => {
     }
     return ['my-submissions', 'practice', submissionProblemKey] as const;
   }, [contestContextId, submissionProblemKey]);
+
+  const startSubmissionPolling = useCallback((submissionId: number | string) => {
+    if (!submissionId) return;
+    if (typeof submissionId === 'number' && Number.isNaN(submissionId)) return;
+    stopSubmissionPolling();
+    submissionPollAttemptsRef.current = 0;
+    setPollingSubmissionId(submissionId);
+
+    const poll = async () => {
+      try {
+        submissionPollAttemptsRef.current += 1;
+        const detail = await submissionService.getSubmission(submissionId);
+        const fallbackStatus = typeof detail?.status === 'string'
+          ? detail.status.trim().toUpperCase()
+          : undefined;
+        const nextStatus = mapJudgeResult(detail?.result as number | string | undefined) ?? fallbackStatus;
+        const normalizedStatus = nextStatus ? String(nextStatus).trim().toUpperCase() : undefined;
+        const normalizedKey = normalizedStatus ? normalizedStatus.replace(/\s+/g, '_') : undefined;
+        if (normalizedStatus) {
+          setManualStatus(normalizedStatus);
+        }
+        const stats = detail?.statistic_info;
+        const hasStats = !!stats && typeof stats === 'object' && Object.keys(stats as Record<string, unknown>).length > 0;
+        const isProgress = normalizedStatus
+          ? progressStatuses.has(normalizedStatus) || (normalizedKey ? progressStatuses.has(normalizedKey) : false)
+          : false;
+        const reachedAttemptLimit = submissionPollAttemptsRef.current >= MAX_SUBMISSION_POLL_ATTEMPTS;
+        if (hasStats || (!isProgress && normalizedStatus) || reachedAttemptLimit) {
+          if (problemIdentifier) {
+            queryClient.invalidateQueries({ queryKey: ['problem', problemIdentifier] });
+          }
+          if (submissionQueryKey) {
+            queryClient.invalidateQueries({ queryKey: submissionQueryKey });
+          }
+          stopSubmissionPolling();
+          return;
+        }
+      } catch (pollError) {
+        if (problemIdentifier) {
+          queryClient.invalidateQueries({ queryKey: ['problem', problemIdentifier] });
+        }
+        if (submissionQueryKey) {
+          queryClient.invalidateQueries({ queryKey: submissionQueryKey });
+        }
+        stopSubmissionPolling();
+        return;
+      }
+      submissionPollTimerRef.current = setTimeout(poll, 2000);
+    };
+
+    submissionPollTimerRef.current = setTimeout(poll, 1000);
+  }, [mapJudgeResult, problemIdentifier, queryClient, stopSubmissionPolling, submissionQueryKey]);
 
   const handleExecute = async (code: string, language: string, input?: string) => {
     if (!requireAuthentication()) return;
@@ -1104,7 +1115,9 @@ export const ProblemDetailPage: React.FC = () => {
   ) : (
     <div className="space-y-3">
       {mySubmissions.map((submission, index) => {
-        const statusCode = resolveSubmissionStatusCode(submission);
+        const cardId = resolveSubmissionId(submission);
+        const isPolling = pollingSubmissionId != null && cardId != null && String(cardId) === String(pollingSubmissionId);
+        const statusCode = (isPolling && manualStatus) ? manualStatus : resolveSubmissionStatusCode(submission);
         const statusMeta = describeStatus(statusCode) ?? {
           label: statusCode ?? '채점 중',
           tone: 'info' as StatusTone,
@@ -1114,7 +1127,6 @@ export const ProblemDetailPage: React.FC = () => {
         const submittedAtRaw = getSubmissionTimestamp(submission);
         const executionTimeValue = getSubmissionExecutionTime(submission);
         const memoryUsageValue = getSubmissionMemory(submission);
-        const cardId = resolveSubmissionId(submission);
         const isActive = selectedSubmissionId != null && cardId != null && String(cardId) === String(selectedSubmissionId);
         const baseCardClass = isDarkTheme
           ? 'border-slate-700 bg-slate-900/80 hover:bg-slate-800/70'
