@@ -200,6 +200,8 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
     return <div className="text-sm text-gray-600">관리자만 제출 상세정보를 확인할 수 있습니다.</div>;
   }
 
+  const minTableWidth = Math.max(720, 360 + problemList.length * 120);
+
   if (mode === 'submissions' && selectedUser && selectedProblem) {
     return (
       <div className="space-y-4">
@@ -372,13 +374,12 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
       </div>
     );
   }
-
   return (
-    <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-      <div className="overflow-x-auto">
+    <div className="bg-white rounded-lg shadow-sm border border-gray-200 w-full max-w-6xl mx-auto">
+      <div className="w-full overflow-x-auto">
         <div
-          className="min-w-full"
-          style={{ minWidth: `${360 + problemList.length * 140}px` }}
+          className="inline-block bg-white w-full"
+          style={{ width: `max(${minTableWidth}px, 100%)` }}
         >
           <div
             className="grid items-center border-b border-gray-200 bg-gray-50 px-6 py-4"

@@ -23,6 +23,7 @@ async def fetch_tag_counts(session: AsyncSession) -> Sequence[Tuple[str, int]]:
         select(ProblemTag.name, func.count(problem_tags_association_table.c.problem_id))
         .join(problem_tags_association_table, ProblemTag.id == problem_tags_association_table.c.problemtag_id)
         .join(Problem, Problem.id == problem_tags_association_table.c.problem_id)
+        .where(Problem.contest_id.is_(None))
         .group_by(ProblemTag.name)
         .order_by(func.count(problem_tags_association_table.c.problem_id).desc())
     )
