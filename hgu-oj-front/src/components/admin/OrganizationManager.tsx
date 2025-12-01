@@ -18,7 +18,7 @@ export const OrganizationManager: React.FC = () => {
     const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
     const [selectedOrgId, setSelectedOrgId] = useState<number | null>(null);
 
-    const fetchOrganizations = useCallback(async (p: number = 1, k: string = '') => {
+    const fetchOrganizations = useCallback(async (p: number = 1) => {
         setLoading(true);
         setError(null);
         try {
@@ -34,12 +34,12 @@ export const OrganizationManager: React.FC = () => {
     }, []);
 
     useEffect(() => {
-        fetchOrganizations(1, '');
+        fetchOrganizations(1);
     }, [fetchOrganizations]);
 
     const handleSearch = (val: string) => {
         setKeyword(val);
-        setTimeout(() => fetchOrganizations(1, val), 300);
+        setTimeout(() => fetchOrganizations(1), 300);
     };
 
     const openModal = (mode: 'create' | 'edit', id?: number) => {
@@ -52,7 +52,7 @@ export const OrganizationManager: React.FC = () => {
         if (!window.confirm(`'${name}' 단체를 삭제하시겠습니까?`)) return;
         try {
             await adminService.deleteOrganization(id);
-            fetchOrganizations(page, keyword);
+            fetchOrganizations(page);
         } catch (err) {
             alert('삭제 실패: ' + (err instanceof Error ? err.message : '알 수 없는 오류'));
         }
@@ -112,8 +112,8 @@ export const OrganizationManager: React.FC = () => {
                     <div className="border-t border-gray-200 bg-gray-50 px-4 py-3 flex justify-between items-center">
                         <span className="text-sm text-gray-700">총 {total}개</span>
                         <div className="flex gap-2">
-                            <Button size="sm" variant="outline" disabled={page === 1} onClick={() => fetchOrganizations(page - 1, keyword)}>이전</Button>
-                            <Button size="sm" variant="outline" disabled={page >= Math.ceil(total / 20)} onClick={() => fetchOrganizations(page + 1, keyword)}>다음</Button>
+                            <Button size="sm" variant="outline" disabled={page === 1} onClick={() => fetchOrganizations(page - 1)}>이전</Button>
+                            <Button size="sm" variant="outline" disabled={page >= Math.ceil(total / 20)} onClick={() => fetchOrganizations(page + 1)}>다음</Button>
                         </div>
                     </div>
                 </div>
@@ -123,7 +123,7 @@ export const OrganizationManager: React.FC = () => {
                 onClose={() => setIsModalOpen(false)}
                 mode={modalMode}
                 organizationId={selectedOrgId}
-                onSuccess={() => fetchOrganizations(page, keyword)}
+                onSuccess={() => fetchOrganizations(page)}
             />
         </Card>
     );
