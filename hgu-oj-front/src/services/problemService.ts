@@ -628,4 +628,18 @@ export const problemService = {
       })
       .filter((item): item is { tag: string; count: number } => Boolean(item));
   },
+
+  getProblemCount: async (): Promise<number> => {
+    if (!MS_API_BASE) return 0;
+    try {
+      const response = await apiClient.get<any>(`${MS_API_BASE}/problem/counts`);
+      const data = response.data;
+      // Assuming the API returns { count: number } or { total: number } or just a number
+      const count = Number(data?.count ?? data?.total ?? data);
+      return Number.isFinite(count) ? count : 0;
+    } catch (error) {
+      console.error('Failed to fetch problem count from MS API', error);
+      return 0;
+    }
+  },
 };

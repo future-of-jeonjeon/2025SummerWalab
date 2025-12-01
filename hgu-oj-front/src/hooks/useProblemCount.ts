@@ -6,11 +6,11 @@ const STALE_TIME = 5 * 60 * 1000;
 export const useProblemCount = () => {
   const query = useQuery({
     queryKey: ['problems', 'total-count'],
-    queryFn: () => problemService.getOjProblems({ page: 1, limit: 1 }),
+    queryFn: () => problemService.getProblemCount(),
     staleTime: STALE_TIME,
   });
 
-  const total = query.data?.total ?? 0;
+  const total = query.data ?? 0;
 
   return {
     total,

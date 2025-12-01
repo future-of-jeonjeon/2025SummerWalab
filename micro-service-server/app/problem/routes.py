@@ -31,6 +31,11 @@ async def get_tag_count(db: AsyncSession = Depends(get_session)):
     return await serv.get_tag_count(db)
 
 
+@router.get("/counts")
+async def get_tag_count(db: AsyncSession = Depends(get_session)):
+    return await serv.get_problem_count(db)
+
+
 @router.get("/contest/{contest_id}/count")
 async def get_contest_problem_count(contest_id: int, db: AsyncSession = Depends(get_session)):
     count = await serv.get_contest_problem_count(contest_id, db)

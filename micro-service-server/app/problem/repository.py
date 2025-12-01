@@ -35,12 +35,12 @@ async def fetch_tag_counts(session: AsyncSession) -> Sequence[Tuple[str, int]]:
 
 
 async def fetch_filtered_problems(
-    session: AsyncSession,
-    *,
-    tags: Optional[List[str]],
-    ordering: ColumnElement,
-    page: int,
-    page_size: int,
+        session: AsyncSession,
+        *,
+        tags: Optional[List[str]],
+        ordering: ColumnElement,
+        page: int,
+        page_size: int,
 ) -> Tuple[List[Problem], int]:
     visibility_filter = Problem.is_public.is_(True) & Problem.contest_id.is_(None)
     base_stmt: Select = (
@@ -97,12 +97,12 @@ async def get_or_create_tag(session: AsyncSession, tag_name: str) -> ProblemTag:
     stmt = select(ProblemTag).where(ProblemTag.name == tag_name)
     result = await session.execute(stmt)
     tag = result.scalar_one_or_none()
-    
+
     if not tag:
         tag = ProblemTag(name=tag_name)
         session.add(tag)
         await session.flush()  # To get the ID
-        
+
     return tag
 
 
@@ -110,9 +110,16 @@ async def create_problems(session: AsyncSession, problems: List[Problem]) -> Lis
     session.add_all(problems)
     await session.commit()
     await session.commit()
-    
+
     # Re-fetch problems with tags loaded to avoid MissingGreenlet error
     ids = [p.id for p in problems]
     stmt = select(Problem).options(selectinload(Problem.tags)).where(Problem.id.in_(ids))
     result = await session.execute(stmt)
     return result.scalars().all()
+
+
+async def count_problem(session: AsyncSession) -> int:
+    visibility_filter = Problem.is_public.is_(True) & Problem.contest_id.is_(None)
+    stmt = (select(func.count()).select_from(Problem).where(visibility_filter))
+    result = await session.execute(stmt)
+    return result.scalar() or 0
