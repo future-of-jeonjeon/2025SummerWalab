@@ -18,7 +18,7 @@ type RecentProblem = {
 
 type RecentSolved = {
   submissionId: string;
-  problemId: number;
+  problemId: number; // DB PK if known; 0 when unknown
   displayId?: string | number | null;
   username?: string | null;
   solvedAt?: string;
@@ -259,13 +259,19 @@ export const HomePage: React.FC = () => {
   );
 
   const handleProblemNavigate = (problem: RecentProblem | RecentSolved) => {
-    // Prefer DB PK (id/problemId); fallback to displayId
+    // Prefer numeric PK (id/problemId). If unavailable, fallback to displayId.
     const primaryId =
       'problemId' in problem
         ? (problem as RecentSolved).problemId
         : (problem as RecentProblem).id;
     const fallbackId = 'problemId' in problem ? (problem as RecentSolved).displayId : (problem as RecentProblem).displayId;
-    const target = primaryId ?? fallbackId;
+
+    const numericPrimary = Number(primaryId);
+    const target =
+      (Number.isFinite(numericPrimary) && numericPrimary > 0)
+        ? numericPrimary
+        : fallbackId;
+
     if (!target) return;
     navigate(`/problems/${encodeURIComponent(String(target))}`);
   };
