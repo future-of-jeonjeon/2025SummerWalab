@@ -258,22 +258,33 @@ export const HomePage: React.FC = () => {
     [topUserRankings?.data, userRankingLoading],
   );
 
-  const handleProblemNavigate = (problem: RecentProblem | RecentSolved) => {
-    // Prefer numeric PK (id/problemId). If unavailable, fallback to displayId.
-    const primaryId =
-      'problemId' in problem
-        ? (problem as RecentSolved).problemId
-        : (problem as RecentProblem).id;
-    const fallbackId = 'problemId' in problem ? (problem as RecentSolved).displayId : (problem as RecentProblem).displayId;
+  const handleProblemNavigate = async (problem: RecentProblem | RecentSolved) => {
+    // 최근 풀이 문제: PK로만 이동. 없으면 displayId로 조회 후 PK 확보.
+    if ('problemId' in problem) {
+      const pk = Number(problem.problemId);
+      if (Number.isFinite(pk) && pk > 0) {
+        navigate(`/problems/${encodeURIComponent(String(pk))}`);
+        return;
+      }
+      const display = problem.displayId;
+      if (display) {
+        try {
+          const detail = await problemService.getProblem(display);
+          if (detail?.id) {
+            navigate(`/problems/${encodeURIComponent(String(detail.id))}`);
+          }
+        } catch {
+          // 조회 실패 시 이동하지 않음
+        }
+      }
+      return;
+    }
 
-    const numericPrimary = Number(primaryId);
-    const target =
-      (Number.isFinite(numericPrimary) && numericPrimary > 0)
-        ? numericPrimary
-        : fallbackId;
-
-    if (!target) return;
-    navigate(`/problems/${encodeURIComponent(String(target))}`);
+    // 최근 추가된 문제: id가 PK
+    const pk = Number((problem as RecentProblem).id);
+    if (Number.isFinite(pk) && pk > 0) {
+      navigate(`/problems/${encodeURIComponent(String(pk))}`);
+    }
   };
 
   const handleContestNavigate = (contest: ContestHighlight) => {
