@@ -185,7 +185,11 @@ export const HomePage: React.FC = () => {
     const items = recentSolvedData?.items ?? [];
     return items.map((item: SubmissionListItem) => ({
       submissionId: String(item.id ?? item.submissionId ?? ''),
-      problemId: Number(item.problem_id ?? item.problemId ?? 0),
+      problemId: (() => {
+        const raw = item.problem_id ?? item.problemId ?? item.problem;
+        const num = Number(raw);
+        return Number.isFinite(num) && num > 0 ? num : 0;
+      })(),
       displayId: item.problem ?? item.problem_id ?? item.problemId,
       username: item.username,
       solvedAt: item.create_time ?? item.createTime,
@@ -255,12 +259,15 @@ export const HomePage: React.FC = () => {
   );
 
   const handleProblemNavigate = (problem: RecentProblem | RecentSolved) => {
-    const identifier =
+    // Prefer DB PK (id/problemId); fallback to displayId
+    const primaryId =
       'problemId' in problem
-        ? problem.displayId ?? problem.problemId
-        : problem.displayId ?? problem.id;
-    if (!identifier) return;
-    navigate(`/problems/${encodeURIComponent(String(identifier))}`);
+        ? (problem as RecentSolved).problemId
+        : (problem as RecentProblem).id;
+    const fallbackId = 'problemId' in problem ? (problem as RecentSolved).displayId : (problem as RecentProblem).displayId;
+    const target = primaryId ?? fallbackId;
+    if (!target) return;
+    navigate(`/problems/${encodeURIComponent(String(target))}`);
   };
 
   const handleContestNavigate = (contest: ContestHighlight) => {
