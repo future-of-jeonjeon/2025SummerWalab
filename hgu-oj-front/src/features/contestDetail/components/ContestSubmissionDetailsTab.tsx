@@ -40,6 +40,7 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
     open: false,
     loading: false,
   });
+  const [hoveredRow, setHoveredRow] = useState<number | null>(null);
 
   const formatKSTDateTime = (value: unknown): string => {
     if (typeof value !== 'string') return '-';
@@ -199,8 +200,6 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
   if (!isAdminUser) {
     return <div className="text-sm text-gray-600">관리자만 제출 상세정보를 확인할 수 있습니다.</div>;
   }
-
-  const minTableWidth = Math.max(720, 360 + problemList.length * 120);
 
   if (mode === 'submissions' && selectedUser && selectedProblem) {
     return (
@@ -405,39 +404,98 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
       </div>
     );
   }
+  // 제출 상세 테이블 레이아웃 설정
+  const baseColumnsPx = [64, 90, 56, 56]; // 순위, 유저(전체 이름 표시 위해 확대), 해결, 점수
+  const problemColumnWidth = 58;
+  const gapPx = 8;
+  const TABLE_OUTER_MAX = 1000; // 표 전체 컨테이너 고정폭
+  const baseWidthSum = baseColumnsPx.reduce((a, b) => a + b, 0);
+  const columnsWidth =
+    baseWidthSum +
+    problemList.length * problemColumnWidth +
+    (problemList.length + baseColumnsPx.length - 1) * gapPx;
+  const minTableWidthPx = Math.max(columnsWidth, TABLE_OUTER_MAX);
+  const gridTemplateColumns = `${baseColumnsPx.map((v) => `${v}px`).join(' ')} repeat(${problemList.length}, ${problemColumnWidth}px)`;
+  const rankWidth = baseColumnsPx[0];
+
+  const stickyHeaderStyles = [
+    { position: 'sticky' as const, left: 0, zIndex: 3, background: '#f8fafc' },
+    { position: 'sticky' as const, left: rankWidth, zIndex: 3, background: '#f8fafc' },
+  ];
+  const stickyBodyBase = {
+    position: 'sticky' as const,
+    zIndex: 2,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100%',
+    padding: '0 6px',
+  };
+
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 w-full max-w-6xl mx-auto">
+    <div
+      className="bg-white rounded-lg shadow-sm border border-gray-200 mx-auto"
+      style={{ width: `${TABLE_OUTER_MAX}px` }}
+    >
       <div className="w-full overflow-x-auto">
         <div
-          className="inline-block bg-white w-full"
-          style={{ width: `max(${minTableWidth}px, 100%)` }}
+          className="inline-block bg-white"
+          style={{
+            minWidth: `${minTableWidthPx}px`,
+            width: `${minTableWidthPx}px`,
+          }}
         >
-          <div
-            className="grid items-center border-b border-gray-200 bg-gray-50 px-6 py-4"
-            style={{ gridTemplateColumns: `80px 180px 120px 120px repeat(${problemList.length}, minmax(140px, 1fr))` }}
-          >
-            <div className="text-center text-sm font-medium text-gray-500 uppercase tracking-wider">순위</div>
-            <div className="text-sm font-medium text-gray-500 uppercase tracking-wider">유저</div>
-            <div className="text-center text-sm font-medium text-gray-500 uppercase tracking-wider">해결</div>
-            <div className="text-center text-sm font-medium text-gray-500 uppercase tracking-wider">점수</div>
-            {problemList.map((problem) => (
-              <div key={problem.id} className="text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                {problem.displayId ?? problem.id}
+          <div className="border-b border-gray-200 bg-gray-50 px-1 py-4">
+            <div className="grid items-center gap-x-2" style={{ gridTemplateColumns }}>
+              <div className="text-center text-sm font-medium text-gray-500 uppercase tracking-wider" style={stickyHeaderStyles[0]}>
+                순위
               </div>
-            ))}
+              <div className="text-center text-sm font-medium text-gray-500 uppercase tracking-wider" style={stickyHeaderStyles[1]}>
+                유저
+              </div>
+              <div className="text-center text-sm font-medium text-gray-500 uppercase tracking-wider">해결</div>
+              <div className="text-center text-sm font-medium text-gray-500 uppercase tracking-wider">점수</div>
+              {problemList.map((_, idx) => (
+                <div key={`problem-header-${idx}`} className="text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                  {idx + 1}
+                </div>
+              ))}
+            </div>
           </div>
           <div className="divide-y divide-gray-200">
             {scoreboardEntries.map((entry, index) => (
-              <div key={entry.id ?? index} className="px-6 py-4 hover:bg-gray-50 transition-colors">
-                <div
-                  className="grid items-center"
-                  style={{ gridTemplateColumns: `80px 180px 120px 120px repeat(${problemList.length}, minmax(140px, 1fr))` }}
-                >
-                  <div className="text-center font-semibold text-gray-800">{index + 1}</div>
-                  <div>
-                    <div className="text-sm font-medium text-gray-900">{entry.user.username}</div>
+              <div
+                key={entry.id ?? index}
+                className="px-1 py-4 transition-colors"
+                onMouseEnter={() => setHoveredRow(index)}
+                onMouseLeave={() => setHoveredRow(null)}
+                style={{ backgroundColor: hoveredRow === index ? '#f8fafc' : '#ffffff' }}
+              >
+                <div className="grid items-center gap-x-2" style={{ gridTemplateColumns }}>
+                  <div
+                    className="text-center font-semibold text-gray-800"
+                    style={{
+                      ...stickyBodyBase,
+                      left: 0,
+                      backgroundColor: hoveredRow === index ? '#f8fafc' : '#ffffff',
+                    }}
+                  >
+                    {index + 1}
                   </div>
-                  <div className="text-center text-sm text-gray-700">{entry.acceptedNumber ?? 0}</div>
+                  <div
+                    style={{
+                      ...stickyBodyBase,
+                      left: rankWidth,
+                      backgroundColor: hoveredRow === index ? '#f8fafc' : '#ffffff',
+                    }}
+                  >
+                    <div className="text-sm font-medium text-gray-900 text-center w-full">
+                      {entry.user.realName || entry.user.username}
+                    </div>
+                  </div>
+                  <div className="text-center text-sm text-gray-700">
+                    {(entry.acceptedNumber ?? 0)}/{problemList.length}
+                  </div>
                   <div className="text-center text-sm text-gray-700">{entry.totalScore ?? 0}</div>
                   {problemList.map((problem, pIdx) => {
                     const info = entry.problemStatuses ? entry.problemStatuses[pIdx] : null;
