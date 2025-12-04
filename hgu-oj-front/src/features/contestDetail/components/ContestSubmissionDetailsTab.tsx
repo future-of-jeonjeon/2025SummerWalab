@@ -40,6 +40,7 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
     open: false,
     loading: false,
   });
+  const [caseStats, setCaseStats] = useState<Record<string, { passed: number; total: number }>>({});
   const [hoveredRow, setHoveredRow] = useState<number | null>(null);
 
   const formatKSTDateTime = (value: unknown): string => {
@@ -57,8 +58,39 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
     }).format(date);
   };
 
+  const resolveProblemDisplayId = (item: SubmissionListItem): string | number | undefined => {
+    const directCandidates = [
+      (item as any)?.problem,
+      (item as any)?.problem_id,
+      (item as any)?.problemId,
+    ];
+    for (const candidate of directCandidates) {
+      if (candidate !== undefined && candidate !== null && `${candidate}`.length > 0) {
+        return candidate;
+      }
+    }
+    // Fallback: try to match by problem PK
+    const numericPk = Number((item as any)?.problem_pk ?? (item as any)?.problemPk ?? (item as any)?.problem_id);
+    if (Number.isFinite(numericPk)) {
+      const matched = problemList.find((p) => Number(p.id) === numericPk);
+      if (matched) return matched.displayId ?? (matched as any)?._id ?? matched.id;
+    }
+    return selectedProblem?.displayId ?? (selectedProblem as any)?._id ?? selectedProblem?.id;
+  };
+
+  const getSubmissionTimestamp = (item: SubmissionListItem): number => {
+    const raw =
+      (item as any)?.create_time ??
+      (item as any)?.createTime ??
+      (item as any)?.created_at ??
+      (item as any)?.createdAt;
+    const t = raw ? new Date(raw).getTime() : NaN;
+    return Number.isFinite(t) ? t : 0;
+  };
+
   const parseTestCases = (detail: SubmissionDetail | null | undefined): CaseEntry[] => {
-    const data = (detail as SubmissionDetail & { info?: { data?: unknown } } | null | undefined)?.info?.data;
+    const typed = detail as SubmissionDetail & { info?: { data?: unknown }; statistic_info?: { data?: unknown } } | null | undefined;
+    const data = typed?.info?.data ?? typed?.statistic_info?.data;
     if (!Array.isArray(data)) return [];
 
     return data
@@ -75,6 +107,24 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
         return { id, result: rawResult as number | string | undefined, success };
       })
       .filter((item): item is CaseEntry => item !== null);
+  };
+
+  const computeCaseStats = (detail: SubmissionDetail | SubmissionListItem | null | undefined) => {
+    const cases = parseTestCases(detail);
+    if (!cases.length) return null;
+    const passed = cases.filter((c) => c.success).length;
+    return { passed, total: cases.length };
+  };
+
+  const resolveSubmissionId = (item: SubmissionListItem | SubmissionDetail | null | undefined) => {
+    const raw =
+      (item as SubmissionListItem | undefined)?.id ??
+      (item as SubmissionListItem | undefined)?.submissionId ??
+      (item as any)?.submission_id ??
+      (item as any)?.run_id ??
+      (item as any)?.runId;
+    if (raw === null || raw === undefined) return undefined;
+    return String(raw);
   };
 
   const renderResultLabel = (status: unknown): string => {
@@ -137,20 +187,40 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
   }, [rankEntries, problemList]);
 
   const handleCellClick = async (userId: number, username: string, problem: Problem) => {
+    await loadSubmissionsForUser(userId, username, problem);
+  };
+
+  const handleUserClick = async (userId: number, username: string) => {
+    await loadSubmissionsForUser(userId, username, null);
+  };
+
+  const loadSubmissionsForUser = async (userId: number, username: string, problem: Problem | null) => {
     setSelectedUser({ id: userId, username });
     setSelectedProblem(problem);
     setMode('submissions');
     setSubmissionsLoading(true);
     setSubmissionsError(null);
+    setCaseStats({});
 
     try {
       const resp = await contestService.getContestSubmissions(contestId, {
         userId,
         username,
-        // Contest submissions API expects the problem's display/_id, not the PK
-        problemId: problem.displayId ?? problem._id ?? problem.id,
+        problemId: problem ? problem.displayId ?? (problem as any)?._id ?? problem.id : undefined,
       });
-      setSubmissions(resp.data || []);
+      const list = resp.data || [];
+      const sorted = [...list].sort((a, b) => getSubmissionTimestamp(b) - getSubmissionTimestamp(a));
+      setSubmissions(sorted);
+
+      const stats: Record<string, { passed: number; total: number }> = {};
+      sorted.forEach((item) => {
+        const sid = resolveSubmissionId(item);
+        const computed = computeCaseStats(item);
+        if (sid && computed) {
+          stats[sid] = computed;
+        }
+      });
+      setCaseStats(stats);
     } catch (error) {
       setSubmissionsError(error instanceof Error ? error.message : '제출을 불러오지 못했습니다.');
     } finally {
@@ -164,6 +234,13 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
     try {
       const detail = await submissionService.getSubmission(submissionId);
       const code = detail.code;
+      const stats = computeCaseStats(detail);
+      if (stats) {
+        setCaseStats((prev) => ({
+          ...prev,
+          [String(submissionId)]: stats,
+        }));
+      }
       setCodeModal({ open: true, loading: false, code });
     } catch (error) {
       setCodeModal({
@@ -180,6 +257,13 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
     try {
       const detail = await submissionService.getSubmission(submissionId);
       const cases = parseTestCases(detail);
+      const stats = computeCaseStats(detail);
+      if (stats) {
+        setCaseStats((prev) => ({
+          ...prev,
+          [String(submissionId)]: stats,
+        }));
+      }
       setCaseModal({
         open: true,
         loading: false,
@@ -201,7 +285,7 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
     return <div className="text-sm text-gray-600">관리자만 제출 상세정보를 확인할 수 있습니다.</div>;
   }
 
-  if (mode === 'submissions' && selectedUser && selectedProblem) {
+  if (mode === 'submissions' && selectedUser) {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -214,6 +298,7 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
           </button>
           <div className="text-sm font-semibold text-gray-800">
             {selectedUser.username}의 제출기록
+            {selectedProblem ? ` · ${selectedProblem.displayId ?? (selectedProblem as any)?._id ?? selectedProblem.id}` : ' · 전체'}
           </div>
         </div>
         {submissionsLoading ? (
@@ -248,6 +333,7 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">문제</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-700">결과</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-700">언어</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-700">제출 시각</th>
@@ -266,8 +352,12 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
                   const submissionId = item.id ?? item.submissionId;
                   const statusRaw = item.status ?? item.result ?? '-';
                   const statusText = renderResultLabel(statusRaw);
+                  const caseStatKey = submissionId != null ? String(submissionId) : null;
+                  const caseStat = caseStatKey ? caseStats[caseStatKey] : undefined;
+                  const problemDisplayId = resolveProblemDisplayId(item);
                   return (
                     <tr key={String(submissionId ?? Math.random())}>
+                      <td className="px-4 py-2 text-gray-800">{problemDisplayId ?? '-'}</td>
                       <td className="px-4 py-2 text-gray-800">{statusText}</td>
                       <td className="px-4 py-2 text-gray-800">
                         {item.language ??
@@ -286,13 +376,18 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
                         </button>
                       </td>
                       <td className="px-4 py-2 text-center">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenCaseModal(submissionId)}
-                          className="px-3 py-1 rounded-md border border-indigo-200 text-sm text-indigo-700 hover:bg-indigo-50 bg-indigo-50"
-                        >
-                          케이스 결과
-                        </button>
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenCaseModal(submissionId)}
+                            className="px-3 py-1 rounded-md border border-indigo-200 text-sm text-indigo-700 hover:bg-indigo-50 bg-indigo-50"
+                          >
+                            케이스 결과
+                          </button>
+                          <div className="text-xs text-gray-500 min-w-[48px] text-right">
+                            {caseStat && caseStat.total > 0 ? `${caseStat.passed}/${caseStat.total}` : '-'}
+                          </div>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -482,17 +577,23 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
                   >
                     {index + 1}
                   </div>
-                  <div
+                  <button
+                    type="button"
+                    onClick={() => handleUserClick(entry.user.id, entry.user.username)}
                     style={{
                       ...stickyBodyBase,
                       left: rankWidth,
                       backgroundColor: hoveredRow === index ? '#f8fafc' : '#ffffff',
                     }}
+                    className="w-full focus:outline-none flex flex-col items-center justify-center text-center"
                   >
-                    <div className="text-sm font-medium text-gray-900 text-center w-full">
+                    <div className="text-sm font-medium text-gray-900 hover:underline leading-tight">
                       {entry.user.realName || entry.user.username}
                     </div>
-                  </div>
+                    {entry.user.studentId && (
+                      <div className="text-xs text-gray-500 leading-tight mt-0.5">{entry.user.studentId}</div>
+                    )}
+                  </button>
                   <div className="text-center text-sm text-gray-700">
                     {(entry.acceptedNumber ?? 0)}/{problemList.length}
                   </div>

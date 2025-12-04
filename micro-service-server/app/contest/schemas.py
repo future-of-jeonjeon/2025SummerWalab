@@ -15,6 +15,7 @@ class UserSimpleDTO(BaseModel):
     id: int
     username: str
     real_name: Optional[str]
+    student_id: Optional[str] = None
 
 
 class SubmissionInfoDTO(BaseModel):

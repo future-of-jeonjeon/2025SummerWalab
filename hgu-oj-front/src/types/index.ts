@@ -111,6 +111,7 @@ export interface ContestRankEntry {
     id: number;
     username: string;
     realName?: string;
+    studentId?: string;
   };
   acceptedNumber?: number;
   submissionNumber?: number;

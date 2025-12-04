@@ -1206,6 +1206,30 @@ export const ProblemDetailPage: React.FC = () => {
   const modalLanguage = modalSubmissionCombined?.language
     ?? (modalSubmissionCombined as any)?.language_name
     ?? '-';
+  const modalCaseStats = useMemo(() => {
+    const data =
+      (modalSubmissionCombined as any)?.info?.data ??
+      (modalSubmissionCombined as any)?.statistic_info?.data;
+    if (!Array.isArray(data)) return null;
+    let total = 0;
+    let passed = 0;
+    data.forEach((item) => {
+      if (!item || typeof item !== 'object') return;
+      total += 1;
+      const record = item as Record<string, unknown>;
+      const rawResult = record.result ?? record.error ?? record.status;
+      const numeric = typeof rawResult === 'number' ? rawResult : Number(rawResult);
+      const success =
+        numeric === 0 ||
+        (typeof rawResult === 'string' &&
+          ['0', 'ac', 'accepted', 'success', 'ok'].includes(rawResult.trim().toLowerCase()));
+      if (success) {
+        passed += 1;
+      }
+    });
+    if (!total) return null;
+    return { passed, total };
+  }, [modalSubmissionCombined]);
   const modalProblemIdentifier = modalSubmissionCombined?.problem
     ?? (modalSubmissionCombined as any)?.problem_id
     ?? (modalSubmissionCombined as any)?.problemId
@@ -1701,6 +1725,7 @@ export const ProblemDetailPage: React.FC = () => {
                     <div><span className="font-semibold">제출 시각:</span> {modalSubmittedAt ? formatDateTime(modalSubmittedAt) : '-'}</div>
                     <div><span className="font-semibold">실행 시간:</span> {formatExecutionTimeValue(modalExecutionTime)}</div>
                     <div><span className="font-semibold">메모리:</span> {formatMemoryUsageValue(modalMemoryUsage)}</div>
+                    <div><span className="font-semibold">테스트 케이스:</span> {modalCaseStats ? `${modalCaseStats.passed}/${modalCaseStats.total}` : '-'}</div>
                   </div>
                   <div>
                     <h4 className={`mb-2 font-semibold ${isDarkTheme ? 'text-slate-100' : 'text-gray-900'}`}>소스 코드</h4>

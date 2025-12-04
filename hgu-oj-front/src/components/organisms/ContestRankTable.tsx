@@ -37,9 +37,9 @@ export const ContestRankTable: React.FC<ContestRankTableProps> = ({ entries, rul
               <div className="col-span-1 text-center font-semibold text-gray-800">{index + 1}</div>
               <div className="col-span-4">
                 <div className="text-sm font-medium text-gray-900">{entry.user.username}</div>
-                {/* {entry.user.realName && (
-                  <div className="text-xs text-gray-500">{entry.user.realName}</div>
-                )} */}
+                {entry.user.studentId && (
+                  <div className="text-xs text-gray-500 mt-0.5">{entry.user.studentId}</div>
+                )}
               </div>
               <div className="col-span-3 text-center text-sm text-gray-700">
                 {entry.acceptedNumber ?? 0}
