@@ -1332,9 +1332,9 @@ export const ProblemDetailPage: React.FC = () => {
   }
 
   return (
-    <div className={`w-full px-0 py-0 ${isDarkTheme ? 'bg-slate-950 text-slate-100' : 'bg-gray-50 text-gray-900'}`}>
+    <div className={`w-full px-0 py-0 h-screen flex flex-col overflow-hidden ${isDarkTheme ? 'bg-slate-950 text-slate-100' : 'bg-gray-50 text-gray-900'}`}>
       {contestContextId && contestMeta && (
-        <div className={`border-b px-4 py-3 text-xs sm:text-sm ${isDarkTheme ? 'border-slate-700 bg-slate-900 text-slate-200' : 'border-slate-200 bg-white text-slate-600'}`}>
+        <div className={`border-b px-4 py-3 text-xs sm:text-sm flex-none ${isDarkTheme ? 'border-slate-700 bg-slate-900 text-slate-200' : 'border-slate-200 bg-white text-slate-600'}`}>
           <div className="mx-auto flex max-w-7xl flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
             <div className="flex items-center gap-3">
               <span className={`text-lg font-semibold ${isDarkTheme ? 'text-slate-100' : 'text-slate-900'}`}>
@@ -1355,22 +1355,30 @@ export const ProblemDetailPage: React.FC = () => {
                 <span className={`text-xl font-bold ${isDarkTheme ? 'text-blue-300' : 'text-blue-700'}`}>{contestTimeLeft ?? '-'}</span>
               </div>
             </div>
-            <div className="flex flex-wrap items-center justify-end gap-4 text-xs">
-              <div className="flex flex-col items-center">
-                <span className={`${isDarkTheme ? 'text-slate-300' : 'text-slate-500'}`}>{PROBLEM_SUMMARY_LABELS.total}</span>
-                <span className={`text-2xl font-bold ${isDarkTheme ? 'text-slate-100' : 'text-slate-900'}`}>{contestProblemStats?.total ?? '-'}</span>
+            <div className={`flex items-center divide-x ${isDarkTheme ? 'divide-slate-700' : 'divide-slate-200'}`}>
+              <div className="px-4 text-center">
+                <div className={`text-[10px] font-medium uppercase tracking-wider ${isDarkTheme ? 'text-slate-400' : 'text-slate-500'}`}>전체 문제</div>
+                <div className={`mt-0.5 text-xl font-bold ${isDarkTheme ? 'text-slate-100' : 'text-slate-900'}`}>{contestProblemStats?.total ?? '-'}</div>
               </div>
-              <div className="flex flex-col items-center">
-                <span className="text-indigo-500 dark:text-indigo-300">{PROBLEM_SUMMARY_LABELS.untouched}</span>
-                <span className={`text-2xl font-bold ${isDarkTheme ? 'text-indigo-300' : 'text-indigo-600'}`}>{contestProblemStats?.untouched ?? '-'}</span>
+              <div className="px-4 text-center">
+                <div className="text-[10px] font-medium uppercase tracking-wider text-indigo-600 dark:text-indigo-400">남은 문제</div>
+                <div className="mt-0.5 text-xl font-bold text-indigo-600 dark:text-indigo-400">
+                  {contestProblemStats ? contestProblemStats.total - contestProblemStats.solved : '-'}
+                </div>
               </div>
-              <div className="flex flex-col items-center">
-                <span className="text-emerald-600 dark:text-emerald-300">{PROBLEM_SUMMARY_LABELS.solved}</span>
-                <span className={`text-2xl font-bold ${isDarkTheme ? 'text-emerald-300' : 'text-emerald-600'}`}>{contestProblemStats?.solved ?? '-'}</span>
+              <div className="px-4 text-center">
+                <div className="text-[10px] font-medium uppercase tracking-wider text-emerald-600 dark:text-emerald-400">{PROBLEM_SUMMARY_LABELS.solved}</div>
+                <div className="mt-0.5 text-xl font-bold text-emerald-600 dark:text-emerald-400">{contestProblemStats?.solved ?? '-'}</div>
               </div>
-              <div className="flex flex-col items-center">
-                <span className="text-rose-600 dark:text-rose-300">{PROBLEM_SUMMARY_LABELS.wrong}</span>
-                <span className={`text-2xl font-bold ${isDarkTheme ? 'text-rose-300' : 'text-rose-600'}`}>{contestProblemStats?.wrong ?? '-'}</span>
+              <div className="px-4 text-center">
+                <div className="text-[10px] font-medium uppercase tracking-wider text-rose-600 dark:text-rose-400">{PROBLEM_SUMMARY_LABELS.wrong}</div>
+                <div className="mt-0.5 text-xl font-bold text-rose-600 dark:text-rose-400">{contestProblemStats?.wrong ?? '-'}</div>
+              </div>
+              <div className="px-4 text-center">
+                <div className="text-[10px] font-medium uppercase tracking-wider text-blue-600 dark:text-blue-400">내 점수</div>
+                <div className="mt-0.5 text-xl font-bold text-blue-600 dark:text-blue-400">
+                  {contestRankProgress?.totalScore ?? 0}<span className="text-xs font-normal ml-0.5">점</span>
+                </div>
               </div>
             </div>
           </div>
@@ -1378,7 +1386,7 @@ export const ProblemDetailPage: React.FC = () => {
       )}
       <div
         ref={containerRef}
-        className="relative flex gap-0 h-screen overflow-visible"
+        className="relative flex gap-0 flex-1 min-h-0 overflow-hidden"
       >
         {/* Left: Problem */}
         <div
