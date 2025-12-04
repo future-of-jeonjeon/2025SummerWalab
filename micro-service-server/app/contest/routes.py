@@ -8,6 +8,7 @@ from app.config.database import get_session
 from app.contest.schemas import ContestDTO, ContestRankDTO
 from app.security.deps import get_userdata
 from app.user.schemas import UserData
+from app.utils.security import authorize_roles
 
 router = APIRouter(prefix="/api/contest", tags=["contest"])
 
@@ -23,4 +24,13 @@ async def get_participated_contest_by_user(
 async def get_contest_rank(
         contest_id: int,
         db: AsyncSession = Depends(get_session)):
-    return await serv.get_contest_rank(contest_id, db)
+    return await serv.get_contest_rank_public(contest_id, db)
+
+
+@authorize_roles("Admin")
+@router.get("/rank/all", response_model=List[ContestRankDTO])
+async def get_contest_rank_all_data(
+        contest_id: int,
+        userdata: UserData = Depends(get_userdata),
+        db: AsyncSession = Depends(get_session)):
+    return await serv.get_contest_rank_admin(contest_id, db)

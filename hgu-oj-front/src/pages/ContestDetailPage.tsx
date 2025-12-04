@@ -16,7 +16,7 @@ import { ContestProblemsTab } from '../features/contestDetail/components/Contest
 import { ContestRankTab } from '../features/contestDetail/components/ContestRankTab';
 import { ContestUserManagementTab } from '../features/contestDetail/components/ContestUserManagementTab';
 import { ContestSubmissionDetailsTab } from '../features/contestDetail/components/ContestSubmissionDetailsTab';
-import type { ContestRankEntry } from '../types';
+
 import type { ContestTab } from '../features/contestDetail/types';
 
 const statusLabel: Record<string, string> = {
@@ -145,13 +145,20 @@ export const ContestDetailPage: React.FC = () => {
 
   const shouldLoadRank = canViewProtectedContent;
   const {
-    data: rankData,
-    isLoading: rankLoading,
-    error: rankError,
-    refetch: refetchRank,
+    data: publicRankData,
+    isLoading: publicRankLoading,
+    error: publicRankError,
+    refetch: refetchPublicRank,
   } = useContestRank(contestId, shouldLoadRank);
 
-  const rankEntries = useMemo<ContestRankEntry[]>(() => rankData?.results ?? [], [rankData]);
+  const {
+    data: adminRankData,
+    refetch: refetchAdminRank,
+  } = useContestRank(contestId, shouldLoadRank && isAdminUser, { isAdmin: true });
+
+  const rankEntries = publicRankData?.results ?? [];
+  const adminRankEntries = adminRankData?.results ?? [];
+
   const myScore = useMemo(() => {
     if (!authUser?.id) return 0;
     const myEntry = rankEntries.find((entry) => entry.user.id === authUser.id);
@@ -175,16 +182,19 @@ export const ContestDetailPage: React.FC = () => {
     protectedContentRef.current = () => {
       refetchAnnouncements();
       refetchProblems();
-      refetchRank();
+      refetchPublicRank();
+      if (isAdminUser) {
+        refetchAdminRank();
+      }
     };
-  }, [refetchAnnouncements, refetchProblems, refetchRank]);
+  }, [refetchAnnouncements, refetchProblems, refetchPublicRank, refetchAdminRank, isAdminUser]);
 
   useEffect(() => {
     if (activeTab === 'problems' && canViewProtectedContent) {
       refetchProblems();
-      refetchRank();
+      refetchPublicRank();
     }
-  }, [activeTab, canViewProtectedContent, refetchProblems, refetchRank]);
+  }, [activeTab, canViewProtectedContent, refetchProblems, refetchPublicRank]);
 
   const shouldLoadUserManagement = isAdminUser && activeTab === 'user-management';
   const userManagement = useContestUserManagement({
@@ -459,8 +469,8 @@ export const ContestDetailPage: React.FC = () => {
                 }}
                 hasAccess={hasAccess}
                 hasContestAdminOverride={hasContestAdminOverride}
-                rankLoading={rankLoading}
-                rankError={rankError}
+                rankLoading={publicRankLoading}
+                rankError={publicRankError}
                 entries={rankEntries}
                 ruleType={contest?.ruleType}
               />
@@ -482,7 +492,7 @@ export const ContestDetailPage: React.FC = () => {
               <ContestSubmissionDetailsTab
                 contestId={contestId}
                 isAdminUser={isAdminUser}
-                rankEntries={rankEntries}
+                rankEntries={adminRankEntries}
                 problems={problemsController.problems}
               />
             )}

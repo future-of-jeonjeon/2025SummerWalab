@@ -308,13 +308,14 @@ export const contestService = {
   },
   getContestRank: async (
     contestId: number,
-    _params?: { limit?: number; offset?: number },
+    params?: { limit?: number; offset?: number; isAdmin?: boolean },
   ): Promise<{ results: ContestRankEntry[]; total: number }> => {
     if (!MICRO_API_BASE) {
       throw new Error('Microservice API base URL is not configured.');
     }
 
-    const response = await apiClient.get<ContestRankEntry[]>(`${MICRO_API_BASE}/contest/rank`, {
+    const endpoint = params?.isAdmin ? '/contest/rank/all' : '/contest/rank';
+    const response = await apiClient.get<ContestRankEntry[]>(`${MICRO_API_BASE}${endpoint}`, {
       params: { contest_id: contestId },
     });
 
