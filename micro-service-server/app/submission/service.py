@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.submission import repository as submission_repo
 from app.submission.schemas import ContestProblemStat, ContestUserScore, SubmissionDailyCount
 from app.user.schemas import UserData
+from app.utils.logging import logger
 
 
 async def get_contest_problem_stats(
@@ -17,6 +18,7 @@ async def get_contest_problem_stats(
         contest_id=contest_id,
         problem_ids=problem_ids,
     )
+    logger.info(f"Fetched problem stats for contest {contest_id}")
     return [ContestProblemStat(**item) for item in stats]
 
 
@@ -28,6 +30,7 @@ async def get_contest_user_scores(
         db,
         contest_id=contest_id,
     )
+    logger.info(f"Fetched user scores for contest {contest_id}")
     return [ContestUserScore(**item) for item in scores]
 
 

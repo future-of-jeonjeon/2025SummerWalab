@@ -14,6 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.execution.models import SysOption
 from app.execution.scheduler import ChooseJudgeServerAsync
+from app.utils.logging import logger
 
 
 async def _get_sys_option(session: AsyncSession, key: str) -> Optional[Any]:
@@ -59,13 +60,17 @@ class ExecutionService:
             max_cpu_time: int,
             max_memory_mb: int) -> Dict[str, Any]:
 
+        logger.info(f"Run code request: lang={language}, cpu={max_cpu_time}, mem={max_memory_mb}")
+
         # Resolve language config from SysOptions
         language_config = await find_language_config(self.session, language)
         if not language_config:
+            logger.error(f"Wrong Language option: {language}")
             raise HTTPException(status_code=400, detail="Wrong Language option")
 
         token = await get_judge_server_token(self.session)
         if not token:
+            logger.critical("Missing JUDGE_SERVER_TOKEN")
             raise HTTPException(status_code=500, detail="Internal Server Error")
             # return {"err": True, "data": "Missing JUDGE_SERVER_TOKEN (env or SysOptions)"}
 
@@ -83,6 +88,7 @@ class ExecutionService:
 
         async with ChooseJudgeServerAsync() as server:
             if not server or not server.service_url:
+                logger.error("No available judge server found")
                 return {"err": True, "data": "No available judge server"}
 
             # Build payload for a single-run with custom stdin
@@ -137,6 +143,7 @@ class ExecutionService:
                         return result2
                     return result
                 except Exception as e:
+                    logger.error(f"Judge server error: {e}")
                     return {"err": True, "data": f"Judge server error: {e}"}
 
     async def _run_via_judge(

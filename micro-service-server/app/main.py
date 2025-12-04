@@ -12,7 +12,7 @@ from app.config.settings import settings
 from app.execution import routes as execution_routes
 from app.problem import routes as problem_routes
 from app.security.cors import setup_cors
-from app.utils.logging import logger
+from app.utils.logging import logger, LoggingMiddleware
 from app.workbook import routes as workbook_routes
 from app.organization import routes as organization_routes
 from app.organization_ranking import routes as organization_ranking_routes
@@ -46,6 +46,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan, **settings.fastapi_kwargs)
 setup_cors(app)
+app.add_middleware(LoggingMiddleware)
 app.include_router(auth_routes.router)
 app.include_router(problem_routes.router)
 app.include_router(workbook_routes.router)

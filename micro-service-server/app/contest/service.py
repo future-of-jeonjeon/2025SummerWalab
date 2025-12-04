@@ -5,6 +5,7 @@ import app.submission.repository as submission_repo
 from app.contest.schemas import ContestDTO, ContestRankDTO, UserSimpleDTO
 from app.user.schemas import UserData
 from app.contest.models import Contest
+from app.utils.logging import logger
 
 
 async def get_participated_contest_by_user(user_date: UserData, db: AsyncSession):
@@ -23,6 +24,7 @@ async def get_participated_contest_by_user(user_date: UserData, db: AsyncSession
 async def _get_contest_and_raw_ranks(contest_id: int, db: AsyncSession):
     contest = await db.get(Contest, contest_id)
     if not contest:
+        logger.warning(f"Contest not found: {contest_id}")
         return None, None
 
     if contest.rule_type == "ACM":
@@ -34,10 +36,12 @@ async def _get_contest_and_raw_ranks(contest_id: int, db: AsyncSession):
 
 
 async def get_contest_rank_public(contest_id: int, db: AsyncSession):
+    logger.info(f"Fetching public rank for contest {contest_id}")
     return await _get_contest_ranks(contest_id, True, db)
 
 
 async def get_contest_rank_admin(contest_id: int, db: AsyncSession):
+    logger.info(f"Fetching admin rank for contest {contest_id}")
     return await _get_contest_ranks(contest_id, False, db)
 
 
