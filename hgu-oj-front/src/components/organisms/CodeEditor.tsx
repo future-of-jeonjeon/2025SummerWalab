@@ -3,12 +3,14 @@ import { Editor } from '@monaco-editor/react';
 import { LanguageOption, ExecutionResult } from '../../types';
 import { Button } from '../atoms/Button';
 import { Card } from '../atoms/Card';
+import { AlertModal } from '../molecules/AlertModal';
 import codeTemplates from '../../config/codeTemplates.json';
 import { codeAutoSaveService } from '../../services/codeAutoSaveService';
 
 interface CodeEditorProps {
   initialCode?: string;
   initialLanguage?: string;
+  allowedLanguages?: string[];
   problemId?: number;
   samples?: Array<{ input: string; output: string }>;
   onCodeChange?: (code: string) => void;
@@ -129,6 +131,7 @@ type PendingSaveRequest = {
 export const CodeEditor: React.FC<CodeEditorProps> = ({
   initialCode = '',
   initialLanguage = 'javascript',
+  allowedLanguages,
   problemId,
   samples,
   onCodeChange,
@@ -144,6 +147,25 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 }) => {
   const autoSaveIntervalMs = useMemo(() => resolveAutoSaveIntervalMs(), []);
   const autoSaveCacheTtlMs = useMemo(() => resolveAutoSaveCacheTtlMs(), []);
+
+  const availableLanguageOptions = useMemo(() => {
+    if (!allowedLanguages || allowedLanguages.length === 0) {
+      return languageOptions;
+    }
+    const normalized = new Set(allowedLanguages.map((lang) => String(lang).trim().toLowerCase()));
+    const matchMap: Record<string, string[]> = {
+      javascript: ['javascript', 'js'],
+      python: ['python', 'python3', 'py', 'python 3'],
+      java: ['java'],
+      cpp: ['cpp', 'c++'],
+      c: ['c'],
+    };
+    const filtered = languageOptions.filter((opt) => {
+      const candidates = matchMap[opt.value] ?? [opt.value];
+      return candidates.some((c) => normalized.has(c));
+    });
+    return filtered.length > 0 ? filtered : languageOptions;
+  }, [allowedLanguages]);
   // Storage keys
   const codeKey = useMemo(() => `oj:code:${problemId ?? 'global'}:`, [problemId]);
   const langKey = useMemo(() => `oj:lang:${problemId ?? 'global'}`, [problemId]);
@@ -151,12 +173,26 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 
   const [language, setLanguage] = useState(() => {
     const saved = localStorage.getItem(langKey);
-    return saved || initialLanguage;
+    const initial = saved || initialLanguage;
+    const allowedValues = availableLanguageOptions.map((opt) => opt.value);
+    if (allowedValues.length > 0 && !allowedValues.includes(initial)) {
+      return allowedValues[0];
+    }
+    return allowedValues.length > 0 ? initial : 'javascript';
   });
   const [code, setCode] = useState(() => {
     if (initialCode) return initialCode;
     return defaultCode[language] || '';
   });
+
+  useEffect(() => {
+    if (!availableLanguageOptions.some((opt) => opt.value === language)) {
+      const fallbackLang = availableLanguageOptions[0]?.value ?? 'javascript';
+      setLanguage(fallbackLang);
+      const nextCode = initialCode || defaultCode[fallbackLang] || '';
+      setCode(nextCode);
+    }
+  }, [availableLanguageOptions, language, initialCode]);
 
   const [input, setInput] = useState('');
   const [editorTheme, setEditorTheme] = useState<'light' | 'dark'>(() => {
@@ -190,6 +226,23 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const [saveFeedback, setSaveFeedback] = useState<string | null>(null);
   const [saveFeedbackVisible, setSaveFeedbackVisible] = useState(false);
   const userEditedRef = useRef(false);
+
+
+  const [alertModal, setAlertModal] = useState<{
+    isOpen: boolean;
+    message: string;
+    title?: string;
+    type?: 'success' | 'error' | 'warning' | 'info';
+  }>({
+    isOpen: false,
+    message: '',
+    type: 'warning',
+  });
+
+  const closeAlertModal = useCallback(() => {
+    setAlertModal((prev) => ({ ...prev, isOpen: false }));
+  }, []);
+
   const showSaveFeedback = useCallback((message: string) => {
     if (typeof window === 'undefined') {
       return;
@@ -360,12 +413,28 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   };
 
   const handleExecute = () => {
-    if (!code.trim()) return;
+    if (!code.trim()) {
+      setAlertModal({
+        isOpen: true,
+        title: '코드 없음',
+        message: '실행할 코드가 없습니다. 코드를 입력해주세요.',
+        type: 'warning',
+      });
+      return;
+    }
     onExecute?.(code, language, input);
   };
 
   const handleSubmit = () => {
-    if (!code.trim()) return;
+    if (!code.trim()) {
+      setAlertModal({
+        isOpen: true,
+        title: '코드 없음',
+        message: '제출할 코드가 없습니다. 코드를 입력해주세요.',
+        type: 'warning',
+      });
+      return;
+    }
     onSubmit?.(code, language);
   };
 
@@ -568,7 +637,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     ? 'bg-slate-900 border border-slate-600 text-slate-100'
     : 'bg-white border border-gray-300 text-gray-900';
 
-  const isCodeEmpty = code.trim().length === 0;
+
 
   return (
     <div ref={containerRef} className={`relative flex flex-col h-full min-h-0 ${className}`}>
@@ -578,9 +647,9 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           <select
             value={language}
             onChange={(e) => handleLanguageChange(e.target.value)}
-            className={controlSelectClasses()}
+            className={controlSelectClasses('sm')}
           >
-            {languageOptions.map((option) => (
+            {availableLanguageOptions.map((option) => (
               <option key={option.value} value={option.value}>
                 {option.label}
               </option>
@@ -632,7 +701,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             variant="secondary"
             size="sm"
             onClick={handleExecute}
-            disabled={isExecuting || isCodeEmpty}
+            disabled={isExecuting}
             loading={isExecuting}
           >
             실행 (Ctrl/Cmd+Enter)
@@ -641,7 +710,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             variant="primary"
             size="sm"
             onClick={handleSubmit}
-            disabled={isSubmitting || isCodeEmpty}
+            disabled={isSubmitting}
             loading={isSubmitting}
           >
             제출
@@ -675,12 +744,12 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
         <div
           role="separator"
           aria-orientation="horizontal"
-          className="oj-resizer-h select-none"
+          className="oj-resizer-h select-none group"
           onMouseDown={() => !ioCollapsed && setDraggingIO(true)}
         >
           <button
             aria-label={ioCollapsed ? 'I/O 패널 펼치기' : 'I/O 패널 접기'}
-            className="oj-handle-h blend"
+            className={`oj-handle-h blend transition-opacity duration-200 ${ioCollapsed ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
             onClick={(e) => { e.stopPropagation(); setIoCollapsed(v => !v); }}
             title={ioCollapsed ? 'I/O 펼치기' : 'I/O 접기'}
           >
@@ -806,6 +875,13 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           </div>
         )}
       </div>
+      <AlertModal
+        isOpen={alertModal.isOpen}
+        onClose={closeAlertModal}
+        title={alertModal.title}
+        message={alertModal.message}
+        type={alertModal.type}
+      />
     </div>
   );
 };

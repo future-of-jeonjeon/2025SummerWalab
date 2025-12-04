@@ -25,10 +25,12 @@ jobs:
       - name: Build front page
         run: |
           cd ./hgu-oj-front
-          printf "VITE_API_URL=%s\n" "${{ vars.VITE_API_URL }}" > .env
-          printf "VITE_MS_API_BASE=%s\n" "${{ vars.VITE_MS_API_BASE }}" >> .env
-          printf "VITE_CODE_AUTO_SAVE_INTERVAL_SECONDS=%s\n" "${{ vars.VITE_CODE_AUTO_SAVE_INTERVAL_SECONDS }}" >> .env
-          printf "VITE_CODE_AUTO_SAVE_CACHE_TTL_SECONDS=%s\n" "${{ vars.VITE_CODE_AUTO_SAVE_CACHE_TTL_SECONDS }}" >> .env
+          printf "VITE_API_URL=%s\n" "${{ secrets.VITE_API_URL }}" > .env
+          printf "VITE_MS_API_BASE=%s\n" "${{ secrets.VITE_MS_API_BASE }}" >> .env
+          printf "VITE_CODE_AUTO_SAVE_INTERVAL_SECONDS=%s\n" "${{ secrets.VITE_CODE_AUTO_SAVE_INTERVAL_SECONDS }}" >> .env
+          printf "VITE_CODE_AUTO_SAVE_CACHE_TTL_SECONDS=%s\n" "${{ secrets.VITE_CODE_AUTO_SAVE_CACHE_TTL_SECONDS }}" >> .env
+          printf "VITE_GOOGLE_CLIENT_ID=%s\n" "${{ secrets.VITE_GOOGLE_CLIENT_ID }}" >> .env
+          printf "VITE_GOOGLE_REDIRECT_URI=%s\n" "${{ secrets.VITE_GOOGLE_REDIRECT_URI }}" >> .env
           npm ci
           npm install -D @types/node
           npm run build
@@ -55,9 +57,9 @@ jobs:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASSWORD }}
-          source: "./hgu-oj-front/dist/*"
+          source: "hgu-oj-front/dist/*"
           target: "~/www/judge"
-          strip_components: 3
+          strip_components: 2
 
       - name: Deploy backend on server
         uses: appleboy/ssh-action@v1.1.0

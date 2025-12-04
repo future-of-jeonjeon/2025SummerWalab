@@ -20,6 +20,7 @@ import app.problem.models
 import app.workbook.models
 import app.code_autosave.models
 import app.organization.models
+import app.contest_user.models
 
 
 def _sync_database_url() -> str:

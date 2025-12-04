@@ -20,6 +20,11 @@ class ContestUserStatus(BaseModel):
     requires_approval: bool = False
 
 
+class ContestApprovalPolicy(BaseModel):
+    contest_id: int
+    requires_approval: bool
+
+
 class ContestUserDetail(BaseModel):
     user_id: int
     username: str | None = None

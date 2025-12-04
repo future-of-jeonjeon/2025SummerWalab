@@ -3,7 +3,7 @@ import { ApiResponse } from '../types';
 
 // API 기본 설정
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
-export const MS_API_BASE = (import.meta.env.VITE_MS_API_BASE as string | undefined) || 'ms';
+export const MS_API_BASE = (import.meta.env.VITE_MS_API_BASE as string | undefined) || 'http://localhost:9000/api';
 
 // Axios 인스턴스 생성
 const apiClient: AxiosInstance = axios.create({
@@ -51,8 +51,14 @@ apiClient.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
+      // OAuth 콜백 페이지에서는 401 에러를 직접 처리하도록 리다이렉트 방지
+      if (window.location.pathname.startsWith('/oauth/callback')) {
+        return Promise.reject(error);
+      }
+
       // 토큰 만료 시 로그아웃 처리
       localStorage.removeItem('token');
+      localStorage.removeItem('auth-storage'); // Zustand persist storage 제거
       window.location.href = '/login';
     }
     return Promise.reject(error);

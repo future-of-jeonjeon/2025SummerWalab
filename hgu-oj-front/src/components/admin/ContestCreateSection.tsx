@@ -5,6 +5,7 @@ import { Button } from '../atoms/Button';
 import { adminService, CreateContestPayload } from '../../services/adminService';
 import { Problem } from '../../types';
 import { normalizeProblemKey } from '../../lib/problemKey';
+import { contestUserService } from '../../services/contestUserService';
 
 type ContestFormState = {
   title: string;
@@ -16,6 +17,7 @@ type ContestFormState = {
   visible: boolean;
   realTimeRank: boolean;
   allowedIpRanges: string;
+  requiresApproval: boolean;
 };
 
 type ContestAnnouncementDraft = {
@@ -34,6 +36,7 @@ const initialContestForm: ContestFormState = {
   visible: true,
   realTimeRank: true,
   allowedIpRanges: '',
+  requiresApproval: false,
 };
 
 export const ContestCreateSection: React.FC = () => {
@@ -272,11 +275,23 @@ export const ContestCreateSection: React.FC = () => {
       visible: contestForm.visible,
       real_time_rank: contestForm.realTimeRank,
       allowed_ip_ranges: allowedIpRanges,
+      requires_approval: contestForm.requiresApproval,
     };
 
     try {
       setContestLoading(true);
       const created = await adminService.createContest(payload);
+      if (created?.id) {
+        try {
+          await contestUserService.setPolicy(created.id, contestForm.requiresApproval);
+        } catch {
+          // 정책 저장 실패 시에도 대회 생성은 유지
+          setContestMessage((prev) => ({
+            ...prev,
+            error: '대회는 생성됐지만 참여 승인 설정을 저장하지 못했습니다. 관리자에서 다시 시도해주세요.',
+          }));
+        }
+      }
 
       let problemError: string | undefined;
       let announcementError: string | undefined;
@@ -395,9 +410,9 @@ export const ContestCreateSection: React.FC = () => {
               <option value="OI">OI</option>
             </select>
           </div>
-          <div>
+          <div className="md:col-span-2">
             <label className="mb-1 block text-sm font-medium text-gray-700">표시 설정</label>
-            <div className="flex items-center space-x-3">
+            <div className="flex flex-wrap items-center gap-4">
               <label className="inline-flex items-center space-x-2 text-sm text-gray-700">
                 <input
                   type="checkbox"
@@ -413,6 +428,14 @@ export const ContestCreateSection: React.FC = () => {
                   onChange={(event) => setContestForm((prev) => ({ ...prev, realTimeRank: event.target.checked }))}
                 />
                 <span>실시간 랭크</span>
+              </label>
+              <label className="inline-flex items-center space-x-2 text-sm text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={contestForm.requiresApproval}
+                  onChange={(event) => setContestForm((prev) => ({ ...prev, requiresApproval: event.target.checked }))}
+                />
+                <span>참여 승인 필요</span>
               </label>
             </div>
           </div>

@@ -20,11 +20,11 @@ class ContestUser(Base):
     created_time = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_time = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-
-class Contest(Base):
-    __tablename__ = "contest"
-    __table_args__ = {"schema": "public"}
-
-    id = Column(Integer, primary_key=True, index=True)
-    start_time = Column(DateTime(timezone=True))
-    end_time = Column(DateTime(timezone=True))
+#
+# class Contest(Base):
+#     __tablename__ = "contest"
+#     __table_args__ = {"schema": "public"}
+#
+#     id = Column(Integer, primary_key=True, index=True)
+#     start_time = Column(DateTime(timezone=True))
+#     end_time = Column(DateTime(timezone=True))

@@ -102,13 +102,10 @@ except KeyboardInterrupt:
     sys.exit(1)
 PY
 
-
-echo "[entrypoint] Checking for schema changes (Auto-DDL)..."
-# Try to generate a migration. If no changes, env.py will skip creating a file.
-alembic revision --autogenerate -m "auto_generated_on_startup" || true
-
-echo "[entrypoint] Running database migrations..."
+echo "[entrypoint] Running database migrations (Pre-check)..."
 alembic upgrade head
+
+echo "[entrypoint] Skipping auto-generation of migrations (Manual 'alembic revision --autogenerate' required for changes)."
 
 echo "[entrypoint] Starting FastAPI server..."
 exec uvicorn app.main:app --host 0.0.0.0 --port 8000

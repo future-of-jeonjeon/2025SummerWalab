@@ -8,9 +8,10 @@ import type { AnnouncementFormState } from '../types';
 interface UseContestAnnouncementsManagerOptions {
   contestId: number;
   canFetch: boolean;
+  onSuccess?: () => void;
 }
 
-export const useContestAnnouncementsManager = ({ contestId, canFetch }: UseContestAnnouncementsManagerOptions) => {
+export const useContestAnnouncementsManager = ({ contestId, canFetch, onSuccess }: UseContestAnnouncementsManagerOptions) => {
   const {
     data: announcements = [],
     isLoading,
@@ -41,6 +42,7 @@ export const useContestAnnouncementsManager = ({ contestId, canFetch }: UseConte
     onSuccess: () => {
       resetForm();
       refetch();
+      onSuccess?.();
     },
     onError: (err: unknown) => {
       const message = err instanceof Error ? err.message : '공지 저장에 실패했습니다.';
@@ -54,6 +56,7 @@ export const useContestAnnouncementsManager = ({ contestId, canFetch }: UseConte
     onSuccess: () => {
       resetForm();
       refetch();
+      onSuccess?.();
     },
     onError: (err: unknown) => {
       const message = err instanceof Error ? err.message : '공지 수정에 실패했습니다.';

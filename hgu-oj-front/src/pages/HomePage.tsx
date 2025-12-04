@@ -6,6 +6,8 @@ import { problemService } from '../services/problemService';
 import { submissionService, SubmissionListItem } from '../services/submissionService';
 import { contestService } from '../services/contestService';
 import { rankingService } from '../services/rankingService';
+import { useAuthStore } from '../stores/authStore';
+import { userService } from '../services/userService';
 
 type RecentProblem = {
   id: number;
@@ -16,7 +18,7 @@ type RecentProblem = {
 
 type RecentSolved = {
   submissionId: string;
-  problemId: number;
+  problemId: number; // DB PK if known; 0 when unknown
   displayId?: string | number | null;
   username?: string | null;
   solvedAt?: string;
@@ -109,6 +111,26 @@ const HighlightPanel = <Item,>({
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuthStore();
+
+  const [isUserVerified, setIsUserVerified] = React.useState(false);
+
+  React.useEffect(() => {
+    const checkUserInfo = async () => {
+      if (isAuthenticated) {
+        try {
+          await userService.getUserDetail();
+          setIsUserVerified(true);
+        } catch (error: any) {
+          // 404 means user info is missing in MS server
+          if (error.response?.status === 404) {
+            navigate('/user-info');
+          }
+        }
+      }
+    };
+    checkUserInfo();
+  }, [isAuthenticated, navigate]);
 
   const {
     data: recentProblemsData,
@@ -117,6 +139,7 @@ export const HomePage: React.FC = () => {
     queryKey: ['home', 'recent-problems'],
     queryFn: () => problemService.getMicroProblemList({ page: 1, limit: 5, sortField: 'number', sortOrder: 'desc' }),
     staleTime: 60 * 1000,
+    enabled: isUserVerified,
   });
 
   const {
@@ -126,6 +149,7 @@ export const HomePage: React.FC = () => {
     queryKey: ['home', 'recent-solved'],
     queryFn: () => submissionService.getRecentSubmissions({ limit: 5 }),
     staleTime: 30 * 1000,
+    enabled: isUserVerified,
   });
 
   const {
@@ -135,6 +159,7 @@ export const HomePage: React.FC = () => {
     queryKey: ['home', 'running-contests'],
     queryFn: () => contestService.getContests({ page: 1, limit: 5, status: '0' }),
     staleTime: 60 * 1000,
+    enabled: isUserVerified,
   });
 
   const {
@@ -144,6 +169,7 @@ export const HomePage: React.FC = () => {
     queryKey: ['home', 'upcoming-contests'],
     queryFn: () => contestService.getContests({ page: 1, limit: 5, status: '1' }),
     staleTime: 60 * 1000,
+    enabled: isUserVerified,
   });
 
   const recentProblems = useMemo<RecentProblem[]>(() => {
@@ -159,7 +185,11 @@ export const HomePage: React.FC = () => {
     const items = recentSolvedData?.items ?? [];
     return items.map((item: SubmissionListItem) => ({
       submissionId: String(item.id ?? item.submissionId ?? ''),
-      problemId: Number(item.problem_id ?? item.problemId ?? 0),
+      problemId: (() => {
+        const raw = item.problem_id ?? item.problemId ?? item.problem;
+        const num = Number(raw);
+        return Number.isFinite(num) && num > 0 ? num : 0;
+      })(),
       displayId: item.problem ?? item.problem_id ?? item.problemId,
       username: item.username,
       solvedAt: item.create_time ?? item.createTime,
@@ -199,6 +229,7 @@ export const HomePage: React.FC = () => {
     queryKey: ['home', 'user-rankings'],
     queryFn: () => rankingService.getUserRankings({ page: 1, limit: 5 }),
     staleTime: 60 * 1000,
+    enabled: isUserVerified,
   });
 
   const {
@@ -208,6 +239,7 @@ export const HomePage: React.FC = () => {
     queryKey: ['home', 'organization-rankings'],
     queryFn: () => rankingService.getOrganizationRankings({ page: 1, limit: 5 }),
     staleTime: 60 * 1000,
+    enabled: isUserVerified,
   });
 
   const organizationRanking = useMemo(
@@ -226,13 +258,33 @@ export const HomePage: React.FC = () => {
     [topUserRankings?.data, userRankingLoading],
   );
 
-  const handleProblemNavigate = (problem: RecentProblem | RecentSolved) => {
-    const identifier =
-      'problemId' in problem
-        ? problem.displayId ?? problem.problemId
-        : problem.displayId ?? problem.id;
-    if (!identifier) return;
-    navigate(`/problems/${encodeURIComponent(String(identifier))}`);
+  const handleProblemNavigate = async (problem: RecentProblem | RecentSolved) => {
+    // 최근 풀이 문제: PK로만 이동. 없으면 displayId로 조회 후 PK 확보.
+    if ('problemId' in problem) {
+      const pk = Number(problem.problemId);
+      if (Number.isFinite(pk) && pk > 0) {
+        navigate(`/problems/${encodeURIComponent(String(pk))}`);
+        return;
+      }
+      const display = problem.displayId;
+      if (display) {
+        try {
+          const detail = await problemService.getProblem(display);
+          if (detail?.id) {
+            navigate(`/problems/${encodeURIComponent(String(detail.id))}`);
+          }
+        } catch {
+          // 조회 실패 시 이동하지 않음
+        }
+      }
+      return;
+    }
+
+    // 최근 추가된 문제: id가 PK
+    const pk = Number((problem as RecentProblem).id);
+    if (Number.isFinite(pk) && pk > 0) {
+      navigate(`/problems/${encodeURIComponent(String(pk))}`);
+    }
   };
 
   const handleContestNavigate = (contest: ContestHighlight) => {

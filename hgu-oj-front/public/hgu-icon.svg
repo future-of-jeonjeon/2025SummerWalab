@@ -1,0 +1,19 @@
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+
+  <!-- Outer navy circle -->
+  <circle cx="16" cy="16" r="16" fill="#0B1E45"/>
+
+  <!-- Inner white circle -->
+  <circle cx="16" cy="16" r="11" fill="#FFFFFF"/>
+
+  <!-- Simplified HCR text (small-size readable) -->
+  <text x="16" y="20"
+        font-family="serif"
+        font-size="11"
+        text-anchor="middle"
+        fill="#0B1E45"
+        style="font-weight:700;">
+    {H}
+  </text>
+
+</svg>

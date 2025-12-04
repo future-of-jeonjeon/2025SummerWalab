@@ -53,7 +53,7 @@ export const useContestAccess = (contestId: number, enabled: boolean) => {
   });
 };
 
-export const useContestRank = (contestId: number, enabled: boolean, params?: { limit?: number; offset?: number }) => {
+export const useContestRank = (contestId: number, enabled: boolean, params?: { limit?: number; offset?: number; isAdmin?: boolean }) => {
   return useQuery({
     queryKey: ['contest-rank', contestId, params],
     queryFn: () => contestService.getContestRank(contestId, params),

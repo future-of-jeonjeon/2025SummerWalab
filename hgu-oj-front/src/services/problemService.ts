@@ -65,6 +65,41 @@ const normalizeTags = (value: any): string[] | undefined => {
   return tags.length > 0 ? tags : undefined;
 };
 
+const normalizeBoolean = (value: unknown): boolean | undefined => {
+  if (value === null || value === undefined) return undefined;
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value !== 0;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) return undefined;
+    if (['true', '1', 'yes', 'y'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'n'].includes(normalized)) return false;
+  }
+  return Boolean(value);
+};
+
+const extractVisibility = (raw: any) => {
+  const visible = normalizeBoolean(raw?.visible ?? raw?.is_visible ?? raw?.isVisible);
+  const isPublic = normalizeBoolean(raw?.is_public ?? raw?.isPublic ?? raw?.public ?? visible);
+  return { visible, isPublic };
+};
+
+const filterPublicProblems = (problems: Problem[]): Problem[] => {
+  return problems.filter((problem) => {
+    const { isPublic, visible } = extractVisibility(problem);
+    if (isPublic !== undefined) return isPublic;
+    if (visible !== undefined) return visible;
+    return true;
+  });
+};
+
+const deriveVisibleTotals = (total: number, limit: number, adaptedCount: number, visibleCount: number) => {
+  const filteredOut = Math.max(adaptedCount - visibleCount, 0);
+  const adjustedTotal = total > 0 ? Math.max(total - filteredOut, visibleCount) : visibleCount;
+  const adjustedTotalPages = limit > 0 ? Math.max(1, Math.ceil(adjustedTotal / limit)) : 1;
+  return { total: adjustedTotal, totalPages: adjustedTotalPages };
+};
+
 const unwrapOjResponse = <T>(payload: any): T => {
   const hasWrapper =
     payload &&
@@ -98,6 +133,7 @@ const adaptProblem = (p: any): Problem => {
   // Detect micro-service schema (snake_case)
   const isMicro = Object.prototype.hasOwnProperty.call(p, 'time_limit');
   const rawDisplayId = p?._id ?? p?.display_id ?? p?.displayId ?? p?.id;
+  const { visible, isPublic } = extractVisibility(p);
   if (isMicro) {
     const mappedDifficulty = mapDifficulty(p.difficulty);
     return {
@@ -128,6 +164,8 @@ const adaptProblem = (p: any): Problem => {
       createdBy: p.created_by || undefined,
       myStatus: normalizeStatusValue(p.my_status ?? p.myStatus),
       solved: isAcceptedStatus(p.my_status ?? p.myStatus),
+      visible,
+      isPublic: isPublic ?? visible,
     } as Problem;
   }
   // Assume already in frontend camelCase schema
@@ -142,6 +180,8 @@ const adaptProblem = (p: any): Problem => {
     myStatus: rawStatus,
     solved,
     samples: normalizedSamples ?? (p as Problem).samples,
+    visible: visible ?? (p as Problem).visible,
+    isPublic: (isPublic ?? visible) ?? (p as Problem).isPublic,
   } as Problem;
 };
 
@@ -232,13 +272,20 @@ const fetchOjProblemList = async (
   }
 
   const adapted = items.map((problem) => adaptProblem(problem));
+  const publicProblems = filterPublicProblems(adapted);
+  const { total: adjustedTotal, totalPages: adjustedTotalPages } = deriveVisibleTotals(
+    total,
+    limit,
+    adapted.length,
+    publicProblems.length,
+  );
 
   return {
-    data: adapted,
-    total,
+    data: publicProblems,
+    total: adjustedTotal,
     page,
     limit,
-    totalPages,
+    totalPages: limit > 0 ? adjustedTotalPages : Math.max(1, totalPages),
   };
 };
 
@@ -293,13 +340,20 @@ const fetchMicroProblemList = async (
     const page = Number(payload?.page ?? filter.page ?? 1) || 1;
     const limit = Number(payload?.page_size ?? filter.limit ?? DEFAULT_PAGE_LIMIT) || DEFAULT_PAGE_LIMIT;
     const totalPages = limit > 0 ? Math.max(1, Math.ceil(total / limit)) : 1;
+    const publicProblems = filterPublicProblems(adapted);
+    const { total: adjustedTotal, totalPages: adjustedTotalPages } = deriveVisibleTotals(
+      total,
+      limit,
+      adapted.length,
+      publicProblems.length,
+    );
 
     return {
-      data: adapted,
-      total,
+      data: publicProblems,
+      total: adjustedTotal,
       page,
       limit,
-      totalPages,
+      totalPages: limit > 0 ? adjustedTotalPages : totalPages,
     };
   } catch (error: any) {
     if (error?.name === 'AbortError') {
@@ -312,6 +366,9 @@ const fetchMicroProblemList = async (
 export const problemService = {
   // 문제 목록 조회 (기존 OJ 백엔드)
   getProblems: fetchOjProblemList,
+
+  // OJ 백엔드 문제 목록 (강제)
+  getOjProblems: fetchOjProblemList,
 
   // 마이크로서비스 기반 문제 목록
   getMicroProblemList: fetchMicroProblemList,
@@ -570,5 +627,19 @@ export const problemService = {
         return { tag: String(tag), count };
       })
       .filter((item): item is { tag: string; count: number } => Boolean(item));
+  },
+
+  getProblemCount: async (): Promise<number> => {
+    if (!MS_API_BASE) return 0;
+    try {
+      const response = await apiClient.get<any>(`${MS_API_BASE}/problem/counts`);
+      const data = response.data;
+      // Assuming the API returns { count: number } or { total: number } or just a number
+      const count = Number(data?.count ?? data?.total ?? data);
+      return Number.isFinite(count) ? count : 0;
+    } catch (error) {
+      console.error('Failed to fetch problem count from MS API', error);
+      return 0;
+    }
   },
 };

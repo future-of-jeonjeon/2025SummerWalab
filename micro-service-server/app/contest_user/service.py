@@ -9,13 +9,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.contest_user import repository as contest_user_repository
 from app.contest_user.models import ContestUser
 from app.contest_user.schemas import (
+    ContestApprovalPolicy,
     ContestUserDecisionRequest,
     ContestUserDetail,
     ContestUserListResponse,
     ContestUserStatus,
     ParticipationStatus,
 )
-from app.user.DTO import UserData
+from app.user.schemas import UserData
 from app.user import repository as user_repository
 from app.utils.database import transactional
 
@@ -52,14 +53,21 @@ async def join_contest(contest_id: int, userdata: UserData, db: AsyncSession) ->
     if _has_contest_ended(contest.end_time):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="종료된 대회에는 참여할 수 없습니다.")
 
+    requires_approval_policy = await contest_user_repository.get_policy(contest_id, db)
     status: ParticipationStatus = APPROVED
     approver = userdata.user_id if is_admin_user else None
 
-    if not is_admin_user and _has_contest_started(contest.start_time):
+    if not is_admin_user and requires_approval_policy and _has_contest_started(contest.start_time):
         status = PENDING
 
     membership = await contest_user_repository.upsert_membership(contest_id, userdata.user_id, status, approver, db)
-    return _build_status(contest_id, userdata, membership, is_admin=is_admin_user)
+    return _build_status(
+        contest_id,
+        userdata,
+        membership,
+        is_admin=is_admin_user,
+        requires_approval=requires_approval_policy,
+    )
 
 
 @transactional
@@ -69,6 +77,7 @@ async def get_membership_status(contest_id: int, userdata: UserData, db: AsyncSe
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
 
     is_admin_user = _is_admin(userdata)
+    requires_approval_policy = await contest_user_repository.get_policy(contest_id, db)
     if is_admin_user:
         return ContestUserStatus(
             contest_id=contest_id,
@@ -81,7 +90,13 @@ async def get_membership_status(contest_id: int, userdata: UserData, db: AsyncSe
         )
 
     membership = await contest_user_repository.find_by_contest_and_user(contest_id, userdata.user_id, db)
-    return _build_status(contest_id, userdata, membership, is_admin=False)
+    return _build_status(
+        contest_id,
+        userdata,
+        membership,
+        is_admin=False,
+        requires_approval=requires_approval_policy,
+    )
 
 
 @transactional
@@ -132,7 +147,7 @@ async def decide_contest_user(
     if membership is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="참여 신청을 찾을 수 없습니다.")
 
-    user = await user_repository.find_by_id(decision.user_id, db)
+    user = await user_repository.find_user_by_id(decision.user_id, db)
     username = getattr(user, "username", None) if user else None
     decided_at = membership.approved_at if membership.status == APPROVED else membership.updated_time
     return ContestUserDetail(
@@ -172,11 +187,12 @@ def _build_status(
     membership: ContestUser | None,
     *,
     is_admin: bool,
+    requires_approval: bool,
 ) -> ContestUserStatus:
     status = membership.status if membership else (APPROVED if is_admin else None)
     joined = (status == APPROVED) or is_admin
     joined_at = membership.created_time if membership else None
-    requires_approval = status == PENDING
+    requires_approval_flag = requires_approval and status == PENDING
     return ContestUserStatus(
         contest_id=contest_id,
         user_id=userdata.user_id,
@@ -184,8 +200,22 @@ def _build_status(
         joined_at=joined_at,
         is_admin=is_admin,
         status=status,
-        requires_approval=requires_approval,
+        requires_approval=requires_approval_flag,
     )
+
+
+@transactional
+async def set_approval_policy(contest_id: int, requires_approval: bool, userdata: UserData, db: AsyncSession) -> ContestApprovalPolicy:
+    _ensure_valid_contest_id(contest_id)
+    _ensure_admin(userdata)
+    await contest_user_repository.upsert_policy(contest_id, requires_approval, db)
+    return ContestApprovalPolicy(contest_id=contest_id, requires_approval=requires_approval)
+
+
+async def get_approval_policy(contest_id: int, db: AsyncSession) -> ContestApprovalPolicy:
+    _ensure_valid_contest_id(contest_id)
+    requires = await contest_user_repository.get_policy(contest_id, db)
+    return ContestApprovalPolicy(contest_id=contest_id, requires_approval=requires)
 
 
 def _ensure_admin(userdata: UserData) -> None:

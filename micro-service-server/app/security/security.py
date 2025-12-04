@@ -7,7 +7,7 @@ import httpx
 from dotenv import load_dotenv
 
 from app.config.redis import get_redis
-from app.user.DTO import UserData
+from app.user.schemas import UserData
 from app.user import repository as user_repo
 from app.config.database import SessionLocal
 
@@ -72,7 +72,7 @@ async def sliding_session(token: str):
         raise HTTPException(status_code=400, detail="Missing token")
     redis = await get_redis()
     redis_key = f"{REDIS_SESSION_PREFIX}{token}"
-    redis.expire(redis_key, LOCAL_TOKEN_TTL_SECONDS)
+    await redis.expire(redis_key, LOCAL_TOKEN_TTL_SECONDS)
 
 async def _create_token() -> str:
     return str(uuid.uuid4())

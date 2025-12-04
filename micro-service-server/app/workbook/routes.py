@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from app.security.deps import get_userdata
-from app.user.DTO import UserData
+from app.user.schemas import UserData
 from app.utils.security import authorize_roles
 from app.workbook.schemas import WorkbookCreate, Workbook, WorkbookProblem
 from app.config.database import get_session

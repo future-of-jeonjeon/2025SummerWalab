@@ -65,8 +65,7 @@ export const WorkbookCreateSection: React.FC = () => {
 
     const payload: CreateWorkbookPayload = {
       title: formState.title.trim(),
-      description: formState.description.trim() || undefined,
-      category: formState.category.trim() || undefined,
+      description: formState.description.trim(),
       is_public: formState.isPublic,
     };
 

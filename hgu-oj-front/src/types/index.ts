@@ -43,6 +43,11 @@ export interface Problem {
   totalScore?: number;
   visible?: boolean;
   isPublic?: boolean;
+  // Contest-specific stats (optional)
+  contestSubmissionNumber?: number;
+  contestSolvedUserNumber?: number;
+  contestAttemptUserNumber?: number;
+  contestAccuracy?: number;
 }
 
 // 제출 관련 타입
@@ -79,6 +84,7 @@ export interface Contest {
   realTimeRank?: boolean;
   now?: string;
   problemCount?: number;
+  requiresApproval?: boolean;
 }
 
 export interface ContestAnnouncement {
@@ -105,6 +111,7 @@ export interface ContestRankEntry {
     id: number;
     username: string;
     realName?: string;
+    studentId?: string;
   };
   acceptedNumber?: number;
   submissionNumber?: number;
@@ -162,6 +169,10 @@ export interface WorkbookProblem {
 
 export interface WorkbookDetail extends Workbook {
   problems: WorkbookProblem[];
+}
+
+export interface AdminWorkbook extends Workbook {
+  visible: boolean;
 }
 
 // API 응답 타입
@@ -381,6 +392,7 @@ export interface AdminContest extends Contest {
   real_time_rank: boolean;
   allowed_ip_ranges: string[];
   status?: string;
+  requires_approval?: boolean;
 }
 
 export interface AdminContestListResponse {

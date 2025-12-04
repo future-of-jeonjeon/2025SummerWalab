@@ -1,4 +1,5 @@
 import type { ContestAnnouncement } from '../../types';
+export type { ContestAnnouncement };
 
 export type ContestTab = 'overview' | 'announcements' | 'problems' | 'rank' | 'user-management' | 'submission-details';
 

@@ -34,6 +34,11 @@ type RawContestUserRegistrationList = {
   pending?: RawContestUserRegistration[];
 };
 
+export interface ContestApprovalPolicy {
+  contestId: number;
+  requiresApproval: boolean;
+}
+
 const CONTEST_USER_STATUS_VALUES: ContestUserStatusValue[] = ['approved', 'pending', 'rejected'];
 
 const normalizeContestUserStatusValue = (value?: string): ContestUserStatusValue | undefined => {
@@ -127,6 +132,31 @@ export const contestUserService = {
       },
       contestId,
     );
+  },
+  getPolicy: async (contestId: number): Promise<ContestApprovalPolicy> => {
+    if (!contestId) {
+      throw new Error('유효하지 않은 대회입니다.');
+    }
+    const response = await apiClient.get<any>(`${ensureBaseUrl()}/${contestId}/policy`);
+    const payload = response.data ?? {};
+    return {
+      contestId: Number(payload.contest_id ?? payload.contestId ?? contestId),
+      requiresApproval: Boolean(payload.requires_approval ?? payload.requiresApproval),
+    };
+  },
+  setPolicy: async (contestId: number, requiresApproval: boolean): Promise<ContestApprovalPolicy> => {
+    if (!contestId) {
+      throw new Error('유효하지 않은 대회입니다.');
+    }
+    const response = await apiClient.post<any>(`${ensureBaseUrl()}/${contestId}/policy`, {
+      contest_id: contestId,
+      requires_approval: requiresApproval,
+    });
+    const payload = response.data ?? {};
+    return {
+      contestId: Number(payload.contest_id ?? payload.contestId ?? contestId),
+      requiresApproval: Boolean(payload.requires_approval ?? payload.requiresApproval),
+    };
   },
   getRegistrations: async (contestId: number): Promise<ContestUserRegistrationList> => {
     if (!contestId) {

@@ -1,4 +1,4 @@
-import { api } from './api';
+import { api, MS_API_BASE } from './api';
 import {
   HeatmapEntry,
   MyProfile,
@@ -26,6 +26,17 @@ interface ProblemStatusEntry {
   displayId: string;
   numericId?: number;
   status?: number;
+}
+
+export interface ContestHistoryEntry {
+  id: number;
+  title: string;
+  startTime: string;
+  endTime: string;
+  ruleType: string;
+  rank?: number;
+  status: number;
+  totalParticipants?: number;
 }
 
 interface Cached<T> {
@@ -146,9 +157,8 @@ const fetchSubmissions = async (forceRefresh = false): Promise<SubmissionRecord[
 const collectProblemStatuses = (profile: RawProfile): ProblemStatusEntry[] => {
   const entries = new Map<string, ProblemStatusEntry>();
 
-  const append = (container: any) => {
-    if (!container || typeof container !== 'object') return;
-    const problems = container.problems ?? {};
+  const processProblems = (problems: any) => {
+    if (!problems || typeof problems !== 'object') return;
     Object.entries<any>(problems).forEach(([numericId, value]) => {
       if (!value || typeof value !== 'object') return;
       const displayId = toString(value._id ?? value.display_id ?? value.displayId ?? numericId, numericId);
@@ -165,15 +175,23 @@ const collectProblemStatuses = (profile: RawProfile): ProblemStatusEntry[] => {
         if (stored.numericId === undefined && Number.isFinite(parsedNumericId)) {
           stored.numericId = parsedNumericId;
         }
-        if (stored.status === undefined && status !== undefined) {
+        // If existing status is not AC, and new status is AC, update it.
+        // Or if new status is defined, overwrite?
+        // Usually AC (0) is the best status.
+        if (stored.status !== JUDGE_STATUS_ACCEPTED && status === JUDGE_STATUS_ACCEPTED) {
+          stored.status = status;
+        } else if (stored.status === undefined && status !== undefined) {
           stored.status = status;
         }
       }
     });
   };
 
-  append(profile?.acm_problems_status);
-  append(profile?.oi_problems_status);
+  processProblems(profile?.acm_problems_status?.problems);
+  processProblems(profile?.oi_problems_status?.problems);
+  // Exclude contest problems as per user request
+  // processProblems(profile?.acm_problems_status?.contest_problems);
+  // processProblems(profile?.oi_problems_status?.contest_problems);
 
   return Array.from(entries.values());
 };
@@ -206,21 +224,14 @@ const collectWrongProblemEntries = (
       continue;
     }
     const summary = submissionSummary.get(entry.displayId);
-    if (!summary) {
-      wrongMap.set(entry.displayId, entry);
-    } else if (summary.lastResult !== JUDGE_STATUS_ACCEPTED) {
+    // Only include if it exists in regular submissions and is not AC
+    if (summary && summary.lastResult !== JUDGE_STATUS_ACCEPTED) {
       wrongMap.set(entry.displayId, entry);
     }
   }
 
-  for (const [displayId, summary] of submissionSummary.entries()) {
-    if (summary.lastResult === JUDGE_STATUS_ACCEPTED) {
-      continue;
-    }
-    if (!wrongMap.has(displayId)) {
-      wrongMap.set(displayId, { displayId, status: summary.lastResult });
-    }
-  }
+  // Removed the loop that adds from submissionSummary directly, 
+  // to avoid adding contest problems that are not in the regular problem profile.
 
   return Array.from(wrongMap.entries()).map(([displayId, entry]) => ({
     entry,
@@ -228,24 +239,29 @@ const collectWrongProblemEntries = (
   }));
 };
 
-const ensureProblemDetail = async (displayId: string): Promise<ProblemSummary> => {
+const ensureProblemDetail = async (displayId: string): Promise<ProblemSummary | null> => {
   const cached = problemCache.get(displayId);
   if (cached) {
     return cached;
   }
-  const response = await api.get<any>('/problem', { problem_id: displayId });
-  if (!response.success) {
-    throw new Error(response.message ?? `문제 정보를 불러오지 못했습니다. (${displayId})`);
+  try {
+    const response = await api.get<any>('/problem', { problem_id: displayId });
+    if (!response.success) {
+      // If problem doesn't exist or error, return null to skip it
+      return null;
+    }
+    const raw = response.data ?? {};
+    const summary: ProblemSummary = {
+      id: toNumber(raw?.id ?? raw?.problem_id ?? raw?.problemId, 0),
+      displayId: toString(raw?._id ?? raw?.display_id ?? raw?.displayId ?? displayId, displayId),
+      title: toString(raw?.title ?? raw?.name ?? `문제 ${displayId}`, `문제 ${displayId}`),
+      difficulty: raw?.difficulty ? String(raw.difficulty) : undefined,
+    };
+    problemCache.set(summary.displayId, summary);
+    return summary;
+  } catch (e) {
+    return null;
   }
-  const raw = response.data ?? {};
-  const summary: ProblemSummary = {
-    id: toNumber(raw?.id ?? raw?.problem_id ?? raw?.problemId, 0),
-    displayId: toString(raw?._id ?? raw?.display_id ?? raw?.displayId ?? displayId, displayId),
-    title: toString(raw?.title ?? raw?.name ?? `문제 ${displayId}`, `문제 ${displayId}`),
-    difficulty: raw?.difficulty ? String(raw.difficulty) : undefined,
-  };
-  problemCache.set(summary.displayId, summary);
-  return summary;
 };
 
 const calculateStreak = (submissions: SubmissionRecord[]): number => {
@@ -311,17 +327,24 @@ const paginate = <T>(items: T[], page: number, pageSize: number): T[] => {
 
 export const myPageService = {
   getMyProfile: async (): Promise<MyProfile> => {
-    const profileRaw = await fetchProfile();
-    const submissions = await fetchSubmissions();
+    const profileRaw = await fetchProfile(true); // Force refresh
+    const submissions = await fetchSubmissions(true); // Force refresh
     const streak = calculateStreak(submissions);
 
     const user = profileRaw?.user ?? {};
 
-    const solvedCount = toNumber(profileRaw?.accepted_number ?? profileRaw?.solvedCount, 0);
-    const submissionNumber = toNumber(profileRaw?.submission_number ?? profileRaw?.submissionCount, 0);
     const submissionSummary = summarizeSubmissions(submissions);
+
+    // Calculate solvedCount from regular problems only, verified by submission history
+    const statuses = collectProblemStatuses(profileRaw);
+    const solvedCount = statuses.filter(s =>
+      s.status === JUDGE_STATUS_ACCEPTED &&
+      submissionSummary.get(s.displayId)?.lastResult === JUDGE_STATUS_ACCEPTED
+    ).length;
+
     const wrongEntries = collectWrongProblemEntries(profileRaw, submissionSummary);
-    const wrongCount = wrongEntries.length > 0 ? wrongEntries.length : Math.max(submissionNumber - solvedCount, 0);
+    // wrongCount is just the length of wrongEntries (which are regular problems that are not AC)
+    const wrongCount = wrongEntries.length;
 
     return {
       id: toNumber(user?.id ?? profileRaw?.id, 0),
@@ -335,7 +358,7 @@ export const myPageService = {
   },
 
   getMyHeatmap: async (params: { months?: number; year?: number; month?: number }): Promise<HeatmapEntry[]> => {
-    const submissions = await fetchSubmissions();
+    const submissions = await fetchSubmissions(true);
     return buildHeatmap(submissions, params);
   },
 
@@ -345,11 +368,14 @@ export const myPageService = {
     const pageSize = params?.pageSize && params.pageSize > 0 ? params.pageSize : 20;
     const page = params?.page && params.page > 0 ? params.page : 1;
 
-    const profileRaw = await fetchProfile();
-    const submissions = await fetchSubmissions();
+    const profileRaw = await fetchProfile(true);
+    const submissions = await fetchSubmissions(true);
     const submissionSummary = summarizeSubmissions(submissions);
     const statuses = collectProblemStatuses(profileRaw)
-      .filter((entry) => entry.status === JUDGE_STATUS_ACCEPTED);
+      .filter((entry) =>
+        entry.status === JUDGE_STATUS_ACCEPTED &&
+        submissionSummary.get(entry.displayId)?.lastResult === JUDGE_STATUS_ACCEPTED
+      );
 
     const sorted = [...statuses].sort((a, b) => {
       const aTime = submissionSummary.get(a.displayId)?.lastTime ?? '';
@@ -361,18 +387,13 @@ export const myPageService = {
     const details = await Promise.all(
       paginated.map((entry) => ensureProblemDetail(entry.displayId)),
     );
-    const results: MySolvedProblem[] = details.map((detail, idx) => {
-      const source = paginated[idx];
-      const numericFallback = source.numericId ?? Number.parseInt(source.displayId, 10);
-      const fallbackId = typeof numericFallback === 'number' && Number.isFinite(numericFallback)
-        ? numericFallback
-        : 0;
-      return {
-        id: detail.id || fallbackId,
+    const results: MySolvedProblem[] = details
+      .filter((detail): detail is ProblemSummary => detail !== null)
+      .map((detail) => ({
+        id: detail.id,
         title: detail.title,
         difficulty: detail.difficulty,
-      };
-    });
+      }));
 
     return {
       items: results,
@@ -404,23 +425,56 @@ export const myPageService = {
     const details = await Promise.all(
       paginated.map((item) => ensureProblemDetail(item.entry.displayId)),
     );
-    const items: MyWrongProblem[] = details.map((detail, idx) => {
-      const { entry, lastTime } = paginated[idx];
-      const numericFallback = entry.numericId ?? Number.parseInt(entry.displayId, 10);
-      const fallbackId = typeof numericFallback === 'number' && Number.isFinite(numericFallback)
-        ? numericFallback
-        : 0;
-      return {
-        id: detail.id || fallbackId,
-        title: detail.title,
-        lastTriedAt: lastTime || undefined,
-      };
-    });
+    const items: MyWrongProblem[] = details
+      .map((detail, idx): MyWrongProblem | null => {
+        if (!detail) return null;
+        const { lastTime } = paginated[idx];
+        return {
+          id: detail.id,
+          title: detail.title,
+          lastTriedAt: lastTime || undefined,
+        };
+      })
+      .filter((item): item is MyWrongProblem => item !== null);
 
     return {
       items,
       total: enriched.length,
     };
+  },
+
+  getParticipatedContests: async (): Promise<ContestHistoryEntry[]> => {
+    const response = await api.get<any>(`${MS_API_BASE}/contest/participated`);
+    if (!response.success) {
+      throw new Error(response.message ?? '대회 기록을 불러오지 못했습니다.');
+    }
+    const data = response.data ?? [];
+    // Assuming the MS API returns a list of contests directly or wrapped in a structure
+    // Adjust mapping based on actual MS API response structure if known, otherwise assume standard list
+    const items = Array.isArray(data) ? data : (data.results || data.items || []);
+
+    return items.map((item: any) => {
+      // Handle various possible structures for Contest ID
+      const rawId = item.id ?? item.contest_id ?? item.contestId ?? item.contest?.id;
+      const id = toNumber(rawId);
+
+      // Handle nested contest object if present
+      const title = toString(item.title ?? item.contest?.title);
+      const startTime = toString(item.start_time ?? item.startTime ?? item.contest?.start_time ?? item.contest?.startTime);
+      const endTime = toString(item.end_time ?? item.endTime ?? item.contest?.end_time ?? item.contest?.endTime);
+      const ruleType = toString(item.rule_type ?? item.ruleType ?? item.contest?.rule_type ?? item.contest?.ruleType);
+      const status = toNumber(item.status ?? item.contest?.status);
+
+      return {
+        id,
+        title,
+        startTime,
+        endTime,
+        ruleType,
+        rank: item.rank ? toNumber(item.rank) : undefined,
+        status,
+      };
+    });
   },
 };
 

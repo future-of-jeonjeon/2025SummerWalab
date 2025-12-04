@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config.database import get_session
 from app.contest_user.schemas import (
+    ContestApprovalPolicy,
     ContestUserDecisionRequest,
     ContestUserJoinRequest,
     ContestUserListResponse,
@@ -11,7 +12,7 @@ from app.contest_user.schemas import (
 )
 from app.contest_user import service as contest_user_service
 from app.security.deps import get_userdata
-from app.user.DTO import UserData
+from app.user.schemas import UserData
 
 router = APIRouter(prefix="/api/contest-users", tags=["contest-user"])
 
@@ -51,3 +52,21 @@ async def decide_contest_user(
     db: AsyncSession = Depends(get_session),
 ):
     return await contest_user_service.decide_contest_user(contest_id, payload, userdata, db)
+
+
+@router.get("/{contest_id}/policy", response_model=ContestApprovalPolicy)
+async def get_contest_policy(
+    contest_id: int,
+    db: AsyncSession = Depends(get_session),
+):
+    return await contest_user_service.get_approval_policy(contest_id, db)
+
+
+@router.post("/{contest_id}/policy", response_model=ContestApprovalPolicy)
+async def set_contest_policy(
+    contest_id: int,
+    payload: ContestApprovalPolicy,
+    userdata: UserData = Depends(get_userdata),
+    db: AsyncSession = Depends(get_session),
+):
+    return await contest_user_service.set_approval_policy(contest_id, payload.requires_approval, userdata, db)

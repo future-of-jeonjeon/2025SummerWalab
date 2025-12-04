@@ -9,7 +9,6 @@ micro_organization_member = Table(
     Base.metadata,
     Column("organization_id", ForeignKey("public.micro_organization.id", ondelete="CASCADE"), primary_key=True),
     Column("member_id", ForeignKey("public.user.id", ondelete="CASCADE"), primary_key=True),
-    UniqueConstraint("organization_id", "member_id", name="uq_micro_org_member_unique"),
     schema="public",
 )
 

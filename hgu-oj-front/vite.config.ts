@@ -1,6 +1,9 @@
+// @ts-nocheck
+/// <reference types="node" />
 import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
-import path from 'path'
+import path from 'node:path'
+import { URL, fileURLToPath } from 'node:url'
 
 const trimTrailingSlash = (value: string) => value.replace(/\/$/, '')
 
@@ -31,6 +34,7 @@ export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '')
   const apiBase = env.VITE_API_URL || 'http://localhost:8000/api'
   const msBase = env.VITE_MS_API_BASE || 'http://localhost:9000/api'
+  const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
   return {
     envPrefix: ['VITE_', 'VUE_APP_'],

@@ -183,8 +183,8 @@ const LoginPage: React.FC = () => {
                 variant="outline"
                 className="w-full"
                 onClick={() => {
-                  const clientId = import.meta.env.VUE_APP_GOOGLE_CLIENT_ID;
-                  const redirectUri = encodeURIComponent(import.meta.env.VUE_APP_GOOGLE_REDIRECT_URI || 'http://localhost:5173/oauth/callback');
+                  const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+                  const redirectUri = encodeURIComponent(import.meta.env.VITE_GOOGLE_REDIRECT_URI || 'http://localhost:5173/oauth/callback');
                   const scope = encodeURIComponent('openid email profile');
                   const responseType = 'code';
                   const state = 'login';

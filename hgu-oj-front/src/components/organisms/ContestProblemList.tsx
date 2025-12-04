@@ -107,9 +107,18 @@ export const ContestProblemList: React.FC<ContestProblemListProps> = ({
       </div>
       <div className="divide-y divide-gray-200">
         {problems.map((problem) => {
-          const submissions = problem.submissionNumber ?? 0;
-          const accepted = problem.acceptedNumber ?? 0;
-          const ratio = submissions > 0 ? `${Math.round((accepted / submissions) * 100)}%` : '0%';
+          const submissions = problem.contestSubmissionNumber ?? problem.submissionNumber ?? 0;
+          const solvedUsers = problem.contestSolvedUserNumber ?? problem.acceptedNumber ?? 0;
+          const attemptUsers = problem.contestAttemptUserNumber;
+          const accuracyFromPayload = typeof problem.contestAccuracy === 'number' ? problem.contestAccuracy : null;
+          const accuracy = accuracyFromPayload != null
+            ? accuracyFromPayload
+            : (typeof attemptUsers === 'number' && attemptUsers > 0
+                ? solvedUsers / attemptUsers
+                : submissions > 0
+                  ? solvedUsers / submissions
+                  : 0);
+          const ratio = `${Math.round(accuracy * 100)}%`;
           const overrideState = statusOverrides ? statusOverrides[problem.id] : undefined;
           const badge = getStatusBadge(problem, overrideState);
 

@@ -78,6 +78,7 @@ services:
       - oj-judge
     volumes:
       - ./data/backend:/data
+      - ./data/backend/log:/data/log
     env_file: .env
     environment:
       - POSTGRES_HOST=${POSTGRES_HOST}
@@ -100,7 +101,7 @@ services:
       - REDIS_URL=redis://oj-redis:6379
       - REDIS_SESSION_PREFIX="ms:session:"
       - TOKEN_COOKIE_NAME=ms_token
-      - LOCAL_TOKEN_TTL_SECONDS=1800
+      - LOCAL_TOKEN_TTL_SECONDS=7200
       - TEST_CASE_DATA_PATH=/test_case 
       - DB_USER=${POSTGRES_USER}
       - DB_PASSWORD=${POSTGRES_PASSWORD}
@@ -111,6 +112,7 @@ services:
       - REDIS_CODE_SAVE_PREFIX=ms:autosave
     volumes:
       - ./data/backend/test_case:/test_case:rw 
+      - ./data/micro_service/log:/log 
     depends_on:
       - oj-redis 
       - oj-frontend

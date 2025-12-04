@@ -4,7 +4,7 @@ from starlette import status
 
 from app.auth.service import login, logout as auth_logout
 from app.security.deps import get_userdata
-from app.user.DTO import UserData
+from app.user.schemas import UserData
 from app.utils.logging import logger
 
 

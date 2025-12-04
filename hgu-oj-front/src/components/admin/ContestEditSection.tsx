@@ -4,6 +4,7 @@ import { Button } from '../atoms/Button';
 import { Input } from '../atoms/Input';
 import { adminService, UpdateContestPayload } from '../../services/adminService';
 import { AdminContest, Problem } from '../../types';
+import { contestUserService } from '../../services/contestUserService';
 import { formatDateTime, toLocalDateTimeInput } from '../../lib/date';
 import { normalizeProblemKey } from '../../lib/problemKey';
 
@@ -16,6 +17,7 @@ type ContestEditFormState = {
   visible: boolean;
   realTimeRank: boolean;
   allowedIpRanges: string;
+  requiresApproval: boolean;
 };
 
 type ContestProblemsState = {
@@ -35,6 +37,7 @@ const mapContestToForm = (contest: AdminContest): ContestEditFormState => ({
   visible: Boolean(contest.visible),
   realTimeRank: Boolean(contest.real_time_rank),
   allowedIpRanges: (contest.allowed_ip_ranges || []).join('\n'),
+  requiresApproval: Boolean(contest.requires_approval ?? contest.requiresApproval),
 });
 
 const toIsoString = (value: string): string | null => {
@@ -62,6 +65,7 @@ export const ContestEditSection: React.FC = () => {
   const [contestEditForm, setContestEditForm] = useState<ContestEditFormState | null>(null);
   const [contestEditMessage, setContestEditMessage] = useState<{ success?: string; error?: string }>({});
   const [contestEditLoading, setContestEditLoading] = useState(false);
+  const [policySaving, setPolicySaving] = useState(false);
   const [contestDetailLoading, setContestDetailLoading] = useState(false);
 
   const [contestProblemsState, setContestProblemsState] = useState<ContestProblemsState>({
@@ -232,6 +236,14 @@ export const ContestEditSection: React.FC = () => {
 
   const handleSelectContest = (contest: AdminContest) => {
     loadContestDetail(contest.id);
+    contestUserService
+      .getPolicy(contest.id)
+      .then((policy) => {
+        setContestEditForm((prev) => (prev ? { ...prev, requiresApproval: policy.requiresApproval } : prev));
+      })
+      .catch(() => {
+        // ignore
+      });
   };
 
   const handleContestEditChange = <K extends keyof ContestEditFormState>(
@@ -283,12 +295,26 @@ export const ContestEditSection: React.FC = () => {
       visible: contestEditForm.visible,
       real_time_rank: contestEditForm.realTimeRank,
       allowed_ip_ranges: allowedIpRanges,
+      requires_approval: contestEditForm.requiresApproval,
     };
 
     setContestEditLoading(true);
     setContestEditMessage({});
     try {
       const updated = await adminService.updateContest(payload);
+      if (updated?.id) {
+        try {
+          setPolicySaving(true);
+          await contestUserService.setPolicy(updated.id, contestEditForm.requiresApproval);
+        } catch {
+          setContestEditMessage((prev) => ({
+            ...prev,
+            error: '참여 승인 설정을 저장하지 못했습니다. 다시 시도해주세요.',
+          }));
+        } finally {
+          setPolicySaving(false);
+        }
+      }
       selectedContestIdRef.current = updated.id;
       setSelectedContest(updated);
       setContestEditForm(mapContestToForm(updated));
@@ -679,7 +705,7 @@ export const ContestEditSection: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid gap-4 sm:grid-cols-2">
+              <div className="grid gap-4 sm:grid-cols-3">
                 <label className="flex items-center gap-2 text-sm text-gray-700">
                   <input
                     type="checkbox"
@@ -697,6 +723,15 @@ export const ContestEditSection: React.FC = () => {
                     onChange={(e) => handleContestEditChange('realTimeRank', e.target.checked)}
                   />
                   <span>실시간 랭크</span>
+                </label>
+                <label className="flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    className="h-4 w-4"
+                    checked={contestEditForm.requiresApproval}
+                    onChange={(e) => handleContestEditChange('requiresApproval', e.target.checked)}
+                  />
+                  <span>참여 승인 필요</span>
                 </label>
               </div>
 
@@ -719,7 +754,7 @@ export const ContestEditSection: React.FC = () => {
               </div>
 
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <Button type="submit" loading={contestEditLoading}>
+                <Button type="submit" loading={contestEditLoading || policySaving}>
                   정보 저장
                 </Button>
                 <Button type="button" variant="ghost" onClick={handleContestResetForm}>
