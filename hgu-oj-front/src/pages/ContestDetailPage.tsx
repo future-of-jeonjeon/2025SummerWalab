@@ -403,7 +403,7 @@ export const ContestDetailPage: React.FC = () => {
         </div>
 
         <div className="flex flex-col lg:flex-row gap-6">
-          <aside className="lg:w-40 xl:w-52 space-y-2">
+          <aside className="w-[180px] min-w-[180px] max-w-[180px] space-y-2">
             {tabs.map((tab) => {
               const disabled = disabledTabs(tab.id);
               const isActive = activeTab === tab.id;
@@ -418,7 +418,7 @@ export const ContestDetailPage: React.FC = () => {
                   }}
                   disabled={disabled}
                   aria-disabled={disabled}
-                  className={`w-full min-w-[140px] text-center whitespace-nowrap px-4 py-3 rounded-lg font-medium transition-colors ${isActive ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-blue-50'
+                  className={`w-full text-center whitespace-nowrap px-4 py-3 rounded-lg font-medium transition-colors ${isActive ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-blue-50'
                     } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                 >
                   {tab.label}
