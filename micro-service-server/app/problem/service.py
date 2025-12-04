@@ -191,7 +191,7 @@ async def import_problem(file: UploadFile, db: AsyncSession):
                         # Default languages if not present
                         # created_by=request.user, # Need to handle user assignment, maybe pass from route or default
                         created_by_id=1,  # Temporary default, should be passed from auth
-                        visible=True,
+                        visible=False,
                         difficulty="Mid",  # Default or map from info
                         total_score=sum(item["score"] for item in test_case_score) if problem_info[
                                                                                           "rule_type"] == "OI" else 0,
