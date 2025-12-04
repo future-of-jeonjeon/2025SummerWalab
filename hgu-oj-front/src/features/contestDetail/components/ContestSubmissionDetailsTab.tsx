@@ -218,8 +218,29 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
           </div>
         </div>
         {submissionsLoading ? (
-          <div className="h-32 flex items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600" />
+          <div className="overflow-hidden rounded-lg border border-gray-200 animate-pulse">
+            <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+              <div className="grid grid-cols-5 gap-4">
+                <div className="h-4 bg-gray-200 rounded w-16"></div>
+                <div className="h-4 bg-gray-200 rounded w-16"></div>
+                <div className="h-4 bg-gray-200 rounded w-24"></div>
+                <div className="h-4 bg-gray-200 rounded w-16 mx-auto"></div>
+                <div className="h-4 bg-gray-200 rounded w-20 mx-auto"></div>
+              </div>
+            </div>
+            <div className="divide-y divide-gray-200 bg-white">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="px-4 py-3">
+                  <div className="grid grid-cols-5 gap-4 items-center">
+                    <div className="h-4 bg-gray-200 rounded w-12"></div>
+                    <div className="h-4 bg-gray-200 rounded w-10"></div>
+                    <div className="h-4 bg-gray-200 rounded w-32"></div>
+                    <div className="h-8 bg-gray-200 rounded w-16 mx-auto"></div>
+                    <div className="h-8 bg-gray-200 rounded w-20 mx-auto"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         ) : submissionsError ? (
           <div className="text-sm text-red-600">{submissionsError}</div>
@@ -305,8 +326,12 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
                 </button>
               </div>
               {codeModal.loading ? (
-                <div className="h-24 flex items-center justify-center">
-                  <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600" />
+                <div className="animate-pulse space-y-2 p-4">
+                  <div className="h-4 bg-slate-700 rounded w-3/4"></div>
+                  <div className="h-4 bg-slate-700 rounded w-1/2"></div>
+                  <div className="h-4 bg-slate-700 rounded w-5/6"></div>
+                  <div className="h-4 bg-slate-700 rounded w-2/3"></div>
+                  <div className="h-4 bg-slate-700 rounded w-4/5"></div>
                 </div>
               ) : codeModal.error ? (
                 <div className="text-sm text-red-400">{codeModal.error}</div>
@@ -337,8 +362,14 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
               </div>
               <div className="px-5 py-4 max-h-[70vh] overflow-auto">
                 {caseModal.loading ? (
-                  <div className="h-24 flex items-center justify-center">
-                    <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600" />
+                  <div className="space-y-3 animate-pulse">
+                    <div className="grid grid-cols-2 gap-4 px-1">
+                      <div className="h-4 bg-gray-200 rounded mx-auto w-12"></div>
+                      <div className="h-4 bg-gray-200 rounded mx-auto w-12"></div>
+                    </div>
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className="h-10 bg-gray-100 rounded border border-gray-200"></div>
+                    ))}
                   </div>
                 ) : caseModal.error ? (
                   <div className="text-sm text-red-600">{caseModal.error}</div>

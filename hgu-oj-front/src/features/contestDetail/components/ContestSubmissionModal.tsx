@@ -28,7 +28,17 @@ export const ContestSubmissionModal: React.FC<ContestSubmissionModalProps> = ({ 
         <div className="max-h-[70vh] overflow-y-auto px-5 py-4 text-sm text-gray-800">
           {loading ? (
             <div className="flex h-32 items-center justify-center">
-              <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600" />
+              <div className="space-y-4 animate-pulse">
+                <div className="space-y-2">
+                  <div className="h-4 bg-gray-200 rounded w-16"></div>
+                  <div className="h-10 bg-gray-200 rounded"></div>
+                </div>
+                <div className="space-y-2">
+                  <div className="h-4 bg-gray-200 rounded w-16"></div>
+                  <div className="h-40 bg-gray-200 rounded"></div>
+                </div>
+                <div className="h-10 bg-gray-200 rounded w-full"></div>
+              </div>
             </div>
           ) : error ? (
             <div className="text-red-600">{error}</div>
@@ -54,7 +64,7 @@ export const ContestSubmissionModal: React.FC<ContestSubmissionModalProps> = ({ 
               <div>
                 <h4 className="mb-2 font-semibold text-gray-900">소스 코드</h4>
                 <pre className="overflow-x-auto rounded-md bg-gray-900 px-4 py-3 text-xs leading-5 text-gray-100">
-{submission.code ?? '코드를 불러올 수 없습니다.'}
+                  {submission.code ?? '코드를 불러올 수 없습니다.'}
                 </pre>
               </div>
             </div>

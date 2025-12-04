@@ -36,8 +36,17 @@ export const ContestAnnouncementsSection: React.FC<ContestAnnouncementsSectionPr
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-24">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
+      <div className="space-y-4 animate-pulse">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="p-5 bg-white rounded-lg border border-gray-200 shadow-sm">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div className="space-y-2 flex-1">
+                <div className="h-6 bg-gray-200 rounded w-1/2"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+              </div>
+            </div>
+          </div>
+        ))}
       </div>
     );
   }

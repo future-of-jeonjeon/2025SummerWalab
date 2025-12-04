@@ -21,3 +21,26 @@ class Contest(Base):
     visible = Column(Boolean, nullable=False)
     created_by_id = Column(Integer, ForeignKey("public.user.id"), nullable=False)
     allowed_ip_ranges = Column(JSONB, nullable=False)
+
+
+class AbstractContestRank(Base):
+    __abstract__ = True
+    __table_args__ = {"schema": "public"}
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("public.user.id"), nullable=False)
+    contest_id = Column(Integer, ForeignKey("public.contest.id"), nullable=False)
+    submission_number = Column(Integer, default=0)
+
+
+class ACMContestRank(AbstractContestRank):
+    __tablename__ = "acm_contest_rank"
+    accepted_number = Column(Integer, default=0)
+    total_time = Column(Integer, default=0)
+    submission_info = Column(JSONB, default=dict)
+
+
+class OIContestRank(AbstractContestRank):
+    __tablename__ = "oi_contest_rank"
+    total_score = Column(Integer, default=0)
+    submission_info = Column(JSONB, default=dict)

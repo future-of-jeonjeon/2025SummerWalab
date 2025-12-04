@@ -21,14 +21,7 @@ type ContestProblemStat = {
   accuracy?: number;
 };
 
-type ContestUserScore = {
-  user_id?: number;
-  userId?: number;
-  total_score?: number;
-  totalScore?: number;
-  solved_problems?: number;
-  solvedProblems?: number;
-};
+
 
 const fetchContestProblemCount = async (contestId: number): Promise<number | undefined> => {
   if (!MICRO_API_BASE) {
@@ -87,32 +80,7 @@ const fetchContestProblemStats = async (contestId: number, problemIds: number[])
   return result;
 };
 
-const fetchContestUserScores = async (contestId: number): Promise<Map<number, ContestUserScore>> => {
-  const result = new Map<number, ContestUserScore>();
-  if (!MICRO_API_BASE || contestId <= 0) {
-    return result;
-  }
-  try {
-    const response = await apiClient.get<any>(`${MICRO_API_BASE}/submission/contest/${contestId}/scores`);
-    const payload = response.data;
-    const scores: ContestUserScore[] = Array.isArray(payload?.scores)
-      ? payload.scores
-      : Array.isArray(payload?.data)
-        ? payload.data
-        : Array.isArray(payload)
-          ? payload
-          : [];
-    scores.forEach((item) => {
-      const uid = Number(item.user_id ?? item.userId);
-      if (Number.isFinite(uid)) {
-        result.set(uid, item);
-      }
-    });
-  } catch (error) {
-    console.error('Failed to fetch contest user scores', error);
-  }
-  return result;
-};
+
 
 const mapContest = (raw: any): Contest => ({
   id: raw.id,
@@ -340,54 +308,39 @@ export const contestService = {
   },
   getContestRank: async (
     contestId: number,
-    params?: { limit?: number; offset?: number },
+    _params?: { limit?: number; offset?: number },
   ): Promise<{ results: ContestRankEntry[]; total: number }> => {
-    const scoreMapPromise = fetchContestUserScores(contestId);
-    const query = {
-      contest_id: contestId,
-      limit: params?.limit ?? 50,
-      offset: params?.offset ?? 0,
-    };
-
-    const response = await api.get<{ results: any[]; total: number }>('/contest_rank', query);
-    if (!response.success) {
-      throw new Error(response.message || '랭크 정보를 불러오지 못했습니다.');
+    if (!MICRO_API_BASE) {
+      throw new Error('Microservice API base URL is not configured.');
     }
 
-    const data = response.data ?? { results: [], total: 0 };
-    const entries = (data.results || []).map((raw) => ({
-      id: raw.id,
-      user: raw.user
-        ? {
-          id: raw.user.id,
-          username: raw.user.username,
-          realName: raw.user.real_name ?? raw.user.realName,
-        }
-        : { id: 0, username: '알 수 없음' },
+    const response = await apiClient.get<ContestRankEntry[]>(`${MICRO_API_BASE}/contest/rank`, {
+      params: { contest_id: contestId },
+    });
+
+    const data = response.data || [];
+
+    // The MS returns a list, so we map it directly. 
+    // Note: The MS currently returns the full list, pagination might be handled on the client side or added to MS later.
+    // For now, we return the full list as 'results' and length as 'total'.
+
+    const entries = data.map((raw: any) => ({
+      id: raw.user.id, // Using user ID as the entry ID for now, or generate one if needed
+      user: {
+        id: raw.user.id,
+        username: raw.user.username,
+        realName: raw.user.real_name ?? raw.user.realName,
+      },
       acceptedNumber: raw.accepted_number ?? raw.acceptedNumber,
-      submissionNumber: raw.submission_number ?? raw.submissionNumber,
+      submissionNumber: raw.submission_number ?? raw.submissionNumber, // MS DTO doesn't have submission_number yet, might need to add it or default to 0
       totalTime: raw.total_time ?? raw.totalTime,
       totalScore: raw.total_score ?? raw.totalScore,
       submissionInfo: raw.submission_info ?? raw.submissionInfo,
     })) as ContestRankEntry[];
 
-    // Overlay micro-service score if available (non-blocking fetch awaited below)
-    const scoreMap = await scoreMapPromise;
-    const merged = entries.map((entry) => {
-      const micro = entry.user?.id != null ? scoreMap.get(entry.user.id) : undefined;
-      if (!micro) return entry;
-      const totalScore = Number(micro.total_score ?? micro.totalScore);
-      const solvedProblems = Number(micro.solved_problems ?? micro.solvedProblems);
-      return {
-        ...entry,
-        totalScore: Number.isFinite(totalScore) ? totalScore : entry.totalScore,
-        acceptedNumber: Number.isFinite(solvedProblems) ? solvedProblems : entry.acceptedNumber,
-      };
-    });
-
     return {
-      results: merged,
-      total: data.total ?? merged.length,
+      results: entries,
+      total: entries.length,
     };
   },
 
