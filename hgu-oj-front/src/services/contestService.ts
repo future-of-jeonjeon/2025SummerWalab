@@ -331,6 +331,7 @@ export const contestService = {
         id: raw.user.id,
         username: raw.user.username,
         realName: raw.user.real_name ?? raw.user.realName,
+        studentId: raw.user.student_id ?? raw.user.studentId,
       },
       acceptedNumber: raw.accepted_number ?? raw.acceptedNumber,
       submissionNumber: raw.submission_number ?? raw.submissionNumber, // MS DTO doesn't have submission_number yet, might need to add it or default to 0

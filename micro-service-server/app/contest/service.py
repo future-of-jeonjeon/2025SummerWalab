@@ -81,12 +81,14 @@ def _build_user_dto(user, userdata, anonymize_username: bool) -> UserSimpleDTO:
             id=user.id,
             username=masked,
             real_name=None,
+            student_id=userdata.student_id if userdata else None,
         )
     else:
         return UserSimpleDTO(
             id=user.id,
             username=user.username,
             real_name=userdata.name if userdata else None,
+            student_id=userdata.student_id if userdata else None,
         )
 
     return total_score
