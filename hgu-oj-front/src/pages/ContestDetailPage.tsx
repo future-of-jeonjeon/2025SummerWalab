@@ -175,7 +175,7 @@ export const ContestDetailPage: React.FC = () => {
     ruleType: contest?.ruleType,
   });
 
-  const { refetchProblems, processedContestProblems, myRankProgress, totalProblems, solvedProblems, wrongProblems, remainingProblems } =
+  const { refetchProblems, processedContestProblems, myRankProgress, totalProblems, solvedProblems } =
     problemsController;
 
   useEffect(() => {
@@ -341,7 +341,7 @@ export const ContestDetailPage: React.FC = () => {
           </Card>
         )}
 
-        <div className="mb-8 grid gap-4 lg:grid-cols-[minmax(0,1.2fr)_minmax(280px,0.8fr)]">
+        <div className="mb-8 grid gap-4 lg:grid-cols-[1fr_320px]">
           <div className="rounded-xl bg-slate-100/80 px-6 py-6 text-sm dark:bg-slate-800/70">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3 max-w-full">
@@ -377,24 +377,14 @@ export const ContestDetailPage: React.FC = () => {
           </div>
 
           <div className="rounded-xl bg-white px-6 py-5 text-sm shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700 h-full flex flex-col justify-center">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 sm:gap-0 sm:divide-x sm:divide-slate-200 dark:sm:divide-slate-700">
-              <div className="flex-1 sm:px-4 first:pl-0 text-center">
-                <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">전체 문제</p>
-                <p className="mt-1 text-2xl font-bold text-slate-900 dark:text-slate-100">{totalProblems}</p>
-              </div>
-              <div className="flex-1 sm:px-4 text-center">
-                <p className="text-xs font-medium text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">남은 문제</p>
-                <p className="mt-1 text-2xl font-bold text-indigo-600 dark:text-indigo-400">{remainingProblems}</p>
-              </div>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-center gap-6 sm:gap-0 sm:divide-x sm:divide-slate-200 dark:sm:divide-slate-700">
               <div className="flex-1 sm:px-4 text-center">
                 <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">{PROBLEM_SUMMARY_LABELS.solved}</p>
-                <p className="mt-1 text-2xl font-bold text-emerald-600 dark:text-emerald-400">{solvedProblems}</p>
+                <p className="mt-1 text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+                  {solvedProblems} <span className="text-2xl text-slate-400 dark:text-slate-500">/ {totalProblems}</span>
+                </p>
               </div>
               <div className="flex-1 sm:px-4 text-center">
-                <p className="text-xs font-medium text-rose-600 dark:text-rose-400 uppercase tracking-wider">{PROBLEM_SUMMARY_LABELS.wrong}</p>
-                <p className="mt-1 text-2xl font-bold text-rose-600 dark:text-rose-400">{wrongProblems}</p>
-              </div>
-              <div className="flex-1 sm:px-4 last:pr-0 text-center border-t sm:border-t-0 pt-4 sm:pt-0 border-slate-100 dark:border-slate-800">
                 <p className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wider">내 점수</p>
                 <p className="mt-1 text-2xl font-bold text-blue-600 dark:text-blue-400">{myScore}<span className="text-sm font-normal ml-1">점</span></p>
               </div>

@@ -1357,22 +1357,10 @@ export const ProblemDetailPage: React.FC = () => {
             </div>
             <div className={`flex items-center divide-x ${isDarkTheme ? 'divide-slate-700' : 'divide-slate-200'}`}>
               <div className="px-4 text-center">
-                <div className={`text-[10px] font-medium uppercase tracking-wider ${isDarkTheme ? 'text-slate-400' : 'text-slate-500'}`}>전체 문제</div>
-                <div className={`mt-0.5 text-xl font-bold ${isDarkTheme ? 'text-slate-100' : 'text-slate-900'}`}>{contestProblemStats?.total ?? '-'}</div>
-              </div>
-              <div className="px-4 text-center">
-                <div className="text-[10px] font-medium uppercase tracking-wider text-indigo-600 dark:text-indigo-400">남은 문제</div>
-                <div className="mt-0.5 text-xl font-bold text-indigo-600 dark:text-indigo-400">
-                  {contestProblemStats ? contestProblemStats.total - contestProblemStats.solved : '-'}
-                </div>
-              </div>
-              <div className="px-4 text-center">
                 <div className="text-[10px] font-medium uppercase tracking-wider text-emerald-600 dark:text-emerald-400">{PROBLEM_SUMMARY_LABELS.solved}</div>
-                <div className="mt-0.5 text-xl font-bold text-emerald-600 dark:text-emerald-400">{contestProblemStats?.solved ?? '-'}</div>
-              </div>
-              <div className="px-4 text-center">
-                <div className="text-[10px] font-medium uppercase tracking-wider text-rose-600 dark:text-rose-400">{PROBLEM_SUMMARY_LABELS.wrong}</div>
-                <div className="mt-0.5 text-xl font-bold text-rose-600 dark:text-rose-400">{contestProblemStats?.wrong ?? '-'}</div>
+                <div className="mt-0.5 text-xl font-bold text-emerald-600 dark:text-emerald-400">
+                  {contestProblemStats?.solved ?? '-'} <span className={`text-xl ${isDarkTheme ? 'text-slate-500' : 'text-slate-400'}`}>/ {contestProblemStats?.total ?? '-'}</span>
+                </div>
               </div>
               <div className="px-4 text-center">
                 <div className="text-[10px] font-medium uppercase tracking-wider text-blue-600 dark:text-blue-400">내 점수</div>
