@@ -72,7 +72,7 @@ async def sliding_session(token: str):
         raise HTTPException(status_code=400, detail="Missing token")
     redis = await get_redis()
     redis_key = f"{REDIS_SESSION_PREFIX}{token}"
-    redis.expire(redis_key, LOCAL_TOKEN_TTL_SECONDS)
+    await redis.expire(redis_key, LOCAL_TOKEN_TTL_SECONDS)
 
 async def _create_token() -> str:
     return str(uuid.uuid4())

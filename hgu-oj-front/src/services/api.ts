@@ -3,7 +3,7 @@ import { ApiResponse } from '../types';
 
 // API 기본 설정
 const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
-export const MS_API_BASE = (import.meta.env.VITE_MS_API_BASE as string | undefined) || 'ms';
+export const MS_API_BASE = (import.meta.env.VITE_MS_API_BASE as string | undefined) || 'http://localhost:9000/api';
 
 // Axios 인스턴스 생성
 const apiClient: AxiosInstance = axios.create({

@@ -4,7 +4,8 @@ from sqlalchemy import select, update, func
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.contest_user.models import Contest, ContestUser
+from app.contest_user.models import ContestUser
+from app.contest.models import Contest
 from app.user.models import User
 
 

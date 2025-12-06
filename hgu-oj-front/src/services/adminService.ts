@@ -1,4 +1,5 @@
 import { api, apiClient, MS_API_BASE } from './api';
+import axios from 'axios';
 import {
   ApiResponse,
   Workbook,
@@ -121,9 +122,8 @@ export interface CreateContestPayload {
 
 export interface CreateWorkbookPayload {
   title: string;
-  description?: string;
-  category?: string;
-  is_public?: boolean;
+  description: string;
+  is_public: boolean;
   problemIds?: number[];
 }
 
@@ -148,8 +148,8 @@ export interface UpdateUserPayload {
   password?: string;
   admin_type: string;
   problem_permission: string;
-  two_factor_auth?: boolean;
-  open_api?: boolean;
+  two_factor_auth: boolean;
+  open_api: boolean;
   is_disabled?: boolean;
 }
 
@@ -193,8 +193,10 @@ interface ContestListParams {
 const trimTrailingSlash = (value: string) => value.replace(/\/$/, '');
 
 const WORKBOOK_API_BASE = trimTrailingSlash(`${MS_API_BASE}/workbook`);
+const ORGANIZATION_API_BASE = trimTrailingSlash(`${MS_API_BASE}/organization`);
 
 const buildWorkbookUrl = (path = '') => `${WORKBOOK_API_BASE}${path}`;
+const buildOrganizationUrl = (path = '') => `${ORGANIZATION_API_BASE}${path}`;
 
 const MICRO_SERVICE_HEALTH_URL = buildWorkbookUrl('/');
 
@@ -253,9 +255,57 @@ export const adminService = {
     return response.data;
   },
 
-  getWorkbooks: async (): Promise<Workbook[]> => {
-    const response = await apiClient.get<Workbook[]>(buildWorkbookUrl('/all'));
-    return response.data;
+  getWorkbooks: async ({ page = 1, limit = 20, keyword }: { page?: number; limit?: number; keyword?: string } = {}): Promise<{
+    results: Workbook[];
+    total: number;
+    offset: number;
+    limit: number;
+  }> => {
+    const params = {
+      page,
+      limit,
+      keyword,
+    };
+    const response = await apiClient.get<{ data: { results: Workbook[]; total: number } }>(buildWorkbookUrl('/'), { params });
+    // The backend might return different structures, adapting based on typical patterns
+    // Assuming backend returns { data: { results: [], total: ... } } or similar
+    // If it returns just array as before, we need to handle that.
+    // Previous implementation was: const response = await apiClient.get<Workbook[]>(buildWorkbookUrl('/all'));
+    // Let's assume we want to use the paginated endpoint if available, or fetch all and slice if not.
+    // Given the user wants pagination, let's try to use the standard /admin/workbook or similar if it exists,
+    // but here we are using WORKBOOK_API_BASE.
+    // Let's stick to the previous endpoint but wrap it to match the interface if the backend doesn't support pagination yet,
+    // OR better, assuming the backend supports pagination on GET /workbook/ (common REST pattern).
+    // If the previous code used /all, maybe / supports pagination.
+
+    // Let's try to be safe: if the response data is an array, wrap it. If it's an object with results, use it.
+    const rawData: any = response.data;
+
+    let results: Workbook[] = [];
+    let total = 0;
+
+    if (Array.isArray(rawData)) {
+      results = rawData;
+      total = rawData.length;
+      // Manual pagination if backend doesn't support it
+      if (limit) {
+        const start = (page - 1) * limit;
+        results = results.slice(start, start + limit);
+      }
+    } else if (rawData && Array.isArray(rawData.results)) {
+      results = rawData.results;
+      total = rawData.total || results.length;
+    } else if (rawData && Array.isArray(rawData.data)) {
+      results = rawData.data;
+      total = rawData.total || results.length;
+    }
+
+    return {
+      results,
+      total,
+      offset: (page - 1) * limit,
+      limit,
+    };
   },
 
   deleteWorkbook: async (id: number): Promise<void> => {
@@ -369,12 +419,39 @@ export const adminService = {
     return adaptAdminProblemDetail(data);
   },
 
+  deleteProblem: async (id: number): Promise<void> => {
+    const response = await apiClient.delete('/admin/problem', {
+      params: { id },
+    });
+    const body = response.data;
+    const hasWrapper = body && typeof body === 'object' && Object.prototype.hasOwnProperty.call(body, 'error');
+    const success = hasWrapper ? body.error === null : true;
+
+    if (!success) {
+      const detail = body?.data ?? '문제를 삭제하지 못했습니다.';
+      throw new Error(typeof detail === 'string' ? detail : '문제를 삭제하지 못했습니다.');
+    }
+  },
+
+  deleteContest: async (id: number): Promise<void> => {
+    const response = await apiClient.delete('/admin/contest', {
+      params: { id },
+    });
+    const body = response.data;
+    const hasWrapper = body && typeof body === 'object' && Object.prototype.hasOwnProperty.call(body, 'error');
+    const success = hasWrapper ? body.error === null : true;
+
+    if (!success) {
+      const detail = body?.data ?? '대회를 삭제하지 못했습니다.';
+      throw new Error(typeof detail === 'string' ? detail : '대회를 삭제하지 못했습니다.');
+    }
+  },
+
   getContestProblems: async (contestId: number): Promise<Problem[]> => {
     const response = await api.get<any>('/admin/contest/problem', {
       contest_id: contestId,
-      paging: true,
+      limit: 1000,
       offset: 0,
-      limit: 200,
     });
     const data = unwrap(response);
     const list: any[] = Array.isArray(data)
@@ -395,11 +472,10 @@ export const adminService = {
     unwrap(response);
   },
 
-  deleteContestProblem: async (problemId: number): Promise<void> => {
+  deleteContestProblem: async (id: number): Promise<void> => {
     const response = await apiClient.delete('/admin/contest/problem', {
-      params: { id: problemId },
+      params: { id },
     });
-
     const body = response.data;
     const hasWrapper = body && typeof body === 'object' && Object.prototype.hasOwnProperty.call(body, 'error');
     const success = hasWrapper ? body.error === null : true;
@@ -408,6 +484,26 @@ export const adminService = {
       const detail = body?.data ?? '대회 문제를 삭제하지 못했습니다.';
       throw new Error(typeof detail === 'string' ? detail : '대회 문제를 삭제하지 못했습니다.');
     }
+  },
+
+  addWorkbookProblem: async (workbookId: number, problemId: number): Promise<void> => {
+    await apiClient.post(buildWorkbookUrl('/problem'), {
+      workbook_id: workbookId,
+      problem_id: problemId,
+    });
+  },
+
+  deleteWorkbookProblem: async (workbookId: number, problemId: number): Promise<void> => {
+    await apiClient.delete(buildWorkbookUrl('/problem'), {
+      params: {
+        workbook_id: workbookId,
+        problem_id: problemId,
+      },
+    });
+  },
+
+  updateWorkbook: async (workbookId: number, payload: UpdateWorkbookPayload): Promise<Workbook> => {
+    return adminService.updateWorkbookMeta(workbookId, payload);
   },
 
   getUsers: async ({ page = 1, limit = 20, keyword }: UserListParams): Promise<AdminUserListResponse> => {
@@ -467,6 +563,25 @@ export const adminService = {
       ...data,
       real_tfa: data?.two_factor_auth,
     } as AdminUser;
+  },
+
+  getUserDetailFromMS: async (userId: number): Promise<{
+    user_id: number;
+    name: string;
+    student_id: string;
+    major_id: number;
+  }> => {
+    // Use MS_API_BASE from env (or default) as requested by user
+    // This allows direct connection to MS server (e.g. http://localhost:9000/api) if configured
+    const baseUrl = MS_API_BASE.endsWith('/') ? MS_API_BASE.slice(0, -1) : MS_API_BASE;
+    const response = await axios.get<{
+      user_id: number;
+      name: string;
+      student_id: string;
+      major_id: number;
+    }>(`${baseUrl}/user/data/${userId}`, { withCredentials: true });
+
+    return response.data;
   },
 
   deleteUser: async (userId: number | number[]): Promise<void> => {
@@ -580,6 +695,47 @@ export const adminService = {
       ...data,
       history: filledHistory,
     };
+  },
+
+
+  getOrganizations: async ({ page = 1, limit = 20 }: { page?: number; limit?: number } = {}): Promise<{
+    items: any[];
+    total: number;
+    page: number;
+    size: number;
+  }> => {
+    const params = {
+      page,
+      size: limit,
+    };
+    const response = await apiClient.get<any>(buildOrganizationUrl(''), { params });
+    const data = response.data;
+
+    // MS returns { items: [], total: ..., page: ..., size: ... } or similar
+    // Based on routes.py: return await organization_serv.list_organizations(page, size, db)
+    // Let's assume it returns { items: [...], total: ... } directly or wrapped
+
+    const items = data?.items || data?.data?.items || [];
+    const total = data?.total || data?.data?.total || items.length;
+
+    return {
+      items,
+      total,
+      page,
+      size: limit,
+    };
+  },
+
+  createOrganization: async (name: string, description: string): Promise<void> => {
+    await apiClient.post(buildOrganizationUrl('/'), { name, description });
+  },
+
+  updateOrganization: async (id: number, name: string, description: string): Promise<void> => {
+    await apiClient.put(buildOrganizationUrl(`/${id}`), { name, description });
+  },
+
+  deleteOrganization: async (id: number): Promise<void> => {
+    await apiClient.delete(buildOrganizationUrl(`/${id}`));
   },
 };
 

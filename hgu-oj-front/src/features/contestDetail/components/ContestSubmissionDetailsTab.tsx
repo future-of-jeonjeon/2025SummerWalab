@@ -40,6 +40,8 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
     open: false,
     loading: false,
   });
+  const [caseStats, setCaseStats] = useState<Record<string, { passed: number; total: number }>>({});
+  const [hoveredRow, setHoveredRow] = useState<number | null>(null);
 
   const formatKSTDateTime = (value: unknown): string => {
     if (typeof value !== 'string') return '-';
@@ -56,8 +58,39 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
     }).format(date);
   };
 
+  const resolveProblemDisplayId = (item: SubmissionListItem): string | number | undefined => {
+    const directCandidates = [
+      (item as any)?.problem,
+      (item as any)?.problem_id,
+      (item as any)?.problemId,
+    ];
+    for (const candidate of directCandidates) {
+      if (candidate !== undefined && candidate !== null && `${candidate}`.length > 0) {
+        return candidate;
+      }
+    }
+    // Fallback: try to match by problem PK
+    const numericPk = Number((item as any)?.problem_pk ?? (item as any)?.problemPk ?? (item as any)?.problem_id);
+    if (Number.isFinite(numericPk)) {
+      const matched = problemList.find((p) => Number(p.id) === numericPk);
+      if (matched) return matched.displayId ?? (matched as any)?._id ?? matched.id;
+    }
+    return selectedProblem?.displayId ?? (selectedProblem as any)?._id ?? selectedProblem?.id;
+  };
+
+  const getSubmissionTimestamp = (item: SubmissionListItem): number => {
+    const raw =
+      (item as any)?.create_time ??
+      (item as any)?.createTime ??
+      (item as any)?.created_at ??
+      (item as any)?.createdAt;
+    const t = raw ? new Date(raw).getTime() : NaN;
+    return Number.isFinite(t) ? t : 0;
+  };
+
   const parseTestCases = (detail: SubmissionDetail | null | undefined): CaseEntry[] => {
-    const data = (detail as SubmissionDetail & { info?: { data?: unknown } } | null | undefined)?.info?.data;
+    const typed = detail as SubmissionDetail & { info?: { data?: unknown }; statistic_info?: { data?: unknown } } | null | undefined;
+    const data = typed?.info?.data ?? typed?.statistic_info?.data;
     if (!Array.isArray(data)) return [];
 
     return data
@@ -74,6 +107,24 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
         return { id, result: rawResult as number | string | undefined, success };
       })
       .filter((item): item is CaseEntry => item !== null);
+  };
+
+  const computeCaseStats = (detail: SubmissionDetail | SubmissionListItem | null | undefined) => {
+    const cases = parseTestCases(detail);
+    if (!cases.length) return null;
+    const passed = cases.filter((c) => c.success).length;
+    return { passed, total: cases.length };
+  };
+
+  const resolveSubmissionId = (item: SubmissionListItem | SubmissionDetail | null | undefined) => {
+    const raw =
+      (item as SubmissionListItem | undefined)?.id ??
+      (item as SubmissionListItem | undefined)?.submissionId ??
+      (item as any)?.submission_id ??
+      (item as any)?.run_id ??
+      (item as any)?.runId;
+    if (raw === null || raw === undefined) return undefined;
+    return String(raw);
   };
 
   const renderResultLabel = (status: unknown): string => {
@@ -136,20 +187,40 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
   }, [rankEntries, problemList]);
 
   const handleCellClick = async (userId: number, username: string, problem: Problem) => {
+    await loadSubmissionsForUser(userId, username, problem);
+  };
+
+  const handleUserClick = async (userId: number, username: string) => {
+    await loadSubmissionsForUser(userId, username, null);
+  };
+
+  const loadSubmissionsForUser = async (userId: number, username: string, problem: Problem | null) => {
     setSelectedUser({ id: userId, username });
     setSelectedProblem(problem);
     setMode('submissions');
     setSubmissionsLoading(true);
     setSubmissionsError(null);
+    setCaseStats({});
 
     try {
       const resp = await contestService.getContestSubmissions(contestId, {
         userId,
         username,
-        // Contest submissions API expects the problem's display/_id, not the PK
-        problemId: problem.displayId ?? problem._id ?? problem.id,
+        problemId: problem ? problem.displayId ?? (problem as any)?._id ?? problem.id : undefined,
       });
-      setSubmissions(resp.data || []);
+      const list = resp.data || [];
+      const sorted = [...list].sort((a, b) => getSubmissionTimestamp(b) - getSubmissionTimestamp(a));
+      setSubmissions(sorted);
+
+      const stats: Record<string, { passed: number; total: number }> = {};
+      sorted.forEach((item) => {
+        const sid = resolveSubmissionId(item);
+        const computed = computeCaseStats(item);
+        if (sid && computed) {
+          stats[sid] = computed;
+        }
+      });
+      setCaseStats(stats);
     } catch (error) {
       setSubmissionsError(error instanceof Error ? error.message : '제출을 불러오지 못했습니다.');
     } finally {
@@ -163,6 +234,13 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
     try {
       const detail = await submissionService.getSubmission(submissionId);
       const code = detail.code;
+      const stats = computeCaseStats(detail);
+      if (stats) {
+        setCaseStats((prev) => ({
+          ...prev,
+          [String(submissionId)]: stats,
+        }));
+      }
       setCodeModal({ open: true, loading: false, code });
     } catch (error) {
       setCodeModal({
@@ -179,6 +257,13 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
     try {
       const detail = await submissionService.getSubmission(submissionId);
       const cases = parseTestCases(detail);
+      const stats = computeCaseStats(detail);
+      if (stats) {
+        setCaseStats((prev) => ({
+          ...prev,
+          [String(submissionId)]: stats,
+        }));
+      }
       setCaseModal({
         open: true,
         loading: false,
@@ -200,7 +285,7 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
     return <div className="text-sm text-gray-600">관리자만 제출 상세정보를 확인할 수 있습니다.</div>;
   }
 
-  if (mode === 'submissions' && selectedUser && selectedProblem) {
+  if (mode === 'submissions' && selectedUser) {
     return (
       <div className="space-y-4">
         <div className="flex items-center justify-between">
@@ -213,11 +298,33 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
           </button>
           <div className="text-sm font-semibold text-gray-800">
             {selectedUser.username}의 제출기록
+            {selectedProblem ? ` · ${selectedProblem.displayId ?? (selectedProblem as any)?._id ?? selectedProblem.id}` : ' · 전체'}
           </div>
         </div>
         {submissionsLoading ? (
-          <div className="h-32 flex items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600" />
+          <div className="overflow-hidden rounded-lg border border-gray-200 animate-pulse">
+            <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+              <div className="grid grid-cols-5 gap-4">
+                <div className="h-4 bg-gray-200 rounded w-16"></div>
+                <div className="h-4 bg-gray-200 rounded w-16"></div>
+                <div className="h-4 bg-gray-200 rounded w-24"></div>
+                <div className="h-4 bg-gray-200 rounded w-16 mx-auto"></div>
+                <div className="h-4 bg-gray-200 rounded w-20 mx-auto"></div>
+              </div>
+            </div>
+            <div className="divide-y divide-gray-200 bg-white">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="px-4 py-3">
+                  <div className="grid grid-cols-5 gap-4 items-center">
+                    <div className="h-4 bg-gray-200 rounded w-12"></div>
+                    <div className="h-4 bg-gray-200 rounded w-10"></div>
+                    <div className="h-4 bg-gray-200 rounded w-32"></div>
+                    <div className="h-8 bg-gray-200 rounded w-16 mx-auto"></div>
+                    <div className="h-8 bg-gray-200 rounded w-20 mx-auto"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         ) : submissionsError ? (
           <div className="text-sm text-red-600">{submissionsError}</div>
@@ -226,6 +333,7 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-50">
                 <tr>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700">문제</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-700">결과</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-700">언어</th>
                   <th className="px-4 py-3 text-left font-semibold text-gray-700">제출 시각</th>
@@ -244,8 +352,12 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
                   const submissionId = item.id ?? item.submissionId;
                   const statusRaw = item.status ?? item.result ?? '-';
                   const statusText = renderResultLabel(statusRaw);
+                  const caseStatKey = submissionId != null ? String(submissionId) : null;
+                  const caseStat = caseStatKey ? caseStats[caseStatKey] : undefined;
+                  const problemDisplayId = resolveProblemDisplayId(item);
                   return (
                     <tr key={String(submissionId ?? Math.random())}>
+                      <td className="px-4 py-2 text-gray-800">{problemDisplayId ?? '-'}</td>
                       <td className="px-4 py-2 text-gray-800">{statusText}</td>
                       <td className="px-4 py-2 text-gray-800">
                         {item.language ??
@@ -264,13 +376,18 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
                         </button>
                       </td>
                       <td className="px-4 py-2 text-center">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenCaseModal(submissionId)}
-                          className="px-3 py-1 rounded-md border border-indigo-200 text-sm text-indigo-700 hover:bg-indigo-50 bg-indigo-50"
-                        >
-                          케이스 결과
-                        </button>
+                        <div className="flex items-center justify-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenCaseModal(submissionId)}
+                            className="px-3 py-1 rounded-md border border-indigo-200 text-sm text-indigo-700 hover:bg-indigo-50 bg-indigo-50"
+                          >
+                            케이스 결과
+                          </button>
+                          <div className="text-xs text-gray-500 min-w-[48px] text-right">
+                            {caseStat && caseStat.total > 0 ? `${caseStat.passed}/${caseStat.total}` : '-'}
+                          </div>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -303,8 +420,12 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
                 </button>
               </div>
               {codeModal.loading ? (
-                <div className="h-24 flex items-center justify-center">
-                  <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600" />
+                <div className="animate-pulse space-y-2 p-4">
+                  <div className="h-4 bg-slate-700 rounded w-3/4"></div>
+                  <div className="h-4 bg-slate-700 rounded w-1/2"></div>
+                  <div className="h-4 bg-slate-700 rounded w-5/6"></div>
+                  <div className="h-4 bg-slate-700 rounded w-2/3"></div>
+                  <div className="h-4 bg-slate-700 rounded w-4/5"></div>
                 </div>
               ) : codeModal.error ? (
                 <div className="text-sm text-red-400">{codeModal.error}</div>
@@ -335,8 +456,14 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
               </div>
               <div className="px-5 py-4 max-h-[70vh] overflow-auto">
                 {caseModal.loading ? (
-                  <div className="h-24 flex items-center justify-center">
-                    <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600" />
+                  <div className="space-y-3 animate-pulse">
+                    <div className="grid grid-cols-2 gap-4 px-1">
+                      <div className="h-4 bg-gray-200 rounded mx-auto w-12"></div>
+                      <div className="h-4 bg-gray-200 rounded mx-auto w-12"></div>
+                    </div>
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className="h-10 bg-gray-100 rounded border border-gray-200"></div>
+                    ))}
                   </div>
                 ) : caseModal.error ? (
                   <div className="text-sm text-red-600">{caseModal.error}</div>
@@ -372,41 +499,104 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
       </div>
     );
   }
+  // 제출 상세 테이블 레이아웃 설정
+  const baseColumnsPx = [64, 90, 56, 56]; // 순위, 유저(전체 이름 표시 위해 확대), 해결, 점수
+  const problemColumnWidth = 58;
+  const gapPx = 8;
+  const TABLE_OUTER_MAX = 1000; // 표 전체 컨테이너 고정폭
+  const baseWidthSum = baseColumnsPx.reduce((a, b) => a + b, 0);
+  const columnsWidth =
+    baseWidthSum +
+    problemList.length * problemColumnWidth +
+    (problemList.length + baseColumnsPx.length - 1) * gapPx;
+  const minTableWidthPx = Math.max(columnsWidth, TABLE_OUTER_MAX);
+  const gridTemplateColumns = `${baseColumnsPx.map((v) => `${v}px`).join(' ')} repeat(${problemList.length}, ${problemColumnWidth}px)`;
+  const rankWidth = baseColumnsPx[0];
+
+  const stickyHeaderStyles = [
+    { position: 'sticky' as const, left: 0, zIndex: 3, background: '#f8fafc' },
+    { position: 'sticky' as const, left: rankWidth, zIndex: 3, background: '#f8fafc' },
+  ];
+  const stickyBodyBase = {
+    position: 'sticky' as const,
+    zIndex: 2,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: '100%',
+    padding: '0 6px',
+  };
 
   return (
-    <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-      <div className="overflow-x-auto">
+    <div
+      className="bg-white rounded-lg shadow-sm border border-gray-200 mx-auto"
+      style={{ width: `${TABLE_OUTER_MAX}px` }}
+    >
+      <div className="w-full overflow-x-auto">
         <div
-          className="min-w-full"
-          style={{ minWidth: `${360 + problemList.length * 140}px` }}
+          className="inline-block bg-white"
+          style={{
+            minWidth: `${minTableWidthPx}px`,
+            width: `${minTableWidthPx}px`,
+          }}
         >
-          <div
-            className="grid items-center border-b border-gray-200 bg-gray-50 px-6 py-4"
-            style={{ gridTemplateColumns: `80px 180px 120px 120px repeat(${problemList.length}, minmax(140px, 1fr))` }}
-          >
-            <div className="text-center text-sm font-medium text-gray-500 uppercase tracking-wider">순위</div>
-            <div className="text-sm font-medium text-gray-500 uppercase tracking-wider">유저</div>
-            <div className="text-center text-sm font-medium text-gray-500 uppercase tracking-wider">해결</div>
-            <div className="text-center text-sm font-medium text-gray-500 uppercase tracking-wider">점수</div>
-            {problemList.map((problem) => (
-              <div key={problem.id} className="text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">
-                {problem.displayId ?? problem.id}
+          <div className="border-b border-gray-200 bg-gray-50 px-1 py-4">
+            <div className="grid items-center gap-x-2" style={{ gridTemplateColumns }}>
+              <div className="text-center text-sm font-medium text-gray-500 uppercase tracking-wider" style={stickyHeaderStyles[0]}>
+                순위
               </div>
-            ))}
+              <div className="text-center text-sm font-medium text-gray-500 uppercase tracking-wider" style={stickyHeaderStyles[1]}>
+                유저
+              </div>
+              <div className="text-center text-sm font-medium text-gray-500 uppercase tracking-wider">해결</div>
+              <div className="text-center text-sm font-medium text-gray-500 uppercase tracking-wider">점수</div>
+              {problemList.map((_, idx) => (
+                <div key={`problem-header-${idx}`} className="text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                  {idx + 1}
+                </div>
+              ))}
+            </div>
           </div>
           <div className="divide-y divide-gray-200">
             {scoreboardEntries.map((entry, index) => (
-              <div key={entry.id ?? index} className="px-6 py-4 hover:bg-gray-50 transition-colors">
-                <div
-                  className="grid items-center"
-                  style={{ gridTemplateColumns: `80px 180px 120px 120px repeat(${problemList.length}, minmax(140px, 1fr))` }}
-                >
-                  <div className="text-center font-semibold text-gray-800">{index + 1}</div>
-                  <div>
-                    <div className="text-sm font-medium text-gray-900">{entry.user.username}</div>
-                    {entry.user.realName && <div className="text-xs text-gray-500">{entry.user.realName}</div>}
+              <div
+                key={entry.id ?? index}
+                className="px-1 py-4 transition-colors"
+                onMouseEnter={() => setHoveredRow(index)}
+                onMouseLeave={() => setHoveredRow(null)}
+                style={{ backgroundColor: hoveredRow === index ? '#f8fafc' : '#ffffff' }}
+              >
+                <div className="grid items-center gap-x-2" style={{ gridTemplateColumns }}>
+                  <div
+                    className="text-center font-semibold text-gray-800"
+                    style={{
+                      ...stickyBodyBase,
+                      left: 0,
+                      backgroundColor: hoveredRow === index ? '#f8fafc' : '#ffffff',
+                    }}
+                  >
+                    {index + 1}
                   </div>
-                  <div className="text-center text-sm text-gray-700">{entry.acceptedNumber ?? 0}</div>
+                  <button
+                    type="button"
+                    onClick={() => handleUserClick(entry.user.id, entry.user.username)}
+                    style={{
+                      ...stickyBodyBase,
+                      left: rankWidth,
+                      backgroundColor: hoveredRow === index ? '#f8fafc' : '#ffffff',
+                    }}
+                    className="w-full focus:outline-none flex flex-col items-center justify-center text-center"
+                  >
+                    <div className="text-sm font-medium text-gray-900 hover:underline leading-tight">
+                      {entry.user.realName || entry.user.username}
+                    </div>
+                    {entry.user.studentId && (
+                      <div className="text-xs text-gray-500 leading-tight mt-0.5">{entry.user.studentId}</div>
+                    )}
+                  </button>
+                  <div className="text-center text-sm text-gray-700">
+                    {(entry.acceptedNumber ?? 0)}/{problemList.length}
+                  </div>
                   <div className="text-center text-sm text-gray-700">{entry.totalScore ?? 0}</div>
                   {problemList.map((problem, pIdx) => {
                     const info = entry.problemStatuses ? entry.problemStatuses[pIdx] : null;
@@ -416,7 +606,7 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
                         ? 'bg-green-100 text-green-700'
                         : status === 'tried'
                           ? 'bg-amber-50 text-amber-700'
-                          : 'bg-gray-50 text-gray-400';
+                          : 'bg-gray-100 text-gray-400';
                     const labelScore = info?.score;
                     const label = labelScore != null ? `${labelScore}` : status === 'ac' ? 'AC' : status === 'tried' ? 'T' : '-';
                     const handleClick = () => {

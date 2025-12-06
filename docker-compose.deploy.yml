@@ -1,38 +1,14 @@
 services:
-  oj-frontend:
-    networks:
-      - judge-network
-    platform: linux/amd64
-    build:
-      context: ./OnlineJudgeFE
-      args:
-        VUE_APP_GOOGLE_CLIENT_ID: ${VUE_APP_GOOGLE_CLIENT_ID}
-        VUE_APP_GOOGLE_CLIENT_SECRET: ${VUE_APP_GOOGLE_CLIENT_SECRET}
-        VUE_APP_GOOGLE_REDIRECT_URI: ${VUE_APP_GOOGLE_REDIRECT_URI}
-    container_name: oj-frontend
-    env_file: .env
-    environment:
-      - TARGET=http://oj-backend:8000
-      - TARGET_HOST=judge.walab.info
-      - PORT=8080
-      - VUE_APP_GOOGLE_CLIENT_ID=${VUE_APP_GOOGLE_CLIENT_ID}
-      - VUE_APP_GOOGLE_CLIENT_SECRET=${VUE_APP_GOOGLE_CLIENT_SECRET}
-      - VUE_APP_GOOGLE_REDIRECT_URI=${VUE_APP_GOOGLE_REDIRECT_URI}
-    expose:
-      - "8080"
-    depends_on:
-      - oj-backend
-
   oj-redis:
     networks:
       - judge-network
     platform: linux/amd64
-    image: redis:4.0-alpine
+    image: redis:7.2-alpine
     restart: always
     volumes:
       - ./data/redis:/data
 
-  oj-judge:
+  oj-judge-1:
     networks:
       - judge-network
     platform: linux/amd64
@@ -127,7 +103,7 @@ services:
       SERVICE_URL: http://oj-judge-3:8080
       BACKEND_URL: http://oj-backend:8000/api/judge_server_heartbeat/
       TOKEN: ${JUDGE_SERVER_TOKEN}
-  
+
   oj-judge-4:
     networks:
       - judge-network
@@ -159,7 +135,7 @@ services:
       SERVICE_URL: http://oj-judge-4:8080
       BACKEND_URL: http://oj-backend:8000/api/judge_server_heartbeat/
       TOKEN: ${JUDGE_SERVER_TOKEN}
-  
+
   oj-judge-5:
     networks:
       - judge-network
@@ -193,22 +169,23 @@ services:
       TOKEN: ${JUDGE_SERVER_TOKEN}
 
   oj-backend:
+    image: parkleewalab/oj-backend:latest
     networks:
       - judge-network
     extra_hosts:
       - "host.docker.internal:host-gateway"
     platform: linux/amd64
-    build: ./OnlineJudge
     restart: always
     depends_on:
       - oj-redis
-      - oj-judge
+      - oj-judge-1
       - oj-judge-2
       - oj-judge-3
       - oj-judge-4
       - oj-judge-5
     volumes:
       - ./data/backend:/data
+      - ./data/backend/log:/data/log
     env_file: .env
     environment:
       - POSTGRES_HOST=${POSTGRES_HOST}
@@ -220,8 +197,41 @@ services:
       - REDIS_HOST=oj-redis
       - REDIS_PORT=6379
       - ALLOWED_HOSTS=*
-      - CSRF_TRUSTED_ORIGINS=http://judge.walab.info,https://judge.walab.info  
+      - CSRF_TRUSTED_ORIGINS=http://judge.walab.info,https://judge.walab.info
       - USE_X_FORWARDED_HOST=true
+    expose:
+      - "8080"
+
+  oj-micro-service:
+    image: parkleewalab/oj-micro-service:latest
+    networks:
+      - judge-network
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    platform: linux/amd64
+    restart: always
+    environment:
+      - SSO_INTROSPECT_URL=http://oj-backend:8000/api/sso
+      - REDIS_URL=redis://oj-redis:6379
+      - 'REDIS_SESSION_PREFIX=ms:session:'
+      - TOKEN_COOKIE_NAME=ms_token
+      - LOCAL_TOKEN_TTL_SECONDS=7200
+      - TEST_CASE_DATA_PATH=/test_case
+      - DB_USER=${POSTGRES_USER}
+      - DB_PASSWORD=${POSTGRES_PASSWORD}
+      - DB_HOST=${POSTGRES_HOST}
+      - DB_PORT=${POSTGRES_PORT}
+      - DB_NAME=${POSTGRES_DB}
+      - CODE_SAVE_TTL_SECONDS=5
+      - 'REDIS_CODE_SAVE_PREFIX=ms:autosave'
+    volumes:
+      - ./data/backend/test_case:/test_case:rw
+      - ./data/micro_service/log:/log
+    depends_on:
+      - oj-redis
+      - oj-backend
+    expose:
+      - "8080"
 
 networks:
   judge-network:

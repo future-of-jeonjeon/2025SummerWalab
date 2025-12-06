@@ -1,37 +1,31 @@
 import React, { useState } from 'react';
-import { keepPreviousData, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Link, Navigate } from 'react-router-dom';
 import { Card } from '../components/atoms/Card';
 import { Button } from '../components/atoms/Button';
 import { ProblemProgressCard } from '../components/molecules/ProblemProgressCard';
 import { useProblemCount } from '../hooks/useProblemCount';
 import { useAuthStore } from '../stores/authStore';
-import { myPageService } from '../services/myPageService';
+import { myPageService, ContestHistoryEntry } from '../services/myPageService';
 import { userService, DEPARTMENTS } from '../services/userService';
+import { submissionService } from '../services/submissionService';
 import { MyProfile, MySolvedProblem, MyWrongProblem } from '../types';
 import { UserInfoModal } from '../components/organisms/UserInfoModal';
+import { ContributionGraph } from '../components/molecules/ContributionGraph';
 
-const PAGE_SIZE = 20;
 
-const formatDisplayDate = (value?: string): string => {
-  if (!value) return '-';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleDateString('ko-KR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  });
-};
 
-const calcTotalPages = (total: number, pageSize: number) => Math.max(1, Math.ceil(Math.max(0, total) / pageSize));
+
+
+
+
+
 
 export const MyPage: React.FC = () => {
   const { isAuthenticated } = useAuthStore();
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const [solvedPage, setSolvedPage] = useState(1);
-  const [wrongPage, setWrongPage] = useState(1);
+
 
   const {
     data: userData,
@@ -54,24 +48,43 @@ export const MyPage: React.FC = () => {
   });
 
   const {
+    data: contributionData,
+    isLoading: contributionLoading,
+  } = useQuery({
+    queryKey: ['mypage', 'contribution'],
+    queryFn: submissionService.getContributionData,
+    enabled: isAuthenticated,
+  });
+
+  const {
     data: solvedResponse,
     isLoading: solvedLoading,
     error: solvedError,
-  } = useQuery<{ items: MySolvedProblem[]; total: number }, Error>({
-    queryKey: ['mypage', 'solved', solvedPage, PAGE_SIZE],
-    queryFn: () => myPageService.getSolvedProblems({ page: solvedPage, pageSize: PAGE_SIZE }),
-    placeholderData: keepPreviousData,
+  } = useQuery<{ items: MySolvedProblem[]; total: number }>({
+    queryKey: ['mypage', 'solved'],
+    queryFn: () => myPageService.getSolvedProblems({ page: 1, pageSize: 100 }), // Fetch enough items for the list
+    enabled: isAuthenticated,
   });
 
   const {
     data: wrongResponse,
     isLoading: wrongLoading,
-    error: wrongError,
-  } = useQuery<{ items: MyWrongProblem[]; total: number }, Error>({
-    queryKey: ['mypage', 'wrong', wrongPage, PAGE_SIZE],
-    queryFn: () => myPageService.getWrongProblems({ page: wrongPage, pageSize: PAGE_SIZE }),
-    placeholderData: keepPreviousData,
+  } = useQuery<{ items: MyWrongProblem[]; total: number }>({
+    queryKey: ['mypage', 'wrong'],
+    queryFn: () => myPageService.getWrongProblems({ page: 1, pageSize: 100 }),
+    enabled: isAuthenticated,
   });
+
+  const {
+    data: contestHistory,
+    isLoading: contestHistoryLoading,
+  } = useQuery<ContestHistoryEntry[]>({
+    queryKey: ['mypage', 'contestHistory'],
+    queryFn: myPageService.getParticipatedContests,
+    enabled: isAuthenticated,
+  });
+
+
 
   const {
     total: totalProblemCount,
@@ -79,8 +92,7 @@ export const MyPage: React.FC = () => {
     error: problemCountError,
   } = useProblemCount();
 
-  const solvedTotalPages = calcTotalPages(solvedResponse?.total ?? 0, PAGE_SIZE);
-  const wrongTotalPages = calcTotalPages(wrongResponse?.total ?? 0, PAGE_SIZE);
+
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
@@ -183,8 +195,8 @@ export const MyPage: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Stats Cards */}
-                    <div className="flex flex-wrap gap-3">
+                    {/* Stats Cards - Removed as per request */}
+                    {/* <div className="flex flex-wrap gap-3">
                       <div className="flex flex-col items-center justify-center px-4 py-3 bg-blue-50 rounded-xl border border-blue-100 min-w-[80px]">
                         <span className="text-xs text-blue-600 font-semibold mb-1">연속일수</span>
                         <span className="text-xl font-bold text-blue-700">{profile.streak}</span>
@@ -197,7 +209,7 @@ export const MyPage: React.FC = () => {
                         <span className="text-xs text-rose-600 font-semibold mb-1">틀린 문제</span>
                         <span className="text-xl font-bold text-rose-700">{profile.wrongCount}</span>
                       </div>
-                    </div>
+                    </div> */}
                   </div>
                 </div>
               </>
@@ -206,6 +218,32 @@ export const MyPage: React.FC = () => {
             )}
           </Card>
         </section>
+
+        <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
+          <section aria-labelledby="mypage-contribution" className="lg:col-span-6 flex flex-col">
+            <h2 id="mypage-contribution" className="sr-only">활동 그래프</h2>
+            <Card className="h-full flex flex-col justify-center">
+              {contributionLoading ? (
+                <div className="flex justify-center items-center h-40 text-gray-500">
+                  활동 데이터를 불러오는 중...
+                </div>
+              ) : (
+                <ContributionGraph data={contributionData ?? []} totalDays={365} />
+              )}
+            </Card>
+          </section>
+
+          <section aria-labelledby="mypage-progress" className="lg:col-span-4 flex flex-col">
+            <h2 id="mypage-progress" className="sr-only">문제 풀이 진행도</h2>
+            <ProblemProgressCard
+              solvedCount={solvedCount}
+              totalCount={totalProblemCount}
+              isLoading={progressLoading}
+              error={progressError}
+              className="h-full"
+            />
+          </section>
+        </div>
 
         <UserInfoModal
           isOpen={isModalOpen}
@@ -216,19 +254,48 @@ export const MyPage: React.FC = () => {
           }}
         />
 
-        <section aria-labelledby="mypage-progress" className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 id="mypage-progress" className="text-lg font-semibold text-gray-900">문제 풀이 진행도</h2>
-            {!progressLoading && !progressError && totalProblemCount > 0 && (
-              <span className="text-sm text-gray-500">총 {totalProblemCount}문제 기준</span>
-            )}
-          </div>
-          <ProblemProgressCard
-            solvedCount={solvedCount}
-            totalCount={totalProblemCount}
-            isLoading={progressLoading}
-            error={progressError}
-          />
+        <section aria-labelledby="mypage-contests">
+          <h2 id="mypage-contests" className="text-lg font-semibold text-gray-900 mb-4">참여한 대회</h2>
+          <Card className="overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-gray-500 border-b bg-gray-50">
+                    <th scope="col" className="py-3 px-4 font-medium">대회명</th>
+                    <th scope="col" className="py-3 px-4 text-right font-medium">날짜</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {contestHistoryLoading ? (
+                    <tr>
+                      <td colSpan={2} className="py-4 text-center text-gray-500">
+                        대회 기록을 불러오는 중...
+                      </td>
+                    </tr>
+                  ) : (contestHistory ?? []).length === 0 ? (
+                    <tr>
+                      <td colSpan={2} className="py-4 text-center text-gray-500">
+                        참여한 대회가 없습니다.
+                      </td>
+                    </tr>
+                  ) : (
+                    (contestHistory ?? []).map((contest) => (
+                      <tr key={contest.id} className="hover:bg-gray-50 transition-colors">
+                        <td className="py-3 px-4 font-medium text-gray-900">
+                          <Link to={`/contests/${contest.id}`} className="hover:text-blue-600 hover:underline">
+                            {contest.title}
+                          </Link>
+                        </td>
+                        <td className="py-3 px-4 text-right text-gray-600">
+                          {contest.startTime ? new Date(contest.startTime).toLocaleDateString() : '-'}
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </Card>
         </section>
 
         <section aria-labelledby="mypage-problem-lists" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -238,59 +305,25 @@ export const MyPage: React.FC = () => {
               {solvedLoading ? (
                 <div className="text-gray-500">푼 문제를 불러오는 중입니다...</div>
               ) : solvedError ? (
-                <div className="text-red-500">푼 문제를 불러오지 못했습니다: {renderError(solvedError, '')}</div>
+                <div className="text-red-500">
+                  목록을 불러오지 못했습니다: {solvedError instanceof Error ? solvedError.message : '알 수 없는 오류'}
+                </div>
+              ) : (solvedResponse?.items ?? []).length === 0 ? (
+                <div className="text-gray-500">아직 푼 문제가 없습니다.</div>
               ) : (
-                <>
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-gray-500 border-b">
-                        <th scope="col" className="py-3">제목</th>
-                        <th scope="col" className="py-3 text-right">난이도</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(solvedResponse?.items ?? []).length === 0 ? (
-                        <tr>
-                          <td colSpan={2} className="py-6 text-center text-gray-500">아직 푼 문제가 없습니다.</td>
-                        </tr>
-                      ) : (
-                        solvedResponse?.items.map((item) => (
-                          <tr key={item.id} className="border-b last:border-b-0">
-                            <td className="py-3">
-                              <Link to={`/problems/${item.id}`} className="text-blue-600 hover:underline">
-                                {item.title}
-                              </Link>
-                            </td>
-                            <td className="py-3 text-right text-gray-600">{item.difficulty ?? '-'}</td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                  {solvedTotalPages > 1 && (
-                    <div className="flex justify-between items-center mt-4 text-sm text-gray-600">
-                      <span>{solvedPage} / {solvedTotalPages} 페이지</span>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setSolvedPage((prev) => Math.max(1, prev - 1))}
-                          disabled={solvedPage <= 1}
-                        >
-                          이전
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setSolvedPage((prev) => Math.min(solvedTotalPages, prev + 1))}
-                          disabled={solvedPage >= solvedTotalPages}
-                        >
-                          다음
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </>
+                <div className="leading-relaxed text-gray-700">
+                  {solvedResponse?.items.map((item, index, array) => (
+                    <React.Fragment key={item.id}>
+                      <Link
+                        to={`/problems/${item.id}`}
+                        className="hover:text-blue-600 hover:underline transition-colors"
+                      >
+                        {item.title}
+                      </Link>
+                      {index < array.length - 1 && <span className="mr-2">,</span>}
+                    </React.Fragment>
+                  ))}
+                </div>
               )}
             </Card>
           </div>
@@ -300,62 +333,22 @@ export const MyPage: React.FC = () => {
             <Card>
               {wrongLoading ? (
                 <div className="text-gray-500">틀린 문제를 불러오는 중입니다...</div>
-              ) : wrongError ? (
-                <div className="text-red-500">틀린 문제를 불러오지 못했습니다: {renderError(wrongError, '')}</div>
+              ) : (wrongResponse?.items ?? []).length === 0 ? (
+                <div className="text-gray-500">틀린 문제가 없습니다.</div>
               ) : (
-                <>
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-gray-500 border-b">
-                        <th scope="col" className="py-3">제목</th>
-                        <th scope="col" className="py-3 text-right">최근 시도일</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {(wrongResponse?.items ?? []).length === 0 ? (
-                        <tr>
-                          <td colSpan={2} className="py-6 text-center text-gray-500">최근 틀린 문제가 없습니다.</td>
-                        </tr>
-                      ) : (
-                        wrongResponse?.items.map((item) => (
-                          <tr key={item.id} className="border-b last:border-b-0">
-                            <td className="py-3">
-                              <Link to={`/problems/${item.id}`} className="text-blue-600 hover:underline">
-                                {item.title}
-                              </Link>
-                            </td>
-                            <td className="py-3 text-right text-gray-600">
-                              {formatDisplayDate(item.lastTriedAt)}
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                  {wrongTotalPages > 1 && (
-                    <div className="flex justify-between items-center mt-4 text-sm text-gray-600">
-                      <span>{wrongPage} / {wrongTotalPages} 페이지</span>
-                      <div className="flex items-center gap-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setWrongPage((prev) => Math.max(1, prev - 1))}
-                          disabled={wrongPage <= 1}
-                        >
-                          이전
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => setWrongPage((prev) => Math.min(wrongTotalPages, prev + 1))}
-                          disabled={wrongPage >= wrongTotalPages}
-                        >
-                          다음
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </>
+                <div className="leading-relaxed text-gray-700">
+                  {wrongResponse?.items.map((item, index, array) => (
+                    <React.Fragment key={item.id}>
+                      <Link
+                        to={`/problems/${item.id}`}
+                        className="hover:text-red-600 hover:underline transition-colors"
+                      >
+                        {item.title}
+                      </Link>
+                      {index < array.length - 1 && <span className="mr-2">,</span>}
+                    </React.Fragment>
+                  ))}
+                </div>
               )}
             </Card>
           </div>

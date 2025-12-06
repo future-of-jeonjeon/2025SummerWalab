@@ -35,6 +35,12 @@ async def get_user_data(user_data: UserData, db: AsyncSession) -> SubUserData:
         exception.data_not_found("UserData")
     return _create_sub_user_data_from_entity(data)
 
+async def get_user_data_by_id(user_id: int, db: AsyncSession) -> SubUserData:
+    data = await repo.find_sub_userdata_by_user_id(user_id, db)
+    if not data:
+        exception.data_not_found("UserData")
+    return _create_sub_user_data_from_entity(data)
+
 
 @transactional
 async def update_user_data(sub_user_data: SubUserData, user_data: UserData, db: AsyncSession) -> SubUserData:

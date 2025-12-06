@@ -163,6 +163,14 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'standard'
         },
+        'file': {
+            'level': 'DEBUG',
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(LOG_PATH, "oj.log"),
+            'maxBytes': 10 * 1024 * 1024,
+            'backupCount': 15,
+            'formatter': 'standard'
+        },
         'sentry': {
             'level': 'ERROR',
             'class': 'raven.contrib.django.raven_compat.handlers.SentryHandler',
@@ -171,22 +179,22 @@ LOGGING = {
     },
     'loggers': {
         'django.request': {
-            'handlers': LOGGING_HANDLERS,
+            'handlers': ['console', 'file'],
             'level': 'ERROR',
             'propagate': True,
         },
         'django.db.backends': {
-            'handlers': LOGGING_HANDLERS,
+            'handlers': ['console', 'file'],
             'level': 'ERROR',
             'propagate': True,
         },
         'dramatiq': {
-            'handlers': LOGGING_HANDLERS,
+            'handlers': ['console', 'file'],
             'level': 'DEBUG',
             'propagate': False,
         },
         '': {
-            'handlers': LOGGING_HANDLERS,
+            'handlers': ['console', 'file'],
             'level': 'WARNING',
             'propagate': True,
         }

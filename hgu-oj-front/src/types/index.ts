@@ -111,6 +111,7 @@ export interface ContestRankEntry {
     id: number;
     username: string;
     realName?: string;
+    studentId?: string;
   };
   acceptedNumber?: number;
   submissionNumber?: number;
@@ -168,6 +169,10 @@ export interface WorkbookProblem {
 
 export interface WorkbookDetail extends Workbook {
   problems: WorkbookProblem[];
+}
+
+export interface AdminWorkbook extends Workbook {
+  visible: boolean;
 }
 
 // API 응답 타입

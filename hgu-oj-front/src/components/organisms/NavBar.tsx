@@ -28,7 +28,7 @@ export const NavBar: React.FC = () => {
           <div className="flex items-center gap-8">
             {/* 로고 */}
             <Link to="/" className="flex items-center focus:outline-none">
-              <span className="text-xl font-bold text-black">HGU Code Loundge</span>
+              <span className="text-xl font-bold text-black">HGU Code Round</span>
             </Link>
 
             {/* 네비게이션 메뉴 */}

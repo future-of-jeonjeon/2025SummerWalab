@@ -31,15 +31,39 @@ export const ContestUserManagementTab: React.FC<ContestUserManagementTabProps> =
   if (!isAdminUser) {
     return <div className="text-sm text-gray-600">관리자만 접근할 수 있습니다.</div>;
   }
-  if (loading || !registrations) {
+  if (loading) {
     return (
-      <div className="flex justify-center py-10">
-        <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-blue-600" />
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 animate-pulse">
+        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+          <div className="grid grid-cols-12 gap-4">
+            <div className="col-span-1 h-4 bg-gray-200 rounded"></div>
+            <div className="col-span-3 h-4 bg-gray-200 rounded"></div>
+            <div className="col-span-3 h-4 bg-gray-200 rounded"></div>
+            <div className="col-span-3 h-4 bg-gray-200 rounded"></div>
+            <div className="col-span-2 h-4 bg-gray-200 rounded"></div>
+          </div>
+        </div>
+        <div className="divide-y divide-gray-200">
+          {[...Array(5)].map((_, i) => (
+            <div key={i} className="px-6 py-4">
+              <div className="grid grid-cols-12 gap-4 items-center">
+                <div className="col-span-1 h-4 bg-gray-200 rounded w-8"></div>
+                <div className="col-span-3 h-4 bg-gray-200 rounded w-24"></div>
+                <div className="col-span-3 h-4 bg-gray-200 rounded w-20"></div>
+                <div className="col-span-3 h-4 bg-gray-200 rounded w-32"></div>
+                <div className="col-span-2 h-8 bg-gray-200 rounded w-16"></div>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
   if (errorMessage) {
     return <div className="text-sm text-red-600">{errorMessage}</div>;
+  }
+  if (!registrations) {
+    return <div className="text-sm text-gray-600">등록 정보를 불러올 수 없습니다.</div>;
   }
 
   const approvedUsers = registrations.approved ?? [];

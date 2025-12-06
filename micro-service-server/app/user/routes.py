@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.user.schemas import UserData, SubUserData
 from app.config.database import get_session
 from app.security.deps import get_userdata
+from app.utils.security import authorize_roles
 
 router = APIRouter(prefix="/api/user", tags=["User"])
 
@@ -32,6 +33,15 @@ async def get_user_data(
         user_date: UserData = Depends(get_userdata),
         db: AsyncSession = Depends(get_session)) -> SubUserData:
     return await serv.get_user_data(user_date, db)
+
+
+@authorize_roles("Admin")
+@router.get("/data/{user_id}", response_model=SubUserData)
+async def get_user_data(
+        user_id:int,
+        user_date: UserData = Depends(get_userdata),
+        db: AsyncSession = Depends(get_session)) -> SubUserData:
+    return await serv.get_user_data_by_id(user_id, db)
 
 
 @router.put("/data", response_model=SubUserData)

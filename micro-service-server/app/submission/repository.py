@@ -1,5 +1,6 @@
-from typing import Iterable, List
 from collections import defaultdict
+from datetime import datetime, timedelta
+from typing import Iterable, List
 
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -11,9 +12,9 @@ JUDGE_STATUS_ACCEPTED = 0
 
 
 async def fetch_contest_problem_stats(
-    db: AsyncSession,
-    contest_id: int,
-    problem_ids: Iterable[int] | None = None,
+        db: AsyncSession,
+        contest_id: int,
+        problem_ids: Iterable[int] | None = None,
 ) -> List[dict]:
     problem_id_list = list(problem_ids) if problem_ids is not None else []
     filters = [Submission.contest_id == contest_id]
@@ -65,8 +66,8 @@ async def fetch_contest_problem_stats(
 
 
 async def fetch_contest_user_scores(
-    db: AsyncSession,
-    contest_id: int,
+        db: AsyncSession,
+        contest_id: int,
 ) -> List[dict]:
     """
     Compute per-user contest scores based on submission info and problem test_case_score.
@@ -148,3 +149,15 @@ async def fetch_contest_user_scores(
         )
 
     return results
+
+
+async def get_user_submissions_by_year(user_id: int, db: AsyncSession):
+    one_year_ago = datetime.utcnow() - timedelta(days=365)
+    result = await db.execute(
+        select(func.date(Submission.create_time).label("date"),
+               func.count().label("count"))
+        .where(Submission.user_id == user_id,
+               Submission.create_time >= one_year_ago)
+        .group_by(func.date(Submission.create_time))
+        .order_by(func.date(Submission.create_time)))
+    return result.all()

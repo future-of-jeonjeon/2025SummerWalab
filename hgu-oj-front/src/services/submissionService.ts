@@ -1,4 +1,5 @@
-import { api } from './api';
+import axios from 'axios';
+import { api, MS_API_BASE } from './api';
 
 export interface SubmitSolutionRequest {
   problemId: string | number;
@@ -190,6 +191,15 @@ export const submissionService = {
       page: 1,
     };
     return requestSubmissionList('/submissions', params);
+  },
+  getContributionData: async (): Promise<{ date: string; count: number }[]> => {
+    const baseUrl = MS_API_BASE.endsWith('/') ? MS_API_BASE.slice(0, -1) : MS_API_BASE;
+    const response = await axios.get<{ date: string; count: number }[]>(`${baseUrl}/submission/contribution`, {
+      withCredentials: true
+    });
+    // MS server might return data directly or wrapped. 
+    // Assuming it returns the list directly based on previous instructions.
+    return response.data;
   },
 };
 
