@@ -25,7 +25,7 @@ services:
   oj-redis:
     networks:
       - judge-network
-    image: redis:4.0-alpine
+    image: redis:7.2-alpine
     restart: always
     volumes:
       - ./data/redis:/data
@@ -108,7 +108,7 @@ services:
       - DB_HOST=${POSTGRES_HOST}
       - DB_PORT=${POSTGRES_PORT}
       - DB_NAME=${POSTGRES_DB}
-      - CODE_SAVE_TTL_SECONDS=5
+      - CODE_SAVE_TTL_SECONDS=180
       - REDIS_CODE_SAVE_PREFIX=ms:autosave
     volumes:
       - ./data/backend/test_case:/test_case:rw 
