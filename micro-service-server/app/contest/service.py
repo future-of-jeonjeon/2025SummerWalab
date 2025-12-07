@@ -169,7 +169,7 @@ async def get_contest_rank_admin(contest_id: int, db: AsyncSession):
 async def _get_contest_ranks(contest_id: int, anonymize_username: bool, db: AsyncSession):
     contest, raw_ranks = await _get_contest_and_raw_ranks(contest_id, db)
     if not contest:
-        return None
+        exception.data_not_found("contest")
 
     scores_list = await submission_repo.fetch_contest_user_scores(db, contest_id)
     score_map = {item["user_id"]: item["total_score"] for item in scores_list}

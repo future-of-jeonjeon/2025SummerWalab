@@ -315,35 +315,43 @@ export const contestService = {
     }
 
     const endpoint = params?.isAdmin ? '/contest/rank/all' : '/contest/rank';
-    const response = await apiClient.get<ContestRankEntry[]>(`${MICRO_API_BASE}${endpoint}`, {
-      params: { contest_id: contestId },
-    });
+    try {
+      const response = await apiClient.get<ContestRankEntry[]>(`${MICRO_API_BASE}${endpoint}`, {
+        params: { contest_id: contestId },
+      });
 
-    const data = response.data || [];
+      const data = response.data || [];
 
-    // The MS returns a list, so we map it directly. 
-    // Note: The MS currently returns the full list, pagination might be handled on the client side or added to MS later.
-    // For now, we return the full list as 'results' and length as 'total'.
+      // The MS returns a list, so we map it directly. 
+      // Note: The MS currently returns the full list, pagination might be handled on the client side or added to MS later.
+      // For now, we return the full list as 'results' and length as 'total'.
 
-    const entries = data.map((raw: any) => ({
-      id: raw.user.id, // Using user ID as the entry ID for now, or generate one if needed
-      user: {
-        id: raw.user.id,
-        username: raw.user.username,
-        realName: raw.user.real_name ?? raw.user.realName,
-        studentId: raw.user.student_id ?? raw.user.studentId,
-      },
-      acceptedNumber: raw.accepted_number ?? raw.acceptedNumber,
-      submissionNumber: raw.submission_number ?? raw.submissionNumber, // MS DTO doesn't have submission_number yet, might need to add it or default to 0
-      totalTime: raw.total_time ?? raw.totalTime,
-      totalScore: raw.total_score ?? raw.totalScore,
-      submissionInfo: raw.submission_info ?? raw.submissionInfo,
-    })) as ContestRankEntry[];
+      const entries = data.map((raw: any) => ({
+        id: raw.user.id, // Using user ID as the entry ID for now, or generate one if needed
+        user: {
+          id: raw.user?.id,
+          username: raw.user?.username,
+          realName: raw.user?.real_name ?? raw.user?.realName,
+          studentId: raw.user?.student_id ?? raw.user?.studentId,
+        },
+        acceptedNumber: raw.accepted_number ?? raw.acceptedNumber,
+        submissionNumber: raw.submission_number ?? raw.submissionNumber, // MS DTO doesn't have submission_number yet, might need to add it or default to 0
+        totalTime: raw.total_time ?? raw.totalTime,
+        totalScore: raw.total_score ?? raw.totalScore,
+        submissionInfo: raw.submission_info ?? raw.submissionInfo,
+      })) as ContestRankEntry[];
 
-    return {
-      results: entries,
-      total: entries.length,
-    };
+      return {
+        results: entries,
+        total: entries.length,
+      };
+    } catch (error: any) {
+      console.error('Failed to fetch contest rank:', error);
+      if (error.response?.data) {
+        console.error('Validation Error Detail:', JSON.stringify(error.response.data, null, 2));
+      }
+      throw error;
+    }
   },
 
   getContestSubmissions: async (

@@ -63,13 +63,6 @@ async def get_all_contests_admin(
     return await serv.get_all_contests_admin(offset, limit, keyword, user_data.user_id, user_data.admin_type, db)
 
 
-@router.get("/{contest_id}", response_model=ResContestCreateDTO)
-async def get_contest_detail(
-        contest_id: int,
-        db: AsyncSession = Depends(get_session)):
-    return await serv.get_contest_detail(contest_id, db)
-
-
 @router.post("/add_problem_from_public")
 @authorize_roles("Admin")
 async def add_contest_problem_from_public(
@@ -100,3 +93,10 @@ async def get_contest_rank_all_data(
         userdata: UserData = Depends(get_userdata),
         db: AsyncSession = Depends(get_session)):
     return await serv.get_contest_rank_admin(contest_id, db)
+
+
+@router.get("/{contest_id}", response_model=ResContestCreateDTO)
+async def get_contest_detail(
+        contest_id: int,
+        db: AsyncSession = Depends(get_session)):
+    return await serv.get_contest_detail(contest_id, db)
