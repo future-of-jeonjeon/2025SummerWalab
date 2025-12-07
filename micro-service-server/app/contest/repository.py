@@ -1,4 +1,5 @@
 from sqlalchemy import select, desc, func
+from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 from datetime import datetime
@@ -67,6 +68,15 @@ async def update_contest(contest: Contest, db: AsyncSession) -> Contest:
 
 
 async def create_contest_language(contest_language: ContestLanguage, db: AsyncSession) -> ContestLanguage:
+    db.add(contest_language)
+    await db.flush()
+    await db.refresh(contest_language)
+    return contest_language
+
+
+async def update_contest_language(contest_language: ContestLanguage, languages: List[str], db: AsyncSession) -> ContestLanguage:
+    contest_language.languages = languages
+    flag_modified(contest_language, "languages")
     db.add(contest_language)
     await db.flush()
     await db.refresh(contest_language)

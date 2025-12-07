@@ -170,13 +170,12 @@ export const ContestListPage: React.FC = () => {
 
             <div className="flex items-center gap-3 text-sm">
               <span
-                className={`font-bold ${
-                  statusInfo.status === 'ongoing'
-                    ? 'text-red-500'
-                    : statusInfo.status === 'upcoming'
+                className={`font-bold ${statusInfo.status === 'ongoing'
+                  ? 'text-red-500'
+                  : statusInfo.status === 'upcoming'
                     ? 'text-blue-500'
                     : 'text-gray-500'
-                }`}
+                  }`}
               >
                 {statusInfo.text}
               </span>
@@ -200,7 +199,10 @@ export const ContestListPage: React.FC = () => {
             </div>
 
             <div className="flex gap-2 mt-1">
-              {['C++', 'Java', 'Python'].map((lang) => (
+              {(contest.languages && contest.languages.length > 0
+                ? contest.languages
+                : ['C', 'C++', 'Java', 'Python3']
+              ).map((lang: string) => (
                 <span
                   key={lang}
                   className="px-2.5 py-0.5 rounded bg-gray-100 text-gray-600 text-xs font-medium"

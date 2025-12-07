@@ -29,16 +29,16 @@ async def get_contest_list(
 @authorize_roles("Admin")
 async def create_contest(
         create_contest_dto: ReqCreateContestDTO,
-        user_data: UserData = Depends(get_userdata),
+        userdata: UserData = Depends(get_userdata),
         db: AsyncSession = Depends(get_session)):
-    return await serv.create_contest(create_contest_dto, user_data, db)
+    return await serv.create_contest(create_contest_dto, userdata, db)
 
 
 @router.put("/", response_model=ResContestCreateDTO)
 @authorize_roles("Admin")
 async def update_contest(
         update_contest_dto: ReqUpdateContestDTO,
-        user_data: UserData = Depends(get_userdata),
+        userdata: UserData = Depends(get_userdata),
         db: AsyncSession = Depends(get_session)):
     return await serv.update_contest(update_contest_dto, db)
 
@@ -47,7 +47,7 @@ async def update_contest(
 @authorize_roles("Admin")
 async def delete_contest(
         contest_id: int,
-        user_data: UserData = Depends(get_userdata),
+        userdata: UserData = Depends(get_userdata),
         db: AsyncSession = Depends(get_session)):
     await serv.delete_contest(contest_id, db)
 
@@ -58,25 +58,25 @@ async def get_all_contests_admin(
         offset: int = 0,
         limit: int = 10,
         keyword: Optional[str] = None,
-        user_data: UserData = Depends(get_userdata),
+        userdata: UserData = Depends(get_userdata),
         db: AsyncSession = Depends(get_session)):
-    return await serv.get_all_contests_admin(offset, limit, keyword, user_data.user_id, user_data.admin_type, db)
+    return await serv.get_all_contests_admin(offset, limit, keyword, userdata.user_id, userdata.admin_type, db)
 
 
 @router.post("/add_problem_from_public")
 @authorize_roles("Admin")
 async def add_contest_problem_from_public(
         contest_problem_dto: ReqAddContestProblemDTO,
-        user_data: UserData = Depends(get_userdata),
+        userdata: UserData = Depends(get_userdata),
         db: AsyncSession = Depends(get_session)):
-    return await serv.add_contest_problem(contest_problem_dto, user_data, db)
+    return await serv.add_contest_problem(contest_problem_dto, userdata, db)
 
 
 @router.get("/participated", response_model=List[ContestDTO])
 async def get_participated_contest_by_user(
-        user_date: UserData = Depends(get_userdata),
+        userdata: UserData = Depends(get_userdata),
         db: AsyncSession = Depends(get_session)):
-    return await serv.get_participated_contest_by_user(user_date, db)
+    return await serv.get_participated_contest_by_user(userdata, db)
 
 
 @router.get("/rank", response_model=List[ContestRankDTO])

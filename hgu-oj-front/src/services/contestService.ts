@@ -126,6 +126,7 @@ const mapContest = (raw: any): Contest => ({
     }
     return undefined;
   })(),
+  languages: raw.languages ?? [],
 });
 
 export const contestService = {
@@ -137,7 +138,22 @@ export const contestService = {
     ruleType?: string;
     status?: string;
   }): Promise<PaginatedResponse<Contest>> => {
-    const response = await api.get<{ results: any[], total: number }>('/contests/', params);
+    const queryParams: any = {
+      page: params?.page || 1,
+      limit: params?.limit || 20,
+    };
+    if (params?.keyword) queryParams.keyword = params.keyword;
+    if (params?.ruleType) queryParams.rule_type = params.ruleType;
+    if (params?.status) queryParams.status = params.status;
+
+    if (!MICRO_API_BASE) {
+      // Fallback or error if MS_API_BASE not set? Or use api (Django) as fallback?
+      // Assuming MS_API_BASE is set as we are migrating.
+      // If fallback needed, keep old code. But user wants MS features (languages).
+      throw new Error('MS_API_BASE not defined');
+    }
+
+    const response = await apiClient.get<{ results: any[], total: number }>(`${MICRO_API_BASE}/contest`, { params: queryParams });
     return {
       data: response.data.results.map(mapContest),
       total: response.data.total,

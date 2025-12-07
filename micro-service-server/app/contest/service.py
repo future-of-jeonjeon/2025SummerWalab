@@ -50,12 +50,12 @@ async def update_contest(update_contest_dto: ReqUpdateContestDTO,
         exception.data_not_found("contest")
 
     _check_contest_options(update_contest_dto)
-    await _update_contest_data(contest, update_contest_dto)
+    _update_contest_data(contest, update_contest_dto)
     await contest_repo.update_contest(contest, db)
 
     contest_language = await contest_repo.find_contest_language_by_contest_id(contest.id, db)
     if contest_language:
-        contest_language.languages = update_contest_dto.languages
+        await contest_repo.update_contest_language(contest_language, update_contest_dto.languages, db)
     else:  # 없는 경우 생성 -> 레거시 데이터 보존
         contest_language = ContestLanguage(contest_id=contest.id, languages=update_contest_dto.languages)
         await contest_repo.create_contest_language(contest_language, db)
