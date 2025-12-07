@@ -85,6 +85,7 @@ export interface Contest {
   now?: string;
   problemCount?: number;
   requiresApproval?: boolean;
+  languages?: string[];
 }
 
 export interface ContestAnnouncement {

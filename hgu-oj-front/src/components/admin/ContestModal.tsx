@@ -5,6 +5,7 @@ import { adminService, CreateContestPayload, UpdateContestPayload } from '../../
 import { contestUserService } from '../../services/contestUserService';
 import { Problem } from '../../types';
 import { toLocalDateTimeInput } from '../../lib/date';
+import { getLanguageLabel } from '../../lib/problemLanguage';
 
 type ContestModalProps = {
     isOpen: boolean;
@@ -25,6 +26,7 @@ type ContestFormState = {
     realTimeRank: boolean;
     allowedIpRanges: string;
     requiresApproval: boolean;
+    languages: string[];
 };
 
 const initialContestForm: ContestFormState = {
@@ -38,6 +40,7 @@ const initialContestForm: ContestFormState = {
     realTimeRank: true,
     allowedIpRanges: '',
     requiresApproval: false,
+    languages: [],
 };
 
 type ContestProblemsState = {
@@ -51,6 +54,8 @@ export const ContestModal: React.FC<ContestModalProps> = ({ isOpen, onClose, mod
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{ success?: string; error?: string }>({});
     const [activeTab, setActiveTab] = useState<'basic' | 'problems' | 'announcements'>('basic');
+    const [availableLanguages, setAvailableLanguages] = useState<string[]>([]);
+
 
     // Problem Management State
     const [contestProblems, setContestProblems] = useState<ContestProblemsState>({ items: [], loading: false, error: null });
@@ -80,6 +85,7 @@ export const ContestModal: React.FC<ContestModalProps> = ({ isOpen, onClose, mod
                 realTimeRank: Boolean(detail.real_time_rank),
                 allowedIpRanges: (detail.allowed_ip_ranges || []).join('\n'),
                 requiresApproval: Boolean(detail.requires_approval ?? detail.requiresApproval),
+                languages: detail.languages || [],
             });
 
             // Load problems
@@ -115,6 +121,25 @@ export const ContestModal: React.FC<ContestModalProps> = ({ isOpen, onClose, mod
             setProblemMessage({});
         }
     }, [isOpen, mode, contestId, loadContestDetail]);
+
+    useEffect(() => {
+        const fetchLanguages = async () => {
+            const languages = await adminService.getAvailableLanguages();
+            setAvailableLanguages(languages);
+            // If creating, select all by default? Or none? Usually specific ones.
+            // Let's default to all ONLY if the list is empty (first load) and it's create mode?
+            // Actually, better to let user select (or default empty).
+            // But for CREATE mode, if languages is empty in formState, maybe prefill all?
+            // Existing code resets formState to initial (empty array).
+            // Let's just load available ones.
+            // If we want to default to ALL, we can do it here:
+            // if (mode === 'create') setFormState(prev => ({ ...prev, languages }));
+        };
+        if (isOpen) {
+            fetchLanguages();
+        }
+    }, [isOpen]);
+
 
     const handleSearchProblem = (keyword: string) => {
         setProblemInput(keyword);
@@ -211,6 +236,7 @@ export const ContestModal: React.FC<ContestModalProps> = ({ isOpen, onClose, mod
                     real_time_rank: formState.realTimeRank,
                     allowed_ip_ranges: allowedIpRanges,
                     requires_approval: formState.requiresApproval,
+                    languages: formState.languages,
                 };
                 const created = await adminService.createContest(payload);
 
@@ -243,6 +269,8 @@ export const ContestModal: React.FC<ContestModalProps> = ({ isOpen, onClose, mod
                     real_time_rank: formState.realTimeRank,
                     allowed_ip_ranges: allowedIpRanges,
                     requires_approval: formState.requiresApproval,
+                    languages: formState.languages,
+                    rule_type: formState.ruleType,
                 };
                 await adminService.updateContest(payload);
                 await contestUserService.setPolicy(contestId, formState.requiresApproval);
@@ -334,6 +362,26 @@ export const ContestModal: React.FC<ContestModalProps> = ({ isOpen, onClose, mod
                             <div>
                                 <label className="mb-1 block text-sm font-medium text-gray-700">허용 IP (CIDR)</label>
                                 <textarea className="w-full rounded-md border border-gray-300 px-3 py-2" rows={3} value={formState.allowedIpRanges} onChange={e => setFormState({ ...formState, allowedIpRanges: e.target.value })} placeholder="127.0.0.1/32" />
+                            </div>
+                            <div>
+                                <label className="mb-1 block text-sm font-medium text-gray-700">허용 언어</label>
+                                <div className="grid grid-cols-3 gap-2 rounded-md border border-gray-300 p-3">
+                                    {availableLanguages.map(lang => (
+                                        <label key={lang} className="flex items-center gap-2 text-sm">
+                                            <input
+                                                type="checkbox"
+                                                checked={formState.languages.includes(lang)}
+                                                onChange={e => {
+                                                    const newLanguages = e.target.checked
+                                                        ? [...formState.languages, lang]
+                                                        : formState.languages.filter(l => l !== lang);
+                                                    setFormState({ ...formState, languages: newLanguages });
+                                                }}
+                                            />
+                                            {getLanguageLabel(lang)}
+                                        </label>
+                                    ))}
+                                </div>
                             </div>
                             <div>
                                 <label className="mb-1 block text-sm font-medium text-gray-700">설명</label>

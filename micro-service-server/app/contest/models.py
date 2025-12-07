@@ -44,3 +44,11 @@ class OIContestRank(AbstractContestRank):
     __tablename__ = "oi_contest_rank"
     total_score = Column(Integer, default=0)
     submission_info = Column(JSONB, default=dict)
+
+
+class ContestLanguage(Base):
+    __tablename__ = "micro_contest_language"
+    __table_args__ = {"schema": "public"}
+    id = Column(Integer, primary_key=True, index=True)
+    contest_id = Column(Integer, ForeignKey("public.contest.id"), nullable=False)
+    languages = Column(JSONB, nullable=False)

@@ -126,6 +126,7 @@ const mapContest = (raw: any): Contest => ({
     }
     return undefined;
   })(),
+  languages: raw.languages ?? [],
 });
 
 export const contestService = {
@@ -137,7 +138,22 @@ export const contestService = {
     ruleType?: string;
     status?: string;
   }): Promise<PaginatedResponse<Contest>> => {
-    const response = await api.get<{ results: any[], total: number }>('/contests/', params);
+    const queryParams: any = {
+      page: params?.page || 1,
+      limit: params?.limit || 20,
+    };
+    if (params?.keyword) queryParams.keyword = params.keyword;
+    if (params?.ruleType) queryParams.rule_type = params.ruleType;
+    if (params?.status) queryParams.status = params.status;
+
+    if (!MICRO_API_BASE) {
+      // Fallback or error if MS_API_BASE not set? Or use api (Django) as fallback?
+      // Assuming MS_API_BASE is set as we are migrating.
+      // If fallback needed, keep old code. But user wants MS features (languages).
+      throw new Error('MS_API_BASE not defined');
+    }
+
+    const response = await apiClient.get<{ results: any[], total: number }>(`${MICRO_API_BASE}/contest`, { params: queryParams });
     return {
       data: response.data.results.map(mapContest),
       total: response.data.total,
@@ -315,35 +331,43 @@ export const contestService = {
     }
 
     const endpoint = params?.isAdmin ? '/contest/rank/all' : '/contest/rank';
-    const response = await apiClient.get<ContestRankEntry[]>(`${MICRO_API_BASE}${endpoint}`, {
-      params: { contest_id: contestId },
-    });
+    try {
+      const response = await apiClient.get<ContestRankEntry[]>(`${MICRO_API_BASE}${endpoint}`, {
+        params: { contest_id: contestId },
+      });
 
-    const data = response.data || [];
+      const data = response.data || [];
 
-    // The MS returns a list, so we map it directly. 
-    // Note: The MS currently returns the full list, pagination might be handled on the client side or added to MS later.
-    // For now, we return the full list as 'results' and length as 'total'.
+      // The MS returns a list, so we map it directly. 
+      // Note: The MS currently returns the full list, pagination might be handled on the client side or added to MS later.
+      // For now, we return the full list as 'results' and length as 'total'.
 
-    const entries = data.map((raw: any) => ({
-      id: raw.user.id, // Using user ID as the entry ID for now, or generate one if needed
-      user: {
-        id: raw.user.id,
-        username: raw.user.username,
-        realName: raw.user.real_name ?? raw.user.realName,
-        studentId: raw.user.student_id ?? raw.user.studentId,
-      },
-      acceptedNumber: raw.accepted_number ?? raw.acceptedNumber,
-      submissionNumber: raw.submission_number ?? raw.submissionNumber, // MS DTO doesn't have submission_number yet, might need to add it or default to 0
-      totalTime: raw.total_time ?? raw.totalTime,
-      totalScore: raw.total_score ?? raw.totalScore,
-      submissionInfo: raw.submission_info ?? raw.submissionInfo,
-    })) as ContestRankEntry[];
+      const entries = data.map((raw: any) => ({
+        id: raw.user.id, // Using user ID as the entry ID for now, or generate one if needed
+        user: {
+          id: raw.user?.id,
+          username: raw.user?.username,
+          realName: raw.user?.real_name ?? raw.user?.realName,
+          studentId: raw.user?.student_id ?? raw.user?.studentId,
+        },
+        acceptedNumber: raw.accepted_number ?? raw.acceptedNumber,
+        submissionNumber: raw.submission_number ?? raw.submissionNumber, // MS DTO doesn't have submission_number yet, might need to add it or default to 0
+        totalTime: raw.total_time ?? raw.totalTime,
+        totalScore: raw.total_score ?? raw.totalScore,
+        submissionInfo: raw.submission_info ?? raw.submissionInfo,
+      })) as ContestRankEntry[];
 
-    return {
-      results: entries,
-      total: entries.length,
-    };
+      return {
+        results: entries,
+        total: entries.length,
+      };
+    } catch (error: any) {
+      console.error('Failed to fetch contest rank:', error);
+      if (error.response?.data) {
+        console.error('Validation Error Detail:', JSON.stringify(error.response.data, null, 2));
+      }
+      throw error;
+    }
   },
 
   getContestSubmissions: async (
