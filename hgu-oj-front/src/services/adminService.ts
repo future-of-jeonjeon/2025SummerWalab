@@ -14,6 +14,7 @@ import {
   ContestAnnouncement,
   SystemMetrics,
 } from '../types';
+import { availableLanguages } from '../lib/problemLanguage';
 
 const parseBoolean = (value: unknown): boolean => {
   if (typeof value === 'boolean') {
@@ -118,6 +119,7 @@ export interface CreateContestPayload {
   real_time_rank: boolean;
   allowed_ip_ranges: string[];
   requires_approval?: boolean;
+  languages: string[];
 }
 
 export interface CreateWorkbookPayload {
@@ -175,6 +177,8 @@ export interface UpdateContestPayload {
   real_time_rank: boolean;
   allowed_ip_ranges: string[];
   requires_approval?: boolean;
+  languages: string[];
+  rule_type: 'ACM' | 'OI';
 }
 
 interface ContestProblemListPayload {
@@ -200,6 +204,8 @@ const buildOrganizationUrl = (path = '') => `${ORGANIZATION_API_BASE}${path}`;
 
 const MICRO_SERVICE_HEALTH_URL = buildWorkbookUrl('/');
 
+const getMsBaseUrl = () => MS_API_BASE.endsWith('/') ? MS_API_BASE.slice(0, -1) : MS_API_BASE;
+
 const unwrap = <T>(response: ApiResponse<T>): T => {
   if (!response.success) {
     const message = response.message || '요청이 실패했습니다.';
@@ -208,7 +214,15 @@ const unwrap = <T>(response: ApiResponse<T>): T => {
   return response.data;
 };
 
+
+
 export const adminService = {
+  getAvailableLanguages: async (): Promise<string[]> => {
+    // MS Server does not have a languages endpoint, and calling /contest/languages triggers 422.
+    // Falling back to existing static list as per instructions.
+    return availableLanguages;
+  },
+
   uploadProblemTestCases: async (file: File, spj: boolean): Promise<TestCaseUploadResponse> => {
     const formData = new FormData();
     formData.append('file', file);
@@ -235,9 +249,51 @@ export const adminService = {
     return unwrap(response);
   },
 
-  createContest: async (payload: CreateContestPayload) => {
-    const response = await api.post<any>('/admin/contest/', payload);
-    return unwrap(response);
+  createContest: async (payload: CreateContestPayload): Promise<AdminContest> => {
+    const baseUrl = getMsBaseUrl();
+    const response = await apiClient.post<AdminContest>(`${baseUrl}/contest`, payload);
+    return mapAdminContest(response.data);
+  },
+
+  // ...
+
+  getContests: async ({ page = 1, limit = 20, keyword }: ContestListParams = {}): Promise<AdminContestListResponse> => {
+    const params = {
+      offset: (page - 1) * limit,
+      limit,
+      ...(keyword && keyword.trim().length > 0 ? { keyword: keyword.trim() } : {}),
+    };
+
+    const baseUrl = getMsBaseUrl();
+    const response = await apiClient.get<{ results: any[]; total: number }>(`${baseUrl}/contest/all`, { params });
+
+    const data = response.data;
+    const results = Array.isArray(data.results) ? data.results.map(mapAdminContest) : [];
+
+    return {
+      results,
+      total: Number(data.total ?? results.length),
+      offset: params.offset,
+      limit: params.limit,
+    };
+  },
+
+  getContestDetail: async (contestId: number): Promise<AdminContest> => {
+    const baseUrl = getMsBaseUrl();
+    const response = await apiClient.get<AdminContest>(`${baseUrl}/contest/${contestId}`);
+    return mapAdminContest(response.data);
+  },
+
+  updateContest: async (payload: UpdateContestPayload): Promise<AdminContest> => {
+    const baseUrl = getMsBaseUrl();
+    const response = await apiClient.put<AdminContest>(`${baseUrl}/contest/`, payload);
+    return mapAdminContest(response.data);
+  },
+
+  // ...
+  deleteContest: async (id: number): Promise<void> => {
+    const baseUrl = getMsBaseUrl();
+    await apiClient.delete(`${baseUrl}/contest/${id}`);
   },
 
   createContestAnnouncement: async (payload: { contestId: number; title: string; content: string; visible: boolean }) => {
@@ -343,35 +399,7 @@ export const adminService = {
     return response.data;
   },
 
-  getContests: async ({ page = 1, limit = 20, keyword }: ContestListParams = {}): Promise<AdminContestListResponse> => {
-    const params = {
-      paging: true,
-      offset: (page - 1) * limit,
-      limit,
-      ...(keyword && keyword.trim().length > 0 ? { keyword: keyword.trim() } : {}),
-    };
-    const response = await api.get<{ results?: any[]; total?: number; offset?: number; limit?: number }>('/admin/contest', params);
-    const data = unwrap(response);
-    const results = Array.isArray(data?.results) ? data.results.map(mapAdminContest) : [];
-    return {
-      results,
-      total: Number(data?.total ?? results.length),
-      offset: Number(data?.offset ?? (page - 1) * limit),
-      limit: Number(data?.limit ?? limit),
-    };
-  },
 
-  getContestDetail: async (contestId: number): Promise<AdminContest> => {
-    const response = await api.get<any>('/admin/contest', { id: contestId });
-    const data = unwrap(response);
-    return mapAdminContest(data);
-  },
-
-  updateContest: async (payload: UpdateContestPayload): Promise<AdminContest> => {
-    const response = await api.put<any>('/admin/contest', payload);
-    const data = unwrap(response);
-    return mapAdminContest(data);
-  },
 
   getAdminProblemList: async ({ keyword, limit = 20, offset = 0 }: AdminProblemListParams = {}): Promise<{
     results: Problem[];
@@ -433,19 +461,7 @@ export const adminService = {
     }
   },
 
-  deleteContest: async (id: number): Promise<void> => {
-    const response = await apiClient.delete('/admin/contest', {
-      params: { id },
-    });
-    const body = response.data;
-    const hasWrapper = body && typeof body === 'object' && Object.prototype.hasOwnProperty.call(body, 'error');
-    const success = hasWrapper ? body.error === null : true;
 
-    if (!success) {
-      const detail = body?.data ?? '대회를 삭제하지 못했습니다.';
-      throw new Error(typeof detail === 'string' ? detail : '대회를 삭제하지 못했습니다.');
-    }
-  },
 
   getContestProblems: async (contestId: number): Promise<Problem[]> => {
     const response = await api.get<any>('/admin/contest/problem', {
@@ -769,6 +785,7 @@ const mapAdminContest = (raw: any): AdminContest => {
     status: raw?.status,
     createdBy,
     now: raw?.now,
+    languages: Array.isArray(raw?.languages) ? raw.languages : [],
   } as AdminContest;
 };
 

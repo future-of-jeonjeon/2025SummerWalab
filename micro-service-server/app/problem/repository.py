@@ -1,6 +1,6 @@
 from typing import List, Optional, Sequence, Tuple
 
-from sqlalchemy import Select, func, select
+from sqlalchemy import Select, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import ColumnElement
@@ -123,3 +123,27 @@ async def count_problem(session: AsyncSession) -> int:
     stmt = (select(func.count()).select_from(Problem).where(visibility_filter))
     result = await session.execute(stmt)
     return result.scalar() or 0
+
+
+async def find_problem_by_id(problem_id: int, session: AsyncSession) -> Optional[Problem]:
+    return await session.get(Problem, problem_id)
+
+
+async def create_problem(problem: Problem, session: AsyncSession) -> Problem:
+    session.add(problem)
+    await session.flush()
+    await session.refresh(problem)
+    return problem
+
+
+async def find_problem_with_tags_by_id(problem_id: int, session: AsyncSession) -> Optional[Problem]:
+    stmt = select(Problem).options(selectinload(Problem.tags)).where(Problem.id == problem_id)
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+async def update_problem_languages_by_contest_id(session: AsyncSession, contest_id: int, languages: List[str]):
+    stmt = (
+        update(Problem)
+        .where(Problem.contest_id == contest_id)
+        .values(languages=languages)
+    )
+    await session.execute(stmt)

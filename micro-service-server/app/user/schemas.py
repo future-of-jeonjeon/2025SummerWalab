@@ -7,6 +7,7 @@ class UserData(BaseModel):
     admin_type: str
 
 
+
 class SubUserData(BaseModel):
     user_id: int
     student_id: str

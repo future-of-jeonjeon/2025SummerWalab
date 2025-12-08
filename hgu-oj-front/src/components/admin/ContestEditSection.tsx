@@ -18,6 +18,8 @@ type ContestEditFormState = {
   realTimeRank: boolean;
   allowedIpRanges: string;
   requiresApproval: boolean;
+  ruleType: 'ACM' | 'OI';
+  languages: string[];
 };
 
 type ContestProblemsState = {
@@ -38,6 +40,8 @@ const mapContestToForm = (contest: AdminContest): ContestEditFormState => ({
   realTimeRank: Boolean(contest.real_time_rank),
   allowedIpRanges: (contest.allowed_ip_ranges || []).join('\n'),
   requiresApproval: Boolean(contest.requires_approval ?? contest.requiresApproval),
+  ruleType: (contest.ruleType as 'ACM' | 'OI') ?? 'ACM',
+  languages: contest.languages ?? [],
 });
 
 const toIsoString = (value: string): string | null => {
@@ -296,6 +300,8 @@ export const ContestEditSection: React.FC = () => {
       real_time_rank: contestEditForm.realTimeRank,
       allowed_ip_ranges: allowedIpRanges,
       requires_approval: contestEditForm.requiresApproval,
+      rule_type: contestEditForm.ruleType,
+      languages: contestEditForm.languages ?? [],
     };
 
     setContestEditLoading(true);
