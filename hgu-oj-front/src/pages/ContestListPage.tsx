@@ -1,29 +1,18 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useContests } from '../hooks/useContests';
 
 export const ContestListPage: React.FC = () => {
   const navigate = useNavigate();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState('');
+  const searchQuery = '';
 
   const { data, isLoading, error } = useContests({
     keyword: searchQuery,
-    status: statusFilter,
     limit: 20,
   });
 
   const handleContestClick = (contestId: number) => {
     navigate(`/contests/${contestId}`);
-  };
-
-  const handleSearchChange = (query: string) => {
-    setSearchQuery(query);
-  };
-
-  const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setSearchQuery((prev) => prev.trim());
   };
 
   const getContestStatus = (contest: any) => {

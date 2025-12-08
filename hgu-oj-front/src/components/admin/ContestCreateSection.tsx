@@ -18,6 +18,7 @@ type ContestFormState = {
   realTimeRank: boolean;
   allowedIpRanges: string;
   requiresApproval: boolean;
+  languages: string[];
 };
 
 type ContestAnnouncementDraft = {
@@ -37,6 +38,7 @@ const initialContestForm: ContestFormState = {
   realTimeRank: true,
   allowedIpRanges: '',
   requiresApproval: false,
+  languages: [],
 };
 
 export const ContestCreateSection: React.FC = () => {
@@ -276,6 +278,7 @@ export const ContestCreateSection: React.FC = () => {
       real_time_rank: contestForm.realTimeRank,
       allowed_ip_ranges: allowedIpRanges,
       requires_approval: contestForm.requiresApproval,
+      languages: contestForm.languages ?? [],
     };
 
     try {
