@@ -52,10 +52,23 @@ async def build_rank_rows(contest: Contest, db: AsyncSession) -> Tuple[list, dic
         # Solve count recomputed from best_scores against full_score
         solved = 0
         user_best = best_scores.get(user.id, {})
+        tie_time_candidates = []
         for pid, meta in user_best.items():
             full_score = problem_score_map.get(pid, {}).get("full_score", 0)
             if full_score and meta["score"] >= full_score:
                 solved += 1
+            # Only consider problems that contributed (>0 score) for tie-breaker
+            if meta["score"] > 0 and meta.get("best_time"):
+                tie_time_candidates.append(meta["best_time"])
+
+        # Tie-breaker: earliest time when any scored problem was achieved (use latest among scored problems to represent completion)
+        tie_time = None
+        if tie_time_candidates:
+            try:
+                tie_time = max(tie_time_candidates)
+            except Exception:
+                tie_time = None
+
         rows.append(
             {
                 "user_id": user.id,
@@ -65,14 +78,17 @@ async def build_rank_rows(contest: Contest, db: AsyncSession) -> Tuple[list, dic
                 "total_score": total_score,
                 "total_time": total_time,
                 "accepted_number": solved,
+                "tie_time": tie_time,
             }
         )
 
-    # Sort: total_score desc, then earliest total_time asc (None -> infinity)
+    # Sort: total_score desc, then earliest tie_time (based only on scored problems) asc, fallback to total_time asc, then user_id
     rows.sort(
         key=lambda x: (
             -x["total_score"],
+            (x["tie_time"].timestamp() if isinstance(x.get("tie_time"), datetime) else float("inf")),
             float("inf") if x["total_time"] is None else float(x["total_time"]),
+            x["user_id"],
         )
     )
 
