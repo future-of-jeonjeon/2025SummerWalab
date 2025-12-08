@@ -51,6 +51,7 @@ const formatDateTime = (value?: string | null) => {
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit',
+    hour12: false,
   });
 };
 
@@ -65,7 +66,7 @@ const HighlightPanel = <Item,>({
 }: HighlightPanelProps<Item>) => {
   if (loading && items.length === 0) {
     return (
-      <Card className="h-full rounded-3xl border-0 bg-white/90 shadow-lg dark:bg-slate-900/80" padding="lg" shadow="lg">
+      <Card className="h-full rounded-3xl border-0 bg-white/90 shadow-lg dark:bg-slate-900/80" padding="md" shadow="lg">
         <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{title}</h3>
         <div className="mt-4 space-y-3">
           {Array.from({ length: 3 }).map((_, index) => (
@@ -80,7 +81,7 @@ const HighlightPanel = <Item,>({
   }
 
   return (
-    <Card className="h-full rounded-3xl border-0 bg-white/90 shadow-lg dark:bg-slate-900/80" padding="lg" shadow="lg">
+    <Card className="h-full rounded-3xl border-0 bg-white/90 shadow-lg dark:bg-slate-900/80" padding="md" shadow="lg">
       <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{title}</h3>
       {items.length === 0 ? (
         <div className="mt-6 text-sm text-slate-500 dark:text-slate-400">{emptyMessage}</div>
@@ -91,7 +92,7 @@ const HighlightPanel = <Item,>({
               key={index}
               type="button"
               onClick={() => onItemClick(item)}
-              className="flex w-full flex-col items-start gap-1 px-2 py-3 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
+              className="flex w-full flex-col items-start gap-1 px-2 py-2 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
             >
               <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
                 {renderPrimary(item)}
@@ -196,31 +197,69 @@ export const HomePage: React.FC = () => {
     }));
   }, [recentSolvedData?.items]);
 
-  const runningContests = useMemo<ContestHighlight[]>(() => {
-    return (runningContestsData?.data ?? []).map((contest) => {
-      const startTime = contest.startTime ?? (contest as any).start_time;
-      const endTime = contest.endTime ?? (contest as any).end_time;
-      return {
-        id: contest.id,
-        title: contest.title,
-        startTime,
-        endTime,
-      };
+  const parseTime = (value: any): number => {
+    if (!value) return NaN;
+    const t = new Date(value).getTime();
+    return Number.isNaN(t) ? NaN : t;
+  };
+
+  const mergedContests = useMemo(() => {
+    const map = new Map<number, Contest>();
+    (runningContestsData?.data ?? []).forEach((c) => map.set(c.id, c));
+    (upcomingContestsData?.data ?? []).forEach((c) => {
+      if (!map.has(c.id)) {
+        map.set(c.id, c);
+      }
     });
-  }, [runningContestsData?.data]);
+    return Array.from(map.values());
+  }, [runningContestsData?.data, upcomingContestsData?.data]);
+
+  const getStatusCode = (contest: any): number | null => {
+    const raw = contest.status ?? (contest as any).contest_status;
+    if (typeof raw === 'number') return raw;
+    if (typeof raw === 'string' && raw.trim().length > 0) {
+      const n = Number(raw);
+      if (!Number.isNaN(n)) return n;
+      const upper = raw.trim().toUpperCase();
+      if (upper === 'RUNNING') return 0;
+      if (upper === 'PENDING' || upper === 'SCHEDULED' || upper === 'NOT_STARTED') return 1;
+      if (upper === 'ENDED' || upper === 'FINISHED') return 2;
+    }
+    return null;
+  };
+
+  const runningContests = useMemo<ContestHighlight[]>(() => {
+    const now = Date.now();
+    return mergedContests
+      .map((contest) => {
+        const startTime = contest.startTime ?? (contest as any).start_time;
+        const endTime = contest.endTime ?? (contest as any).end_time;
+        const start = parseTime(startTime);
+        const end = parseTime(endTime);
+        const statusCode = getStatusCode(contest);
+        const isRunningByStatus = statusCode === 0;
+        const isRunningByTime = Number.isFinite(start) && Number.isFinite(end) && start <= now && now < end;
+        return { id: contest.id, title: contest.title, startTime, endTime, start, end, isRunning: isRunningByStatus || isRunningByTime };
+      })
+      .filter((c) => c.isRunning)
+      .sort((a, b) => a.start - b.start);
+  }, [mergedContests]);
 
   const upcomingContests = useMemo<ContestHighlight[]>(() => {
-    return (upcomingContestsData?.data ?? []).map((contest) => {
-      const startTime = contest.startTime ?? (contest as any).start_time;
-      const endTime = contest.endTime ?? (contest as any).end_time;
-      return {
-        id: contest.id,
-        title: contest.title,
-        startTime,
-        endTime,
-      };
-    });
-  }, [upcomingContestsData?.data]);
+    const now = Date.now();
+    return mergedContests
+      .map((contest) => {
+        const startTime = contest.startTime ?? (contest as any).start_time;
+        const endTime = contest.endTime ?? (contest as any).end_time;
+        const start = parseTime(startTime);
+        const statusCode = getStatusCode(contest);
+        const isUpcomingByStatus = statusCode === 1;
+        const isUpcomingByTime = Number.isFinite(start) && start > now;
+        return { id: contest.id, title: contest.title, startTime, endTime, start, isUpcoming: isUpcomingByStatus || isUpcomingByTime };
+      })
+      .filter((c) => c.isUpcoming)
+      .sort((a, b) => a.start - b.start);
+  }, [mergedContests]);
 
   const {
     data: topUserRankings,
