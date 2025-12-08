@@ -125,7 +125,7 @@ export const ContestOverviewTab: React.FC<ContestOverviewTabProps> = ({
               </div>
               <div className="flex flex-col items-start gap-2 sm:items-end">
                 {showJoinButton ? (
-                  <Button onClick={onJoinClick} loading={joinActionDisabled}>
+                  <Button onClick={onJoinClick} loading={joinActionDisabled} className="whitespace-nowrap px-5 py-2 text-base">
                     대회 참여하기
                   </Button>
                 ) : (

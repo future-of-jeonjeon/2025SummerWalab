@@ -20,6 +20,7 @@ from app.contest_user import routes as contest_user_routes
 import app.monitoring.routes as monitoring_routes
 from app.submission import routes as submission_routes
 from app.contest import routes as contest_routes
+import app.export_result.routes as export_result_routes
 import app.user.routes as user_routes
 
 
@@ -58,6 +59,7 @@ app.include_router(contest_user_routes.router)
 app.include_router(contest_routes.router)
 app.include_router(monitoring_routes.router)
 app.include_router(submission_routes.router)
+app.include_router(export_result_routes.router)
 app.include_router(user_routes.router)
 
 
