@@ -5,7 +5,7 @@ import { adminService, CreateContestPayload, UpdateContestPayload } from '../../
 import { contestUserService } from '../../services/contestUserService';
 import { Problem } from '../../types';
 import { toLocalDateTimeInput } from '../../lib/date';
-import { getLanguageLabel } from '../../lib/problemLanguage';
+import { getLanguageLabel, toBackendLanguageList, normalizeLanguageList } from '../../lib/problemLanguage';
 
 type ContestModalProps = {
     isOpen: boolean;
@@ -85,7 +85,7 @@ export const ContestModal: React.FC<ContestModalProps> = ({ isOpen, onClose, mod
                 realTimeRank: Boolean(detail.real_time_rank),
                 allowedIpRanges: (detail.allowed_ip_ranges || []).join('\n'),
                 requiresApproval: Boolean(detail.requires_approval ?? detail.requiresApproval),
-                languages: detail.languages || [],
+                languages: normalizeLanguageList(detail.languages || []),
             });
 
             // Load problems
@@ -236,7 +236,7 @@ export const ContestModal: React.FC<ContestModalProps> = ({ isOpen, onClose, mod
                     real_time_rank: formState.realTimeRank,
                     allowed_ip_ranges: allowedIpRanges,
                     requires_approval: formState.requiresApproval,
-                    languages: formState.languages,
+                    languages: toBackendLanguageList(formState.languages),
                 };
                 const created = await adminService.createContest(payload);
 
@@ -269,7 +269,7 @@ export const ContestModal: React.FC<ContestModalProps> = ({ isOpen, onClose, mod
                     real_time_rank: formState.realTimeRank,
                     allowed_ip_ranges: allowedIpRanges,
                     requires_approval: formState.requiresApproval,
-                    languages: formState.languages,
+                    languages: toBackendLanguageList(formState.languages),
                     rule_type: formState.ruleType,
                 };
                 await adminService.updateContest(payload);
