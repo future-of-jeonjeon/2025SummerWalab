@@ -40,6 +40,7 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
     open: false,
     loading: false,
   });
+  const [exporting, setExporting] = useState(false);
   const [caseStats, setCaseStats] = useState<Record<string, { passed: number; total: number }>>({});
   const [hoveredRow, setHoveredRow] = useState<number | null>(null);
 
@@ -251,6 +252,35 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
     }
   };
 
+  const handleExport = async () => {
+    setExporting(true);
+    try {
+      const baseUrl = (import.meta.env.VITE_MS_API_BASE as string | undefined) || 'http://localhost:9000/api';
+      const trimmed = baseUrl.endsWith('/') ? baseUrl.slice(0, -1) : baseUrl;
+      const url = `${trimmed}/export/contest/${contestId}/result`;
+      const response = await fetch(url, {
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error('엑셀을 다운로드하지 못했습니다.');
+      }
+      const blob = await response.blob();
+      const link = document.createElement('a');
+      const fileUrl = window.URL.createObjectURL(blob);
+      link.href = fileUrl;
+      link.download = `contest_${contestId}_result.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.URL.revokeObjectURL(fileUrl);
+    } catch (error) {
+      console.error(error);
+      alert(error instanceof Error ? error.message : '엑셀 다운로드에 실패했습니다.');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const handleOpenCaseModal = async (submissionId: number | string | undefined) => {
     if (!submissionId) return;
     setCaseModal({ open: true, loading: true, submissionId });
@@ -404,6 +434,17 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
           </div>
         )}
 
+        <div className="flex items-center justify-end">
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={exporting}
+            className="px-4 py-2 rounded-md border border-indigo-200 bg-indigo-50 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60"
+          >
+            {exporting ? '내보내는 중...' : '대회 결과 다운로드 (xlsx)'}
+          </button>
+        </div>
+
         {codeModal.open && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setCodeModal({ open: false, loading: false })}>
             <div
@@ -527,107 +568,123 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
     padding: '0 6px',
   };
 
+  const exportButton = (
+    <div className="flex items-center justify-end mb-3">
+      <button
+        type="button"
+        onClick={handleExport}
+        disabled={exporting}
+        className="px-4 py-2 rounded-md border border-indigo-200 bg-indigo-50 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60"
+      >
+        {exporting ? '내보내는 중...' : '대회 결과 다운로드 (xlsx)'}
+      </button>
+    </div>
+  );
+
   return (
-    <div
-      className="bg-white rounded-lg shadow-sm border border-gray-200 mx-auto"
-      style={{ width: `${TABLE_OUTER_MAX}px` }}
-    >
-      <div className="w-full overflow-x-auto">
-        <div
-          className="inline-block bg-white"
-          style={{
-            minWidth: `${minTableWidthPx}px`,
-            width: `${minTableWidthPx}px`,
-          }}
-        >
-          <div className="border-b border-gray-200 bg-gray-50 px-1 py-4">
-            <div className="grid items-center gap-x-2" style={{ gridTemplateColumns }}>
-              <div className="text-center text-sm font-medium text-gray-500 uppercase tracking-wider" style={stickyHeaderStyles[0]}>
-                순위
+    <div className="space-y-2">
+      {exportButton}
+      <div
+        className="bg-white rounded-lg shadow-sm border border-gray-200 mx-auto"
+        style={{ width: `${TABLE_OUTER_MAX}px` }}
+      >
+        <div className="w-full overflow-x-auto">
+          <div
+            className="inline-block bg-white"
+            style={{
+              minWidth: `${minTableWidthPx}px`,
+              width: `${minTableWidthPx}px`,
+            }}
+          >
+            <div className="border-b border-gray-200 bg-gray-50 px-1 py-4">
+              <div className="grid items-center gap-x-2" style={{ gridTemplateColumns }}>
+                <div className="text-center text-sm font-medium text-gray-500 uppercase tracking-wider" style={stickyHeaderStyles[0]}>
+                  순위
+                </div>
+                <div className="text-center text-sm font-medium text-gray-500 uppercase tracking-wider" style={stickyHeaderStyles[1]}>
+                  유저
+                </div>
+                <div className="text-center text-sm font-medium text-gray-500 uppercase tracking-wider">해결</div>
+                <div className="text-center text-sm font-medium text-gray-500 uppercase tracking-wider">점수</div>
+                {problemList.map((_, idx) => (
+                  <div key={`problem-header-${idx}`} className="text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                    {idx + 1}
+                  </div>
+                ))}
               </div>
-              <div className="text-center text-sm font-medium text-gray-500 uppercase tracking-wider" style={stickyHeaderStyles[1]}>
-                유저
-              </div>
-              <div className="text-center text-sm font-medium text-gray-500 uppercase tracking-wider">해결</div>
-              <div className="text-center text-sm font-medium text-gray-500 uppercase tracking-wider">점수</div>
-              {problemList.map((_, idx) => (
-                <div key={`problem-header-${idx}`} className="text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
-                  {idx + 1}
+            </div>
+            <div className="divide-y divide-gray-200">
+              {scoreboardEntries.map((entry, index) => (
+                <div
+                  key={entry.id ?? index}
+                  className="px-1 py-4 transition-colors"
+                  onMouseEnter={() => setHoveredRow(index)}
+                  onMouseLeave={() => setHoveredRow(null)}
+                  style={{ backgroundColor: hoveredRow === index ? '#f8fafc' : '#ffffff' }}
+                >
+                  <div className="grid items-center gap-x-2" style={{ gridTemplateColumns }}>
+                    <div
+                      className="text-center font-semibold text-gray-800"
+                      style={{
+                        ...stickyBodyBase,
+                        left: 0,
+                        backgroundColor: hoveredRow === index ? '#f8fafc' : '#ffffff',
+                      }}
+                    >
+                      {index + 1}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleUserClick(entry.user.id, entry.user.username)}
+                      style={{
+                        ...stickyBodyBase,
+                        left: rankWidth,
+                        backgroundColor: hoveredRow === index ? '#f8fafc' : '#ffffff',
+                      }}
+                      className="text-center w-full focus:outline-none"
+                    >
+                      <div className="text-sm font-medium text-gray-900 hover:underline">
+                        {entry.user.realName || entry.user.username}
+                      </div>
+                      {entry.user.studentId && (
+                        <div className="text-xs text-gray-500">{entry.user.studentId}</div>
+                      )}
+                    </button>
+                    <div className="text-center text-sm text-gray-700">
+                      {(entry.acceptedNumber ?? 0)}/{problemList.length}
+                    </div>
+                    <div className="text-center text-sm text-gray-700">{entry.totalScore ?? 0}</div>
+                    {problemList.map((problem, pIdx) => {
+                      const info = entry.problemStatuses ? entry.problemStatuses[pIdx] : null;
+                      const status = info?.status ?? 'unknown';
+                      const bg =
+                        status === 'ac'
+                          ? 'bg-green-100 text-green-700'
+                          : status === 'tried'
+                            ? 'bg-amber-50 text-amber-700'
+                            : 'bg-gray-100 text-gray-400';
+                      const labelScore = info?.score;
+                      const label = labelScore != null ? `${labelScore}` : status === 'ac' ? 'AC' : status === 'tried' ? 'T' : '-';
+                      const handleClick = () => {
+                        if (entry.user?.id) {
+                          handleCellClick(entry.user.id, entry.user.username, problem);
+                        }
+                      };
+                      return (
+                        <button
+                          key={problem.id}
+                          type="button"
+                          onClick={handleClick}
+                          className={`w-full h-full px-2 py-2 text-xs font-semibold rounded ${bg} transition-colors hover:opacity-90`}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
               ))}
             </div>
-          </div>
-          <div className="divide-y divide-gray-200">
-            {scoreboardEntries.map((entry, index) => (
-              <div
-                key={entry.id ?? index}
-                className="px-1 py-4 transition-colors"
-                onMouseEnter={() => setHoveredRow(index)}
-                onMouseLeave={() => setHoveredRow(null)}
-                style={{ backgroundColor: hoveredRow === index ? '#f8fafc' : '#ffffff' }}
-              >
-                <div className="grid items-center gap-x-2" style={{ gridTemplateColumns }}>
-                  <div
-                    className="text-center font-semibold text-gray-800"
-                    style={{
-                      ...stickyBodyBase,
-                      left: 0,
-                      backgroundColor: hoveredRow === index ? '#f8fafc' : '#ffffff',
-                    }}
-                  >
-                    {index + 1}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleUserClick(entry.user.id, entry.user.username)}
-                    style={{
-                      ...stickyBodyBase,
-                      left: rankWidth,
-                      backgroundColor: hoveredRow === index ? '#f8fafc' : '#ffffff',
-                    }}
-                    className="w-full focus:outline-none flex flex-col items-center justify-center text-center"
-                  >
-                    <div className="text-sm font-medium text-gray-900 hover:underline leading-tight">
-                      {entry.user.realName || entry.user.username}
-                    </div>
-                    {entry.user.studentId && (
-                      <div className="text-xs text-gray-500 leading-tight mt-0.5">{entry.user.studentId}</div>
-                    )}
-                  </button>
-                  <div className="text-center text-sm text-gray-700">
-                    {(entry.acceptedNumber ?? 0)}/{problemList.length}
-                  </div>
-                  <div className="text-center text-sm text-gray-700">{entry.totalScore ?? 0}</div>
-                  {problemList.map((problem, pIdx) => {
-                    const info = entry.problemStatuses ? entry.problemStatuses[pIdx] : null;
-                    const status = info?.status ?? 'unknown';
-                    const bg =
-                      status === 'ac'
-                        ? 'bg-green-100 text-green-700'
-                        : status === 'tried'
-                          ? 'bg-amber-50 text-amber-700'
-                          : 'bg-gray-100 text-gray-400';
-                    const labelScore = info?.score;
-                    const label = labelScore != null ? `${labelScore}` : status === 'ac' ? 'AC' : status === 'tried' ? 'T' : '-';
-                    const handleClick = () => {
-                      if (entry.user?.id) {
-                        handleCellClick(entry.user.id, entry.user.username, problem);
-                      }
-                    };
-                    return (
-                      <button
-                        key={problem.id}
-                        type="button"
-                        onClick={handleClick}
-                        className={`w-full h-full px-2 py-2 text-xs font-semibold rounded ${bg} transition-colors hover:opacity-90`}
-                      >
-                        {label}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            ))}
           </div>
         </div>
       </div>

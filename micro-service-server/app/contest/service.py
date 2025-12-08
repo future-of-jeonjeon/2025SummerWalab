@@ -173,21 +173,27 @@ async def _get_contest_ranks(contest_id: int, anonymize_username: bool, db: Asyn
 
     scores_list = await submission_repo.fetch_contest_user_scores(db, contest_id)
     score_map = {item["user_id"]: item["total_score"] for item in scores_list}
-    result: list[ContestRankDTO] = []
+    sortable: list[tuple[int, float, ContestRankDTO]] = []
 
     for rank, user, userdata in raw_ranks:
         user_dto = _build_user_dto(user, anonymize_username)
         total_score = score_map.get(user.id, 0)
+        total_time = getattr(rank, "total_time", None)
+
         dto = ContestRankDTO(
             user=user_dto,
             submission_info=rank.submission_info,
             total_score=total_score,
             accepted_number=getattr(rank, "accepted_number", 0),
-            total_time=getattr(rank, "total_time", 0),
+            total_time=total_time or 0,
         )
-        result.append(dto)
+        # Sort by total score desc, then earliest time asc (None treated as infinity)
+        sort_time = float("inf") if total_time is None else float(total_time)
+        sortable.append((total_score, sort_time, dto))
 
-    return result
+    sortable.sort(key=lambda item: (-item[0], item[1]))
+
+    return [item[2] for item in sortable]
 
 
 def _build_user_dto(user, anonymize_username: bool) -> ContestRankUserDTO:
