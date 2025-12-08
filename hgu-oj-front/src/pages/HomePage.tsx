@@ -204,11 +204,11 @@ export const HomePage: React.FC = () => {
   };
 
   const mergedContests = useMemo(() => {
-    const map = new Map<number, Contest>();
-    (runningContestsData?.data ?? []).forEach((c) => map.set(c.id, c));
+    const map = new Map<number, ContestHighlight & { status?: string }>();
+    (runningContestsData?.data ?? []).forEach((c) => map.set(c.id, c as any));
     (upcomingContestsData?.data ?? []).forEach((c) => {
       if (!map.has(c.id)) {
-        map.set(c.id, c);
+        map.set(c.id, c as any);
       }
     });
     return Array.from(map.values());
