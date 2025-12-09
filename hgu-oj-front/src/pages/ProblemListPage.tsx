@@ -218,7 +218,8 @@ export const ProblemListPage: React.FC = () => {
       if (normalizedTags.length === 0) {
         return false;
       }
-      return requiredTags.every((tag) => normalizedTags.includes(tag));
+      // OR 조건: 선택된 태그 중 하나라도 포함되면 통과
+      return requiredTags.some((tag) => normalizedTags.includes(tag));
     };
 
     const hydratedItems = items.map((problem) => {
@@ -269,6 +270,20 @@ export const ProblemListPage: React.FC = () => {
       return accepted / submissions;
     };
 
+    const namePriority = (value: string) => {
+      if (/^[0-9]/.test(value)) return 0;
+      if (/^[A-Za-z]/.test(value)) return 1;
+      if (/^[가-힣]/.test(value)) return 2;
+      return 3;
+    };
+
+    const compareText = (aText: string, bText: string) => {
+      const prA = namePriority(aText);
+      const prB = namePriority(bText);
+      if (prA !== prB) return prA - prB;
+      return aText.localeCompare(bText, 'ko', { numeric: true, sensitivity: 'base' });
+    };
+
     const sorted = [...filterResult].sort((a, b) => {
       let result = 0;
       if (sortField === 'submission') {
@@ -287,16 +302,16 @@ export const ProblemListPage: React.FC = () => {
         } else {
           const idA = extractIdentifier(a);
           const idB = extractIdentifier(b);
-          result = idA.localeCompare(idB, undefined, { numeric: true, sensitivity: 'base' });
+          result = compareText(idA, idB);
         }
       } else {
         const titleA = (a.title ?? '').trim();
         const titleB = (b.title ?? '').trim();
-        result = titleA.localeCompare(titleB, undefined, { sensitivity: 'base' });
+        result = compareText(titleA, titleB);
         if (result === 0) {
           const idA = extractIdentifier(a);
           const idB = extractIdentifier(b);
-          result = idA.localeCompare(idB, undefined, { numeric: true, sensitivity: 'base' });
+          result = compareText(idA, idB);
         }
       }
       return sortOrder === 'desc' ? -result : result;
