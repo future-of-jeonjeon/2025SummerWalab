@@ -127,6 +127,7 @@ const mapContest = (raw: any): Contest => ({
     return undefined;
   })(),
   languages: raw.languages ?? [],
+  participants: raw.participants ?? 0,
 });
 
 export const contestService = {

@@ -9,7 +9,7 @@ from app.contest_user.models import ContestUser
 from app.user.models import User, UserData
 from app.problem.models import Problem
 
-
+from sqlalchemy import delete
 async def get_contest_list(db: AsyncSession, limit: int, offset: int, keyword: Optional[str], rule_type: Optional[str], status: Optional[str], created_by_id: Optional[int] = None, visible_only: bool = True):
     # filter conditions
     filters = []
@@ -21,7 +21,7 @@ async def get_contest_list(db: AsyncSession, limit: int, offset: int, keyword: O
         filters.append(Contest.rule_type == rule_type)
     if created_by_id:
         filters.append(Contest.created_by_id == created_by_id)
-    
+
     now = datetime.now()
     if status == "1": # Running
         filters.append(Contest.start_time <= now)
@@ -30,7 +30,7 @@ async def get_contest_list(db: AsyncSession, limit: int, offset: int, keyword: O
         filters.append(Contest.end_time < now)
     elif status == "0": # Not Started
         filters.append(Contest.start_time > now)
-        
+
     # Main query
     stmt = select(Contest, ContestLanguage.languages, User, UserData)\
         .join(User, Contest.created_by_id == User.id)\
@@ -39,15 +39,15 @@ async def get_contest_list(db: AsyncSession, limit: int, offset: int, keyword: O
         .where(*filters)\
         .order_by(desc(Contest.create_time))\
         .offset(offset).limit(limit)
-        
+
     result = await db.execute(stmt)
     contests = result.all()
-    
+
     # Count query
     count_stmt = select(func.count(Contest.id)).where(*filters)
     count_result = await db.execute(count_stmt)
     total = count_result.scalar() or 0
-    
+
     return contests, total
 
 
@@ -117,6 +117,11 @@ async def get_all_contests_with_languages(db: AsyncSession):
     result = await db.execute(stmt)
     return result.all()
 
+async def count_contest_participants_by_contest_id(contest_id, db: AsyncSession):
+    stmt = select(func.count()).select_from(ContestUser).where(ContestUser.contest_id == contest_id)
+    result = await db.execute(stmt)
+    return result.scalar() or 0
+
 
 async def get_contest_detail_by_id(contest_id: int, db: AsyncSession):
     stmt = select(Contest, ContestLanguage.languages, User, UserData)\
@@ -124,12 +129,12 @@ async def get_contest_detail_by_id(contest_id: int, db: AsyncSession):
         .outerjoin(UserData, User.id == UserData.user_id)\
         .outerjoin(ContestLanguage, Contest.id == ContestLanguage.contest_id)\
         .where(Contest.id == contest_id)
-    
+
     result = await db.execute(stmt)
     return result.first()
 
 
-from sqlalchemy import delete
+
 
 async def delete_contest(contest_id: int, db: AsyncSession) -> None:
     contest = await db.get(Contest, contest_id)
