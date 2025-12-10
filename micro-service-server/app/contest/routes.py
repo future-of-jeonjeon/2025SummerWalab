@@ -25,7 +25,7 @@ async def get_contest_list(
     return await serv.get_contest_list_paginated(page, limit, keyword, rule_type, status, db)
 
 
-@router.post("", response_model=ResContestCreateDTO, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=ContestDataDTO, status_code=status.HTTP_201_CREATED)
 @authorize_roles("Admin")
 async def create_contest(
         create_contest_dto: ReqCreateContestDTO,
@@ -34,7 +34,7 @@ async def create_contest(
     return await serv.create_contest(create_contest_dto, userdata, db)
 
 
-@router.put("/", response_model=ResContestCreateDTO)
+@router.put("/", response_model=ContestDataDTO)
 @authorize_roles("Admin")
 async def update_contest(
         update_contest_dto: ReqUpdateContestDTO,
@@ -95,7 +95,7 @@ async def get_contest_rank_all_data(
     return await serv.get_contest_rank_admin(contest_id, db)
 
 
-@router.get("/{contest_id}", response_model=ResContestCreateDTO)
+@router.get("/{contest_id}", response_model=ContestDataDTO)
 async def get_contest_detail(
         contest_id: int,
         db: AsyncSession = Depends(get_session)):

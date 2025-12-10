@@ -17,7 +17,7 @@ class ContestCreatedByDTO(BaseModel):
     realName: Optional[str] = None
 
 
-class ResContestCreateDTO(BaseModel):
+class ContestDataDTO(BaseModel):
     id: int
     title: str
     description: str
@@ -31,6 +31,7 @@ class ResContestCreateDTO(BaseModel):
     password: Optional[str] = None
     status: str
     createdBy: ContestCreatedByDTO
+    participants: int
     languages: list[str]
 
 
@@ -91,5 +92,5 @@ class ContestRankDTO(BaseModel):
     submission_info: dict 
 
 class PaginatedContestResponse(BaseModel):
-    results: List[ResContestCreateDTO]
+    results: List[ContestDataDTO]
     total: int
