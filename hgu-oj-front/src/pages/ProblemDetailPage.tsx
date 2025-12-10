@@ -738,6 +738,8 @@ export const ProblemDetailPage: React.FC = () => {
   const contentPanelClasses = isDarkTheme
     ? 'bg-slate-900 text-slate-100'
     : 'bg-white text-gray-900';
+  const stickyHeaderBg = isDarkTheme ? 'bg-slate-900/95' : 'bg-white/95';
+  const stickyHeaderBorder = isDarkTheme ? 'border-slate-800' : 'border-slate-200';
 
   const subtleTextClass = isDarkTheme ? 'text-slate-400' : 'text-gray-600';
   const headingTextClass = isDarkTheme ? 'text-slate-100' : 'text-gray-900';
@@ -1407,213 +1409,215 @@ export const ProblemDetailPage: React.FC = () => {
         >
           {/* Scrollable problem content - headerless, edge-to-edge */}
           <div className="flex-1 overflow-auto no-scrollbar">
-            <div className="px-6 py-4 space-y-6">
-              <div className="flex items-start gap-3">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className={`mt-1 ${isDarkTheme ? 'text-slate-200 hover:bg-slate-800' : ''}`}
-                  onClick={handleBackClick}
-                >
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                    <polyline points="15 18 9 12 15 6" />
-                  </svg>
-                </Button>
-                <div className="flex-1 flex flex-col gap-1">
-                  <h1 className={`text-xl font-semibold flex items-center gap-2 ${headingTextClass}`}>
-                    {problem.title}
-                    {isAuthenticated && problem.solved && (
-                      <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded bg-green-100 text-green-700">
-                        {PROBLEM_STATUS_LABELS.solved}
-                      </span>
-                    )}
-                  </h1>
-                  <div className={`flex flex-wrap items-center gap-3 text-xs ${subtleTextClass}`}>
-                    <span>ID {problem.displayId ?? problem.id}</span>
-                    <span>시간 {problem.timeLimit}ms · 메모리 {problem.memoryLimit}MB</span>
+            <div className="px-6">
+              <div className={`sticky top-0 z-20 -mx-6 px-6 pt-4 pb-3 border-b backdrop-blur ${stickyHeaderBg} ${stickyHeaderBorder}`}>
+                <div className="flex items-start gap-3">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className={`mt-1 ${isDarkTheme ? 'text-slate-200 hover:bg-slate-800' : ''}`}
+                    onClick={handleBackClick}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <polyline points="15 18 9 12 15 6" />
+                    </svg>
+                  </Button>
+                  <div className="flex-1 flex flex-col gap-1">
+                    <h1 className={`text-xl font-semibold flex items-center gap-2 ${headingTextClass}`}>
+                      {problem.title}
+                      {isAuthenticated && problem.solved && (
+                        <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded bg-green-100 text-green-700">
+                          {PROBLEM_STATUS_LABELS.solved}
+                        </span>
+                      )}
+                    </h1>
+                    <div className={`flex flex-wrap items-center gap-3 text-xs ${subtleTextClass}`}>
+                      <span>ID {problem.displayId ?? problem.id}</span>
+                      <span>시간 {problem.timeLimit}ms · 메모리 {problem.memoryLimit}MB</span>
+                    </div>
                   </div>
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  {sectionOptions.map((tab) => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => {
+                        if (tab.id === 'submissions') {
+                          if (!isAuthenticated) {
+                            requireAuthentication();
+                          }
+                          setActiveSection('submissions');
+                        } else {
+                          setActiveSection(tab.id);
+                        }
+                      }}
+                      className={`${tabBaseClass} ${activeSection === tab.id ? tabActiveClass : tabInactiveClass}`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
                 </div>
               </div>
 
-              <div className="flex items-center gap-2">
-                {sectionOptions.map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => {
-                      if (tab.id === 'submissions') {
-                        if (!isAuthenticated) {
-                          requireAuthentication();
-                        }
-                        setActiveSection('submissions');
-                      } else {
-                        setActiveSection(tab.id);
-                      }
-                    }}
-                    className={`${tabBaseClass} ${activeSection === tab.id ? tabActiveClass : tabInactiveClass}`}
-                  >
-                    {tab.label}
-                  </button>
-                ))}
+              <div className="py-6 space-y-6">
+                {activeSection === 'description' ? (
+                  <>
+                    <div className="mb-6">
+                      <CollapsibleSection title="문제 설명" headingClassName={headingTextClass}>
+                        <div className={`${proseClass} max-w-4xl leading-relaxed`}>
+                          <div dangerouslySetInnerHTML={{ __html: problem.description }} />
+                        </div>
+                      </CollapsibleSection>
+                    </div>
+
+                    {problem.inputDescription && (
+                      <CollapsibleSection title="입력" headingClassName={headingTextClass}>
+                        <div className={`${proseClass} max-w-4xl leading-relaxed prose-h3:text-base prose-h3:font-medium prose-h3:mt-4 prose-h3:mb-2`}>
+                          <div dangerouslySetInnerHTML={{ __html: problem.inputDescription }} />
+                        </div>
+                      </CollapsibleSection>
+                    )}
+
+                    {problem.outputDescription && (
+                      <CollapsibleSection title="출력" headingClassName={headingTextClass}>
+                        <div className={`${proseClass} max-w-4xl leading-relaxed prose-h3:text-base prose-h3:font-medium prose-h3:mt-4 prose-h3:mb-2`}>
+                          <div dangerouslySetInnerHTML={{ __html: problem.outputDescription }} />
+                        </div>
+                      </CollapsibleSection>
+                    )}
+
+                    {problem.samples && problem.samples.length > 0 && (
+                      <CollapsibleSection title="입출력 예제" headingClassName={headingTextClass}>
+                        <div className="grid gap-6">
+                          {problem.samples.map((sample, index) => (
+                            <div key={index} className="grid gap-4 lg:grid-cols-2">
+                              <div className="min-w-0">
+                                <div className="mb-2 flex items-center justify-between">
+                                  <span className={`text-sm font-semibold ${subtleTextClass}`}>입력 {index + 1}</span>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => copyToClipboard(sample.input, `input-${index}`)}
+                                      disabled={!!copiedKey}
+                                      className={sampleCopyButtonClass}
+                                    >
+                                      {copiedKey === `input-${index}` ? (
+                                        <span className="text-green-600 font-medium">복사됨</span>
+                                      ) : (
+                                        '복사'
+                                      )}
+                                    </Button>
+                                  </div>
+                                </div>
+                                <pre className={`${samplePreClasses} p-3 rounded text-sm font-mono whitespace-pre-wrap`}>
+                                  {sample.input}
+                                </pre>
+                              </div>
+                              <div className="min-w-0">
+                                <div className="mb-2 flex items-center justify-between">
+                                  <span className={`text-sm font-semibold ${subtleTextClass}`}>출력 {index + 1}</span>
+                                  <div className="flex items-center gap-2">
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => copyToClipboard(sample.output, `output-${index}`)}
+                                      disabled={!!copiedKey}
+                                      className={sampleCopyButtonClass}
+                                    >
+                                      {copiedKey === `output-${index}` ? (
+                                        <span className="text-green-600 font-medium">복사됨</span>
+                                      ) : (
+                                        '복사'
+                                      )}
+                                    </Button>
+                                  </div>
+                                </div>
+                                <pre className={`${samplePreClasses} p-3 rounded text-sm font-mono whitespace-pre-wrap`}>
+                                  {sample.output}
+                                </pre>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </CollapsibleSection>
+                    )}
+
+                    {problem.hint && (
+                      <CollapsibleSection title="힌트" headingClassName={headingTextClass}>
+                        <p className="whitespace-pre-wrap">{problem.hint}</p>
+                      </CollapsibleSection>
+                    )}
+                  </>
+                ) : activeSection === 'problem-list' ? (
+                  <section className="space-y-4">
+                    <h2 className={`text-lg font-semibold ${headingTextClass}`}>{problemListLabel}</h2>
+                    {isLoadingProblemList ? (
+                      <div className={`py-8 text-center ${subtleTextClass}`}>
+                        문제 목록을 불러오는 중입니다...
+                      </div>
+                    ) : problemListError ? (
+                      <div className={`py-8 text-center ${subtleTextClass}`}>
+                        문제 목록을 불러오지 못했습니다.
+                      </div>
+                    ) : (!contestContextId && !workbookContextId && !isAuthenticated) ? (
+                      <div className={`py-8 text-center ${subtleTextClass}`}>
+                        로그인 후 문제 목록을 확인할 수 있습니다.
+                      </div>
+                    ) : problemListItems.length === 0 ? (
+                      <div className={`py-8 text-center ${subtleTextClass}`}>
+                        표시할 문제가 없습니다.
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {problemListItems.map((item) => {
+                          const itemKey = getProblemExternalIdentifier(item);
+                          const isCurrentProblem = itemKey ? itemKey === problemIdentifier : false;
+                          const displayIdentifier = item.displayId ?? (item as any)._id ?? item.id;
+                          return (
+                            <button
+                              key={`${itemKey ?? displayIdentifier}-${item.id}`}
+                              type="button"
+                              onClick={() => !isCurrentProblem && openProblemFromList(item)}
+                              className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition ${isCurrentProblem
+                                ? isDarkTheme
+                                  ? 'border-blue-500 bg-blue-900/40 text-blue-100'
+                                  : 'border-blue-500 bg-blue-50 text-blue-700'
+                                : isDarkTheme
+                                  ? 'border-slate-700 bg-slate-900/70 hover:bg-slate-800'
+                                  : 'border-gray-200 bg-white hover:bg-gray-50'
+                                } ${isCurrentProblem ? 'cursor-default' : 'cursor-pointer'}`}
+                            >
+                              <div className="flex items-center justify-between gap-4">
+                                <div className="flex-1 min-w-0">
+                                  <div className="truncate text-sm font-semibold">
+                                    {displayIdentifier} · {item.title}
+                                  </div>
+                                </div>
+                                {isCurrentProblem ? (
+                                  <span className={`text-xs font-semibold ${isDarkTheme ? 'text-blue-200' : 'text-blue-600'}`}>
+                                    현재 문제
+                                  </span>
+                                ) : (
+                                  <span className={`text-xs font-medium ${isDarkTheme ? 'text-slate-300' : 'text-gray-500'}`}>
+                                    이동
+                                  </span>
+                                )}
+                              </div>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </section>
+                ) : (
+                  <section className="space-y-4">
+                    {submissionListContent}
+                  </section>
+                )}
               </div>
-
-              {activeSection === 'description' ? (
-                <>
-                  <div className="mb-6">
-                    <CollapsibleSection title="문제 설명" headingClassName={headingTextClass}>
-                      <div className={`${proseClass} max-w-4xl leading-relaxed`}>
-                        <div dangerouslySetInnerHTML={{ __html: problem.description }} />
-                      </div>
-                    </CollapsibleSection>
-                  </div>
-
-                  {problem.inputDescription && (
-                    <CollapsibleSection title="입력" headingClassName={headingTextClass}>
-                      <div className={`${proseClass} max-w-4xl leading-relaxed prose-h3:text-base prose-h3:font-medium prose-h3:mt-4 prose-h3:mb-2`}>
-                        <div dangerouslySetInnerHTML={{ __html: problem.inputDescription }} />
-                      </div>
-                    </CollapsibleSection>
-                  )}
-
-                  {problem.outputDescription && (
-                    <CollapsibleSection title="출력" headingClassName={headingTextClass}>
-                      <div className={`${proseClass} max-w-4xl leading-relaxed prose-h3:text-base prose-h3:font-medium prose-h3:mt-4 prose-h3:mb-2`}>
-                        <div dangerouslySetInnerHTML={{ __html: problem.outputDescription }} />
-                      </div>
-                    </CollapsibleSection>
-                  )}
-
-                  {problem.samples && problem.samples.length > 0 && (
-                    <CollapsibleSection title="입출력 예제" headingClassName={headingTextClass}>
-                      <div className="grid gap-6">
-                        {problem.samples.map((sample, index) => (
-                          <div key={index} className="grid gap-4 lg:grid-cols-2">
-                            {/* Input */}
-                            <div className="min-w-0">
-                              <div className="mb-2 flex items-center justify-between">
-                                <span className={`text-sm font-semibold ${subtleTextClass}`}>입력 {index + 1}</span>
-                                <div className="flex items-center gap-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => copyToClipboard(sample.input, `input-${index}`)}
-                                    disabled={!!copiedKey}
-                                    className={sampleCopyButtonClass}
-                                  >
-                                    {copiedKey === `input-${index}` ? (
-                                      <span className="text-green-600 font-medium">복사됨</span>
-                                    ) : (
-                                      '복사'
-                                    )}
-                                  </Button>
-                                </div>
-                              </div>
-                              <pre className={`${samplePreClasses} p-3 rounded text-sm font-mono whitespace-pre-wrap`}>
-                                {sample.input}
-                              </pre>
-                            </div>
-                            {/* Output */}
-                            <div className="min-w-0">
-                              <div className="mb-2 flex items-center justify-between">
-                                <span className={`text-sm font-semibold ${subtleTextClass}`}>출력 {index + 1}</span>
-                                <div className="flex items-center gap-2">
-                                  <Button
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={() => copyToClipboard(sample.output, `output-${index}`)}
-                                    disabled={!!copiedKey}
-                                    className={sampleCopyButtonClass}
-                                  >
-                                    {copiedKey === `output-${index}` ? (
-                                      <span className="text-green-600 font-medium">복사됨</span>
-                                    ) : (
-                                      '복사'
-                                    )}
-                                  </Button>
-                                </div>
-                              </div>
-                              <pre className={`${samplePreClasses} p-3 rounded text-sm font-mono whitespace-pre-wrap`}>
-                                {sample.output}
-                              </pre>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </CollapsibleSection>
-                  )}
-
-                  {problem.hint && (
-                    <CollapsibleSection title="힌트" headingClassName={headingTextClass}>
-                      <p className="whitespace-pre-wrap">{problem.hint}</p>
-                    </CollapsibleSection>
-                  )}
-                </>
-              ) : activeSection === 'problem-list' ? (
-                <section className="space-y-4">
-                  <h2 className={`text-lg font-semibold ${headingTextClass}`}>{problemListLabel}</h2>
-                  {isLoadingProblemList ? (
-                    <div className={`py-8 text-center ${subtleTextClass}`}>
-                      문제 목록을 불러오는 중입니다...
-                    </div>
-                  ) : problemListError ? (
-                    <div className={`py-8 text-center ${subtleTextClass}`}>
-                      문제 목록을 불러오지 못했습니다.
-                    </div>
-                  ) : (!contestContextId && !workbookContextId && !isAuthenticated) ? (
-                    <div className={`py-8 text-center ${subtleTextClass}`}>
-                      로그인 후 문제 목록을 확인할 수 있습니다.
-                    </div>
-                  ) : problemListItems.length === 0 ? (
-                    <div className={`py-8 text-center ${subtleTextClass}`}>
-                      표시할 문제가 없습니다.
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {problemListItems.map((item) => {
-                        const itemKey = getProblemExternalIdentifier(item);
-                        const isCurrentProblem = itemKey ? itemKey === problemIdentifier : false;
-                        const displayIdentifier = item.displayId ?? (item as any)._id ?? item.id;
-                        return (
-                          <button
-                            key={`${itemKey ?? displayIdentifier}-${item.id}`}
-                            type="button"
-                            onClick={() => !isCurrentProblem && openProblemFromList(item)}
-                            className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition ${isCurrentProblem
-                              ? isDarkTheme
-                                ? 'border-blue-500 bg-blue-900/40 text-blue-100'
-                                : 'border-blue-500 bg-blue-50 text-blue-700'
-                              : isDarkTheme
-                                ? 'border-slate-700 bg-slate-900/70 hover:bg-slate-800'
-                                : 'border-gray-200 bg-white hover:bg-gray-50'
-                              } ${isCurrentProblem ? 'cursor-default' : 'cursor-pointer'}`}
-                          >
-                            <div className="flex items-center justify-between gap-4">
-                              <div className="flex-1 min-w-0">
-                                <div className="truncate text-sm font-semibold">
-                                  {displayIdentifier} · {item.title}
-                                </div>
-                              </div>
-                              {isCurrentProblem ? (
-                                <span className={`text-xs font-semibold ${isDarkTheme ? 'text-blue-200' : 'text-blue-600'}`}>
-                                  현재 문제
-                                </span>
-                              ) : (
-                                <span className={`text-xs font-medium ${isDarkTheme ? 'text-slate-300' : 'text-gray-500'}`}>
-                                  이동
-                                </span>
-                              )}
-                            </div>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </section>
-              ) : (
-                <section className="space-y-4">
-                  {submissionListContent}
-                </section>
-              )}
             </div>
           </div>
         </div>
