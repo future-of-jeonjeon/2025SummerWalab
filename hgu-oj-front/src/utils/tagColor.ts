@@ -8,12 +8,9 @@ export interface TagColorScheme {
   activeBorder: string;
 }
 
-const TAG_PALETTE: Array<{ bg: string; text: string }> = [
-  { bg: '#3D74B6', text: '#FFFFFF' },
-  { bg: '#FBF5DE', text: '#1F2937' },
-  { bg: '#EAC8A6', text: '#3B2F2F' },
-  { bg: '#DC3C22', text: '#FFFFFF' },
-];
+// 파스텔톤 연파랑 단일 팔레트
+const BASE_COLOR = '#8CBDFE'; // 조금 더 밝은 블루 계열
+const TEXT_COLOR = '#0B1224';
 
 const clamp = (value: number) => Math.min(255, Math.max(0, value));
 
@@ -29,34 +26,20 @@ const adjustColor = (hex: string, amount: number) => {
   return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
 };
 
-const hashTag = (tag: string): number =>
-  Array.from(tag).reduce((acc, char) => acc + char.charCodeAt(0), 0);
-
-export const getTagColor = (tag: string): TagColorScheme => {
-  const fallback = TAG_PALETTE[0];
-  if (!tag) {
-    const base = adjustColor(fallback.bg, 24);
-    return {
-      background: base,
-      hoverBackground: adjustColor(base, 10),
-      activeBackground: adjustColor(fallback.bg, -18),
-      text: fallback.text,
-      border: adjustColor(fallback.bg, -20),
-      activeBorder: adjustColor(fallback.bg, -28),
-    };
-  }
-  const palette = TAG_PALETTE[hashTag(tag) % TAG_PALETTE.length];
-  const inactiveBackground = adjustColor(palette.bg, 28);
-  const activeBackground = adjustColor(palette.bg, -22);
+export const getTagColor = (_tag: string): TagColorScheme => {
+  const base = BASE_COLOR;
+  const inactiveBackground = adjustColor(base, 16); // 기본보다 살짝 밝은 톤
+  const activeBackground = adjustColor(base, -16); // 클릭 시 살짝 짙게
+  const navyBorder = '#0B1E4D'; // 클릭 시 강조용 진한 남색
   return {
     background: inactiveBackground,
-    hoverBackground: adjustColor(inactiveBackground, 8),
+    hoverBackground: adjustColor(inactiveBackground, -10),
     activeBackground,
-    text: palette.text,
-    activeText: palette.text,
-    border: adjustColor(palette.bg, -12),
-    activeBorder: adjustColor(palette.bg, -34),
+    text: TEXT_COLOR,
+    activeText: '#F8FAFF',
+    border: adjustColor(base, -14),
+    activeBorder: navyBorder,
   };
 };
 
-export const getTagPalette = () => [...TAG_PALETTE];
+export const getTagPalette = () => [{ bg: BASE_COLOR, text: '#FFFFFF' }];

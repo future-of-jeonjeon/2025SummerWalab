@@ -8,6 +8,14 @@ from sqlalchemy.sql import ColumnElement
 from app.problem.models import Problem, ProblemTag, problem_tags_association_table
 
 
+def _public_problem_filter() -> ColumnElement:
+    return (
+        Problem.is_public.is_(True)
+        & Problem.visible.is_(True)
+        & Problem.contest_id.is_(None)
+    )
+
+
 async def fetch_all_problems(session: AsyncSession) -> List[Problem]:
     stmt = (
         select(Problem)
@@ -19,14 +27,12 @@ async def fetch_all_problems(session: AsyncSession) -> List[Problem]:
 
 
 async def fetch_tag_counts(session: AsyncSession) -> Sequence[Tuple[str, int]]:
+    visibility_filter = _public_problem_filter()
     stmt = (
         select(ProblemTag.name, func.count(problem_tags_association_table.c.problem_id))
         .join(problem_tags_association_table, ProblemTag.id == problem_tags_association_table.c.problemtag_id)
         .join(Problem, Problem.id == problem_tags_association_table.c.problem_id)
-        .where(
-            Problem.contest_id.is_(None),
-            Problem.is_public.is_(True),
-        )
+        .where(visibility_filter)
         .group_by(ProblemTag.name)
         .order_by(func.count(problem_tags_association_table.c.problem_id).desc())
     )
@@ -42,7 +48,7 @@ async def fetch_filtered_problems(
         page: int,
         page_size: int,
 ) -> Tuple[List[Problem], int]:
-    visibility_filter = Problem.is_public.is_(True) & Problem.contest_id.is_(None)
+    visibility_filter = _public_problem_filter()
     base_stmt: Select = (
         select(Problem)
         .options(selectinload(Problem.tags))
@@ -57,10 +63,9 @@ async def fetch_filtered_problems(
             .join(Problem, Problem.id == problem_tags_association_table.c.problem_id)
             .where(
                 ProblemTag.name.in_(tags),
-                visibility_filter,
             )
-            .group_by(problem_tags_association_table.c.problem_id)
-            .having(func.count(func.distinct(ProblemTag.name)) == len(tags))
+            .where(visibility_filter)
+            .distinct()
         )
         base_stmt = base_stmt.where(Problem.id.in_(tagged_problem_ids_stmt))
 
@@ -119,8 +124,8 @@ async def create_problems(session: AsyncSession, problems: List[Problem]) -> Lis
 
 
 async def count_problem(session: AsyncSession) -> int:
-    visibility_filter = Problem.is_public.is_(True) & Problem.contest_id.is_(None)
-    stmt = (select(func.count()).select_from(Problem).where(visibility_filter))
+    visibility_filter = _public_problem_filter()
+    stmt = select(func.count()).select_from(Problem).where(visibility_filter)
     result = await session.execute(stmt)
     return result.scalar() or 0
 

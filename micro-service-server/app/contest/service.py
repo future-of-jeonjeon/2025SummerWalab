@@ -32,19 +32,19 @@ def _check_contest_options(dto: Union[ReqCreateContestDTO, ReqUpdateContestDTO])
 
 @transactional
 async def create_contest(create_contest_dto: ReqCreateContestDTO, user_data: UserData,
-                         db: AsyncSession) -> ResContestCreateDTO:
+                         db: AsyncSession) -> ContestDataDTO:
     _check_contest_options(create_contest_dto)
     contest = _create_contest_entity_from_dto(create_contest_dto, user_data.user_id)
     contest = await contest_repo.create_contest(contest, db)
     contest_language = ContestLanguage(contest_id=contest.id, languages=create_contest_dto.languages)
     await contest_repo.create_contest_language(contest_language, db)
 
-    return await _create_contest_req_dto_from_entity(contest, create_contest_dto.languages, db)
+    return await _create_contest_data_dto_from_entity(contest, create_contest_dto.languages, 0, db)
 
 
 @transactional
 async def update_contest(update_contest_dto: ReqUpdateContestDTO,
-                         db: AsyncSession) -> ResContestCreateDTO:
+                         db: AsyncSession) -> ContestDataDTO:
     contest = await contest_repo.find_contest_by_id(update_contest_dto.id, db)
     if not contest:
         exception.data_not_found("contest")
@@ -59,11 +59,11 @@ async def update_contest(update_contest_dto: ReqUpdateContestDTO,
     else:  # 없는 경우 생성 -> 레거시 데이터 보존
         contest_language = ContestLanguage(contest_id=contest.id, languages=update_contest_dto.languages)
         await contest_repo.create_contest_language(contest_language, db)
-    
+
     # Sync languages for all problems in this contest
     await problem_repo.update_problem_languages_by_contest_id(db, contest.id, update_contest_dto.languages)
 
-    return await _create_contest_req_dto_from_entity(contest, update_contest_dto.languages, db)
+    return await _create_contest_data_dto_from_entity(contest, update_contest_dto.languages, 0, db)
 
 
 def _update_contest_data(contest, update_contest_dto):
@@ -80,14 +80,15 @@ def _update_contest_data(contest, update_contest_dto):
     return contest
 
 
-async def get_contest_detail(contest_id: int, db: AsyncSession) -> ResContestCreateDTO:
+async def get_contest_detail(contest_id: int, db: AsyncSession) -> ContestDataDTO:
     contest = await contest_repo.find_contest_by_id(contest_id, db)
     if not contest:
         exception.data_not_found("contest")
 
     contest_language = await contest_repo.find_contest_language_by_contest_id(contest_id, db)
     languages = contest_language.languages if contest_language else []
-    return await _create_contest_req_dto_from_entity(contest, languages, db)
+    contest_participants_num = await contest_repo.count_contest_participants_by_contest_id(contest_id, db)
+    return await _create_contest_data_dto_from_entity(contest, languages, contest_participants_num, db)
 
 
 @transactional
@@ -231,13 +232,14 @@ def _create_contest_entity_from_dto(create_contest_dto, user_id):
     )
 
 
-async def _create_contest_req_dto_from_entity(contest: Contest, languages: List[str], db):
+async def _create_contest_data_dto_from_entity(contest: Contest, languages: List[str], participants_num: int,
+                                               db) -> ContestDataDTO:
     creator_user = await user_repo.find_user_by_id(contest.created_by_id, db)
     created_by_dto = ContestCreatedByDTO(
         id=creator_user.id,
         username=creator_user.username,
     )
-    return ResContestCreateDTO(
+    return ContestDataDTO(
         id=contest.id,
         title=contest.title,
         description=contest.description,
@@ -250,6 +252,7 @@ async def _create_contest_req_dto_from_entity(contest: Contest, languages: List[
         allowed_ip_ranges=contest.allowed_ip_ranges,
         password=contest.password,
         status="0",
+        participants=participants_num or 0,
         createdBy=created_by_dto,
         languages=languages
     )
@@ -258,7 +261,9 @@ async def _create_contest_req_dto_from_entity(contest: Contest, languages: List[
 async def _process_contest_response(results, total: int, db: AsyncSession) -> PaginatedContestResponse:
     dtos = []
     for contest, languages, user, userdata in results:
-        dto = await _create_contest_req_dto_from_entity(contest, languages if languages else [], db)
+        contest_participants_num = await contest_repo.count_contest_participants_by_contest_id(contest.id, db)
+        dto = await _create_contest_data_dto_from_entity(contest, languages if languages else [], contest_participants_num, db)
+
         dtos.append(dto)
     return PaginatedContestResponse(results=dtos, total=total)
 
@@ -282,6 +287,7 @@ async def get_contest_list_paginated(
 ) -> PaginatedContestResponse:
     offset = (page - 1) * limit
     results, total = await contest_repo.get_contest_list(db, limit, offset, keyword, rule_type, status)
+
     return await _process_contest_response(results, total, db)
 
 
