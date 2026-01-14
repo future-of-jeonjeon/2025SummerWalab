@@ -1,7 +1,7 @@
 from fastapi import APIRouter
 
 
-import app.monitoring.routes as monitoring_router
+from app.monitoring.routes import router as monitoring_router
 from app.auth.routes import router as auth_router
 from app.problem.routes import router as problem_router
 from app.workbook.routes import router as workbook_router
@@ -27,6 +27,6 @@ api_router.include_router(workbook_router)
 api_router.include_router(execution_router)
 api_router.include_router(organization_router)
 api_router.include_router(organization_ranking_router)
-api_router.include_router(monitoring_router.router)
+api_router.include_router(monitoring_router)
 api_router.include_router(submission_router)
 api_router.include_router(common_router)

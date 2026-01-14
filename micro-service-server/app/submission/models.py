@@ -1,6 +1,6 @@
 from sqlalchemy import Column, Integer, DateTime, Text
 from sqlalchemy.dialects.postgresql import JSONB
-from app.config.database import Base
+from app.core.database import Base
 
 
 class Submission(Base):

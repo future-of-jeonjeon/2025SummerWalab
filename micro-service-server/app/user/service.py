@@ -4,7 +4,6 @@ from app.user.schemas import UserData, SubUserData
 from app.user.models import UserData
 import app.user.repository as repo
 import app.utils.exception as exception
-from app.utils.database import transactional
 
 
 async def check_user_data(user_data: UserData, db: AsyncSession):
@@ -14,7 +13,6 @@ async def check_user_data(user_data: UserData, db: AsyncSession):
     return True
 
 
-@transactional
 async def save_user_data(sub_user_data: SubUserData, user_data: UserData, db: AsyncSession) -> SubUserData:
     check_data = await repo.find_sub_userdata_by_user_id(user_data.user_id, db)
     if check_data:
@@ -35,6 +33,7 @@ async def get_user_data(user_data: UserData, db: AsyncSession) -> SubUserData:
         exception.data_not_found("UserData")
     return _create_sub_user_data_from_entity(data)
 
+
 async def get_user_data_by_id(user_id: int, db: AsyncSession) -> SubUserData:
     data = await repo.find_sub_userdata_by_user_id(user_id, db)
     if not data:
@@ -42,7 +41,6 @@ async def get_user_data_by_id(user_id: int, db: AsyncSession) -> SubUserData:
     return _create_sub_user_data_from_entity(data)
 
 
-@transactional
 async def update_user_data(sub_user_data: SubUserData, user_data: UserData, db: AsyncSession) -> SubUserData:
     entity = await repo.find_sub_userdata_by_user_id(user_data.user_id, db)
     if not entity:

@@ -1,7 +1,7 @@
 from sqlalchemy import Column, Integer, String, Text, Boolean, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
-from app.config.database import Base
+from app.core.database import Base
 
 class User(Base):
     __tablename__ = "user"

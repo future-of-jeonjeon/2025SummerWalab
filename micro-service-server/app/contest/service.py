@@ -12,7 +12,6 @@ from app.contest.models import Contest, ContestLanguage
 from app.contest.schemas import *
 from app.problem.models import Problem
 from app.user.schemas import UserData
-from app.utils.database import transactional
 from app.core.logger import logger
 
 
@@ -30,7 +29,6 @@ def _check_contest_options(dto: Union[ReqCreateContestDTO, ReqUpdateContestDTO])
             exception.bad_request(message=f"{ip_range} is not a valid cidr network")
 
 
-@transactional
 async def create_contest(create_contest_dto: ReqCreateContestDTO, user_data: UserData,
                          db: AsyncSession) -> ContestDataDTO:
     _check_contest_options(create_contest_dto)
@@ -42,7 +40,6 @@ async def create_contest(create_contest_dto: ReqCreateContestDTO, user_data: Use
     return await _create_contest_data_dto_from_entity(contest, create_contest_dto.languages, 0, db)
 
 
-@transactional
 async def update_contest(update_contest_dto: ReqUpdateContestDTO,
                          db: AsyncSession) -> ContestDataDTO:
     contest = await contest_repo.find_contest_by_id(update_contest_dto.id, db)
@@ -91,7 +88,6 @@ async def get_contest_detail(contest_id: int, db: AsyncSession) -> ContestDataDT
     return await _create_contest_data_dto_from_entity(contest, languages, contest_participants_num, db)
 
 
-@transactional
 async def add_contest_problem(contest_problem_dto: ReqAddContestProblemDTO, user_data: UserData, db: AsyncSession):
     contest = await contest_repo.find_contest_by_id(contest_problem_dto.contest_id, db)
     contest_language = await contest_repo.find_contest_language_by_contest_id(contest_problem_dto.contest_id, db)
@@ -118,7 +114,6 @@ async def add_contest_problem(contest_problem_dto: ReqAddContestProblemDTO, user
     return None
 
 
-@transactional
 async def delete_contest(contest_id: int, db: AsyncSession):
     contest = await contest_repo.find_contest_by_id(contest_id, db)
     if not contest:

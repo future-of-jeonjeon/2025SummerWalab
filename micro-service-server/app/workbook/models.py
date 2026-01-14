@@ -2,8 +2,8 @@ from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, Foreign
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
-from app.config.database import Base
-from app.problem.models import Problem, ProblemTag, problem_tags_association_table
+from app.core.database import Base
+from app.problem.models import ProblemTag, problem_tags_association_table
 
 
 class Workbook(Base):

@@ -1,11 +1,8 @@
 from __future__ import annotations
-
 from typing import Optional
-
 from sqlalchemy import Column, Integer, Text
 from sqlalchemy.dialects.postgresql import JSONB
-
-from app.config.database import Base
+from app.core.database import Base
 
 
 

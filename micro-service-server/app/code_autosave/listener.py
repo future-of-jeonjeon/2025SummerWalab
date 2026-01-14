@@ -1,9 +1,9 @@
-import os, re
+import re
 
 
 from app.core.logger import logger
-from app.config.database import get_session
-from app.config.redis import get_redis_code_save
+from app.api.deps import get_database
+from app.core.redis import get_redis_code_save
 import app.code_autosave.service as autosave_serv
 
 
@@ -42,7 +42,7 @@ async def _code_save(redis, debounce_key):
         return
     logger.info("about to open db session (get_session)")
     try:
-        async for db in get_session():
+        async for db in get_database():
             logger.info("db session acquired; calling save_code_to_database")
             await autosave_serv.save_code_to_database(problem_id, language, code, user_id, db)
             logger.info("save_code_to_database returned")

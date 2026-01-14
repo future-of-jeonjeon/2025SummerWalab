@@ -1,10 +1,33 @@
-from functools import wraps
 from inspect import signature
 
-from fastapi import HTTPException, status
+from starlette import status
+from fastapi import HTTPException
+from functools import wraps
+from typing import Any, Callable, Coroutine
+
+from fastapi import Request
+from app.api.deps import get_userdata
 
 
-def authorize_roles(*allowed: str):
+def required_login():
+    def decorator(func: Callable[..., Coroutine[Any, Any, Any]]):
+        @wraps(func)
+        async def wrapper(*args, **kwargs):
+            request: Request = kwargs.get("request")
+            if request is None:
+                raise HTTPException(
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                    detail="Not authenticated",
+                )
+            userdata = await get_userdata()
+            kwargs["current_user"] = userdata
+            return await func(*args, **kwargs)
+
+        return wrapper
+    return decorator
+
+
+def require_role(*allowed: str):
     def _decorator(fn):
         fn_signature = signature(fn)
 
@@ -29,6 +52,6 @@ def authorize_roles(*allowed: str):
             return await fn(*args, **kwargs)
 
         wrapper.__signature__ = fn_signature
-        return wrapper
 
+        return wrapper
     return _decorator

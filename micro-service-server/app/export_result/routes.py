@@ -2,21 +2,21 @@ from fastapi import APIRouter, Depends, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config.database import get_session
+from app.api.deps import get_database
 from app.export_result.service import generate_contest_result_workbook
-from app.security.deps import get_userdata
+from app.api.deps import get_userdata
 from app.user.schemas import UserData
-from app.utils.security import authorize_roles
+from app.core.auth.guards import require_role
 
 router = APIRouter(prefix="/api/export", tags=["export"])
 
 
-@authorize_roles("Admin")
+@require_role("Admin")
 @router.get("/contest/{contest_id}/result")
 async def export_contest_result(
         contest_id: int,
         userdata: UserData = Depends(get_userdata),
-        db: AsyncSession = Depends(get_session),
+        db: AsyncSession = Depends(get_database),
         format: str = Query("xlsx", pattern="^(xlsx)$", description="Currently only xlsx is supported"),
 ):
     # Only xlsx supported for now

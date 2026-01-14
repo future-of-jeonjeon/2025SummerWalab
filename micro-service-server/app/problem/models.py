@@ -1,13 +1,8 @@
 from datetime import datetime
-
 from sqlalchemy import Column, Integer, Text, Boolean, DateTime, ForeignKey, Table
 from sqlalchemy.dialects.postgresql import JSONB  # PostgreSQL의 JSONB 타입 사용
 from sqlalchemy.orm import relationship
-
-# Base는 app.config.database.py에서 정의된 것을 사용합니다.
-from app.config.database import Base
-
-# User 모델은 app.user.models.py에서 임포트합니다.
+from app.core.database import Base
 
 # Many-to-Many 관계를 위한 중간 테이블 정의
 # 'public' 스키마를 명시하여 정확한 테이블 참조

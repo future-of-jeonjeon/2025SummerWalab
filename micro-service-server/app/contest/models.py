@@ -1,7 +1,6 @@
 from sqlalchemy import Column, Integer, Text, Boolean, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB
-
-from app.config.database import Base
+from app.core.database import Base
 
 
 class Contest(Base):

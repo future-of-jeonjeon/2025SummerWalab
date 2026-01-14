@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.user.schemas import UserData, SubUserData
 from app.config.database import get_session
-from app.security.deps import get_userdata
+from app.api.deps import get_userdata
 from app.utils.security import authorize_roles
 
 router = APIRouter(prefix="/api/user", tags=["User"])

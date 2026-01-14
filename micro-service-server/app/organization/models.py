@@ -1,8 +1,6 @@
-from sqlalchemy import UniqueConstraint, Column, Integer, DateTime, func, String, Table, ForeignKey
+from sqlalchemy import Column, Integer, DateTime, func, String, Table, ForeignKey
 from sqlalchemy.orm import relationship
-
-from app.config.database import Base
-
+from app.core.database import Base
 
 micro_organization_member = Table(
     "micro_organization_member",

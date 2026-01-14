@@ -1,7 +1,6 @@
 from sqlalchemy import Column, DateTime, Integer, String, UniqueConstraint
 from sqlalchemy.sql import func
-
-from app.config.database import Base
+from app.core.database import Base
 
 
 class ContestUser(Base):

@@ -18,7 +18,6 @@ from app.contest_user.schemas import (
 )
 from app.user.schemas import UserData
 from app.user import repository as user_repository
-from app.utils.database import transactional
 
 
 def _normalize_datetime(value: datetime | None) -> datetime | None:
@@ -39,7 +38,6 @@ PENDING: ParticipationStatus = "pending"
 REJECTED: ParticipationStatus = "rejected"
 
 
-@transactional
 async def join_contest(contest_id: int, userdata: UserData, db: AsyncSession) -> ContestUserStatus:
     _ensure_valid_contest_id(contest_id)
     if not userdata:
@@ -70,7 +68,6 @@ async def join_contest(contest_id: int, userdata: UserData, db: AsyncSession) ->
     )
 
 
-@transactional
 async def get_membership_status(contest_id: int, userdata: UserData, db: AsyncSession) -> ContestUserStatus:
     _ensure_valid_contest_id(contest_id)
     if not userdata:
@@ -99,7 +96,6 @@ async def get_membership_status(contest_id: int, userdata: UserData, db: AsyncSe
     )
 
 
-@transactional
 async def list_contest_users(contest_id: int, userdata: UserData, db: AsyncSession) -> ContestUserListResponse:
     _ensure_valid_contest_id(contest_id)
     _ensure_admin(userdata)
@@ -126,7 +122,6 @@ async def list_contest_users(contest_id: int, userdata: UserData, db: AsyncSessi
     return ContestUserListResponse(approved=approved, pending=pending)
 
 
-@transactional
 async def decide_contest_user(
     contest_id: int,
     decision: ContestUserDecisionRequest,

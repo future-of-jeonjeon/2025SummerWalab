@@ -1,5 +1,5 @@
 from sqlalchemy import Column, Integer, String, DateTime, func, Text, ForeignKey, UniqueConstraint
-from app.config.database import Base
+from app.core.database import Base
 
 
 class ProblemCode(Base):

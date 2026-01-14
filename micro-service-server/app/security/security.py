@@ -1,12 +1,11 @@
 import asyncio
 import json
-import os
 import uuid
 
 import httpx
 
 
-from app.config.redis import get_redis
+from app.core.redis import get_redis
 from app.user.schemas import UserData
 from app.user import repository as user_repo
 from app.config.database import SessionLocal

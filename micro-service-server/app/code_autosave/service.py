@@ -1,9 +1,6 @@
-import os
-
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.code_autosave.models import ProblemCode
-from app.config.redis import get_redis_code_save
-from app.utils.database import transactional
+from app.core.redis import get_redis_code_save
 from app.user.schemas import UserData
 import app.code_autosave.repository as repo
 from app.core.settings import settings
@@ -43,7 +40,7 @@ async def _save_code_to_redis(problem_id: int, language: str, code: str, user_id
     return
 
 
-@transactional
+
 async def save_code_to_database(problem_id: int, language: str, code: str, user_id: int, db: AsyncSession):
     current_data = await repo.find_by_problem_id_and_user_id_and_language(problem_id, user_id, language, db)
     entity = ProblemCode(problem_id=problem_id, user_id=user_id, language=language, code=code)

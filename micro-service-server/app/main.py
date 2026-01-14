@@ -6,8 +6,7 @@ from sqlalchemy.orm import configure_mappers
 
 from app.api.api_router import api_router
 from app.code_autosave.listener import code_save_listener
-from app.config.settings import settings
-from app.security.cors import setup_cors
+from app.core.cors import setup_cors
 from app.core.logger import logger
 from app.core.logger import setup_logging
 
@@ -27,6 +26,6 @@ async def lifespan(app: FastAPI):
             await listener_task
 
 
-app = FastAPI(lifespan=lifespan, **settings.fastapi_kwargs)
+app = FastAPI(lifespan=lifespan)
 setup_cors(app)
 app.include_router(api_router)

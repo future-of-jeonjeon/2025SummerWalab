@@ -1,10 +1,7 @@
 from __future__ import annotations
-
 from datetime import datetime, timezone
-
 from sqlalchemy import Column, Integer, Text, Boolean, DateTime
-
-from app.config.database import Base
+from app.core.database import Base
 
 
 class JudgeServer(Base):
