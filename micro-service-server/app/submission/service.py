@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.submission import repository as submission_repo
 from app.submission.schemas import ContestProblemStat, ContestUserScore, SubmissionDailyCount
 from app.user.schemas import UserData
-from app.utils.logging import logger
+from app.core.logger import logger
 
 
 async def get_contest_problem_stats(

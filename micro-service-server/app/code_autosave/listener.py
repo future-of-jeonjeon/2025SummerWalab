@@ -1,11 +1,10 @@
 import os, re
 
 
-from app.utils.logging import logger
+from app.core.logger import logger
 from app.config.database import get_session
 from app.config.redis import get_redis_code_save
 import app.code_autosave.service as autosave_serv
-from app.utils.logging import logger
 
 
 from app.core.settings import settings

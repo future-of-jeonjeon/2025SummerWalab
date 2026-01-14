@@ -8,11 +8,13 @@ from app.api.api_router import api_router
 from app.code_autosave.listener import code_save_listener
 from app.config.settings import settings
 from app.security.cors import setup_cors
-from app.utils.logging import logger, LoggingMiddleware
+from app.core.logger import logger
+from app.core.logger import setup_logging
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    setup_logging()
     logger.info("lifespan started")
     listener_task = asyncio.create_task(code_save_listener())
     configure_mappers()
@@ -28,4 +30,3 @@ async def lifespan(app: FastAPI):
 app = FastAPI(lifespan=lifespan, **settings.fastapi_kwargs)
 setup_cors(app)
 app.include_router(api_router)
-app.add_middleware(LoggingMiddleware)

@@ -13,7 +13,7 @@ from app.contest.schemas import *
 from app.problem.models import Problem
 from app.user.schemas import UserData
 from app.utils.database import transactional
-from app.utils.logging import logger
+from app.core.logger import logger
 
 
 def _check_contest_options(dto: Union[ReqCreateContestDTO, ReqUpdateContestDTO]):

@@ -4,7 +4,7 @@ from fastapi import HTTPException
 from app.security.security import exchange_sso_for_local_token, get_redis
 
 
-from app.utils.logging import logger
+from app.core.logger import logger
 from app.core.settings import settings
 
 

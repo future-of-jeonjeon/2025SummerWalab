@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.execution.models import SysOption
 from app.execution.scheduler import ChooseJudgeServerAsync
-from app.utils.logging import logger
+from app.core.logger import logger
 from app.core.settings import settings
 
 

@@ -1,5 +1,5 @@
 import os
-from app.utils.logging import logger
+from app.core.logger import logger
 from fastapi import HTTPException, Request, status, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.config.database import get_session
