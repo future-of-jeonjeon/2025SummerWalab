@@ -1,5 +1,5 @@
 import os, re
-from dotenv import load_dotenv
+
 
 from app.utils.logging import logger
 from app.config.database import get_session
@@ -7,9 +7,10 @@ from app.config.redis import get_redis_code_save
 import app.code_autosave.service as autosave_serv
 from app.utils.logging import logger
 
-load_dotenv()
-CODE_SAVE_PREFIX = os.getenv("REDIS_CODE_SAVE_PREFIX")
-LOCAL_TOKEN_COOKIE_NAME = os.getenv("LOCAL_TOKEN_COOKIE_NAME")
+
+from app.core.settings import settings
+
+CODE_SAVE_PREFIX = settings.REDIS_CODE_SAVE_PREFIX
 KEY_PATTERN = re.compile(
     rf"^(?P<prefix>{re.escape(CODE_SAVE_PREFIX)}):debounce:user:(?P<uid>\d+):problem:(?P<pid>\d+):lang:(?P<lang>[a-zA-Z0-9_]+)$"
 )

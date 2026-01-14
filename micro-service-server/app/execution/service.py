@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.execution.models import SysOption
 from app.execution.scheduler import ChooseJudgeServerAsync
 from app.utils.logging import logger
+from app.core.settings import settings
 
 
 async def _get_sys_option(session: AsyncSession, key: str) -> Optional[Any]:
@@ -24,9 +25,10 @@ async def _get_sys_option(session: AsyncSession, key: str) -> Optional[Any]:
     return row[0] if row else None
 
 
+
 async def get_judge_server_token(session: AsyncSession) -> Optional[str]:
     # Prefer env override; fallback to DB SysOptions
-    token = os.getenv("JUDGE_SERVER_TOKEN")
+    token = settings.JUDGE_SERVER_TOKEN
     if token:
         return token
     opt = await _get_sys_option(session, "judge_server_token")
@@ -158,7 +160,7 @@ class ExecutionService:
             max_cpu_time: int,
             max_memory_bytes: int,
     ) -> Dict[str, Any]:
-        base = os.getenv("TEST_CASE_DATA_PATH", "/test_case")
+        base = settings.TEST_CASE_DATA_PATH
         case_id = uuid.uuid4().hex
         case_dir = os.path.join(base, case_id)
         os.makedirs(case_dir, exist_ok=True)

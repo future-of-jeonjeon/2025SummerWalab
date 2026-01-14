@@ -1,16 +1,15 @@
 import os
-from dotenv import load_dotenv
+
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.code_autosave.models import ProblemCode
 from app.config.redis import get_redis_code_save
 from app.utils.database import transactional
 from app.user.schemas import UserData
 import app.code_autosave.repository as repo
+from app.core.settings import settings
 
-load_dotenv()
-CODE_SAVE_PREFIX = os.getenv("REDIS_CODE_SAVE_PREFIX")
-LOCAL_TOKEN_COOKIE_NAME = os.getenv("LOCAL_TOKEN_COOKIE_NAME")
-CODE_SAVE_TTL_SECONDS = int(os.getenv("CODE_SAVE_TTL_SECONDS"))
+CODE_SAVE_PREFIX = settings.REDIS_CODE_SAVE_PREFIX
+CODE_SAVE_TTL_SECONDS = settings.CODE_SAVE_TTL_SECONDS
 
 
 async def get_code(problem_id, language, user_id: int, db: AsyncSession):

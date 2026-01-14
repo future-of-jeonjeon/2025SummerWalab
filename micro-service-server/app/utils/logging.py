@@ -2,11 +2,11 @@ import logging
 import logging.handlers
 import os
 
-# 로그 파일 경로 설정
-LOG_FILE_PATH = "/log/app.log"
-os.makedirs(os.path.dirname(LOG_FILE_PATH), exist_ok=True)  # logs 폴더 생성
+from app.core.settings import settings
 
-# 핸들러 설정
+LOG_FILE_PATH = settings.LOG_FILE_PATH
+os.makedirs(os.path.dirname(LOG_FILE_PATH), exist_ok=True) 
+
 stream_handler = logging.StreamHandler()
 file_handler = logging.handlers.RotatingFileHandler(
     LOG_FILE_PATH, mode="a", maxBytes=10 * 1024 * 1024, backupCount=15
@@ -18,7 +18,7 @@ file_handler.setFormatter(formatter)
 
 # 기본 로깅 설정 (Root Logger)
 logging.basicConfig(
-    level=logging.INFO,
+    level=settings.LOG_LEVEL.upper(),
     handlers=[stream_handler, file_handler]
 )
 
@@ -36,7 +36,7 @@ from starlette.requests import Request
 from app.security.security import get_user_session_data
 import os
 
-TOKEN_NAME = os.getenv("TOKEN_COOKIE_NAME", "ms_token")
+TOKEN_NAME = settings.TOKEN_COOKIE_NAME
 
 
 class LoggingMiddleware(BaseHTTPMiddleware):

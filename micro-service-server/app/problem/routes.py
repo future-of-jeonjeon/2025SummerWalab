@@ -8,10 +8,11 @@ import app.problem.service as serv
 from app.config.database import get_session
 from app.problem.schemas import ProblemListResponse, ProblemSchema
 from app.utils.security import authorize_roles
+from app.core.settings import settings
 
 router = APIRouter(prefix="/api/problem", tags=["Problem Management"])
 
-TEST_CASE_BASE_PATH = os.getenv("TEST_CASE_DATA_PATH", "/app/test_cases_data")
+TEST_CASE_BASE_PATH = settings.TEST_CASE_DATA_PATH
 os.makedirs(TEST_CASE_BASE_PATH, exist_ok=True)
 
 

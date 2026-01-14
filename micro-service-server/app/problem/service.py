@@ -16,6 +16,7 @@ from app.problem import repository as problem_repository
 from app.problem.models import Problem
 from app.problem.schemas import ImportProblemSerializer
 from app.problem.schemas import ProblemListResponse
+from app.core.settings import settings
 
 
 def rand_str(length=32, type="lower_hex"):
@@ -89,7 +90,7 @@ def process_zip(uploaded_zip_file, spj, dir=""):
 
     test_case_id = rand_str()
     # TEST_CASE_BASE_PATH should be defined or imported. Assuming it's available or we use a hardcoded path for now as in routes.py
-    TEST_CASE_BASE_PATH = os.getenv("TEST_CASE_DATA_PATH", "/app/test_cases_data")
+    TEST_CASE_BASE_PATH = settings.TEST_CASE_DATA_PATH
     test_case_dir = os.path.join(TEST_CASE_BASE_PATH, test_case_id)
     os.makedirs(test_case_dir, exist_ok=True)
     os.chmod(test_case_dir, 0o710)

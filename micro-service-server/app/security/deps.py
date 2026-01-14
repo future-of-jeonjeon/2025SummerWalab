@@ -7,7 +7,9 @@ from app.user.schemas import UserData
 from app.user.repository import check_user_exists_by_username
 from app.security.security import get_user_session_data, sliding_session
 
-TOKEN_NAME = os.getenv("TOKEN_COOKIE_NAME")
+from app.core.settings import settings
+
+TOKEN_NAME = settings.TOKEN_COOKIE_NAME
 
 
 async def get_userdata(request: Request, db: AsyncSession = Depends(get_session)) -> UserData:

@@ -4,7 +4,7 @@ import os
 import uuid
 
 import httpx
-from dotenv import load_dotenv
+
 
 from app.config.redis import get_redis
 from app.user.schemas import UserData
@@ -13,14 +13,13 @@ from app.config.database import SessionLocal
 
 from fastapi import HTTPException
 from pydantic import ValidationError
+from app.core.settings import settings
 
-### 환경변수 setup
-load_dotenv()
-SSO_INTROSPECT_URL = os.getenv("SSO_INTROSPECT_URL")
-REDIS_URL = os.getenv("REDIS_URL")
-REDIS_SESSION_PREFIX = os.getenv("REDIS_SESSION_PREFIX")
-LOCAL_TOKEN_COOKIE_NAME = os.getenv("LOCAL_TOKEN_COOKIE_NAME")
-LOCAL_TOKEN_TTL_SECONDS = int(os.getenv("LOCAL_TOKEN_TTL_SECONDS"))
+SSO_INTROSPECT_URL = settings.SSO_INTROSPECT_URL
+# REDIS_URL = settings.REDIS_URL
+REDIS_SESSION_PREFIX = settings.REDIS_SESSION_PREFIX
+# LOCAL_TOKEN_COOKIE_NAME = settings.TOKEN_COOKIE_NAME # Assuming this matches
+LOCAL_TOKEN_TTL_SECONDS = settings.LOCAL_TOKEN_TTL_SECONDS
 
 
 async def exchange_sso_for_local_token(sso_token: str) -> str:

@@ -3,18 +3,18 @@ from __future__ import annotations
 import os
 from typing import AsyncGenerator
 
-from dotenv import load_dotenv
+
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker, declarative_base
 from sqlalchemy.engine import URL
 
-load_dotenv()
+from app.core.settings import settings
 
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
-DB_HOST = os.getenv("DB_HOST")
-DB_PORT = os.getenv("DB_PORT")
-DB_NAME = os.getenv("DB_NAME")
+DB_USER = settings.DB_USER
+DB_PASSWORD = settings.DB_PASSWORD
+DB_HOST = settings.DB_HOST
+DB_PORT = settings.DB_PORT
+DB_NAME = settings.DB_NAME
 
 DATABASE_URL = URL.create(
     drivername="postgresql+asyncpg",

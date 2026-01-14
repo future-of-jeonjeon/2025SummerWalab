@@ -2,17 +2,16 @@ from fastapi import Request
 
 from fastapi import HTTPException
 from app.security.security import exchange_sso_for_local_token, get_redis
-from dotenv import load_dotenv
-import os
+
 
 from app.utils.logging import logger
+from app.core.settings import settings
 
-load_dotenv()
 
-TOKEN_TTL_SECONDS = int(os.getenv("LOCAL_TOKEN_TTL_SECONDS"))
-REDIS_URL = os.getenv("REDIS_URL")
-REDIS_SESSION_PREFIX = os.getenv("REDIS_SESSION_PREFIX")
-TOKEN_NAME = os.getenv("TOKEN_COOKIE_NAME")
+
+TOKEN_TTL_SECONDS = settings.LOCAL_TOKEN_TTL_SECONDS
+REDIS_SESSION_PREFIX = settings.REDIS_SESSION_PREFIX
+TOKEN_NAME = settings.TOKEN_COOKIE_NAME
 
 
 async def login(req):
