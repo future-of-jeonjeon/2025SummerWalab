@@ -5,6 +5,7 @@ from datetime import datetime
 from fastapi import FastAPI
 from sqlalchemy.orm import configure_mappers
 
+from app.api.api_router import api_router
 from app.auth import routes as auth_routes
 from app.code_autosave import routes as auto_save_routes
 from app.code_autosave.listener import code_save_listener
@@ -47,27 +48,5 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan, **settings.fastapi_kwargs)
 setup_cors(app)
+app.include_router(api_router)
 app.add_middleware(LoggingMiddleware)
-app.include_router(auth_routes.router)
-app.include_router(problem_routes.router)
-app.include_router(workbook_routes.router)
-app.include_router(execution_routes.router)
-app.include_router(auto_save_routes.router)
-app.include_router(organization_routes.router)
-app.include_router(organization_ranking_routes.router)
-app.include_router(contest_user_routes.router)
-app.include_router(contest_routes.router)
-app.include_router(monitoring_routes.router)
-app.include_router(submission_routes.router)
-app.include_router(export_result_routes.router)
-app.include_router(user_routes.router)
-
-
-@app.get("/")
-async def root():
-    return {"status": "ok", "message": "Service is running"}
-
-
-@app.get("/health")
-async def health_check():
-    return {"status": "ok", "timestamp": datetime.utcnow().isoformat()}
