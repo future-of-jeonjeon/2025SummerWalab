@@ -3,7 +3,9 @@ from io import BytesIO
 from typing import List, Tuple
 from zoneinfo import ZoneInfo
 
-from fastapi import HTTPException, status
+from fastapi import status
+from app.contest import exceptions as contest_exceptions
+from app.export_result import exceptions
 from openpyxl import Workbook
 from openpyxl.styles import Alignment, Font, Border, Side
 from openpyxl.utils import get_column_letter
@@ -29,7 +31,7 @@ def _format_time(dt: datetime | None) -> str:
 async def build_rank_rows(contest: Contest, db: AsyncSession) -> Tuple[list, dict, dict]:
     problems = await export_repo.fetch_contest_problems(db, contest.id)
     if not problems:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No problems found for contest")
+        exceptions.contest_problems_not_found()
 
     problem_score_map = export_repo.build_problem_score_map(problems)
     submissions = await export_repo.fetch_contest_submissions(db, contest.id)
@@ -169,7 +171,7 @@ def _write_rows(ws, rows, problems_ordered: List, best_scores_map, problem_score
 async def generate_contest_result_workbook(contest_id: int, db: AsyncSession) -> BytesIO:
     contest = await export_repo.fetch_contest(db, contest_id)
     if not contest:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contest not found")
+        contest_exceptions.contest_not_found()
 
     rows, problem_map, best_scores = await build_rank_rows(contest, db)
     problems_ordered = list(problem_map.values())

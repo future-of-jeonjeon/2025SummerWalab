@@ -25,6 +25,7 @@ class Settings(BaseSettings):
     SERVICE_DOMAIN: str
     HGU_FRONT_VITE_API_URL: str
     HGU_FRONT_VITE_MS_API_BASE: str
+    BACKEND_CORS_ORIGINS: list[str] = ["*"]
 
     # Judge
     JUDGE_SERVER_TOKEN: str

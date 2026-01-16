@@ -1,4 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends
+from app.workbook import exceptions
 from app.api.deps import get_userdata
 from app.user.schemas import UserData
 from app.core.auth.guards import require_role
@@ -50,7 +51,7 @@ async def update_workbook(
         db: AsyncSession = Depends(get_database)):
     updated_workbook = await serv.update_workbook(workbook_id, workbook, db)
     if not updated_workbook:
-        raise HTTPException(status_code=404, detail="Workbook not found")
+        exceptions.workbook_not_found()
     return updated_workbook
 
 

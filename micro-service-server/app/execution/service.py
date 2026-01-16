@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-from http.client import HTTPException
+from app.execution import exceptions
 from typing import Any, Dict, Optional
 import copy
 import os
@@ -68,12 +68,12 @@ class ExecutionService:
         language_config = await find_language_config(self.session, language)
         if not language_config:
             logger.error(f"Wrong Language option: {language}")
-            raise HTTPException(status_code=400, detail="Wrong Language option")
+            exceptions.language_not_found()
 
         token = await get_judge_server_token(self.session)
         if not token:
             logger.critical("Missing JUDGE_SERVER_TOKEN")
-            raise HTTPException(status_code=500, detail="Internal Server Error")
+            exceptions.internal_server_error()
             # return {"err": True, "data": "Missing JUDGE_SERVER_TOKEN (env or SysOptions)"}
 
         hashed_token = hashlib.sha256(token.encode("utf-8")).hexdigest()

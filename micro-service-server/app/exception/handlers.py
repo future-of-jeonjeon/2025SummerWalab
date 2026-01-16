@@ -25,3 +25,7 @@ def not_found(message: str, error_code: ErrorCode = ErrorCode.NOT_FOUND):
 
 def conflict(message: str, error_code: ErrorCode = ErrorCode.CONFLICT):
     raise_http_exception(409, message, error_code)
+
+
+def internal_server_error(message: str, error_code: ErrorCode = ErrorCode.INTERNAL_SERVER_ERROR):
+    raise_http_exception(500, message, error_code)

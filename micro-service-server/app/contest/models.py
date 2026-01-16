@@ -1,53 +1,60 @@
-from sqlalchemy import Column, Integer, Text, Boolean, DateTime, ForeignKey
+from datetime import datetime
+from sqlalchemy import func
+from typing import Optional
+
+from sqlalchemy import Integer, Text, Boolean, DateTime, ForeignKey
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.orm import Mapped, mapped_column
+
 from app.core.database import Base
+from app.common.base_entity import BaseEntity
 
 
 class Contest(Base):
     __tablename__ = "contest"
     __table_args__ = {"schema": "public"}
 
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(Text, nullable=False)
-    description = Column(Text, nullable=False)
-    real_time_rank = Column(Boolean, nullable=False)
-    password = Column(Text, nullable=True)
-    rule_type = Column(Text, nullable=False)
-    start_time = Column(DateTime(timezone=True), nullable=False)
-    end_time = Column(DateTime(timezone=True), nullable=False)
-    create_time = Column(DateTime(timezone=True), nullable=False)
-    last_update_time = Column(DateTime(timezone=True), nullable=False)
-    visible = Column(Boolean, nullable=False)
-    created_by_id = Column(Integer, ForeignKey("public.user.id"), nullable=False)
-    allowed_ip_ranges = Column(JSONB, nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    real_time_rank: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    password: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    rule_type: Mapped[str] = mapped_column(Text, nullable=False)
+    start_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    end_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    create_time: Mapped[datetime] = mapped_column(DateTime(timezone=False), server_default=func.now())
+    last_update_time: Mapped[datetime] = mapped_column(DateTime(timezone=False), onupdate=func.now())
+    visible: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    created_by_id: Mapped[int] = mapped_column(Integer, ForeignKey("public.user.id"), nullable=False)
+    allowed_ip_ranges: Mapped[list] = mapped_column(JSONB, nullable=False)
 
 
 class AbstractContestRank(Base):
     __abstract__ = True
     __table_args__ = {"schema": "public"}
 
-    id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("public.user.id"), nullable=False)
-    contest_id = Column(Integer, ForeignKey("public.contest.id"), nullable=False)
-    submission_number = Column(Integer, default=0)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("public.user.id"), nullable=False)
+    contest_id: Mapped[int] = mapped_column(Integer, ForeignKey("public.contest.id"), nullable=False)
+    submission_number: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class ACMContestRank(AbstractContestRank):
     __tablename__ = "acm_contest_rank"
-    accepted_number = Column(Integer, default=0)
-    total_time = Column(Integer, default=0)
-    submission_info = Column(JSONB, default=dict)
+    accepted_number: Mapped[int] = mapped_column(Integer, default=0)
+    total_time: Mapped[int] = mapped_column(Integer, default=0)
+    submission_info: Mapped[dict] = mapped_column(JSONB, default=dict)
 
 
 class OIContestRank(AbstractContestRank):
     __tablename__ = "oi_contest_rank"
-    total_score = Column(Integer, default=0)
-    submission_info = Column(JSONB, default=dict)
+    total_score: Mapped[int] = mapped_column(Integer, default=0)
+    submission_info: Mapped[dict] = mapped_column(JSONB, default=dict)
 
 
-class ContestLanguage(Base):
+class ContestLanguage(BaseEntity, Base):
     __tablename__ = "micro_contest_language"
     __table_args__ = {"schema": "public"}
-    id = Column(Integer, primary_key=True, index=True)
-    contest_id = Column(Integer, ForeignKey("public.contest.id"), nullable=False)
-    languages = Column(JSONB, nullable=False)
+    contest_id: Mapped[int] = mapped_column(Integer, ForeignKey("public.contest.id"), nullable=False)
+    languages: Mapped[list] = mapped_column(JSONB, nullable=False)

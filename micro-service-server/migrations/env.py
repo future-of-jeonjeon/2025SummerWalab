@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 sys.path.insert(0, os.path.realpath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Import your models here to ensure they are registered with Base.metadata
-from app.config.database import Base, DATABASE_URL
+from app.core.database import Base, DATABASE_URL
 # import app.auth.models
 import app.user.models
 import app.problem.models
@@ -22,6 +22,8 @@ import app.code_autosave.models
 import app.organization.models
 import app.contest.models
 import app.contest_user.models
+import app.submission.models
+import app.execution.models
 
 
 def _sync_database_url() -> str:

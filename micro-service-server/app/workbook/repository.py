@@ -4,7 +4,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.utils.database import transactional
 from app.problem.models import Problem
 from app.workbook.models import Workbook, WorkbookProblem
 
@@ -16,7 +15,6 @@ WORKBOOK_WITH_RELATIONS = (
 )
 
 
-@transactional
 async def save(workbook: Workbook, db: AsyncSession) -> Optional[Workbook]:
     db.add(workbook)
     await db.flush()
@@ -36,18 +34,15 @@ async def find_all_is_public_is_true(db: AsyncSession) -> List[Workbook]:
     return result.scalars().unique().all()
 
 
-@transactional
 async def delete_by_id(workbook_id: int, db: AsyncSession) -> Optional[Workbook]:
     wb = await db.get(Workbook, workbook_id)
     await db.delete(wb)
 
 
-@transactional
 async def delete(workbook: Workbook, db: AsyncSession) -> Optional[Workbook]:
     await db.delete(workbook)
 
 
-@transactional
 async def update_problems(workbook: Workbook, problem_ids: List[int], db: AsyncSession) -> bool:
     result = await db.execute(
         select(WorkbookProblem).where(WorkbookProblem.workbook_id == workbook.id)

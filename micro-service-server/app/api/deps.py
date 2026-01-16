@@ -2,7 +2,8 @@ import os
 from typing import AsyncGenerator
 
 from app.core.logger import logger
-from fastapi import HTTPException, Request, status, Depends
+from fastapi import Request, Depends
+from app.security import exceptions
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import SessionLocal
 from app.user.schemas import UserData
@@ -36,12 +37,12 @@ async def get_database_readonly() -> AsyncGenerator[AsyncSession, None]:
 async def get_userdata(request: Request, db: AsyncSession = Depends(get_database)) -> UserData:
     token = request.cookies.get(TOKEN_NAME)
     if not token:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+        exceptions.unauthorized_access()
     userdata = await get_user_session_data(token)
     if not userdata:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        exceptions.invalid_token()
     if not await check_user_exists_by_username(userdata.username, db):
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        exceptions.invalid_token()
     logger.info("auth processed: user_id=%s, name=%s, admin_type=%s", userdata.user_id, userdata.username,
                 userdata.admin_type)
     await sliding_session(token)

@@ -26,35 +26,23 @@ async def code_save_listener():
 
 async def _code_save(redis, debounce_key):
     logger.info(f"code save initialized")
-    logger.info(f"debounce_key={debounce_key}")
     if not debounce_key.startswith(f"{CODE_SAVE_PREFIX}:debounce:"):
         logger.info("skip: prefix not matched")
         return
     user_id, problem_id, language = _parse_debounce_key(debounce_key)
-    logger.info(f"parsed uid={user_id} pid={problem_id} lang={language}")
     data_key = autosave_serv.get_data_key(problem_id, language, user_id)
-    logger.info(f"data_key={data_key}")
-    logger.info("try redis.get")
     code = await redis.get(data_key)
     logger.info(f"redis.get done -> exists={code is not None}")
     if code is None:
-        logger.info("no code found for data_key; skip persist")
         return
-    logger.info("about to open db session (get_session)")
     try:
         async for db in get_database():
-            logger.info("db session acquired; calling save_code_to_database")
             await autosave_serv.save_code_to_database(problem_id, language, code, user_id, db)
-            logger.info("save_code_to_database returned")
             break
-        logger.info(f"deleting data_key={data_key}")
         await redis.delete(data_key)
-        logger.info("redis.delete done")
     except Exception as e:
-        logger.error(f"auto_save_persist failed: {e}")
         return
     await redis.delete(data_key)
-    logger.info(f"code save success: problem = {problem_id} user = {user_id} lang = {language}")
 
 
 def _parse_debounce_key(key: str):

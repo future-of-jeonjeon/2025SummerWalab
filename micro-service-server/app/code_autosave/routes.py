@@ -1,45 +1,35 @@
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_database
 from app.api.deps import get_userdata
+from app.code_autosave.schemas import *
 from app.user.schemas import UserData
-from app.core.auth.guards import require_role
-
-import app.code_autosave.service as serv
+from app.core.auth.guards import require_role, required_login
+from fastapi import Request
+import app.code_autosave.service as autosave_serv
 
 router = APIRouter(prefix="/api/code", tags=["code-saving"])
 
 
-class ReqGetCodeDTO(BaseModel):
-    language: str
-
-
-class ReqSaveCodeDTO(BaseModel):
-    language: str
-    code: str
-
-class ResCodeDTO(BaseModel):
-    code: str
-
-
-@require_role("Regular User")
+@required_login()
 @router.post("/{problem_id}")
 async def save_code(
         problem_id: int,
-        data: ReqSaveCodeDTO,
+        data: CodeSaveRequest,
+        request: Request,
         userdata: UserData = Depends(get_userdata)):
-    await serv.save_code(problem_id, data.language, data.code, userdata)
+    await autosave_serv.save_code(problem_id, data.language, data.code, userdata)
     return {"status": "ok"}
 
 
-@require_role("Regular User")
+@required_login()
 @router.get("/{problem_id}")
 async def get_code(
         problem_id: int,
-        data: ReqGetCodeDTO = Depends(),
+        request: Request,
+        data: ProblemCodeRequest = Depends(),
         userdata: UserData = Depends(get_userdata),
-        db: AsyncSession = Depends(get_database)) -> ResCodeDTO:
-    code = await serv.get_code(problem_id, data.language, userdata.user_id, db)
-    return ResCodeDTO(code=code)
+        db: AsyncSession = Depends(get_database)) -> ProblemCodeResponse:
+    code = await autosave_serv.get_code(problem_id, data.language, userdata.user_id, db)
+    return ProblemCodeResponse(code=code)

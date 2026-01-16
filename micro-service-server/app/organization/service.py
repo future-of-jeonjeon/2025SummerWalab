@@ -1,4 +1,5 @@
-from fastapi import HTTPException
+from app.organization import exceptions
+from app.user import exceptions as user_exceptions
 from app.organization.models import Organization
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.organization.schemas import OrganizationCreateData, OrganizationUpdateData
@@ -41,7 +42,7 @@ async def add_organization_user(organization_id: int, user_id: int, db: AsyncSes
     organization = await _get_organization_by_id(organization_id, db)
     user = await user_repo.find_user_by_id(user_id, db)
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        user_exceptions.user_not_found()
     if user not in organization.members:
         organization.members.append(user)
     return organization
@@ -60,5 +61,5 @@ async def delete_organization_user(organization_id: int, user_id: int, db: Async
 async def _get_organization_by_id(organization_id: int, db: AsyncSession):
     organization = await organization_repo.find_by_id(organization_id, db)
     if not organization:
-        raise HTTPException(status_code=404, detail="Organization not found")
+        exceptions.organization_not_found()
     return organization
