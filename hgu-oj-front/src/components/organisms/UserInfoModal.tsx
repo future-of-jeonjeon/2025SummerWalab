@@ -92,7 +92,17 @@ export const UserInfoModal: React.FC<UserInfoModalProps> = ({
                                         )}
 
                                         <div>
-                                            <label className="block text-sm font-semibold text-gray-700">이름 (실명)</label>
+                                            <label className="block text-sm font-semibold text-gray-700">아이디 (Username)</label>
+                                            <input
+                                                type="text"
+                                                readOnly
+                                                value={user?.username || ''}
+                                                className="w-full px-4 py-2.5 mt-1 text-gray-500 bg-gray-100 border border-gray-200 rounded-lg cursor-not-allowed outline-none"
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label className="block text-sm font-semibold text-gray-700">이름 (Name)</label>
                                             <input
                                                 type="text"
                                                 required
@@ -107,10 +117,18 @@ export const UserInfoModal: React.FC<UserInfoModalProps> = ({
                                             <label className="block text-sm font-semibold text-gray-700">학번</label>
                                             <input
                                                 type="text"
-                                                required
+                                                required={!initialData}
+                                                readOnly={!!initialData}
                                                 value={formData.studentId}
-                                                onChange={(e) => setFormData(prev => ({ ...prev, studentId: e.target.value }))}
-                                                className="w-full px-4 py-2.5 mt-1 text-gray-900 bg-gray-50 border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 outline-none"
+                                                onChange={(e) => {
+                                                    if (!initialData) {
+                                                        setFormData(prev => ({ ...prev, studentId: e.target.value }));
+                                                    }
+                                                }}
+                                                className={`w-full px-4 py-2.5 mt-1 border rounded-lg outline-none transition-all duration-200 ${initialData
+                                                        ? 'text-gray-500 bg-gray-100 border-gray-200 cursor-not-allowed'
+                                                        : 'text-gray-900 bg-gray-50 border-gray-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent'
+                                                    }`}
                                                 placeholder="22000000"
                                             />
                                         </div>
