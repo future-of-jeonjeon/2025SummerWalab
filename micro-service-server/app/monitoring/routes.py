@@ -1,19 +1,19 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config.database import get_session
+from app.api.deps import get_database
 from app.monitoring.schemas import MonitoringResponse
 import app.monitoring.service as serv
-from app.security.deps import get_userdata
+from app.api.deps import get_userdata
 from app.user.schemas import UserData
-from app.utils.security import authorize_roles
+from app.core.auth.guards import require_role
 
 router = APIRouter(prefix="/api/monitor", tags=["monitor"])
 
 
-@authorize_roles("Admin")
+@require_role("Admin")
 @router.get("/judge-status", response_model=MonitoringResponse)
 async def get_judge_server_data(
         userdata: UserData = Depends(get_userdata),
-        db: AsyncSession = Depends(get_session)) -> MonitoringResponse:
+        db: AsyncSession = Depends(get_database)) -> MonitoringResponse:
     return await serv.get_get_judge_server_data(db)

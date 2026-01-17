@@ -8,7 +8,7 @@ import zipfile
 from functools import lru_cache
 from typing import Dict, List, Optional
 
-from fastapi import HTTPException, UploadFile
+from fastapi import UploadFile
 from sqlalchemy import Float, asc, case, cast, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -16,6 +16,7 @@ from app.problem import repository as problem_repository
 from app.problem.models import Problem
 from app.problem.schemas import ImportProblemSerializer
 from app.problem.schemas import ProblemListResponse
+from app.core.settings import settings
 
 
 def rand_str(length=32, type="lower_hex"):
@@ -81,15 +82,15 @@ def process_zip(uploaded_zip_file, spj, dir=""):
     try:
         zip_file = zipfile.ZipFile(uploaded_zip_file, "r")
     except zipfile.BadZipFile:
-        raise HTTPException(status_code=400, detail="Bad zip file")
+        problem_exceptions.bad_zip_file()
     name_list = zip_file.namelist()
     test_case_list = filter_name_list(name_list, spj=spj, dir=dir)
     if not test_case_list:
-        raise HTTPException(status_code=400, detail="Empty file")
+        problem_exceptions.empty_zip_file()
 
     test_case_id = rand_str()
     # TEST_CASE_BASE_PATH should be defined or imported. Assuming it's available or we use a hardcoded path for now as in routes.py
-    TEST_CASE_BASE_PATH = os.getenv("TEST_CASE_DATA_PATH", "/app/test_cases_data")
+    TEST_CASE_BASE_PATH = settings.TEST_CASE_DATA_PATH
     test_case_dir = os.path.join(TEST_CASE_BASE_PATH, test_case_id)
     os.makedirs(test_case_dir, exist_ok=True)
     os.chmod(test_case_dir, 0o710)
@@ -251,7 +252,7 @@ async def get_filter_sorted_problems(
 
     column = valid_columns.get(sort_option)
     if column is None:
-        raise HTTPException(status_code=400, detail=f"Invalid sort_by parameter: {sort_option}")
+        problem_exceptions.invalid_sort_parameter(sort_option)
 
     direction = (order or "asc").lower()
     ordering = desc(column) if direction == "desc" else asc(column)

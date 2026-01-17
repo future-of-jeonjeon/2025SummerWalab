@@ -5,21 +5,22 @@ from fastapi import APIRouter, Depends, Query, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.problem.service as serv
-from app.config.database import get_session
+from app.api.deps import get_database
 from app.problem.schemas import ProblemListResponse, ProblemSchema
-from app.utils.security import authorize_roles
+from app.core.auth.guards import require_role
+from app.core.settings import settings
 
 router = APIRouter(prefix="/api/problem", tags=["Problem Management"])
 
-TEST_CASE_BASE_PATH = os.getenv("TEST_CASE_DATA_PATH", "/app/test_cases_data")
+TEST_CASE_BASE_PATH = settings.TEST_CASE_DATA_PATH
 os.makedirs(TEST_CASE_BASE_PATH, exist_ok=True)
 
 
-@authorize_roles("Admin")
+@require_role("Admin")
 @router.post("", response_model=List[ProblemSchema])
 async def import_problem(
         file: UploadFile = File(...),
-        db: AsyncSession = Depends(get_session)):
+        db: AsyncSession = Depends(get_database)):
     return await serv.import_problem(file, db)
 
 
@@ -27,17 +28,17 @@ async def import_problem(
 
 # 태그별 문제수 조회할 때 필요한거
 @router.get("/tags/counts")
-async def get_tag_count(db: AsyncSession = Depends(get_session)):
+async def get_tag_count(db: AsyncSession = Depends(get_database)):
     return await serv.get_tag_count(db)
 
 
 @router.get("/counts")
-async def get_tag_count(db: AsyncSession = Depends(get_session)):
+async def get_tag_count(db: AsyncSession = Depends(get_database)):
     return await serv.get_problem_count(db)
 
 
 @router.get("/contest/{contest_id}/count")
-async def get_contest_problem_count(contest_id: int, db: AsyncSession = Depends(get_session)):
+async def get_contest_problem_count(contest_id: int, db: AsyncSession = Depends(get_database)):
     count = await serv.get_contest_problem_count(contest_id, db)
     return {"contest_id": contest_id, "count": count}
 
@@ -54,6 +55,6 @@ async def get_filter_sorted_problems(
         # 페이지네이션 관련
         page: int = Query(1, ge=1),
         page_size: int = Query(20, ge=1, le=250),
-        db: AsyncSession = Depends(get_session)
+        db: AsyncSession = Depends(get_database)
 ):
     return await serv.get_filter_sorted_problems(tags, sort_option, order, page, page_size, db)

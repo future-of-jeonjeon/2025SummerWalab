@@ -1,19 +1,14 @@
 from fastapi import APIRouter, Response, Request, Depends
-from pydantic import BaseModel
 from starlette import status
 
+from app.auth.schemas import LoginRequest
 from app.auth.service import login, logout as auth_logout
-from app.security.deps import get_userdata
+from app.api.deps import get_userdata
 from app.user.schemas import UserData
-from app.utils.logging import logger
+from app.core.logger import logger
 
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
-
-
-# DTO
-class LoginRequest(BaseModel):
-    token: str
 
 
 @router.post("/login")

@@ -1,7 +1,7 @@
 from datetime import datetime
 
 from pydantic import BaseModel
-from typing import Optional, Literal, List
+from typing import Optional, List
 
 
 class ContestDTO(BaseModel):
@@ -89,7 +89,8 @@ class ContestRankDTO(BaseModel):
     total_score: Optional[int] = 0
     accepted_number: Optional[int] = 0
     total_time: Optional[int] = 0
-    submission_info: dict 
+    submission_info: dict
+
 
 class PaginatedContestResponse(BaseModel):
     results: List[ContestDataDTO]

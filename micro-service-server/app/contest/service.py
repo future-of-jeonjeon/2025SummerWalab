@@ -7,18 +7,19 @@ import app.contest.repository as contest_repo
 import app.problem.repository as problem_repo
 import app.submission.repository as submission_repo
 import app.user.repository as user_repo
-import app.utils.exception as exception
+from app.contest import exceptions
+from app.problem import exceptions as problem_exceptions
+from app.exception.codes import ErrorCode
 from app.contest.models import Contest, ContestLanguage
 from app.contest.schemas import *
 from app.problem.models import Problem
 from app.user.schemas import UserData
-from app.utils.database import transactional
-from app.utils.logging import logger
+from app.core.logger import logger
 
 
 def _check_contest_options(dto: Union[ReqCreateContestDTO, ReqUpdateContestDTO]):
     if dto.end_time <= dto.start_time:
-        exception.bad_request(message="Start time must occur earlier than end time")
+        exceptions.invalid_time_range()
 
     if not dto.password:
         dto.password = None
@@ -27,10 +28,9 @@ def _check_contest_options(dto: Union[ReqCreateContestDTO, ReqUpdateContestDTO])
         try:
             ip_network(ip_range, strict=False)
         except ValueError:
-            exception.bad_request(message=f"{ip_range} is not a valid cidr network")
+            exceptions.invalid_ip_network(ip_range)
 
 
-@transactional
 async def create_contest(create_contest_dto: ReqCreateContestDTO, user_data: UserData,
                          db: AsyncSession) -> ContestDataDTO:
     _check_contest_options(create_contest_dto)
@@ -42,12 +42,11 @@ async def create_contest(create_contest_dto: ReqCreateContestDTO, user_data: Use
     return await _create_contest_data_dto_from_entity(contest, create_contest_dto.languages, 0, db)
 
 
-@transactional
 async def update_contest(update_contest_dto: ReqUpdateContestDTO,
                          db: AsyncSession) -> ContestDataDTO:
     contest = await contest_repo.find_contest_by_id(update_contest_dto.id, db)
     if not contest:
-        exception.data_not_found("contest")
+        exceptions.contest_not_found()
 
     _check_contest_options(update_contest_dto)
     _update_contest_data(contest, update_contest_dto)
@@ -83,7 +82,7 @@ def _update_contest_data(contest, update_contest_dto):
 async def get_contest_detail(contest_id: int, db: AsyncSession) -> ContestDataDTO:
     contest = await contest_repo.find_contest_by_id(contest_id, db)
     if not contest:
-        exception.data_not_found("contest")
+        exceptions.contest_not_found()
 
     contest_language = await contest_repo.find_contest_language_by_contest_id(contest_id, db)
     languages = contest_language.languages if contest_language else []
@@ -91,25 +90,24 @@ async def get_contest_detail(contest_id: int, db: AsyncSession) -> ContestDataDT
     return await _create_contest_data_dto_from_entity(contest, languages, contest_participants_num, db)
 
 
-@transactional
 async def add_contest_problem(contest_problem_dto: ReqAddContestProblemDTO, user_data: UserData, db: AsyncSession):
     contest = await contest_repo.find_contest_by_id(contest_problem_dto.contest_id, db)
     contest_language = await contest_repo.find_contest_language_by_contest_id(contest_problem_dto.contest_id, db)
     problem = await problem_repo.find_problem_with_tags_by_id(contest_problem_dto.problem_id, db)
 
     if not contest:
-        exception.data_not_found("contest")
+        exceptions.contest_not_found()
     if not contest_language:
-        exception.data_not_found("contest_language")
+        exceptions.contest_language_not_found()
 
     if not problem:
-        exception.data_not_found("problem")
+        problem_exceptions.problem_not_found()
 
     if contest.end_time <= datetime.now():
-        exception.bad_request(message="Contest has ended")
+        exceptions.contest_ended()
 
     if contest_repo.exists_display_id_in_contest(contest.id, contest_problem_dto.display_id, db):
-        exception.data_conflict(data="display_id")
+        exceptions.display_id_conflict()
 
     new_problem = _create_cloned_problem_entity(problem, contest.id, contest_problem_dto.display_id, user_data.user_id,
                                                 contest_language.languages)
@@ -118,11 +116,10 @@ async def add_contest_problem(contest_problem_dto: ReqAddContestProblemDTO, user
     return None
 
 
-@transactional
 async def delete_contest(contest_id: int, db: AsyncSession):
     contest = await contest_repo.find_contest_by_id(contest_id, db)
     if not contest:
-        exception.data_not_found("contest")
+        exceptions.contest_not_found()
 
     await contest_repo.delete_contest_languages(contest_id, db)
     await contest_repo.delete_contest_users(contest_id, db)
@@ -170,7 +167,7 @@ async def get_contest_rank_admin(contest_id: int, db: AsyncSession):
 async def _get_contest_ranks(contest_id: int, anonymize_username: bool, db: AsyncSession):
     contest, raw_ranks = await _get_contest_and_raw_ranks(contest_id, db)
     if not contest:
-        exception.data_not_found("contest")
+        exceptions.contest_not_found()
 
     scores_list = await submission_repo.fetch_contest_user_scores(db, contest_id)
     score_map = {item["user_id"]: item["total_score"] for item in scores_list}

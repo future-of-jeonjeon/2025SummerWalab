@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import hashlib
-from http.client import HTTPException
+from app.execution import exceptions
 from typing import Any, Dict, Optional
 import copy
 import os
@@ -14,7 +14,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.execution.models import SysOption
 from app.execution.scheduler import ChooseJudgeServerAsync
-from app.utils.logging import logger
+from app.core.logger import logger
+from app.core.settings import settings
 
 
 async def _get_sys_option(session: AsyncSession, key: str) -> Optional[Any]:
@@ -24,9 +25,10 @@ async def _get_sys_option(session: AsyncSession, key: str) -> Optional[Any]:
     return row[0] if row else None
 
 
+
 async def get_judge_server_token(session: AsyncSession) -> Optional[str]:
     # Prefer env override; fallback to DB SysOptions
-    token = os.getenv("JUDGE_SERVER_TOKEN")
+    token = settings.JUDGE_SERVER_TOKEN
     if token:
         return token
     opt = await _get_sys_option(session, "judge_server_token")
@@ -66,12 +68,12 @@ class ExecutionService:
         language_config = await find_language_config(self.session, language)
         if not language_config:
             logger.error(f"Wrong Language option: {language}")
-            raise HTTPException(status_code=400, detail="Wrong Language option")
+            exceptions.language_not_found()
 
         token = await get_judge_server_token(self.session)
         if not token:
             logger.critical("Missing JUDGE_SERVER_TOKEN")
-            raise HTTPException(status_code=500, detail="Internal Server Error")
+            exceptions.internal_server_error()
             # return {"err": True, "data": "Missing JUDGE_SERVER_TOKEN (env or SysOptions)"}
 
         hashed_token = hashlib.sha256(token.encode("utf-8")).hexdigest()
@@ -158,7 +160,7 @@ class ExecutionService:
             max_cpu_time: int,
             max_memory_bytes: int,
     ) -> Dict[str, Any]:
-        base = os.getenv("TEST_CASE_DATA_PATH", "/test_case")
+        base = settings.TEST_CASE_DATA_PATH
         case_id = uuid.uuid4().hex
         case_dir = os.path.join(base, case_id)
         os.makedirs(case_dir, exist_ok=True)

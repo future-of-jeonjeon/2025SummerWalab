@@ -3,7 +3,8 @@ from app.user.schemas import UserData
 from app.workbook.models import Workbook, WorkbookProblem
 from app.workbook.schemas import WorkbookCreate, WorkbookUpdate
 from typing import List, Optional
-from fastapi import HTTPException
+from app.user import exceptions as user_exceptions
+from app.workbook import exceptions
 import app.user.repository as user_repo
 import app.workbook.repository as workbook_repo
 
@@ -17,7 +18,7 @@ async def create_workbook(
 ) -> Workbook:
     user = await user_repo.find_user_by_username(db, userdata.username)
     if not user:
-        raise HTTPException(status_code=404, detail="User not found")
+        user_exceptions.user_not_found()
     workbook = _create_workbook_by_data(workbook_data, user.id)
     saved_workbook = await workbook_repo.save(workbook, db)
 
@@ -34,9 +35,9 @@ async def create_workbook(
 async def get_workbook(workbook_id: int, userdata: UserData, db: AsyncSession) -> Workbook:
     workbook = await workbook_repo.find_by_id(workbook_id, db)
     if not workbook:
-        raise HTTPException(status_code=404, detail="WorkBook not found")
+        exceptions.workbook_not_found()
     if not workbook.is_public and not userdata.admin_type.__contains__("Admin"):
-        raise HTTPException(status_code=403, detail="Permission error")
+        exceptions.workbook_forbidden()
     return workbook
 
 
@@ -53,7 +54,7 @@ async def get_public_workbooks(db: AsyncSession) -> List[Workbook]:
 async def update_workbook(workbook_id: int, workbook_data: WorkbookUpdate, db: AsyncSession) -> Optional[Workbook]:
     workbook = await workbook_repo.find_by_id(workbook_id, db)
     if not workbook:
-        raise HTTPException(status_code=404, detail="WorkBook not found")
+        exceptions.workbook_not_found()
     workbook = _update_workbook_data(workbook, workbook_data)
     return await workbook_repo.save(workbook, db)
 
@@ -61,21 +62,21 @@ async def update_workbook(workbook_id: int, workbook_data: WorkbookUpdate, db: A
 async def delete_workbook(workbook_id: int, db: AsyncSession):
     workbook = await workbook_repo.find_by_id(workbook_id, db)
     if not workbook:
-        raise HTTPException(status_code=404, detail="WorkBook not found")
+        exceptions.workbook_not_found()
     await workbook_repo.delete(workbook, db)
 
 async def get_workbook_problems(workbook_id: int, db: AsyncSession) -> List[WorkbookProblem]:
     ## TODO : is_public -> false 인 경우 처리 필요
     workbook = await workbook_repo.find_by_id(workbook_id, db)
     if not workbook:
-        raise HTTPException(status_code=404, detail="WorkBook not found")
+        exceptions.workbook_not_found()
     return workbook.problems
 
 
 async def update_workbook_problems(workbook_id: int, problem_ids: list[int], db: AsyncSession) -> bool:
     workbook = await workbook_repo.find_by_id(workbook_id, db)
     if not workbook:
-        raise HTTPException(status_code=404, detail="WorkBook not found")
+        exceptions.workbook_not_found()
 
     return await workbook_repo.update_problems(workbook, problem_ids, db)
 

@@ -3,26 +3,24 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.user.schemas import UserData, SubUserData
 from app.user.models import UserData
 import app.user.repository as repo
-import app.utils.exception as exception
-from app.utils.database import transactional
+from app.user import exceptions
 
 
 async def check_user_data(user_data: UserData, db: AsyncSession):
     sub_userdata = await repo.find_sub_userdata_by_user_id(user_data.user_id, db)
     if not sub_userdata:
-        exception.data_not_found("UserData")
+        exceptions.user_data_not_found()
     return True
 
 
-@transactional
 async def save_user_data(sub_user_data: SubUserData, user_data: UserData, db: AsyncSession) -> SubUserData:
     check_data = await repo.find_sub_userdata_by_user_id(user_data.user_id, db)
     if check_data:
-        exception.data_conflict("UserData")
+        exceptions.user_data_conflict()
 
     user = await repo.find_user_by_id(user_data.user_id, db)
     if not user:
-        exception.data_not_found("User")
+        exceptions.user_not_found()
 
     entity = _create_user_data_from_schema(sub_user_data)
     saved_entity = await repo.save_user_data(entity, db)
@@ -32,21 +30,21 @@ async def save_user_data(sub_user_data: SubUserData, user_data: UserData, db: As
 async def get_user_data(user_data: UserData, db: AsyncSession) -> SubUserData:
     data = await repo.find_sub_userdata_by_user_id(user_data.user_id, db)
     if not data:
-        exception.data_not_found("UserData")
+        exceptions.user_data_not_found()
     return _create_sub_user_data_from_entity(data)
+
 
 async def get_user_data_by_id(user_id: int, db: AsyncSession) -> SubUserData:
     data = await repo.find_sub_userdata_by_user_id(user_id, db)
     if not data:
-        exception.data_not_found("UserData")
+        exceptions.user_data_not_found()
     return _create_sub_user_data_from_entity(data)
 
 
-@transactional
 async def update_user_data(sub_user_data: SubUserData, user_data: UserData, db: AsyncSession) -> SubUserData:
     entity = await repo.find_sub_userdata_by_user_id(user_data.user_id, db)
     if not entity:
-        exception.data_not_found("UserData")
+        exceptions.user_data_not_found()
 
     entity.name = sub_user_data.name
     entity.student_id = sub_user_data.student_id

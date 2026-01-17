@@ -8,7 +8,7 @@ from sqlalchemy import select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.judge_server.models import JudgeServer
-from app.config.database import SessionLocal
+from app.core.database import SessionLocal
 
 
 @dataclass

@@ -3,7 +3,11 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import List
 
-from fastapi import HTTPException, status
+from fastapi import status
+from app.contest import exceptions as contest_exceptions
+from app.contest_user import exceptions
+from app.exception import handlers
+from app.exception.codes import ErrorCode
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.contest_user import repository as contest_user_repository
@@ -18,7 +22,6 @@ from app.contest_user.schemas import (
 )
 from app.user.schemas import UserData
 from app.user import repository as user_repository
-from app.utils.database import transactional
 
 
 def _normalize_datetime(value: datetime | None) -> datetime | None:
@@ -39,19 +42,18 @@ PENDING: ParticipationStatus = "pending"
 REJECTED: ParticipationStatus = "rejected"
 
 
-@transactional
 async def join_contest(contest_id: int, userdata: UserData, db: AsyncSession) -> ContestUserStatus:
     _ensure_valid_contest_id(contest_id)
     if not userdata:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+        exceptions.not_authenticated()
 
     is_admin_user = _is_admin(userdata)
     contest = await contest_user_repository.get_contest_by_id(contest_id, db)
     if contest is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Contest not found")
+        contest_exceptions.contest_not_found()
 
     if _has_contest_ended(contest.end_time):
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="종료된 대회에는 참여할 수 없습니다.")
+        exceptions.cannot_participate_in_ended_contest()
 
     requires_approval_policy = await contest_user_repository.get_policy(contest_id, db)
     status: ParticipationStatus = APPROVED
@@ -70,11 +72,10 @@ async def join_contest(contest_id: int, userdata: UserData, db: AsyncSession) ->
     )
 
 
-@transactional
 async def get_membership_status(contest_id: int, userdata: UserData, db: AsyncSession) -> ContestUserStatus:
     _ensure_valid_contest_id(contest_id)
     if not userdata:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+        exceptions.not_authenticated()
 
     is_admin_user = _is_admin(userdata)
     requires_approval_policy = await contest_user_repository.get_policy(contest_id, db)
@@ -99,7 +100,6 @@ async def get_membership_status(contest_id: int, userdata: UserData, db: AsyncSe
     )
 
 
-@transactional
 async def list_contest_users(contest_id: int, userdata: UserData, db: AsyncSession) -> ContestUserListResponse:
     _ensure_valid_contest_id(contest_id)
     _ensure_admin(userdata)
@@ -126,7 +126,6 @@ async def list_contest_users(contest_id: int, userdata: UserData, db: AsyncSessi
     return ContestUserListResponse(approved=approved, pending=pending)
 
 
-@transactional
 async def decide_contest_user(
     contest_id: int,
     decision: ContestUserDecisionRequest,
@@ -145,7 +144,7 @@ async def decide_contest_user(
         db,
     )
     if membership is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="참여 신청을 찾을 수 없습니다.")
+        exceptions.members_not_found()
 
     user = await user_repository.find_user_by_id(decision.user_id, db)
     username = getattr(user, "username", None) if user else None
@@ -162,7 +161,7 @@ async def decide_contest_user(
 
 def _ensure_valid_contest_id(contest_id: int) -> None:
     if contest_id <= 0:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid contest id")
+        exceptions.invalid_contest_id()
 
 
 def _has_contest_started(start_time: datetime | None) -> bool:
@@ -204,7 +203,6 @@ def _build_status(
     )
 
 
-@transactional
 async def set_approval_policy(contest_id: int, requires_approval: bool, userdata: UserData, db: AsyncSession) -> ContestApprovalPolicy:
     _ensure_valid_contest_id(contest_id)
     _ensure_admin(userdata)
@@ -220,4 +218,4 @@ async def get_approval_policy(contest_id: int, db: AsyncSession) -> ContestAppro
 
 def _ensure_admin(userdata: UserData) -> None:
     if not _is_admin(userdata):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Permission denied for contest management")
+        exceptions.permission_denied()

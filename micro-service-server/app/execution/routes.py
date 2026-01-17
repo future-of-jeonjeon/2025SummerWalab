@@ -2,11 +2,9 @@ from __future__ import annotations
 from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.config.database import get_session
+from app.api.deps import get_database
+from app.core.auth.guards import required_login
 from app.execution.service import ExecutionService
-from app.security.deps import get_userdata
-from app.user.schemas import UserData
-from app.utils.security import authorize_roles
 
 router = APIRouter(prefix="/api/execution", tags=["execution"])
 
@@ -21,10 +19,10 @@ class RunRequest(BaseModel):
 
 
 @router.post("/run")
+@required_login()
 async def run_code(
         req: RunRequest,
-        user_date: UserData = Depends(get_userdata), # need to login
-        session: AsyncSession = Depends(get_session)):
+        session: AsyncSession = Depends(get_database)):
     svc = ExecutionService(session)
     result = await svc.run_code(
         language=req.language,
