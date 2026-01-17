@@ -14,6 +14,7 @@ from app.export_result.routes import router as export_result_router
 from app.submission.routes import router as submission_router
 from app.organization_ranking.routes import router as organization_ranking_router
 from app.common.routes import router as common_router
+from app.user.routes import router as user_router
 
 api_router = APIRouter()
 
@@ -30,3 +31,4 @@ api_router.include_router(organization_ranking_router)
 api_router.include_router(monitoring_router)
 api_router.include_router(submission_router)
 api_router.include_router(common_router)
+api_router.include_router(user_router)

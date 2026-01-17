@@ -5,9 +5,8 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.user.schemas import UserData, SubUserData
-from app.config.database import get_session
-from app.api.deps import get_userdata
-from app.utils.security import authorize_roles
+from app.api.deps import get_userdata, get_database
+from app.core.auth.guards import require_role
 
 router = APIRouter(prefix="/api/user", tags=["User"])
 
@@ -15,7 +14,7 @@ router = APIRouter(prefix="/api/user", tags=["User"])
 @router.post("/check", status_code=status.HTTP_200_OK)
 async def check_user_data(
         user_date: UserData = Depends(get_userdata),
-        db: AsyncSession = Depends(get_session)):
+        db: AsyncSession = Depends(get_database)):
     await serv.check_user_data(user_date, db)
     return
 
@@ -24,23 +23,23 @@ async def check_user_data(
 async def save_user_data(
         sub_user_data: SubUserData,
         user_date: UserData = Depends(get_userdata),
-        db: AsyncSession = Depends(get_session)) -> SubUserData:
+        db: AsyncSession = Depends(get_database)) -> SubUserData:
     return await serv.save_user_data(sub_user_data, user_date, db)
 
 
 @router.get("/data", response_model=SubUserData)
 async def get_user_data(
         user_date: UserData = Depends(get_userdata),
-        db: AsyncSession = Depends(get_session)) -> SubUserData:
+        db: AsyncSession = Depends(get_database)) -> SubUserData:
     return await serv.get_user_data(user_date, db)
 
 
-@authorize_roles("Admin")
+@require_role("Admin")
 @router.get("/data/{user_id}", response_model=SubUserData)
 async def get_user_data(
         user_id:int,
         user_date: UserData = Depends(get_userdata),
-        db: AsyncSession = Depends(get_session)) -> SubUserData:
+        db: AsyncSession = Depends(get_database)) -> SubUserData:
     return await serv.get_user_data_by_id(user_id, db)
 
 
@@ -48,5 +47,5 @@ async def get_user_data(
 async def update_user_data(
         sub_user_data: SubUserData,
         user_date: UserData = Depends(get_userdata),
-        db: AsyncSession = Depends(get_session)) -> SubUserData:
+        db: AsyncSession = Depends(get_database)) -> SubUserData:
     return await serv.update_user_data(sub_user_data, user_date, db)
