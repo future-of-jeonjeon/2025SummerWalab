@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Button } from '../atoms/Button';
 import { Input } from '../atoms/Input';
+import { TagChip } from '../atoms/TagChip';
 import { RichTextEditor } from '../molecules/RichTextEditor';
 import {
     adminService,
@@ -17,6 +18,7 @@ import {
     toBackendLanguageList,
     templateMap,
 } from '../../lib/problemLanguage';
+import { getTagColor } from '../../utils/tagColor';
 
 interface ProblemModalProps {
     isOpen: boolean;
@@ -36,7 +38,7 @@ type ProblemFormState = {
     timeLimit: string;
     memoryLimit: string;
     ruleType: 'ACM' | 'OI';
-    tags: string;
+    tags: string[];
     visible: boolean;
     hint: string;
     languages: string[];
@@ -52,7 +54,7 @@ const initialFormState: ProblemFormState = {
     timeLimit: '1000',
     memoryLimit: '256',
     ruleType: 'ACM',
-    tags: '',
+    tags: [],
     visible: true,
     hint: '',
     languages: [...availableLanguages],
@@ -69,12 +71,15 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({
     const [samples, setSamples] = useState<Array<{ input: string; output: string }>>([
         { input: '', output: '' },
     ]);
+    const [tagInput, setTagInput] = useState('');
     const [testCaseFile, setTestCaseFile] = useState<File | null>(null);
     const [testCaseId, setTestCaseId] = useState('');
     const [isUploadingTestCases, setIsUploadingTestCases] = useState(false);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{ success?: string; error?: string }>({});
     const [originalDetail, setOriginalDetail] = useState<AdminProblemDetail | null>(null);
+
+    const [testCaseScores, setTestCaseScores] = useState<Array<{ input_name: string; output_name: string; score: number }>>([]);
 
     useEffect(() => {
         if (isOpen) {
@@ -85,6 +90,7 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({
                 setFormState(initialFormState);
                 setSamples([{ input: '', output: '' }]);
                 setTestCaseId('');
+                setTestCaseScores([]);
                 setTestCaseFile(null);
                 setOriginalDetail(null);
             }
@@ -110,7 +116,7 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({
                 timeLimit: String(detail.timeLimit),
                 memoryLimit: String(detail.memoryLimit),
                 ruleType: detail.ruleType,
-                tags: detail.tags.join(', '),
+                tags: detail.tags,
                 visible: detail.visible,
                 hint: detail.hint ?? '',
                 languages,
@@ -118,6 +124,7 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({
 
             setSamples(detail.samples.length > 0 ? detail.samples : [{ input: '', output: '' }]);
             setTestCaseId(detail.testCaseId);
+            setTestCaseScores(detail.testCaseScore);
         } catch (error) {
             setMessage({ error: '문제 정보를 불러오지 못했습니다.' });
         } finally {
@@ -135,7 +142,19 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({
             setMessage({});
             const result = await adminService.uploadProblemTestCases(testCaseFile, false);
             setTestCaseId(result.id);
-            setMessage({ success: `테스트케이스 업로드 완료 (ID: ${result.id})` });
+
+            // Automatically generate scores: 100 points per case as requested
+            let newScores: Array<{ input_name: string; output_name: string; score: number }> = [];
+            if (Array.isArray(result.info)) {
+                newScores = result.info.map((item: any) => ({
+                    input_name: item.input_name,
+                    output_name: item.output_name,
+                    score: 100
+                }));
+            }
+            setTestCaseScores(newScores);
+
+            setMessage({ success: `테스트케이스 업로드 완료 (ID: ${result.id}, 케이스 ${newScores.length}개)` });
         } catch (error) {
             const msg = error instanceof Error ? error.message : '테스트케이스 업로드 실패';
             setMessage({ error: msg });
@@ -167,12 +186,7 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({
             return;
         }
 
-        const tagList = formState.tags
-            .split(',')
-            .map((t) => t.trim())
-            .filter((t) => t.length > 0);
-
-        if (tagList.length === 0) {
+        if (formState.tags.length === 0) {
             setMessage({ error: '태그를 입력하세요.' });
             return;
         }
@@ -185,7 +199,7 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({
         const backendLanguages = toBackendLanguageList(formState.languages);
         const template = formState.languages.reduce<Record<string, string>>((acc, lang) => {
             const backendKey = getLanguageBackendValue(lang);
-            acc[backendKey] = templateMap[lang] || '';
+            acc[backendKey] = '{}';
             return acc;
         }, {});
 
@@ -200,7 +214,7 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({
                     output_description: formState.outputDescription,
                     samples: cleanedSamples,
                     test_case_id: testCaseId,
-                    test_case_score: [],
+                    test_case_score: testCaseScores,
                     time_limit: Number(formState.timeLimit) || 1000,
                     memory_limit: Number(formState.memoryLimit) || 256,
                     languages: backendLanguages,
@@ -217,7 +231,7 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({
                     spj_compile_ok: false,
                     visible: formState.visible,
                     difficulty: formState.difficulty,
-                    tags: tagList,
+                    tags: formState.tags,
                     hint: formState.hint.trim() || null,
                     source: null,
                     share_submission: false,
@@ -234,7 +248,7 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({
                     output_description: formState.outputDescription,
                     samples: cleanedSamples,
                     test_case_id: testCaseId || originalDetail.testCaseId,
-                    test_case_score: originalDetail.testCaseScore,
+                    test_case_score: testCaseScores.length > 0 ? testCaseScores : originalDetail.testCaseScore,
                     time_limit: Number(formState.timeLimit) || originalDetail.timeLimit,
                     memory_limit: Number(formState.memoryLimit) || originalDetail.memoryLimit,
                     languages: backendLanguages,
@@ -251,7 +265,7 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({
                     spj_compile_ok: originalDetail.spjCompileOk,
                     visible: formState.visible,
                     difficulty: formState.difficulty,
-                    tags: tagList,
+                    tags: formState.tags,
                     hint: formState.hint.trim() || null,
                     source: null,
                     share_submission: false,
@@ -266,6 +280,23 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({
         } finally {
             setLoading(false);
         }
+    };
+
+
+
+    const handleAddTag = () => {
+        const newTag = tagInput.trim();
+        if (!newTag) return;
+        if (formState.tags.includes(newTag)) {
+            setTagInput('');
+            return;
+        }
+        setFormState(prev => ({ ...prev, tags: [...prev.tags, newTag] }));
+        setTagInput('');
+    };
+
+    const handleRemoveTag = (tag: string) => {
+        setFormState(prev => ({ ...prev, tags: prev.tags.filter(t => t !== tag) }));
     };
 
     const toggleLanguage = (lang: string) => {
@@ -321,48 +352,67 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({
                                     value={formState.memoryLimit}
                                     onChange={(e) => setFormState({ ...formState, memoryLimit: e.target.value })}
                                 />
-                                <Input
-                                    label="태그 (쉼표로 구분)"
-                                    value={formState.tags}
-                                    onChange={(e) => setFormState({ ...formState, tags: e.target.value })}
-                                    placeholder="dp, greedy"
-                                />
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">난이도</label>
-                                    <select
-                                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
-                                        value={formState.difficulty}
-                                        onChange={(e) => setFormState({ ...formState, difficulty: e.target.value as any })}
-                                    >
-                                        <option value="Low">Level1</option>
-                                        <option value="Mid">Level2</option>
-                                        <option value="High">Level3</option>
-                                    </select>
+                                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-5">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">태그</label>
+                                        <div className="flex gap-2">
+                                            <div className="flex-1">
+                                                <Input
+                                                    value={tagInput}
+                                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTagInput(e.target.value)}
+                                                    onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                                                        if (e.key === 'Enter') {
+                                                            e.preventDefault();
+                                                            handleAddTag();
+                                                        }
+                                                    }}
+                                                    placeholder="태그 입력"
+                                                />
+                                            </div>
+                                            <Button type="button" onClick={handleAddTag}>추가</Button>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">난이도</label>
+                                        <select
+                                            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
+                                            value={formState.difficulty}
+                                            onChange={(e) => setFormState({ ...formState, difficulty: e.target.value as any })}
+                                        >
+                                            <option value="Low">Level1</option>
+                                            <option value="Mid">Level2</option>
+                                            <option value="High">Level3</option>
+                                        </select>
+                                    </div>
                                 </div>
-                                {/* <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">룰 타입</label>
-                                    <select
-                                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
-                                        value={formState.ruleType}
-                                        onChange={(e) => setFormState({ ...formState, ruleType: e.target.value as any })}
-                                    >
-                                        <option value="ACM">ACM</option>
-                                        <option value="OI">OI</option>
-                                    </select>
-                                </div> */}
-                                {/* <div className="flex items-center pt-6">
-                                    <label className="inline-flex items-center space-x-2 text-sm text-gray-700">
-                                    </label>
-                                </div> */}
-                            </div>
-                            <div>
-                                <input
-                                    type="checkbox"
-                                    checked={formState.visible}
-                                    onChange={(e) => setFormState({ ...formState, visible: e.target.checked })}
-                                    className="h-4 w-4 rounded border-gray-300 text-[#58A0C8] focus:ring-[#58A0C8]"
-                                />
-                                <span>문제 공개</span>
+                                <div className="md:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-5 items-start">
+                                    <div className="flex flex-wrap gap-2 min-h-[40px] p-2 rounded-md border border-dashed border-gray-300 bg-gray-50">
+                                        {formState.tags.length === 0 ? (
+                                            <span className="text-sm text-gray-400 self-center ml-2">등록된 태그가 없습니다.</span>
+                                        ) : (
+                                            formState.tags.map((tag) => (
+                                                <TagChip
+                                                    key={tag}
+                                                    label={tag}
+                                                    onClick={() => handleRemoveTag(tag)}
+                                                    colorScheme={getTagColor(tag)}
+                                                    className="cursor-pointer hover:opacity-80 transition-opacity"
+                                                />
+                                            ))
+                                        )}
+                                    </div>
+                                    <div className="flex items-center justify-end h-full">
+                                        <label className="inline-flex items-center space-x-2 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={formState.visible}
+                                                onChange={(e) => setFormState({ ...formState, visible: e.target.checked })}
+                                                className="rounded border-gray-300 text-[#a855f7] focus:ring-[#a855f7]"
+                                            />
+                                            <span className="text-sm font-medium text-gray-700">공개</span>
+                                        </label>
+                                    </div>
+                                </div>
                             </div>
 
                             {/* <Input
