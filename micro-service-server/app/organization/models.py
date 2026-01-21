@@ -12,6 +12,7 @@ from app.user.models import UserData
 class OrganizationRole(str, enum.Enum):
     MEMBER = "MEMBER"
     ORG_ADMIN = "ORG_ADMIN"
+    ORG_SUPER_ADMIN = "ORG_SUPER_ADMIN"
 
 
 class Organization(BaseEntity, Base):
@@ -43,7 +44,7 @@ class OrganizationMember(BaseEntity, Base):
         ForeignKey("public.micro_organization.id", ondelete="CASCADE"),
         nullable=False,
     )
-    _user_id: Mapped[str] = mapped_column(
+    user_id: Mapped[str] = mapped_column(
         ForeignKey("public.user.id", ondelete="CASCADE"),
         nullable=False,
     )
