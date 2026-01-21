@@ -1,4 +1,3 @@
-from app.common.page import paginate
 from app.organization import exceptions
 from app.user import exceptions as user_exceptions
 from app.organization.models import Organization, OrganizationRole, OrganizationMember
@@ -27,8 +26,7 @@ async def list_organizations(
         page: int,
         size: int,
         db: AsyncSession):
-    data = await organization_repo.get_organization_orderby_id(db)
-    return paginate(data, page, size)
+    return await organization_repo.get_organizations(page, size, db)
 
 
 async def update_organization(
@@ -75,8 +73,9 @@ async def list_organization_user(
         page: int,
         size: int,
         db: AsyncSession):
-    organization: Organization = await _get_organization_by_id(organization_id, db)
-    return paginate(organization.member_links, page, size)
+    await _get_organization_by_id(organization_id, db)
+    return await organization_repo.get_organization_members(organization_id, page, size, db)
+
 
 
 async def edit_organization_user(

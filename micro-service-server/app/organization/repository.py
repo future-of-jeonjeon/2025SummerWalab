@@ -1,3 +1,4 @@
+from app.common.page import Page, paginate
 from app.organization.models import Organization, OrganizationMember
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,28 +13,10 @@ async def check_user_exists_by_organization_name(organization_name: str, db: Asy
 
 
 async def save(entity: Organization, db: AsyncSession) -> Organization:
-    # values: dict[str, object] = {
-    #     "name": entity.name,
-    #     "description": entity.description,
-    # }
-    # if entity.id is not None:
-    #     values["id"] = entity.id
-    #
-    # stmt = insert(Organization).values(**values)
-    #
-    # if entity.id is not None:
-    #     stmt = stmt.on_conflict_do_update(
-    #         index_elements=["id"],
-    #         set_={
-    #             "name": entity.name,
-    #             "description": entity.description,
-    #         },
-    #     )
-    #
-    # stmt = stmt.returning(Organization)
-    # result = await db.execute(stmt)
-    # return result.scalar_one()
-    pass
+    db.add(entity)
+    await db.flush()
+    await db.refresh(entity)
+    return entity
 
 
 async def save_organization_member(member: OrganizationMember, db: AsyncSession):
@@ -76,7 +59,18 @@ async def delete_by_id(organization_id: int, db: AsyncSession) -> None:
     stmt = delete(Organization).where(Organization.id == organization_id)
     await db.execute(stmt)
 
-
-async def get_organization_orderby_id(db: AsyncSession):
+async def get_organizations(page: int, size: int, db: AsyncSession) -> Page[Organization]:
     stmt = select(Organization).order_by(Organization.id.desc())
-    return await db.execute(stmt)
+    return await paginate(db, stmt, page, size)
+
+async def get_organization_members(
+        organization_id: int, page: int, size: int, db: AsyncSession
+) -> Page[OrganizationMember]:
+    stmt = (
+        select(OrganizationMember)
+        .where(OrganizationMember._organization_id == organization_id)
+        .options(selectinload(OrganizationMember.user))
+        .order_by(OrganizationMember.id.desc())
+    )
+    return await paginate(db, stmt, page, size)
+
