@@ -34,7 +34,6 @@ class User(Base):
     is_disabled: Mapped[bool] = mapped_column(Boolean, nullable=False)
     problem_permission: Mapped[str] = mapped_column(Text, nullable=False)
     session_keys: Mapped[dict] = mapped_column(JSONB, nullable=False)
-
     created_problems: Mapped[List["Problem"]] = relationship("Problem", back_populates="created_by")
 
 
@@ -46,4 +45,4 @@ class UserData(BaseEntity, Base):
     name: Mapped[str] = mapped_column(Text, nullable=False)
     student_id: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     major_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    user: Mapped["User"] = relationship("User")
+    user: Mapped["User"] = relationship("User", lazy="selectin")

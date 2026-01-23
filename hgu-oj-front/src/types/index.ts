@@ -409,12 +409,17 @@ export interface OrganizationMember {
   username: string;
   realName?: string;
   email?: string;
+  avatar?: string;
   adminType?: string;
+  role?: 'MEMBER' | 'ORG_ADMIN' | 'ORG_SUPER_ADMIN';
 }
+
+export type OrganizationRole = 'MEMBER' | 'ORG_ADMIN' | 'ORG_SUPER_ADMIN';
 
 export interface Organization {
   id: number;
   name: string;
+  img_url?: string | null;
   description?: string | null;
   createdAt?: string;
   updatedAt?: string;
@@ -434,4 +439,10 @@ export interface SystemMetrics {
   submission_rate: number;
   history: Array<{ time: string; count: number }>;
   timestamp: string;
+}
+
+export interface OrganizationPayload {
+  name: string;
+  description?: string | null;
+  img_url?: string | null;
 }

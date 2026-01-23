@@ -108,19 +108,6 @@ export const OrganizationAdminSection: React.FC = () => {
     },
   });
 
-  const addMemberMutation = useMutation<Organization, Error, number>({
-    mutationFn: (userId: number) => organizationService.addMember(selectedId!, userId),
-    onSuccess: (organization: Organization) => {
-      setFeedbackMessage('구성원이 추가되었습니다.');
-      queryClient.setQueryData<Organization>(['admin', 'organizations', 'detail', organization.id], organization);
-      queryClient.invalidateQueries({ queryKey: ['admin', 'organizations'] });
-    },
-    onError: (error) => {
-      const message = error instanceof Error ? error.message : '구성원 추가에 실패했습니다.';
-      setFeedbackMessage(message);
-    },
-  });
-
   const removeMemberMutation = useMutation<Organization, Error, number>({
     mutationFn: (userId: number) => organizationService.removeMember(selectedId!, userId),
     onSuccess: (organization: Organization) => {
@@ -249,9 +236,8 @@ export const OrganizationAdminSection: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => handleSelectOrganization(organization.id)}
-                          className={`w-full px-4 py-4 text-left transition-colors ${
-                            isActive ? 'bg-blue-100 border-l-4 border-blue-500' : 'hover:bg-blue-50'
-                          }`}
+                          className={`w-full px-4 py-4 text-left transition-colors ${isActive ? 'bg-blue-100 border-l-4 border-blue-500' : 'hover:bg-blue-50'
+                            }`}
                         >
                           <div className="text-sm font-semibold text-gray-900">{organization.name}</div>
                           <div className="mt-1 text-xs text-gray-500 line-clamp-2">
@@ -351,8 +337,8 @@ export const OrganizationAdminSection: React.FC = () => {
                 <OrganizationMemberManager
                   members={selectedOrganization.members}
                   onSearchUsers={handleUserSearch}
-                  onAddMember={async (userId) => {
-                    await addMemberMutation.mutateAsync(userId);
+                  onAddMember={async () => {
+                    alert('새 멤버 추가는 초대 링크를 통해 진행해주세요.');
                   }}
                   onRemoveMember={async (userId) => {
                     await removeMemberMutation.mutateAsync(userId);

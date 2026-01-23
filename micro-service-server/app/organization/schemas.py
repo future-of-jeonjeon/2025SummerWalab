@@ -1,13 +1,13 @@
 from typing import Optional
 from pydantic import BaseModel
 from app.organization.models import OrganizationRole, Organization, OrganizationMember
-from app.user.schemas import SubUserData
+from app.user.schemas import UserData
 
 
 class OrganizationMemberResponse(BaseModel):
     id: int
     organization_id: int
-    user: SubUserData
+    user: UserData
     role: OrganizationRole
 
     class Config:
@@ -18,10 +18,29 @@ class OrganizationMemberResponse(BaseModel):
         return cls(
             id=entity.id,
             organization_id=entity.organization_id,
-            user=SubUserData.from_orm(entity.user),
+            user=UserData(
+                user_id=entity.user.user.id,
+                username=entity.user.user.username,
+                avatar="",
+                admin_type=entity.user.user.admin_type
+            ),
             role=entity.role
         )
 
+class OrganizationListResponse(BaseModel):
+    id: int
+    img_url: Optional[str]
+    name: str
+    description: Optional[str]
+
+    @classmethod
+    def from_orm(cls, entity: Organization) -> "OrganizationListResponse":
+        return cls(
+            id=entity.id,
+            img_url=entity.img_url,
+            name=entity.name,
+            description=entity.description,
+        )
 
 class OrganizationResponse(BaseModel):
     id: int
@@ -51,11 +70,11 @@ class OrganizationMemberUpdateRequest(BaseModel):
 
 class OrganizationCreateRequest(BaseModel):
     name: str
-    img_url: Optional[str]
-    description: Optional[str]
+    img_url: Optional[str] = None
+    description: Optional[str] = None
 
 
 class OrganizationUpdateRequest(BaseModel):
-    name: Optional[str]
-    img_url: Optional[str]
-    description: Optional[str]
+    name: Optional[str] = None
+    img_url: Optional[str] = None
+    description: Optional[str] = None

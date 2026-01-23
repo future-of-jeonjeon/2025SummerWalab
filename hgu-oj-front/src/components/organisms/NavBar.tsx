@@ -35,52 +35,56 @@ export const NavBar: React.FC = () => {
             <div className="flex items-center space-x-6">
               <Link
                 to="/problems"
-                className={`text-sm font-medium transition-colors duration-200 px-3 py-2 focus:outline-none ${
-                  isActive('/problems')
+                className={`text-sm font-medium transition-colors duration-200 px-3 py-2 focus:outline-none ${isActive('/problems')
                     ? 'text-blue-600 font-semibold border-b-2 border-blue-600'
                     : 'text-black hover:text-gray-600'
-                }`}
+                  }`}
               >
                 문제
               </Link>
               <Link
                 to="/workbooks"
-                className={`text-sm font-medium transition-colors duration-200 px-3 py-2 focus:outline-none ${
-                  isActive('/workbooks')
+                className={`text-sm font-medium transition-colors duration-200 px-3 py-2 focus:outline-none ${isActive('/workbooks')
                     ? 'text-blue-600 font-semibold border-b-2 border-blue-600'
                     : 'text-black hover:text-gray-600'
-                }`}
+                  }`}
               >
                 문제집
               </Link>
               <Link
                 to="/contests"
-                className={`text-sm font-medium transition-colors duration-200 px-3 py-2 focus:outline-none ${
-                  isActive('/contests')
+                className={`text-sm font-medium transition-colors duration-200 px-3 py-2 focus:outline-none ${isActive('/contests')
                     ? 'text-blue-600 font-semibold border-b-2 border-blue-600'
                     : 'text-black hover:text-gray-600'
-                }`}
+                  }`}
               >
                 대회
               </Link>
               <Link
-                to="/ranking"
-                className={`text-sm font-medium transition-colors duration-200 px-3 py-2 focus:outline-none ${
-                  isActive('/ranking')
+                to="/organizations"
+                className={`text-sm font-medium transition-colors duration-200 px-3 py-2 focus:outline-none ${isActive('/organizations')
                     ? 'text-blue-600 font-semibold border-b-2 border-blue-600'
                     : 'text-black hover:text-gray-600'
-                }`}
+                  }`}
+              >
+                단체
+              </Link>
+              <Link
+                to="/ranking"
+                className={`text-sm font-medium transition-colors duration-200 px-3 py-2 focus:outline-none ${isActive('/ranking')
+                    ? 'text-blue-600 font-semibold border-b-2 border-blue-600'
+                    : 'text-black hover:text-gray-600'
+                  }`}
               >
                 랭킹
               </Link>
               {isAdmin && (
                 <Link
                   to="/admin"
-                  className={`text-sm font-medium transition-colors duration-200 px-3 py-2 focus:outline-none ${
-                    isActive('/admin')
+                  className={`text-sm font-medium transition-colors duration-200 px-3 py-2 focus:outline-none ${isActive('/admin')
                       ? 'text-blue-600 font-semibold border-b-2 border-blue-600'
                       : 'text-black hover:text-gray-600'
-                  }`}
+                    }`}
                 >
                   관리
                 </Link>

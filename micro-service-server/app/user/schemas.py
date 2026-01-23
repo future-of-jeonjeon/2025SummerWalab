@@ -7,6 +7,8 @@ class UserData(BaseModel):
     admin_type: str
 
 
+    class Config:
+        from_attributes = True
 
 class SubUserData(BaseModel):
     user_id: int

@@ -1,8 +1,19 @@
-import { Organization, OrganizationListResponse, OrganizationMember } from '../types';
+import { Organization, OrganizationListResponse, OrganizationMember, OrganizationPayload } from '../types';
 import { apiClient, MS_API_BASE } from './api';
 
 type RequestOptions = {
   signal?: AbortSignal;
+};
+
+type RawUserData = {
+  user_id?: number | string;
+  username?: string | number;
+  real_name?: string;
+  realName?: string;
+  email?: string;
+  avatar?: string;
+  admin_type?: string;
+  adminType?: string;
 };
 
 type RawOrganizationMember = {
@@ -12,97 +23,93 @@ type RawOrganizationMember = {
   real_name?: string;
   realName?: string;
   email?: string;
+  user?: RawUserData;
+  role?: string | number;
   admin_type?: string;
   adminType?: string;
 };
 
 type RawOrganization = {
   id?: number | string;
-  organization_id?: number | string;
+  organization_id?: number | string; // Handle alternate key
   name?: string | number;
-  description?: string | null;
+  description?: string;
   created_at?: string;
   createdAt?: string;
   updated_at?: string;
   updatedAt?: string;
   members?: RawOrganizationMember[];
-  [key: string]: unknown;
+  member_count?: number;
 };
 
 type RawOrganizationListResponse = {
   items?: RawOrganization[];
   results?: RawOrganization[];
   data?: RawOrganization[];
-  total?: number;
-  count?: number;
-  page?: number;
-  current_page?: number;
-  size?: number;
-  limit?: number;
-  page_size?: number;
-  [key: string]: unknown;
+  total?: number | string;
+  count?: number | string;
+  page?: number | string;
+  current_page?: number | string;
+  size?: number | string;
+  limit?: number | string;
+  page_size?: number | string;
 };
 
-export type OrganizationPayload = {
-  name: string;
-  description?: string | null;
-};
-
-export type OrganizationListParams = {
+interface OrganizationListParams {
   page?: number;
   size?: number;
+  // Intentionally removed search term as per user request to remove search
+}
+
+
+
+const ensureBase = (url: string): string => {
+  if (url.startsWith('http')) return url;
+  const base = MS_API_BASE.endsWith('/') ? MS_API_BASE.slice(0, -1) : MS_API_BASE;
+  const path = url.startsWith('/') ? url : `/${url}`;
+  return `${base}${path}`;
 };
 
-const ORGANIZATION_API_BASE = `${MS_API_BASE}/organization`;
+const buildUrl = (path: string, params?: Record<string, string | number | undefined>): string => {
+  const url = ensureBase(`/organization${path}`);
+  if (!params) return url;
 
-const ensureBase = () => {
-  if (!MS_API_BASE) {
-    throw new Error('Micro-service API base URL is not configured.');
-  }
-  return ORGANIZATION_API_BASE;
+  const searchParams = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined) {
+      searchParams.append(key, String(value));
+    }
+  });
+
+  const queryString = searchParams.toString();
+  return queryString ? `${url}?${queryString}` : url;
 };
 
-const buildUrl = (path = '', params?: Record<string, unknown>) => {
-  const base = ensureBase();
-  const normalizedPath = path ? (path.startsWith('/') ? path : `/${path}`) : '';
-  const search = new URLSearchParams();
-  if (params) {
-    Object.entries(params).forEach(([key, value]) => {
-      if (value === undefined || value === null) {
-        return;
-      }
-      if (Array.isArray(value)) {
-        if (value.length === 0) {
-          return;
-        }
-        search.append(key, value.join(','));
-        return;
-      }
-      const strValue = String(value).trim();
-      if (!strValue) {
-        return;
-      }
-      search.append(key, strValue);
-    });
-  }
-  const query = search.toString();
-  return `${base}${normalizedPath}${query ? `?${query}` : ''}`;
-};
-
-
-
-const isRawOrganization = (value: unknown): value is RawOrganization =>
-  typeof value === 'object' && value !== null;
+function isRawOrganization(data: unknown): data is RawOrganization {
+  return typeof data === 'object' && data !== null;
+}
 
 const adaptMember = (data: RawOrganizationMember | undefined): OrganizationMember => {
-  const idSource = data?.id ?? data?.user_id ?? 0;
-  const usernameSource = data?.username ?? '';
+  // Prioritize nested user object
+  const user = data?.user;
+
+  const idSource = data?.id ?? user?.user_id ?? data?.user_id ?? 0;
+  const usernameSource = user?.username ?? data?.username ?? '';
+  const realNameSource = user?.real_name ?? user?.realName ?? data?.real_name ?? data?.realName;
+  const emailSource = user?.email ?? data?.email;
+  // Extract avatar from nested user object
+  const avatarSource = user?.avatar;
+  const adminTypeSource = user?.admin_type ?? user?.adminType ?? data?.admin_type ?? data?.adminType;
+
   return {
     id: Number(idSource),
     username: typeof usernameSource === 'string' ? usernameSource : String(usernameSource),
-    realName: typeof data?.real_name === 'string' ? data.real_name : data?.realName,
-    email: typeof data?.email === 'string' ? data.email : undefined,
-    adminType: typeof data?.admin_type === 'string' ? data.admin_type : data?.adminType,
+    realName: typeof realNameSource === 'string' ? realNameSource : undefined,
+    email: typeof emailSource === 'string' ? emailSource : undefined,
+    avatar: typeof avatarSource === 'string' ? avatarSource : undefined,
+    adminType: typeof adminTypeSource === 'string' ? adminTypeSource : undefined,
+    // Provide a default role if needed, though OrganizationMember interface might not enforce it rigidly yet or uses 'role' field
+    role: (typeof data?.role === 'number' || typeof data?.role === 'string' ? String(data.role) : undefined) as "MEMBER" | "ORG_ADMIN" | "ORG_SUPER_ADMIN" | undefined,
   };
 };
 
@@ -127,6 +134,8 @@ const adaptOrganization = (raw: RawOrganization | undefined): Organization => {
     id: Number(rawId),
     name: typeof rawName === 'string' ? rawName : String(rawName),
     description: typeof raw.description === 'string' ? raw.description : raw.description ?? null,
+    // Provide img_url mapping
+    img_url: (raw as any).img_url || (raw as any).imgUrl || null,
     createdAt: typeof raw.created_at === 'string' ? raw.created_at : raw.createdAt,
     updatedAt: typeof raw.updated_at === 'string' ? raw.updated_at : raw.updatedAt,
     members: members && members.length > 0 ? members : undefined,
@@ -231,19 +240,7 @@ export const organizationService = {
     await apiClient.delete(url, { signal: options?.signal });
   },
 
-  addMember: async (
-    organizationId: number,
-    userId: number,
-    options?: RequestOptions,
-  ): Promise<Organization> => {
-    const url = buildUrl(`/${organizationId}/users/${userId}`);
-    const response = await apiClient.post<RawOrganization>(url, {}, { signal: options?.signal });
-    const body = response.data;
-    if (!body) {
-      throw new Error('Failed to parse add member response.');
-    }
-    return adaptOrganization(body);
-  },
+
 
   removeMember: async (
     organizationId: number,
@@ -260,5 +257,17 @@ export const organizationService = {
       };
     }
     return adaptOrganization(body);
+  },
+
+  join: async (organizationId: number, joinCode?: string, options?: RequestOptions): Promise<void> => {
+    const url = buildUrl(`/${organizationId}/join`);
+    const params = joinCode ? { join_code: joinCode } : {};
+    await apiClient.post(url, {}, { params, signal: options?.signal });
+  },
+
+  generateInviteCode: async (organizationId: number, options?: RequestOptions): Promise<string> => {
+    const url = buildUrl(`/${organizationId}/join-code`);
+    const response = await apiClient.post<string>(url, {}, { signal: options?.signal });
+    return response.data;
   },
 };

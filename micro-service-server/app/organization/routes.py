@@ -21,7 +21,7 @@ async def create_organization(
     return await organization_serv.create_organization(data, db)
 
 
-@router.get("/", response_model=Page[OrganizationResponse])
+@router.get("/", response_model=Page[OrganizationListResponse])
 async def list_organizations(
         page: int = Query(1, ge=1),
         size: int = Query(20, ge=1, le=30),
@@ -37,7 +37,6 @@ async def get_organization(
 
 
 @router.put("/{organization_id}", response_model=OrganizationResponse)
-@require_role("Admin")
 async def update_organization(
         organization_id: int,
         data: OrganizationUpdateRequest,
@@ -47,7 +46,6 @@ async def update_organization(
 
 
 @router.delete("/{organization_id}")
-@require_role("Admin")
 async def delete_organization(
         organization_id: int,
         userdata: UserData = Depends(get_userdata),
@@ -65,15 +63,21 @@ async def list_organization_users(
     return await organization_serv.list_organization_user(organization_id, page, size, db)
 
 
-@router.post("/{organization_id}/users/{user_id}", response_model=OrganizationMemberResponse)
-async def add_organization_user(
+@router.post("/{organization_id}/join-code", response_model=str)
+async def code_generate(
         organization_id: int,
-        user_id: int,
         userdata: UserData = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)):
-    return await organization_serv.add_organization_user(organization_id=organization_id,
-                                                         request_user=userdata,
-                                                         target_user_id=user_id, db=db)
+    return await organization_serv.organization_join_code(organization_id, userdata, db)
+
+
+@router.post("/{organization_id}/join", response_model=OrganizationMemberResponse)
+async def join_organization(
+        join_code: str,
+        organization_id: int,
+        userdata: UserData = Depends(get_userdata),
+        db: AsyncSession = Depends(get_database)):
+    return await organization_serv.join_organization(organization_id, userdata, join_code, db)
 
 
 @router.delete("/{organization_id}/users/{user_id}")
