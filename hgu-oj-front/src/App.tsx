@@ -17,6 +17,10 @@ import { AdminPage } from './pages/AdminPage';
 import MyPage from './pages/MyPage';
 import { RankingPage } from './pages/RankingPage';
 import UserInfoPage from './pages/UserInfoPage';
+import { OrganizationListPage } from './pages/OrganizationListPage';
+import { OrganizationDetailPage } from './pages/OrganizationDetailPage';
+import { OrganizationManagePage } from './pages/OrganizationManagePage';
+import { OrganizationJoinPage } from './pages/OrganizationJoinPage';
 
 const AppShell: React.FC = () => {
   const location = useLocation();
@@ -39,6 +43,11 @@ const AppShell: React.FC = () => {
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/mypage" element={<MyPage />} />
         <Route path="/user-info" element={<UserInfoPage />} />
+        <Route path="/organizations" element={<OrganizationListPage />} />
+        <Route path="/organizations/new" element={<OrganizationManagePage />} />
+        <Route path="/organizations/:id" element={<OrganizationDetailPage />} />
+        <Route path="/organizations/:id/manage" element={<OrganizationManagePage />} />
+        <Route path="/organizations/:id/join" element={<OrganizationJoinPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>

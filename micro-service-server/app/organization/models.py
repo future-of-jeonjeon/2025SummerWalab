@@ -1,37 +1,71 @@
-from typing import TYPE_CHECKING, List
+from typing import List
+import enum
 
-from sqlalchemy import Column, String, Table, ForeignKey
-from sqlalchemy.orm import relationship, Mapped, mapped_column
+from sqlalchemy import String, ForeignKey, UniqueConstraint, Index, Enum as SAEnum
+from sqlalchemy.orm import Mapped, mapped_column, relationship, backref
+
 from app.core.database import Base
-
-if TYPE_CHECKING:
-    from app.user.models import User
-
-micro_organization_member = Table(
-    "micro_organization_member",
-    Base.metadata,
-    Column("organization_id", ForeignKey("public.micro_organization.id", ondelete="CASCADE"), primary_key=True),
-    Column("member_id", ForeignKey("public.user.id", ondelete="CASCADE"), primary_key=True),
-    schema="public",
-)
-
-
 from app.common.base_entity import BaseEntity
+from app.user.models import UserData
+
+
+class OrganizationRole(str, enum.Enum):
+    MEMBER = "MEMBER"
+    ORG_ADMIN = "ORG_ADMIN"
+    ORG_SUPER_ADMIN = "ORG_SUPER_ADMIN"
+
 
 class Organization(BaseEntity, Base):
     __tablename__ = "micro_organization"
+    __table_args__ = {"schema": "public"}
+
+    name: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    img_url: Mapped[str] = mapped_column(String(512), nullable=True)
+    description: Mapped[str] = mapped_column(String(100), nullable=False)
+
+    member_links: Mapped[List["OrganizationMember"]] = relationship(
+        "OrganizationMember",
+        back_populates="organization",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+        lazy="selectin",
+    )
+
+
+class OrganizationMember(BaseEntity, Base):
+    __tablename__ = "micro_organization_member"
     __table_args__ = (
+        UniqueConstraint("organization_id", "user_id", name="uq_org_user"),
+        Index("ix_org_member_org_id", "organization_id"),
+        Index("ix_org_member_user_id", "user_id"),
         {"schema": "public"},
     )
-    # id = Column(Integer, primary_key=True, autoincrement=True, index=True)
-    name: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
-    description: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
-    # created_at = Column("created_time", DateTime(timezone=True), server_default=func.now())
-    # updated_at = Column("updated_time", DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
-    members: Mapped[List["User"]] = relationship(
-        "User",
-        secondary="public.micro_organization_member",
+    organization_id: Mapped[str] = mapped_column(
+        ForeignKey("public.micro_organization.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    user_id: Mapped[str] = mapped_column(
+        ForeignKey("public.user.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+
+    organization: Mapped["Organization"] = relationship(
+        "Organization",
+        back_populates="member_links",
         lazy="selectin",
-        passive_deletes=True,
+    )
+
+    user: Mapped["UserData"] = relationship(
+        "UserData",
+        backref=backref("organization_links", lazy="selectin", viewonly=True),
+        lazy="selectin",
+        foreign_keys=[user_id],  
+        primaryjoin="OrganizationMember.user_id == UserData.user_id", 
+    )
+
+    role: Mapped[OrganizationRole] = mapped_column(
+        SAEnum(OrganizationRole, name="organization_role"),
+        nullable=False,
+        default=OrganizationRole.MEMBER,
     )
