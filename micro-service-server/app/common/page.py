@@ -13,6 +13,9 @@ class Page(GenericModel, Generic[T]):
     page: int
     size: int
 
+    class Config:
+        arbitrary_types_allowed = True
+
     @property
     def has_next(self) -> bool:
         return self.page * self.size < self.total

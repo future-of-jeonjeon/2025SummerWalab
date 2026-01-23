@@ -13,3 +13,6 @@ class SubUserData(BaseModel):
     student_id: str
     major_id: int
     name : str
+
+    class Config:
+        from_attributes = True

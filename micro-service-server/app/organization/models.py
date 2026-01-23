@@ -2,7 +2,7 @@ from typing import List
 import enum
 
 from sqlalchemy import String, ForeignKey, UniqueConstraint, Index, Enum as SAEnum
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship, backref
 
 from app.core.database import Base
 from app.common.base_entity import BaseEntity
@@ -20,6 +20,7 @@ class Organization(BaseEntity, Base):
     __table_args__ = {"schema": "public"}
 
     name: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    img_url: Mapped[str] = mapped_column(String(512), nullable=True)
     description: Mapped[str] = mapped_column(String(100), nullable=False)
 
     member_links: Mapped[List["OrganizationMember"]] = relationship(
@@ -40,7 +41,7 @@ class OrganizationMember(BaseEntity, Base):
         {"schema": "public"},
     )
 
-    _organization_id: Mapped[str] = mapped_column(
+    organization_id: Mapped[str] = mapped_column(
         ForeignKey("public.micro_organization.id", ondelete="CASCADE"),
         nullable=False,
     )
@@ -56,9 +57,11 @@ class OrganizationMember(BaseEntity, Base):
     )
 
     user: Mapped["UserData"] = relationship(
-        "User",
-        back_populates="organization_links",
+        "UserData",
+        backref=backref("organization_links", lazy="selectin", viewonly=True),
         lazy="selectin",
+        foreign_keys=[user_id],  
+        primaryjoin="OrganizationMember.user_id == UserData.user_id", 
     )
 
     role: Mapped[OrganizationRole] = mapped_column(

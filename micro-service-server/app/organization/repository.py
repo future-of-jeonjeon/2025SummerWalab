@@ -4,6 +4,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
 from sqlalchemy import exists
+from sqlalchemy.orm import selectinload
 
 
 async def check_user_exists_by_organization_name(organization_name: str, db: AsyncSession) -> bool:
@@ -27,9 +28,9 @@ async def save_organization_member(member: OrganizationMember, db: AsyncSession)
 
 async def get_organization_members_by_organization_id(organization_id: int, db: AsyncSession) -> list[
     OrganizationMember]:
-    stmt = select(OrganizationMember).where(Organization.id == organization_id)
+    stmt = select(OrganizationMember).where(OrganizationMember.organization_id == organization_id)
     result = await db.execute(stmt)
-    return result.scalar_one_or_none()
+    return result.scalars().all()
 
 
 async def get_member_by_organization_id_and_user_id(
@@ -37,8 +38,8 @@ async def get_member_by_organization_id_and_user_id(
         user_id: int,
         db: AsyncSession) -> OrganizationMember:
     stmt = (select(OrganizationMember)
-            .where(OrganizationMember.organization.id == organization_id)
-            .where(OrganizationMember.organization.user_id == user_id))
+            .where(OrganizationMember.organization_id == organization_id)
+            .where(OrganizationMember.user_id == user_id))
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
 
@@ -68,7 +69,7 @@ async def get_organization_members(
 ) -> Page[OrganizationMember]:
     stmt = (
         select(OrganizationMember)
-        .where(OrganizationMember._organization_id == organization_id)
+        .where(OrganizationMember.organization_id == organization_id)
         .options(selectinload(OrganizationMember.user))
         .order_by(OrganizationMember.id.desc())
     )

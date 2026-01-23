@@ -1,5 +1,47 @@
 from typing import Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel
+from app.organization.models import OrganizationRole, Organization, OrganizationMember
+from app.user.schemas import SubUserData
+
+
+class OrganizationMemberResponse(BaseModel):
+    id: int
+    organization_id: int
+    user: SubUserData
+    role: OrganizationRole
+
+    class Config:
+        from_attributes = True
+
+    @classmethod
+    def from_orm(cls, entity: OrganizationMember):
+        return cls(
+            id=entity.id,
+            organization_id=entity.organization_id,
+            user=SubUserData.from_orm(entity.user),
+            role=entity.role
+        )
+
+
+class OrganizationResponse(BaseModel):
+    id: int
+    img_url: Optional[str]
+    name: str
+    description: Optional[str]
+    members: list[OrganizationMemberResponse]
+
+    @classmethod
+    def from_orm(cls, entity: Organization) -> "OrganizationResponse":
+        return cls(
+            id=entity.id,
+            img_url=entity.img_url,
+            name=entity.name,
+            description=entity.description,
+            members=[
+                OrganizationMemberResponse.from_orm(member)
+                for member in entity.member_links
+            ]
+        )
 
 
 class OrganizationMemberUpdateRequest(BaseModel):
@@ -7,11 +49,13 @@ class OrganizationMemberUpdateRequest(BaseModel):
     role: int  # | 0 USER | 1 ADMIN | 2 SUPER ADMIN |
 
 
-class OrganizationCreateData(BaseModel):
-    name: str = Field(..., min_length=2, max_length=100)
-    description: Optional[str] = Field(None, max_length=500)
+class OrganizationCreateRequest(BaseModel):
+    name: str
+    img_url: Optional[str]
+    description: Optional[str]
 
 
-class OrganizationUpdateData(BaseModel):
-    name: Optional[str] = Field(None, min_length=2, max_length=100)
-    description: Optional[str] = Field(None, max_length=500)
+class OrganizationUpdateRequest(BaseModel):
+    name: Optional[str]
+    img_url: Optional[str]
+    description: Optional[str]
