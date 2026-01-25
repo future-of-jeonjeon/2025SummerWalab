@@ -16,7 +16,7 @@ import {
     normalizeLanguageKey,
     normalizeLanguageList,
     toBackendLanguageList,
-    templateMap,
+
 } from '../../lib/problemLanguage';
 import { getTagColor } from '../../utils/tagColor';
 
