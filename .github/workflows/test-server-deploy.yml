@@ -56,6 +56,7 @@ jobs:
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.TEST_SERVER_HOST }}
+          port: 2222
           username: ${{ secrets.TEST_SERVER_USER }}
           key: ${{ secrets.TEST_SERVER_SSH_KEY }}
           source: "hgu-oj-front/dist/*"
@@ -66,10 +67,11 @@ jobs:
         uses: appleboy/ssh-action@v1.1.0
         with:
           host: ${{ secrets.TEST_SERVER_HOST }}
+          port: 2222
           username: ${{ secrets.TEST_SERVER_USER }}
           key: ${{ secrets.TEST_SERVER_SSH_KEY }}
           script: |
-            cd ~/hgu-oj
+            cd ~/judge-test/
             echo ${{ secrets.TEST_SERVER_PASSWORD }} | sudo -S docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
             echo ${{ secrets.TEST_SERVER_PASSWORD }} | sudo -S docker compose pull
             echo ${{ secrets.TEST_SERVER_PASSWORD }} | sudo -S docker compose up -d
