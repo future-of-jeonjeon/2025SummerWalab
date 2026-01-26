@@ -47,11 +47,12 @@ jobs:
 
       - name: Build and push Docker images
         run: |
-          docker buildx build --platform linux/amd64 --load -t ${{ secrets.DOCKERHUB_USERNAME }}/oj-backend:latest ./OnlineJudge
-          docker buildx build --platform linux/amd64 --load -t ${{ secrets.DOCKERHUB_USERNAME }}/oj-micro-service:latest ./micro-service-server
+
+          docker buildx build --platform linux/arm64 --load -t ${{ secrets.DOCKERHUB_USERNAME }}/oj-backend:latest ./OnlineJudge
+          docker buildx build --platform linux/arm64 --load -t ${{ secrets.DOCKERHUB_USERNAME }}/oj-micro-service:latest ./micro-service-server
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/oj-backend:latest
           docker push ${{ secrets.DOCKERHUB_USERNAME }}/oj-micro-service:latest
-    
+
       - name: Deploy frontend on server
         uses: appleboy/scp-action@v0.1.7
         with:
