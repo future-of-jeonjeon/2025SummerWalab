@@ -116,7 +116,7 @@ services:
       - SERVICE_DOMAIN=${SERVICE_DOMAIN}
       - HGU_FRONT_VITE_API_URL=http://${SERVICE_DOMAIN}:8000/api
       - HGU_FRONT_VITE_MS_API_BASE=http://${SERVICE_DOMAIN}:8000/api
-      - BACKEND_CORS_ORIGINS=["*"]
+      - BACKEND_CORS_ORIGINS=["http://localhost:5173", "http://localhost:3000"]
       - JUDGE_SERVER_TOKEN=${JUDGE_SERVER_TOKEN}
     volumes:
       - ./data/backend/test_case:/test_case:rw 
