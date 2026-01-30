@@ -14,6 +14,35 @@ import {
 import { RankingPagination } from '../components/ranking/RankingPagination';
 import { Button } from '../components/atoms/Button';
 
+const RankBadge = ({ rank }: { rank: number }) => {
+  if (rank === 1) {
+    return (
+      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-yellow-100 text-xl font-bold text-yellow-600 ring-2 ring-yellow-400/50 dark:bg-yellow-900/30 dark:text-yellow-400 dark:ring-yellow-500/50">
+        🥇
+      </div>
+    );
+  }
+  if (rank === 2) {
+    return (
+      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-xl font-bold text-slate-600 ring-2 ring-slate-300 dark:bg-slate-800 dark:text-slate-300 dark:ring-slate-500">
+        🥈
+      </div>
+    );
+  }
+  if (rank === 3) {
+    return (
+      <div className="flex h-8 w-8 items-center justify-center rounded-full bg-orange-100 text-xl font-bold text-orange-600 ring-2 ring-orange-300 dark:bg-orange-900/30 dark:text-orange-400 dark:ring-orange-500">
+        🥉
+      </div>
+    );
+  }
+  return (
+    <span className="font-mono text-base font-semibold text-gray-500 dark:text-slate-400">
+      {rank}
+    </span>
+  );
+};
+
 const USER_RANKING_PAGE_SIZE = 25;
 const ORGANIZATION_RANKING_PAGE_SIZE = 15;
 
@@ -53,6 +82,7 @@ const buildUserColumns = (): RankingTableColumn<UserRankingEntry>[] => [
     header: '순위',
     width: '80px',
     align: 'center',
+    render: (row) => <div className="flex justify-center"><RankBadge rank={row.rank} /></div>,
   },
   {
     key: 'username',
@@ -115,6 +145,7 @@ const organizationColumns: RankingTableColumn<OrganizationRankingEntry>[] = [
     header: '순위',
     width: '80px',
     align: 'center',
+    render: (row) => <div className="flex justify-center"><RankBadge rank={row.rank} /></div>,
   },
   {
     key: 'name',
@@ -220,10 +251,11 @@ export const RankingPage: React.FC = () => {
       <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 2xl:max-w-screen-2xl 2xl:px-10">
         <header className="mb-8 flex flex-col gap-4 text-gray-900 dark:text-slate-100">
           <h1 className="text-3xl font-bold tracking-tight">랭킹 센터</h1>
-          <div className="inline-flex items-center gap-2 rounded-full bg-gray-100 p-1 dark:bg-slate-800/70">
+          <div className="grid w-full max-w-sm grid-cols-2 rounded-lg bg-gray-100 p-1 dark:bg-slate-800">
             <Button
               size="sm"
               variant={activeView === 'user' ? 'primary' : 'ghost'}
+              className={`w-full justify-center rounded-md ${activeView === 'user' ? 'shadow-sm' : ''}`}
               onClick={() => setActiveView('user')}
             >
               유저 랭킹
@@ -231,6 +263,7 @@ export const RankingPage: React.FC = () => {
             <Button
               size="sm"
               variant={activeView === 'organization' ? 'primary' : 'ghost'}
+              className={`w-full justify-center rounded-md ${activeView === 'organization' ? 'shadow-sm' : ''}`}
               onClick={() => setActiveView('organization')}
             >
               조직 랭킹
