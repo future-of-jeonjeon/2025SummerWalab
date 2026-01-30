@@ -325,17 +325,15 @@ export const contestService = {
   },
   getContestRank: async (
     contestId: number,
-    params?: { limit?: number; offset?: number; isAdmin?: boolean },
+    _params?: { limit?: number; offset?: number; isAdmin?: boolean },
   ): Promise<{ results: ContestRankEntry[]; total: number }> => {
     if (!MICRO_API_BASE) {
       throw new Error('Microservice API base URL is not configured.');
     }
 
-    const endpoint = params?.isAdmin ? '/contest/rank/all' : '/contest/rank';
+    const endpoint = `/rank/contest/${contestId}`;
     try {
-      const response = await apiClient.get<ContestRankEntry[]>(`${MICRO_API_BASE}${endpoint}`, {
-        params: { contest_id: contestId },
-      });
+      const response = await apiClient.get<ContestRankEntry[]>(`${MICRO_API_BASE}${endpoint}`);
 
       const data = response.data || [];
 
@@ -344,15 +342,15 @@ export const contestService = {
       // For now, we return the full list as 'results' and length as 'total'.
 
       const entries = data.map((raw: any) => ({
-        id: raw.user.id, // Using user ID as the entry ID for now, or generate one if needed
+        id: raw.user_id ?? raw.id,
         user: {
-          id: raw.user?.id,
-          username: raw.user?.username,
-          realName: raw.user?.real_name ?? raw.user?.realName,
-          studentId: raw.user?.student_id ?? raw.user?.studentId,
+          id: raw.user_id ?? raw.user?.id,
+          username: raw.username ?? raw.user?.username,
+          realName: raw.real_name ?? raw.user?.real_name ?? raw.user?.realName,
+          studentId: raw.student_id ?? raw.user?.student_id ?? raw.user?.studentId,
         },
         acceptedNumber: raw.accepted_number ?? raw.acceptedNumber,
-        submissionNumber: raw.submission_number ?? raw.submissionNumber, // MS DTO doesn't have submission_number yet, might need to add it or default to 0
+        submissionNumber: raw.submission_number ?? raw.submissionNumber ?? 0,
         totalTime: raw.total_time ?? raw.totalTime,
         totalScore: raw.total_score ?? raw.totalScore,
         submissionInfo: raw.submission_info ?? raw.submissionInfo,

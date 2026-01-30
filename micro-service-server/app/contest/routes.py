@@ -76,23 +76,6 @@ async def get_participated_contest_by_user(
         db: AsyncSession = Depends(get_database)):
     return await serv.get_participated_contest_by_user(userdata, db)
 
-
-@router.get("/rank", response_model=List[ContestRankDTO])
-async def get_contest_rank(
-        contest_id: int,
-        db: AsyncSession = Depends(get_database)):
-    return await serv.get_contest_rank_public(contest_id, db)
-
-
-@require_role("Admin")
-@router.get("/rank/all", response_model=List[ContestRankDTO])
-async def get_contest_rank_all_data(
-        contest_id: int,
-        userdata: UserData = Depends(get_userdata),
-        db: AsyncSession = Depends(get_database)):
-    return await serv.get_contest_rank_admin(contest_id, db)
-
-
 @router.get("/{contest_id}", response_model=ContestDataDTO)
 async def get_contest_detail(
         contest_id: int,
