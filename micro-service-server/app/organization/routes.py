@@ -12,7 +12,7 @@ import app.organization.service as organization_serv
 router = APIRouter(prefix="/api/organization", tags=["organization"])
 
 
-@router.post("/", response_model=OrganizationResponse)
+@router.post("", response_model=OrganizationResponse)
 @require_role("Admin")
 async def create_organization(
         data: OrganizationCreateRequest,
@@ -21,7 +21,7 @@ async def create_organization(
     return await organization_serv.create_organization(data, db)
 
 
-@router.get("/", response_model=Page[OrganizationListResponse])
+@router.get("", response_model=Page[OrganizationListResponse])
 async def list_organizations(
         page: int = Query(1, ge=1),
         size: int = Query(20, ge=1, le=30),
