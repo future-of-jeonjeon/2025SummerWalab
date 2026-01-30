@@ -1,25 +1,18 @@
-import hashlib
-import json
-import os
-import random
-import re
-import string
-import zipfile
-from functools import lru_cache
-from typing import Dict, List, Optional
-
+import io, zipfile, hashlib, uuid, json, os, random, re, string, yaml
+from datetime import datetime
+from typing import List, Optional, Dict
 from fastapi import UploadFile
-from sqlalchemy import Float, asc, case, cast, desc
+from sqlalchemy import asc, desc, case, cast, Float
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.problem import repository as problem_repository
-from app.problem.models import Problem
-from app.problem.schemas import ImportProblemSerializer
-from app.problem.schemas import ProblemListResponse
 from app.core.settings import settings
+from app.user.schemas import UserData
+from app.problem import repository as problem_repository
+import app.problem.exceptions as problem_exceptions
+from app.problem.models import Problem
+from app.problem.schemas import ProblemListResponse
 
 
-def rand_str(length=32, type="lower_hex"):
+def _rand_str(length=32, type="lower_hex"):
     if type == "str":
         return "".join(random.choice(string.ascii_letters + string.digits) for _ in range(length))
     elif type == "lower_str":
@@ -30,30 +23,29 @@ def rand_str(length=32, type="lower_hex"):
         return random.choice("123456789") + "".join(random.choice("0123456789") for _ in range(length - 1))
 
 
-def natural_sort_key(s, _nsre=re.compile(r"(\d+)")):
+def _natural_sort_key(s, _nsre=re.compile(r"(\d+)")):
     return [int(text) if text.isdigit() else text.lower()
             for text in re.split(_nsre, s)]
 
 
-TEMPLATE_BASE = """//PREPEND BEGIN
-{}
-//PREPEND END
+def _calculate_test_case_score(test_case_scores: List[dict], total_score: int = 100) -> List[dict]:
+    if not test_case_scores:
+        return []
 
-//TEMPLATE BEGIN
-{}
-//TEMPLATE END
+    count = len(test_case_scores)
+    avg_score = total_score // count
+    remainder = total_score % count
 
-//APPEND BEGIN
-{}
-//APPEND END"""
+    for i, test_case in enumerate(test_case_scores):
+        score = avg_score
+        if i < remainder:
+            score += 1
+        test_case["score"] = score
+
+    return test_case_scores
 
 
-@lru_cache(maxsize=100)
-def build_problem_template(prepend, template, append):
-    return TEMPLATE_BASE.format(prepend, template, append)
-
-
-def filter_name_list(name_list, spj, dir=""):
+def _filter_name_list(name_list, spj, dir=""):
     ret = []
     prefix = 1
     if spj:
@@ -64,7 +56,7 @@ def filter_name_list(name_list, spj, dir=""):
                 prefix += 1
                 continue
             else:
-                return sorted(ret, key=natural_sort_key)
+                return sorted(ret, key=_natural_sort_key)
     else:
         while True:
             in_name = f"{prefix}.in"
@@ -75,32 +67,144 @@ def filter_name_list(name_list, spj, dir=""):
                 prefix += 1
                 continue
             else:
-                return sorted(ret, key=natural_sort_key)
+                return sorted(ret, key=_natural_sort_key)
 
-
-def process_zip(uploaded_zip_file, spj, dir=""):
-    try:
-        zip_file = zipfile.ZipFile(uploaded_zip_file, "r")
-    except zipfile.BadZipFile:
+async def import_problem_from_file(zip_file: UploadFile, user_data: UserData, db: AsyncSession):
+    if not zip_file:
         problem_exceptions.bad_zip_file()
+
+    try:
+        problems = []
+        contents = await zip_file.read()
+        try:
+            zip_ref = zipfile.ZipFile(io.BytesIO(contents), "r")
+        except zipfile.BadZipFile:
+            problem_exceptions.bad_zip_file()
+
+        with zip_ref:
+            file_list = zip_ref.namelist()
+            for path in file_list:
+                if path.endswith("problem.md"):
+                    problem_dir = os.path.dirname(path) + "/"
+                    test_case_dir = f"{problem_dir}test/"
+
+                    # Find solution file
+                    solution_files = [f for f in file_list if f.startswith(f"{problem_dir}solution.")]
+                    if not solution_files:
+                        problem_exceptions.missing_file_error(f"{problem_dir}solution.*")
+                    
+                    solution_file = solution_files[0]
+                    ext = os.path.splitext(solution_file)[1].lower()
+                    if ext not in [".c", ".cpp", ".java", ".py", ".js", ".go"]:
+                         # Using bad_zip_file for now as it's an invalid file type in the zip
+                         problem_exceptions.bad_zip_file()
+
+                    test_case_id, test_case_list = _save_test_cases_to_disk(zip_ref, test_case_dir, False)
+                    display_id = str(uuid.uuid4())
+                    problem_md = zip_ref.read(path).decode("utf-8")
+                    meta_data, sections = parse_problem_md(problem_md)
+
+                    if meta_data is None:
+                        problem_exceptions.format_error(sections)
+
+                    try:
+                        problem = _create_problem_from_metadata(meta_data, sections, display_id, test_case_id, test_case_list)
+                    except Exception as e:
+                        problem_exceptions.invalid_metadata(str(e))
+
+                    problem.created_by_id = user_data.user_id
+                    problems.append(problem)
+        await problem_repository.create_problems(db, problems)
+        return problems
+
+    finally:
+        await zip_file.close()
+
+
+
+
+#
+
+def _create_problem_from_metadata(metadata: dict, sections: dict, display_id: str, test_case_id: str, test_case_list: List[dict] = None) -> Problem:
+    spj = metadata.get("spj", False)
+    now = datetime.now()
+
+    raw_test_case_scores = metadata.get("test_case_score", [])
+    if not raw_test_case_scores and test_case_list:
+        raw_test_case_scores = [{"input_name": item["input_name"], "output_name": item["output_name"], "score": 0} for item in test_case_list]
+
+    test_case_scores = _calculate_test_case_score(raw_test_case_scores)
+
+    problem = Problem(
+        _id=display_id,
+        title=metadata.get("title", "No Title"),
+        description=sections.get("description", ""),
+        input_description=sections.get("input_description", ""),
+        output_description=sections.get("output_description", ""),
+        hint=sections.get("hint", ""),
+        test_case_id=test_case_id,
+        test_case_score=test_case_scores,
+        time_limit=metadata.get("time_limit", 1000),
+        memory_limit=metadata.get("memory_limit", 256),
+        samples=sections.get("samples", []),
+        template=metadata.get("template", {}),
+        rule_type=metadata.get("rule_type", "ACM"),
+        spj=spj,
+        spj_code=metadata.get("spj_code", ""),
+        spj_language=metadata.get("spj_language", ""),
+        spj_version=_rand_str(8) if spj else "",
+        spj_compile_ok=False,
+        languages=metadata.get("languages", ["C", "C++", "Java", "Python3", "Go"]),
+        visible=metadata.get("visible", True),
+        difficulty=metadata.get("level", "Medium"),
+        total_score=sum(metadata.get("test_case_score", [])) if metadata.get("rule_type") == "OI" else 100,
+        io_mode=metadata.get("io_mode", {"io_mode": "Standard IO", "input": "input.txt", "output": "output.txt"}),
+        create_time=now,
+        last_update_time=now
+    )
+    return problem
+
+
+def parse_problem_md(content: str):
+    match = re.match(r'^---\s*\n(.*?)\n---\s*\n(.*)', content, re.DOTALL)
+    if not match:
+        return None, "Format Error: YAML Front Matter missing"
+
+    metadata = yaml.safe_load(match.group(1))
+    body = match.group(2).strip()
+
+    sections = {}
+    parts = re.split(r'\n#{1,3}\s+([\w_]+)\s*\n', '\n' + body)
+    for i in range(1, len(parts), 2):
+        sections[parts[i].lower()] = parts[i + 1].strip()
+
+    if 'samples' in sections:
+        sample_pattern = re.compile(
+            r'###\s*input\s*\d*\s*\n(.*?)\n###\s*output\s*\d*\s*\n(.*?)(?=\n###\s*input|\Z)',
+            re.DOTALL | re.IGNORECASE
+        )
+        sections['samples'] = [
+            {"input": m[0].strip(), "output": m[1].strip()}
+            for m in sample_pattern.findall(sections['samples'] + '\n')
+        ]
+
+    return metadata, sections
+
+
+def _save_test_cases_to_disk(zip_file: zipfile.ZipFile, test_case_dir_in_zip: str, spj: bool = False) -> (str, List[dict]):
     name_list = zip_file.namelist()
-    test_case_list = filter_name_list(name_list, spj=spj, dir=dir)
+    test_case_list = _filter_name_list(name_list, spj=spj, dir=test_case_dir_in_zip)
     if not test_case_list:
         problem_exceptions.empty_zip_file()
-
-    test_case_id = rand_str()
-    # TEST_CASE_BASE_PATH should be defined or imported. Assuming it's available or we use a hardcoded path for now as in routes.py
-    TEST_CASE_BASE_PATH = settings.TEST_CASE_DATA_PATH
-    test_case_dir = os.path.join(TEST_CASE_BASE_PATH, test_case_id)
-    os.makedirs(test_case_dir, exist_ok=True)
-    os.chmod(test_case_dir, 0o710)
-
+    test_case_id = _rand_str()
+    dest_path = os.path.join(settings.TEST_CASE_DATA_PATH, test_case_id)
+    os.makedirs(dest_path, exist_ok=True)
+    os.chmod(dest_path, 0o710)
     size_cache = {}
     md5_cache = {}
-
     for item in test_case_list:
-        with open(os.path.join(test_case_dir, item), "wb") as f:
-            content = zip_file.read(f"{dir}{item}").replace(b"\r\n", b"\n")
+        with open(os.path.join(dest_path, item), "wb") as f:
+            content = zip_file.read(f"{test_case_dir_in_zip}{item}").replace(b"\r\n", b"\n")
             size_cache[item] = len(content)
             if item.endswith(".out"):
                 md5_cache[item] = hashlib.md5(content.rstrip()).hexdigest()
@@ -108,7 +212,7 @@ def process_zip(uploaded_zip_file, spj, dir=""):
     test_case_info = {"spj": spj, "test_cases": {}}
 
     info = []
-
+    # Reuse process_zip logic implicitly here or reconstruct info list
     if spj:
         for index, item in enumerate(test_case_list):
             data = {"input_name": item, "input_size": size_cache[item]}
@@ -116,8 +220,12 @@ def process_zip(uploaded_zip_file, spj, dir=""):
             test_case_info["test_cases"][str(index + 1)] = data
     else:
         # ["1.in", "1.out", "2.in", "2.out"] => [("1.in", "1.out"), ("2.in", "2.out")]
-        test_case_list = zip(*[test_case_list[i::2] for i in range(2)])
-        for index, item in enumerate(test_case_list):
+        if isinstance(test_case_list[0], str): # Check if list of strings before zipping
+             zipped_list = zip(*[test_case_list[i::2] for i in range(2)])
+        else:
+             zipped_list = test_case_list
+
+        for index, item in enumerate(zipped_list):
             data = {"stripped_output_md5": md5_cache[item[1]],
                     "input_size": size_cache[item[0]],
                     "output_size": size_cache[item[1]],
@@ -126,93 +234,9 @@ def process_zip(uploaded_zip_file, spj, dir=""):
             info.append(data)
             test_case_info["test_cases"][str(index + 1)] = data
 
-    with open(os.path.join(test_case_dir, "info"), "w", encoding="utf-8") as f:
+    with open(os.path.join(dest_path, "info"), "w", encoding="utf-8") as f:
         f.write(json.dumps(test_case_info, indent=4))
-
-    for item in os.listdir(test_case_dir):
-        os.chmod(os.path.join(test_case_dir, item), 0o640)
-
-    return info, test_case_id
-
-
-async def import_problem(file: UploadFile, db: AsyncSession):
-    tmp_file = f"/tmp/{rand_str()}.zip"
-    with open(tmp_file, "wb") as f:
-        content = await file.read()
-        f.write(content)
-
-    count = 0
-    try:
-        with zipfile.ZipFile(tmp_file, "r") as zf:
-            name_list = zf.namelist()
-            for item in name_list:
-                if "/problem.json" in item:
-                    count += 1
-
-            created_problems = []
-            for i in range(1, count + 1):
-                with zf.open(f"{i}/problem.json") as f:
-                    problem_info = json.load(f)
-                    # Validate with Pydantic model
-                    serializer = ImportProblemSerializer(**problem_info)
-                    problem_info = serializer.model_dump()
-
-                    # Process template
-                    for k, v in problem_info["template"].items():
-                        problem_info["template"][k] = build_problem_template(v["prepend"], v["template"], v["append"])
-
-                    spj = problem_info["spj"] is not None
-                    test_case_score = problem_info["test_case_score"]
-
-                    # Process test case
-                    _, test_case_id = process_zip(tmp_file, spj=spj, dir=f"{i}/testcase/")
-
-                    # Create Problem object
-                    problem = Problem(
-                        _id=problem_info["display_id"],
-                        title=problem_info["title"],
-                        description=problem_info["description"]["value"],
-                        input_description=problem_info["input_description"]["value"],
-                        output_description=problem_info["output_description"]["value"],
-                        hint=problem_info["hint"]["value"],
-                        test_case_score=test_case_score if test_case_score else [],
-                        time_limit=problem_info["time_limit"],
-                        memory_limit=problem_info["memory_limit"],
-                        samples=problem_info["samples"],
-                        template=problem_info["template"],
-                        rule_type=problem_info["rule_type"],
-                        source=problem_info["source"],
-                        spj=spj,
-                        spj_code=problem_info["spj"]["code"] if spj else None,
-                        spj_language=problem_info["spj"]["language"] if spj else None,
-                        spj_version=rand_str(8) if spj else "",
-                        spj_compile_ok=False,
-                        languages=problem_info["languages"] if "languages" in problem_info else ["C", "C++", "Java",
-                                                                                                 "Python3"],
-                        # Default languages if not present
-                        # created_by=request.user, # Need to handle user assignment, maybe pass from route or default
-                        created_by_id=1,  # Temporary default, should be passed from auth
-                        visible=False,
-                        difficulty="Mid",  # Default or map from info
-                        total_score=sum(item["score"] for item in test_case_score) if problem_info[
-                                                                                          "rule_type"] == "OI" else 0,
-                        test_case_id=test_case_id,
-                        io_mode={"io_mode": "Standard IO", "input": "input.txt", "output": "output.txt"}
-                        # Default IO mode
-                    )
-
-                    # Handle tags
-                    for tag_name in problem_info["tags"]:
-                        tag_obj = await problem_repository.get_or_create_tag(db, tag_name)
-                        problem.tags.append(tag_obj)
-
-                    created_problems.append(problem)
-
-            return await problem_repository.create_problems(db, created_problems)
-
-    finally:
-        if os.path.exists(tmp_file):
-            os.remove(tmp_file)
+    return test_case_id, info
 
 
 async def get_all_problems(db: AsyncSession) -> List[Problem]:
