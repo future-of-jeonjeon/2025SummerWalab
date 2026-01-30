@@ -46,7 +46,7 @@ const SkeletonRow: React.FC<{ columns: RankingTableColumn<any>[] }> = ({ columns
     {columns.map((column) => (
       <td
         key={column.key}
-        className={`px-4 py-3 ${alignmentClass[column.align ?? 'left']}`}
+        className={`px-6 py-4 ${alignmentClass[column.align ?? 'left']}`}
       >
         <div className="h-3 rounded bg-gray-200 dark:bg-slate-700" />
       </td>
@@ -64,68 +64,70 @@ export const RankingTable = <T,>({
   className = '',
 }: RankingTableProps<T>) => {
   return (
-    <div className={`overflow-x-auto ${className}`}>
-      <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
-        <thead className="bg-gray-50 dark:bg-slate-900/40">
-          <tr>
-            {columns.map((column) => (
-              <th
-                key={column.key}
-                scope="col"
-                className={`px-4 py-3 text-xs font-semibold uppercase tracking-wider text-gray-600 dark:text-slate-300 ${alignmentClass[column.align ?? 'left']}`}
-                style={column.width ? { width: column.width } : undefined}
-              >
-                {column.header}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-200 bg-white dark:divide-slate-800 dark:bg-slate-900/20">
-          {loading && (
-            Array.from({ length: skeletonRowCount }).map((_, index) => (
-              <SkeletonRow key={`skeleton-${index}`} columns={columns} />
-            ))
-          )}
-
-          {!loading && error && (
+    <div className={`overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-900 ${className}`}>
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-800">
+          <thead className="bg-gray-50/50 dark:bg-slate-900/50">
             <tr>
-              <td
-                colSpan={columns.length}
-                className="px-4 py-6 text-center text-sm text-red-500"
-              >
-                {error}
-              </td>
-            </tr>
-          )}
-
-          {!loading && !error && data.length === 0 && (
-            <tr>
-              <td
-                colSpan={columns.length}
-                className="px-4 py-6 text-center text-sm text-gray-500 dark:text-slate-400"
-              >
-                {emptyMessage}
-              </td>
-            </tr>
-          )}
-
-          {!loading && !error && data.length > 0 && data.map((item, index) => (
-            <tr
-              key={`row-${index}`}
-              className="hover:bg-blue-50/60 dark:hover:bg-slate-800/70 transition-colors"
-            >
               {columns.map((column) => (
-                <td
+                <th
                   key={column.key}
-                  className={`px-4 py-3 text-sm text-gray-700 dark:text-slate-200 ${alignmentClass[column.align ?? 'left']}`}
+                  scope="col"
+                  className={`px-6 py-4 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-slate-400 ${alignmentClass[column.align ?? 'left']}`}
+                  style={column.width ? { width: column.width } : undefined}
                 >
-                  {renderCell(column, item, index)}
-                </td>
+                  {column.header}
+                </th>
               ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-gray-100 bg-white dark:divide-slate-800 dark:bg-slate-900">
+            {loading && (
+              Array.from({ length: skeletonRowCount }).map((_, index) => (
+                <SkeletonRow key={`skeleton-${index}`} columns={columns} />
+              ))
+            )}
+
+            {!loading && error && (
+              <tr>
+                <td
+                  colSpan={columns.length}
+                  className="px-6 py-8 text-center text-sm text-red-500"
+                >
+                  {error}
+                </td>
+              </tr>
+            )}
+
+            {!loading && !error && data.length === 0 && (
+              <tr>
+                <td
+                  colSpan={columns.length}
+                  className="px-6 py-8 text-center text-sm text-gray-500 dark:text-slate-400"
+                >
+                  {emptyMessage}
+                </td>
+              </tr>
+            )}
+
+            {!loading && !error && data.length > 0 && data.map((item, index) => (
+              <tr
+                key={`row-${index}`}
+                className="group transition-colors hover:bg-gray-50/80 dark:hover:bg-slate-800/50"
+              >
+                {columns.map((column) => (
+                  <td
+                    key={column.key}
+                    className={`px-6 py-4 text-sm text-gray-700 dark:text-slate-300 ${alignmentClass[column.align ?? 'left']}`}
+                  >
+                    {renderCell(column, item, index)}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 };
