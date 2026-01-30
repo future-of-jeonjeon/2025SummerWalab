@@ -68,29 +68,7 @@ class ReqAddContestProblemDTO(BaseModel):
     contest_id: int
     problem_id: int
     display_id: str
-
-
-class SubmissionInfoDTO(BaseModel):
-    is_ac: bool
-    ac_time: Optional[float]
-    error_number: int
-    is_first_ac: bool
-
-
-class ContestRankUserDTO(BaseModel):
-    id: int
-    username: str
-    real_name: Optional[str] = None
-    student_id: Optional[str] = None
-
-
-class ContestRankDTO(BaseModel):
-    user: ContestRankUserDTO
-    total_score: Optional[int] = 0
-    accepted_number: Optional[int] = 0
-    total_time: Optional[int] = 0
-    submission_info: dict
-
+    
 
 class PaginatedContestResponse(BaseModel):
     results: List[ContestDataDTO]

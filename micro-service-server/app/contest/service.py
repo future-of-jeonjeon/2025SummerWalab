@@ -140,76 +140,7 @@ async def get_participated_contest_by_user(user_date: UserData, db: AsyncSession
     ]
 
 
-async def _get_contest_and_raw_ranks(contest_id: int, db: AsyncSession):
-    contest = await db.get(Contest, contest_id)
-    if not contest:
-        logger.warning(f"Contest not found: {contest_id}")
-        return None, None
 
-    if contest.rule_type == "ACM":
-        raw_ranks = await contest_repo.get_acm_contest_rank(contest_id, db)
-    else:
-        raw_ranks = await contest_repo.get_oi_contest_rank(contest_id, db)
-
-    return contest, raw_ranks
-
-
-async def get_contest_rank_public(contest_id: int, db: AsyncSession):
-    logger.info(f"Fetching public rank for contest {contest_id}")
-    return await _get_contest_ranks(contest_id, True, db)
-
-
-async def get_contest_rank_admin(contest_id: int, db: AsyncSession):
-    logger.info(f"Fetching admin rank for contest {contest_id}")
-    return await _get_contest_ranks(contest_id, False, db)
-
-
-async def _get_contest_ranks(contest_id: int, anonymize_username: bool, db: AsyncSession):
-    contest, raw_ranks = await _get_contest_and_raw_ranks(contest_id, db)
-    if not contest:
-        exceptions.contest_not_found()
-
-    scores_list = await submission_repo.fetch_contest_user_scores(db, contest_id)
-    score_map = {item["user_id"]: item["total_score"] for item in scores_list}
-    sortable: list[tuple[int, float, ContestRankDTO]] = []
-
-    for rank, user, userdata in raw_ranks:
-        user_dto = _build_user_dto(user, anonymize_username)
-        total_score = score_map.get(user.id, 0)
-        total_time = getattr(rank, "total_time", None)
-
-        dto = ContestRankDTO(
-            user=user_dto,
-            submission_info=rank.submission_info,
-            total_score=total_score,
-            accepted_number=getattr(rank, "accepted_number", 0),
-            total_time=total_time or 0,
-        )
-        # Sort by total score desc, then earliest time asc (None treated as infinity)
-        sort_time = float("inf") if total_time is None else float(total_time)
-        sortable.append((total_score, sort_time, dto))
-
-    sortable.sort(key=lambda item: (-item[0], item[1]))
-
-    return [item[2] for item in sortable]
-
-
-def _build_user_dto(user, anonymize_username: bool) -> ContestRankUserDTO:
-    if anonymize_username:
-        masked = "Unknown"
-        if user.username:
-            masked = user.username[0] + "*" * (len(user.username) - 1)
-
-        return ContestRankUserDTO(
-            id=user.id,
-            username=masked,
-            real_name=None,
-        )
-    return ContestRankUserDTO(
-        id=user.id,
-        username=user.username,
-        real_name=None
-    )
 
 
 def _create_contest_entity_from_dto(create_contest_dto, user_id):

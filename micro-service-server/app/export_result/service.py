@@ -13,6 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.contest.repository as contest_repo
 import app.submission.repository as submission_repo
+import app.rank.repository as rank_repo
 from app.contest.models import Contest
 from app.export_result import repository as export_repo
 from app.user.models import UserData, User
@@ -43,9 +44,9 @@ async def build_rank_rows(contest: Contest, db: AsyncSession) -> Tuple[list, dic
 
     # Raw ranks (includes total_time)
     if contest.rule_type == "ACM":
-        raw_ranks = await contest_repo.get_acm_contest_rank(contest.id, db)
+        raw_ranks = await rank_repo.get_acm_contest_rank(contest.id, db)
     else:
-        raw_ranks = await contest_repo.get_oi_contest_rank(contest.id, db)
+        raw_ranks = await rank_repo.get_oi_contest_rank(contest.id, db)
 
     rows = []
     for rank_row, user, userdata in raw_ranks:

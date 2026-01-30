@@ -8,7 +8,7 @@ const USER_RANKING_ENDPOINT = ((import.meta.env.VITE_USER_RANKING_ENDPOINT as st
 
 const ORGANIZATION_RANKING_ENDPOINT = trimTrailingSlash(
   (import.meta.env.VITE_ORGANIZATION_RANKING_ENDPOINT as string | undefined)
-  || `${MS_API_BASE}/organization_rank`,
+  || `${MS_API_BASE}/rank/organization`,
 );
 
 type ContestRule = 'ACM' | 'OI';
