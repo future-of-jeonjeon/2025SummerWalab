@@ -27,11 +27,12 @@ const languageMap: Record<string, string> = {
   cpp: 'C++',
   c: 'C',
   java: 'Java',
+  go: 'Golang',
 };
 
 export const executionService = {
   run: async ({ language, code, input }: RunRequest): Promise<RawRunResult> => {
-    const lang = languageMap[language] || language;
+    const lang = languageMap[language.toLowerCase()] || language;
 
     if (!MS_API_BASE) {
       throw new Error('API base URL is not configured.');
