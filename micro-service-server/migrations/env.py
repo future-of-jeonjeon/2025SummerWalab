@@ -24,6 +24,7 @@ import app.contest.models
 import app.contest_user.models
 import app.submission.models
 import app.execution.models
+import app.todo.models
 
 
 def _sync_database_url() -> str:

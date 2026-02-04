@@ -78,6 +78,13 @@ const toString = (value: unknown, fallback = ''): string => {
 
 const pad2 = (value: number): string => String(value).padStart(2, '0');
 
+const normalizeAvatarUrl = (url: string): string => {
+  if (url.startsWith('/public/')) {
+    return url.replace('/public/', '/');
+  }
+  return url;
+};
+
 const formatDateKey = (date: Date): string => `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(date.getDate())}`;
 
 const parseDateString = (value: string): Date | null => {
@@ -349,7 +356,7 @@ export const myPageService = {
     return {
       id: toNumber(user?.id ?? profileRaw?.id, 0),
       username: toString(user?.username ?? profileRaw?.username, 'user'),
-      avatarUrl: toString(profileRaw?.avatar ?? user?.avatar ?? '', ''),
+      avatarUrl: normalizeAvatarUrl(toString(profileRaw?.avatar ?? user?.avatar ?? '', '')),
       solvedCount,
       wrongCount,
       streak,
