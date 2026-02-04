@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, Navigate } from 'react-router-dom';
 import { Card } from '../components/atoms/Card';
-import { Button } from '../components/atoms/Button';
 import { ProblemProgressCard } from '../components/molecules/ProblemProgressCard';
 import { useProblemCount } from '../hooks/useProblemCount';
 import { useAuthStore } from '../stores/authStore';
@@ -12,6 +11,8 @@ import { submissionService } from '../services/submissionService';
 import { MyProfile, MySolvedProblem, MyWrongProblem } from '../types';
 import { UserInfoModal } from '../components/organisms/UserInfoModal';
 import { ContributionGraph } from '../components/molecules/ContributionGraph';
+import { GoalConfigModal } from '../components/organisms/GoalConfigModal';
+import { todoService, GoalRecommendation } from '../services/todoService';
 
 
 
@@ -29,7 +30,6 @@ export const MyPage: React.FC = () => {
 
   const {
     data: userData,
-    isLoading: userDataLoading,
     refetch: refetchUserData,
   } = useQuery({
     queryKey: ['mypage', 'userdata'],
@@ -92,6 +92,77 @@ export const MyPage: React.FC = () => {
     error: problemCountError,
   } = useProblemCount();
 
+  const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
+
+  const { data: myTodo } = useQuery({
+    queryKey: ['todo', 'my'],
+    queryFn: todoService.getMyTodo,
+    enabled: isAuthenticated,
+  });
+
+  const { data: recommendations } = useQuery({
+    queryKey: ['todo', 'recommendations'],
+    queryFn: todoService.getRecommendations,
+    enabled: isAuthenticated,
+  });
+
+  const { data: solveStats } = useQuery({
+    queryKey: ['todo', 'stats', 'solve-count'],
+    queryFn: todoService.getSolveCountStats,
+    enabled: isAuthenticated,
+  });
+
+  const { data: streakStats } = useQuery({
+    queryKey: ['todo', 'stats', 'streak'],
+    queryFn: todoService.getStreakStats,
+    enabled: isAuthenticated,
+  });
+
+  const { data: difficultyStats } = useQuery({
+    queryKey: ['todo', 'stats', 'difficulty'],
+    queryFn: todoService.getDifficultyStats,
+    enabled: isAuthenticated,
+  });
+
+  // Helper to find goal definition
+  const getGoalDef = (id: string | null | undefined, type: 'daily' | 'weekly' | 'monthly'): GoalRecommendation | undefined => {
+    if (!id || !recommendations) return undefined;
+    return recommendations[type].find(r => r.id === id);
+  };
+
+  // Helper to calculate progress using real API stats
+  const getProgress = (def: GoalRecommendation | undefined, type: 'daily' | 'weekly' | 'monthly') => {
+    if (!def) return { current: 0, percent: 0 };
+
+    let current = 0;
+    if (def.type === 'SOLVE_COUNT') {
+      if (type === 'daily') current = solveStats?.daily || 0;
+      else if (type === 'weekly') current = solveStats?.weekly || 0;
+      else if (type === 'monthly') current = solveStats?.monthly || 0;
+    } else if (def.type === 'STREAK') {
+      current = streakStats?.streak || 0;
+    } else if (def.type === 'TIER_SOLVE') {
+      const difficultyMap: Record<string, string> = {
+        'monthly_bronze_3': 'Bronze',
+        'monthly_mid_3': 'Mid',
+        'monthly_gold_3': 'Gold', // fallback
+      };
+      const searchDifficulty = difficultyMap[def.id] || 'Bronze';
+      current = difficultyStats?.stats.find(s => s.difficulty === searchDifficulty)?.count || 0;
+    }
+
+    const percent = Math.min(Math.round((current / def.target) * 100), 100);
+    return { current, percent };
+  };
+
+  const dailyGoal = getGoalDef(myTodo?.day_todo, 'daily');
+  const weeklyGoal = getGoalDef(myTodo?.week_todo, 'weekly');
+  const monthlyGoal = getGoalDef(myTodo?.month_todo, 'monthly');
+
+  const dailyProgress = getProgress(dailyGoal, 'daily');
+  const weeklyProgress = getProgress(weeklyGoal, 'weekly');
+  const monthlyProgress = getProgress(monthlyGoal, 'monthly');
+
 
 
   if (!isAuthenticated) {
@@ -102,121 +173,153 @@ export const MyPage: React.FC = () => {
   const progressError = profileError ?? problemCountError;
   const progressLoading = profileLoading || problemCountLoading;
 
-  const renderError = (error: unknown, fallback: string) => {
-    if (error instanceof Error) {
-      return error.message;
-    }
-    if (typeof error === 'string') {
-      return error;
-    }
-    return fallback;
-  };
+
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 2xl:max-w-screen-2xl 2xl:px-10 space-y-8">
-        <section aria-labelledby="mypage-profile">
-          <h1 id="mypage-profile" className="sr-only">마이페이지 프로필</h1>
-          <Card className="flex flex-col md:flex-row items-center md:items-start gap-6">
-            {profileLoading ? (
-              <div className="text-gray-500">프로필을 불러오는 중입니다...</div>
-            ) : profileError ? (
-              <div className="text-red-500">프로필을 불러오지 못했습니다: {renderError(profileError, '')}</div>
-            ) : profile ? (
-              <>
-                <div className="w-28 h-28 rounded-full bg-gray-200 overflow-hidden flex-shrink-0 border-4 border-white shadow-lg">
-                  {profile.avatarUrl ? (
+        <section aria-labelledby="mypage-top-section" className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 dark:bg-slate-800 dark:border-slate-700">
+          <h1 id="mypage-top-section" className="sr-only">마이페이지 상단 정보</h1>
+
+          <div className="flex flex-col lg:flex-row gap-12">
+            {/* Left: Profile Section */}
+            <div className="w-full lg:w-1/3 flex flex-col items-center border-b lg:border-b-0 lg:border-r border-gray-100 dark:border-slate-700 pb-8 lg:pb-0 lg:pr-8">
+              <div className="relative mb-6">
+                <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-lg bg-emerald-50 dark:bg-slate-700 dark:border-slate-600">
+                  {profile?.avatarUrl ? (
                     <img
                       src={profile.avatarUrl}
-                      alt={`${profile.displayName ?? profile.username} 아바타`}
+                      alt="프로필 이미지"
                       className="w-full h-full object-cover"
                     />
                   ) : (
-                    <div className="w-full h-full flex items-center justify-center text-3xl text-gray-500 bg-gray-100">
-                      {profile.username.charAt(0).toUpperCase()}
-                    </div>
+                    <svg className="w-full h-full text-emerald-800/20 dark:text-slate-500" fill="currentColor" viewBox="0 0 24 24">
+                      <path d="M24 20.993V24H0v-2.996A14.977 14.977 0 0112.004 15c4.904 0 9.26 2.354 11.996 5.993zM16.002 8.999a4 4 0 11-8 0 4 4 0 018 0z" />
+                    </svg>
                   )}
                 </div>
+              </div>
 
-                <div className="flex-1 w-full min-w-0">
-                  <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
-                    <div>
-                      <div className="flex items-center gap-3 mb-1">
-                        <h2 className="text-2xl font-bold text-gray-900 truncate">
-                          {userData?.name || profile.displayName || profile.username}
-                        </h2>
-                        <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full font-medium">
-                          @{profile.username}
-                        </span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setIsModalOpen(true)}
-                          className="text-gray-400 hover:text-blue-600 p-1 h-auto"
-                          title="정보 수정"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                          </svg>
-                        </Button>
-                      </div>
+              <div className="flex items-center gap-2 mb-2">
+                <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
+                  {userData?.name || profile?.displayName || profile?.username || 'ADMIN'}
+                </h2>
+                <span className="px-2.5 py-0.5 bg-gray-100 text-gray-600 text-sm rounded-full font-medium dark:bg-slate-700 dark:text-slate-300">
+                  @{profile?.username || 'root'}
+                </span>
+                <button
+                  onClick={() => setIsModalOpen(true)}
+                  className="ml-1 text-gray-400 hover:text-blue-600 transition-colors"
+                  title="프로필 수정"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                  </svg>
+                </button>
+              </div>
 
-                      {/* User Details Row */}
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-600 mb-6">
-                        {userDataLoading ? (
-                          <div className="h-5 w-48 bg-gray-100 rounded animate-pulse" />
-                        ) : userData ? (
-                          <>
-                            <div className="flex items-center gap-1.5">
-                              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-                              </svg>
-                              <span>{DEPARTMENTS[userData.major_id] || '학부 미설정'}</span>
-                            </div>
-                            <div className="hidden sm:block w-1 h-1 bg-gray-300 rounded-full" />
-                            <div className="flex items-center gap-1.5">
-                              <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2" />
-                              </svg>
-                              <span>{userData.student_id}</span>
-                            </div>
-                          </>
-                        ) : (
-                          <button
-                            onClick={() => setIsModalOpen(true)}
-                            className="text-blue-600 hover:underline text-sm flex items-center gap-1"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            추가 정보 입력하기
-                          </button>
-                        )}
-                      </div>
-                    </div>
+              <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-slate-400 mb-8">
+                <div className="flex items-center gap-1.5 vertical-writing-mode">
+                  <span className="writing-mode-vertical">{DEPARTMENTS[userData?.major_id ?? 0] || '전산전자공학부'}</span>
+                </div>
+                <div className="h-4 w-px bg-gray-300 dark:bg-slate-600" />
+                <div className="flex items-center gap-1.5">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  <span>{userData?.student_id || '00000000'}</span>
+                </div>
+              </div>
+            </div>
 
-                    {/* Stats Cards - Removed as per request */}
-                    {/* <div className="flex flex-wrap gap-3">
-                      <div className="flex flex-col items-center justify-center px-4 py-3 bg-blue-50 rounded-xl border border-blue-100 min-w-[80px]">
-                        <span className="text-xs text-blue-600 font-semibold mb-1">연속일수</span>
-                        <span className="text-xl font-bold text-blue-700">{profile.streak}</span>
-                      </div>
-                      <div className="flex flex-col items-center justify-center px-4 py-3 bg-emerald-50 rounded-xl border border-emerald-100 min-w-[80px]">
-                        <span className="text-xs text-emerald-600 font-semibold mb-1">푼 문제</span>
-                        <span className="text-xl font-bold text-emerald-700">{profile.solvedCount}</span>
-                      </div>
-                      <div className="flex flex-col items-center justify-center px-4 py-3 bg-rose-50 rounded-xl border border-rose-100 min-w-[80px]">
-                        <span className="text-xs text-rose-600 font-semibold mb-1">틀린 문제</span>
-                        <span className="text-xl font-bold text-rose-700">{profile.wrongCount}</span>
-                      </div>
-                    </div> */}
+            {/* Right: Learning Goal Management */}
+            <div className="flex-1 flex flex-col justify-center">
+              <div className="flex justify-between items-end mb-6">
+                <div>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">학습 목표 관리</h3>
+                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Learning Goal</h3>
+                </div>
+                <span className="text-xs text-gray-400">최근 업데이트: {new Date().toLocaleTimeString()}</span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {/* Daily Goal Card */}
+                <div className="bg-gray-50 dark:bg-slate-700/50 rounded-2xl p-5 relative group">
+                  <button
+                    onClick={() => setIsGoalModalOpen(true)}
+                    className="absolute top-4 right-4 text-gray-300 hover:text-blue-500 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </button>
+                  <span className="inline-block px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[10px] font-bold tracking-wide mb-3 dark:bg-emerald-900/30 dark:text-emerald-400">
+                    일간 목표
+                  </span>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white mb-6">
+                    {dailyGoal ? dailyGoal.label : '목표를 설정하세요!'}
+                  </p>
+                  <div className="w-full bg-gray-200 dark:bg-slate-600 rounded-full h-1.5 mb-2">
+                    <div className="bg-emerald-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${dailyProgress.percent}%` }}></div>
+                  </div>
+                  <div className="flex justify-between items-center text-xs text-gray-500 dark:text-slate-400 font-medium">
+                    <span>{dailyProgress.current} / {dailyGoal?.target || 0} {dailyGoal?.unit || ''}</span>
+                    <span className="text-emerald-600 dark:text-emerald-400">{dailyProgress.percent}%</span>
                   </div>
                 </div>
-              </>
-            ) : (
-              <div className="text-gray-500">표시할 프로필 데이터가 없습니다.</div>
-            )}
-          </Card>
+
+                {/* Weekly Goal Card */}
+                <div className="bg-gray-50 dark:bg-slate-700/50 rounded-2xl p-5 relative group">
+                  <button
+                    onClick={() => setIsGoalModalOpen(true)}
+                    className="absolute top-4 right-4 text-gray-300 hover:text-blue-500 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </button>
+                  <span className="inline-block px-2 py-0.5 rounded bg-blue-100 text-blue-700 text-[10px] font-bold tracking-wide mb-3 dark:bg-blue-900/30 dark:text-blue-400">
+                    주간 목표
+                  </span>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white mb-6">
+                    {weeklyGoal ? weeklyGoal.label : '목표를 설정하세요!'}
+                  </p>
+                  <div className="w-full bg-gray-200 dark:bg-slate-600 rounded-full h-1.5 mb-2">
+                    <div className="bg-blue-600 h-1.5 rounded-full transition-all duration-500" style={{ width: `${weeklyProgress.percent}%` }}></div>
+                  </div>
+                  <div className="flex justify-between items-center text-xs text-gray-500 dark:text-slate-400 font-medium">
+                    <span>{weeklyProgress.current} / {weeklyGoal?.target || 0} {weeklyGoal?.unit || ''}</span>
+                    <span className="text-blue-600 dark:text-blue-400">{weeklyProgress.percent}%</span>
+                  </div>
+                </div>
+
+                {/* Monthly Goal Card */}
+                <div className="bg-gray-50 dark:bg-slate-700/50 rounded-2xl p-5 relative group">
+                  <button
+                    onClick={() => setIsGoalModalOpen(true)}
+                    className="absolute top-4 right-4 text-gray-300 hover:text-blue-500 transition-colors"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                    </svg>
+                  </button>
+                  <span className="inline-block px-2 py-0.5 rounded bg-purple-100 text-purple-700 text-[10px] font-bold tracking-wide mb-3 dark:bg-purple-900/30 dark:text-purple-400">
+                    월간 목표
+                  </span>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-white mb-6">
+                    {monthlyGoal ? monthlyGoal.label : '목표를 설정하세요!'}
+                  </p>
+                  <div className="w-full bg-gray-200 dark:bg-slate-600 rounded-full h-1.5 mb-2">
+                    <div className="bg-purple-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${monthlyProgress.percent}%` }}></div>
+                  </div>
+                  <div className="flex justify-between items-center text-xs text-gray-500 dark:text-slate-400 font-medium">
+                    <span>{monthlyProgress.current} / {monthlyGoal?.target || 0} {monthlyGoal?.unit || ''}</span>
+                    <span className="text-purple-600 dark:text-purple-400">{monthlyProgress.percent}%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </section>
 
         <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
@@ -252,6 +355,12 @@ export const MyPage: React.FC = () => {
           onSuccess={() => {
             refetchUserData();
           }}
+        />
+
+        <GoalConfigModal
+          isOpen={isGoalModalOpen}
+          onClose={() => setIsGoalModalOpen(false)}
+          currentTodo={myTodo || null}
         />
 
         <section aria-labelledby="mypage-contests">

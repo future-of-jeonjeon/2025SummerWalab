@@ -248,7 +248,7 @@ export const rankingService = {
     const limit = params.limit && params.limit > 0 ? params.limit : DEFAULT_PAGE_SIZE;
     const offset = (page - 1) * limit;
 
-    const base = ORGANIZATION_RANKING_ENDPOINT || '/organization_rank';
+    const base = ORGANIZATION_RANKING_ENDPOINT;
     const normalizedBase = base.endsWith('/') && !base.includes('?') ? base.slice(0, -1) : base;
     const searchParams = new URLSearchParams({
       limit: String(limit),
