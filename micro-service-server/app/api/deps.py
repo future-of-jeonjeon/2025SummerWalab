@@ -24,6 +24,14 @@ async def get_database() -> AsyncGenerator[AsyncSession, None]:
             await session.rollback()
             raise
 
+async def get_background_database() -> AsyncGenerator[AsyncSession, None]:
+    async with SessionLocal() as session:
+        try:
+            yield session
+            await session.commit()
+        except Exception:
+            await session.rollback()
+            raise
 
 async def get_database_readonly() -> AsyncGenerator[AsyncSession, None]:
     async with SessionLocal() as session:

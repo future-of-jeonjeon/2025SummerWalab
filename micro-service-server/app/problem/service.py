@@ -1,21 +1,34 @@
-import io, zipfile, hashlib, uuid, json, os, random, re, string, yaml
-import app.execution.service as execution_service
+import hashlib
+import io
+import json
+import os
+import random
+import re
+import string
+import uuid
+import yaml
+import zipfile
+import markdown
 from datetime import datetime
+from io import BytesIO
 from typing import List, Optional, Dict
+
 from fastapi import UploadFile
 from sqlalchemy import asc, desc, case, cast, Float
 from sqlalchemy.ext.asyncio import AsyncSession
-from io import BytesIO
+
+import app.execution.service as execution_service
+import app.problem.exceptions as problem_exception
+import app.problem.exceptions as problem_exceptions
+from app.api.deps import get_background_database
+from app.core.logger import logger
 from app.core.redis import get_polling_task
 from app.core.settings import settings
-import app.problem.exceptions as problem_exception
 from app.execution.schemas import RunCodeRequest
-from app.user.schemas import UserData
 from app.problem import repository as problem_repository
-import app.problem.exceptions as problem_exceptions
 from app.problem.models import Problem
 from app.problem.schemas import ProblemListResponse, ProblemImportPollingStatus
-from app.core.logger import logger
+from app.user.schemas import UserData
 
 EXTENSION_TO_LANGUAGE = {
     ".py": "Python3",
@@ -26,6 +39,8 @@ EXTENSION_TO_LANGUAGE = {
     ".js": "JavaScript"
 }
 
+LANGUAGE_LIST = ["C", "C++", "Java", "Python3", "Golang", "JavaScript"]
+
 POLLING_SESSION_TIME = 3600
 
 
@@ -33,7 +48,10 @@ async def import_problem_polling(polling_key: str) -> ProblemImportPollingStatus
     redis = await get_polling_task()
     raw = await redis.get(polling_key)
     if not raw:
+        logger.warning(f"Polling key not found: {polling_key}")
         problem_exception.polling_not_found()
+    
+    logger.info(f"Polling check for {polling_key}: {raw}")
     status = ProblemImportPollingStatus.model_validate_json(raw)
 
     if status.status == "done":
@@ -55,47 +73,55 @@ async def setup_polling(problem_num: int) -> str:
     return key
 
 
-async def import_problem_from_file(polling_key: str, zip_file: UploadFile, user_data: UserData, db: AsyncSession):
-    if not zip_file:
-        logger.error("No zip file provided for problem import")
-        problem_exceptions.bad_zip_file()
+async def import_problem_from_file(polling_key: str, zip_file: UploadFile, user_data: UserData, ):
+    async for db in get_background_database():
+        if not zip_file:
+            logger.error("No zip file provided for problem import")
+            problem_exceptions.bad_zip_file()
 
-    logger.info(f"Starting problem import for user_id: {user_data.user_id}, file: {zip_file.filename}")
-    contents = await zip_file.read()
-    try:
-        zip_ref = zipfile.ZipFile(io.BytesIO(contents), "r")
-    except zipfile.BadZipFile:
-        logger.error(f"Bad zip file uploaded by user_id: {user_data.user_id}")
-        problem_exceptions.bad_zip_file()
+        logger.info(f"Starting problem import for user_id: {user_data.user_id}, file: {zip_file.filename}")
+        contents = await zip_file.read()
+        try:
+            zip_ref = zipfile.ZipFile(io.BytesIO(contents), "r")
+        except zipfile.BadZipFile:
+            logger.error(f"Bad zip file uploaded by user_id: {user_data.user_id}")
+            problem_exceptions.bad_zip_file()
 
-    problems = []
-    redis = await get_polling_task()
-    if not redis:
-        pass  # todo: error
-    raw = await redis.get(polling_key)
-    if not raw:
-        problem_exception.polling_not_found()
-    status = ProblemImportPollingStatus.model_validate_json(raw)
+        problems = []
+        redis = await get_polling_task()
+        if not redis:
+            pass  # todo: error
+        raw = await redis.get(polling_key)
+        if not raw:
+            problem_exception.polling_not_found()
+        status = ProblemImportPollingStatus.model_validate_json(raw)
 
-    with zip_ref:
-        file_list = zip_ref.namelist()
-        md_paths = [p for p in file_list if p.endswith("problem.md")]
-        logger.info(f"Found {len(md_paths)} problem definitions in zip file")
+        with zip_ref:
+            file_list = zip_ref.namelist()
+            md_paths = [
+                p for p in file_list 
 
-        for i, path in enumerate(md_paths):
-            problem = await _process_single_problem(zip_ref, file_list, path, user_data.user_id, db)
-            problems.append(problem)
-            status.status = "processing"
-            status.imported_problem = i + 1
-            status.left_problem = status.all_problem - status.imported_problem
+                # mac exception 
+                if p.endswith("problem.md") and not p.startswith("__MACOSX/") and "/._" not in p and not os.path.basename(p).startswith("._")
+            ]
+            logger.info(f"Found {len(md_paths)} problem definitions in zip file")
+
+            for i, path in enumerate(md_paths):
+                problem = await _process_single_problem(zip_ref, file_list, path, user_data.user_id, db)
+                problems.append(problem)
+                status.status = "processing"
+                status.imported_problem = i + 1
+                status.left_problem = status.all_problem - status.imported_problem
+                logger.info(f"Updating polling status for {polling_key}: {status}")
+                await redis.set(polling_key, status.model_dump_json(), ex=POLLING_SESSION_TIME)
+            status.status = "done"
+            status.left_problem = 0
+            logger.info(f"Polling finished for {polling_key}: {status}")
             await redis.set(polling_key, status.model_dump_json(), ex=POLLING_SESSION_TIME)
-        status.status = "done"
-        status.left_problem = 0
-        await redis.set(polling_key, status.model_dump_json(), ex=POLLING_SESSION_TIME)
 
-    await problem_repository.create_problems(db, problems)
-    logger.info(f"Successfully imported {len(problems)} problems")
-    return problems
+        await problem_repository.create_problems(db, problems)
+        logger.info(f"Successfully imported {len(problems)} problems")
+        return problems
 
 
 def _rand_str(length=32, type="lower_hex"):
@@ -107,6 +133,32 @@ def _rand_str(length=32, type="lower_hex"):
         return random.choice("123456789abcdef") + "".join(random.choice("0123456789abcdef") for _ in range(length - 1))
     else:
         return random.choice("123456789") + "".join(random.choice("0123456789") for _ in range(length - 1))
+
+
+
+def _normalize_languages(languages: List[str]) -> List[str]:
+    normalized = []
+    lang_map = {lang.lower(): lang for lang in LANGUAGE_LIST}
+    aliases = {
+        "cpp": "C++",
+        "c++": "C++",
+        "python": "Python3",
+        "py": "Python3",
+        "python3": "Python3",
+        "js": "JavaScript",
+        "javascript": "JavaScript",
+        "go": "Golang",
+        "golang": "Golang",
+        "c": "C",
+        "java": "Java",
+    }
+    lang_map.update(aliases)
+    
+    for lang in languages:
+        canonical = lang_map.get(lang.lower())
+        if canonical:
+            normalized.append(canonical)            
+    return sorted(list(set(normalized)), key=lambda x: LANGUAGE_LIST.index(x) if x in LANGUAGE_LIST else 999) 
 
 
 def _natural_sort_key(s, _nsre=re.compile(r"(\d+)")):
@@ -129,6 +181,14 @@ def _calculate_test_case_score(test_case_scores: List[dict], total_score: int = 
         test_case["score"] = score
 
     return test_case_scores
+
+
+async def _process_tags(db: AsyncSession, tags: List[str]):
+    tag_objects = []
+    for tag in tags:
+        tag_obj = await problem_repository.get_or_create_tag(db, tag)
+        tag_objects.append(tag_obj)
+    return tag_objects
 
 
 async def _process_single_problem(zip_ref: zipfile.ZipFile, file_list: List[str], md_path: str, user_id: int,
@@ -163,6 +223,11 @@ async def _process_single_problem(zip_ref: zipfile.ZipFile, file_list: List[str]
     try:
         problem = _create_problem_from_metadata(meta_data, sections, display_id, test_case_id, test_case_list)
         problem.created_by_id = user_id
+        
+        tags = meta_data.get("tags", [])
+        if tags:
+            problem.tags = await _process_tags(db, tags)
+
         logger.info(f"Successfully created problem object for {md_path}")
         return problem
     except Exception as e:
@@ -229,7 +294,7 @@ def _create_problem_from_metadata(metadata: dict, sections: dict, display_id: st
         spj_language=metadata.get("spj_language", ""),
         spj_version=_rand_str(8) if spj else "",
         spj_compile_ok=False,
-        languages=metadata.get("languages", ["C", "C++", "Java", "Python3", "Go"]),
+        languages=_normalize_languages(metadata.get("languages", ["C", "C++", "Java", "Python3", "Go"])),
         visible=metadata.get("visible", True),
         difficulty=metadata.get("level", "0"),
         total_score=sum(metadata.get("test_case_score", [])) if metadata.get("rule_type") == "OI" else 100,
@@ -300,6 +365,15 @@ def parse_problem_md(content: str):
             {"input": m[0].strip(), "output": m[1].strip()}
             for m in sample_pattern.findall(sections['samples'] + '\n')
         ]
+
+    # Convert markdown to HTML for specific sections
+    html_sections = ['description', 'input_description', 'output_description', 'hint']
+    for section in html_sections:
+        if section in sections:
+            sections[section] = markdown.markdown(
+                sections[section],
+                extensions=['fenced_code', 'tables']
+            )
 
     return metadata, sections
 
@@ -456,7 +530,7 @@ async def count_problems_in_file(file: UploadFile) -> int:
     count = 0
     with zipfile.ZipFile(BytesIO(content)) as zf:
         for name in zf.namelist():
-            if name.endswith("problem.md"):
+            if name.endswith("problem.md") and not name.startswith("__MACOSX/") and "/._" not in name and not os.path.basename(name).startswith("._"):
                 count += 1
     await file.seek(0)
 

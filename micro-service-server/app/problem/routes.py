@@ -18,11 +18,10 @@ router = APIRouter(prefix="/api/problem", tags=["Problem Management"])
 @router.post("/import")
 async def import_problem(
         file: UploadFile = File(...),
-        db: AsyncSession = Depends(get_database),
         user_data: UserData = Depends(get_userdata)):
     problem_num = await serv.count_problems_in_file(file)
     polling_key = await serv.setup_polling(problem_num)
-    asyncio.create_task(serv.import_problem_from_file(polling_key, file, user_data, db))
+    asyncio.create_task(serv.import_problem_from_file(polling_key, file, user_data))
     return {"polling_key": polling_key}
 
 
