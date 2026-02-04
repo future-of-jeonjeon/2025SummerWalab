@@ -8,6 +8,13 @@ class Sample(BaseModel):
     input: str
     output: str
 
+
+class ProblemImportPollingStatus(BaseModel):
+    status: str
+    imported_problem:int
+    left_problem:int
+    all_problem:int
+
 class ProblemMetadata(BaseModel):
     display_id: str = Field(..., alias='_id', description="문제의 고유 Display ID")
     title: str
@@ -28,6 +35,7 @@ class ProblemMetadata(BaseModel):
 
     class Config:
         extra = 'forbid'
+
 
 class ProblemTagSchema(BaseModel):
     id: int

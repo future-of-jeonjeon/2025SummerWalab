@@ -1,4 +1,5 @@
 import os
+import asyncio
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query, UploadFile, File
@@ -6,21 +7,32 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.problem.service as serv
 from app.api.deps import get_database, get_userdata
-from app.problem.schemas import ProblemListResponse, ProblemSchema
+from app.problem.schemas import *
 from app.core.auth.guards import require_role
 from app.user.schemas import UserData
 
 router = APIRouter(prefix="/api/problem", tags=["Problem Management"])
 
+
 @require_role("Admin")
-@router.post("", response_model=List[ProblemSchema])
+@router.post("/import")
 async def import_problem(
         file: UploadFile = File(...),
         db: AsyncSession = Depends(get_database),
         user_data: UserData = Depends(get_userdata)):
-    return await serv.import_problem_from_file(file, user_data, db)
+    problem_num = await serv.count_problems_in_file(file)
+    polling_key = await serv.setup_polling(problem_num)
+    asyncio.create_task(serv.import_problem_from_file(polling_key, file, user_data, db))
+    return {"polling_key": polling_key}
 
-#=======================================================================================================================
+
+@require_role("Admin")
+@router.get("/import/polling", response_model=ProblemImportPollingStatus)
+async def import_problem_polling_api(key: str):
+    return await serv.import_problem_polling(key)
+
+
+# =======================================================================================================================
 # 문제 필터 및 카운트에 필요한 api들
 
 # 태그별 문제수 조회할 때 필요한거
