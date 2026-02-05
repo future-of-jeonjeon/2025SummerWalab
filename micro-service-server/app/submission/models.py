@@ -1,4 +1,4 @@
-from typing import Optional, Any
+from typing import Optional, Any, Union
 from datetime import datetime
 from sqlalchemy import Integer, Text
 from sqlalchemy.dialects.postgresql import JSONB
@@ -17,4 +17,4 @@ class Submission(Base):
     contest_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     problem_id: Mapped[int] = mapped_column(Integer, nullable=False)
     user_id: Mapped[int] = mapped_column(Integer, nullable=False)
-    info: Mapped[Optional[dict | list | Any]] = mapped_column(JSONB, nullable=True)
+    info: Mapped[Optional[Union[dict, list, Any]]] = mapped_column(JSONB, nullable=True)

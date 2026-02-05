@@ -125,9 +125,22 @@ export const MyPage: React.FC = () => {
   });
 
   // Helper to find goal definition
-  const getGoalDef = (id: string | null | undefined, type: 'daily' | 'weekly' | 'monthly'): GoalRecommendation | undefined => {
-    if (!id || !recommendations) return undefined;
-    return recommendations[type].find(r => r.id === id);
+  const getGoalDef = (val: string | null | undefined, type: 'daily' | 'weekly' | 'monthly'): GoalRecommendation | undefined => {
+    if (!val) return undefined;
+    if (val.startsWith('CUSTOM:')) {
+      const parts = val.split(':');
+      return {
+        id: 'custom',
+        type: parts[1],
+        target: parseInt(parts[2]) || 1,
+        unit: parts[3] || 'problem',
+        label: parts[4] || '사용자 지정 목표',
+        startDate: parts[5],
+        endDate: parts[6]
+      } as any;
+    }
+    if (!recommendations) return undefined;
+    return recommendations[type].find(r => r.id === val);
   };
 
   // Helper to calculate progress using real API stats
@@ -135,19 +148,25 @@ export const MyPage: React.FC = () => {
     if (!def) return { current: 0, percent: 0 };
 
     let current = 0;
-    if (def.type === 'SOLVE_COUNT') {
+    if (def.type === 'SOLVE_COUNT' || def.type === 'PROBLEM_SOLVE') {
       if (type === 'daily') current = solveStats?.daily || 0;
       else if (type === 'weekly') current = solveStats?.weekly || 0;
       else if (type === 'monthly') current = solveStats?.monthly || 0;
     } else if (def.type === 'STREAK') {
       current = streakStats?.streak || 0;
     } else if (def.type === 'TIER_SOLVE') {
-      const difficultyMap: Record<string, string> = {
-        'monthly_bronze_3': 'Bronze',
-        'monthly_mid_3': 'Mid',
-        'monthly_gold_3': 'Gold', // fallback
-      };
-      const searchDifficulty = difficultyMap[def.id] || 'Bronze';
+      let searchDifficulty = 'Bronze';
+      if (def.id === 'custom') {
+        if (def.label.includes('Mid')) searchDifficulty = 'Mid';
+        else if (def.label.includes('Gold')) searchDifficulty = 'Gold';
+      } else {
+        const difficultyMap: Record<string, string> = {
+          'monthly_bronze_3': 'Bronze',
+          'monthly_mid_3': 'Mid',
+          'monthly_gold_3': 'Gold',
+        };
+        searchDifficulty = difficultyMap[def.id] || 'Bronze';
+      }
       current = difficultyStats?.stats.find(s => s.difficulty === searchDifficulty)?.count || 0;
     }
 
@@ -158,10 +177,30 @@ export const MyPage: React.FC = () => {
   const dailyGoal = getGoalDef(myTodo?.day_todo, 'daily');
   const weeklyGoal = getGoalDef(myTodo?.week_todo, 'weekly');
   const monthlyGoal = getGoalDef(myTodo?.month_todo, 'monthly');
+  const customGoal = getGoalDef(myTodo?.custom_todo, 'daily');
 
   const dailyProgress = getProgress(dailyGoal, 'daily');
   const weeklyProgress = getProgress(weeklyGoal, 'weekly');
   const monthlyProgress = getProgress(monthlyGoal, 'monthly');
+  const customProgress = getProgress(customGoal, 'daily');
+
+  const activeGoals = [
+    { type: 'daily', goal: dailyGoal, progress: dailyProgress, color: 'emerald', title: '일간 목표' },
+    { type: 'weekly', goal: weeklyGoal, progress: weeklyProgress, color: 'blue', title: '주간 목표' },
+    { type: 'monthly', goal: monthlyGoal, progress: monthlyProgress, color: 'purple', title: '월간 목표' },
+    { type: 'custom', goal: customGoal, progress: customProgress, color: 'amber', title: '사용자 정의' },
+  ].filter(g => !!g.goal);
+
+  const getGridCols = (count: number) => {
+    if (count <= 1) return 'grid-cols-1';
+    if (count === 2) return 'grid-cols-1 md:grid-cols-2';
+    if (count === 3) return 'grid-cols-1 md:grid-cols-3';
+    return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4';
+  };
+
+  const getCardPadding = (count: number) => {
+    return count > 3 ? 'p-4' : 'p-5';
+  };
 
 
 
@@ -239,84 +278,65 @@ export const MyPage: React.FC = () => {
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">학습 목표 관리</h3>
                   <h3 className="text-lg font-bold text-gray-900 dark:text-white">Learning Goal</h3>
                 </div>
-                <span className="text-xs text-gray-400">최근 업데이트: {new Date().toLocaleTimeString()}</span>
+                <div className="flex flex-col items-end gap-2">
+                  <button
+                    onClick={() => setIsGoalModalOpen(true)}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-sm transition-all active:scale-95"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                    목표 관리하기
+                  </button>
+                  <span className="text-xs text-gray-400">최근 업데이트: {new Date().toLocaleTimeString()}</span>
+                </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {/* Daily Goal Card */}
-                <div className="bg-gray-50 dark:bg-slate-700/50 rounded-2xl p-5 relative group">
-                  <button
-                    onClick={() => setIsGoalModalOpen(true)}
-                    className="absolute top-4 right-4 text-gray-300 hover:text-blue-500 transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                  </button>
-                  <span className="inline-block px-2 py-0.5 rounded bg-emerald-100 text-emerald-700 text-[10px] font-bold tracking-wide mb-3 dark:bg-emerald-900/30 dark:text-emerald-400">
-                    일간 목표
-                  </span>
-                  <p className="text-sm font-semibold text-gray-900 dark:text-white mb-6">
-                    {dailyGoal ? dailyGoal.label : '목표를 설정하세요!'}
-                  </p>
-                  <div className="w-full bg-gray-200 dark:bg-slate-600 rounded-full h-1.5 mb-2">
-                    <div className="bg-emerald-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${dailyProgress.percent}%` }}></div>
-                  </div>
-                  <div className="flex justify-between items-center text-xs text-gray-500 dark:text-slate-400 font-medium">
-                    <span>{dailyProgress.current} / {dailyGoal?.target || 0} {dailyGoal?.unit || ''}</span>
-                    <span className="text-emerald-600 dark:text-emerald-400">{dailyProgress.percent}%</span>
-                  </div>
-                </div>
+              <div className={`grid gap-4 ${getGridCols(activeGoals.length)}`}>
+                {activeGoals.map((g) => {
+                  const progressColorMap: Record<string, string> = {
+                    emerald: 'bg-emerald-500',
+                    blue: 'bg-blue-600',
+                    purple: 'bg-purple-500',
+                    amber: 'bg-amber-500'
+                  };
+                  const textColorMap: Record<string, string> = {
+                    emerald: 'text-emerald-600',
+                    blue: 'text-blue-600',
+                    purple: 'text-purple-600',
+                    amber: 'text-amber-600'
+                  };
+                  const bgMap: Record<string, string> = {
+                    emerald: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+                    blue: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+                    purple: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+                    amber: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
+                  };
 
-                {/* Weekly Goal Card */}
-                <div className="bg-gray-50 dark:bg-slate-700/50 rounded-2xl p-5 relative group">
-                  <button
-                    onClick={() => setIsGoalModalOpen(true)}
-                    className="absolute top-4 right-4 text-gray-300 hover:text-blue-500 transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                  </button>
-                  <span className="inline-block px-2 py-0.5 rounded bg-blue-100 text-blue-700 text-[10px] font-bold tracking-wide mb-3 dark:bg-blue-900/30 dark:text-blue-400">
-                    주간 목표
-                  </span>
-                  <p className="text-sm font-semibold text-gray-900 dark:text-white mb-6">
-                    {weeklyGoal ? weeklyGoal.label : '목표를 설정하세요!'}
-                  </p>
-                  <div className="w-full bg-gray-200 dark:bg-slate-600 rounded-full h-1.5 mb-2">
-                    <div className="bg-blue-600 h-1.5 rounded-full transition-all duration-500" style={{ width: `${weeklyProgress.percent}%` }}></div>
-                  </div>
-                  <div className="flex justify-between items-center text-xs text-gray-500 dark:text-slate-400 font-medium">
-                    <span>{weeklyProgress.current} / {weeklyGoal?.target || 0} {weeklyGoal?.unit || ''}</span>
-                    <span className="text-blue-600 dark:text-blue-400">{weeklyProgress.percent}%</span>
-                  </div>
-                </div>
-
-                {/* Monthly Goal Card */}
-                <div className="bg-gray-50 dark:bg-slate-700/50 rounded-2xl p-5 relative group">
-                  <button
-                    onClick={() => setIsGoalModalOpen(true)}
-                    className="absolute top-4 right-4 text-gray-300 hover:text-blue-500 transition-colors"
-                  >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                    </svg>
-                  </button>
-                  <span className="inline-block px-2 py-0.5 rounded bg-purple-100 text-purple-700 text-[10px] font-bold tracking-wide mb-3 dark:bg-purple-900/30 dark:text-purple-400">
-                    월간 목표
-                  </span>
-                  <p className="text-sm font-semibold text-gray-900 dark:text-white mb-6">
-                    {monthlyGoal ? monthlyGoal.label : '목표를 설정하세요!'}
-                  </p>
-                  <div className="w-full bg-gray-200 dark:bg-slate-600 rounded-full h-1.5 mb-2">
-                    <div className="bg-purple-500 h-1.5 rounded-full transition-all duration-500" style={{ width: `${monthlyProgress.percent}%` }}></div>
-                  </div>
-                  <div className="flex justify-between items-center text-xs text-gray-500 dark:text-slate-400 font-medium">
-                    <span>{monthlyProgress.current} / {monthlyGoal?.target || 0} {monthlyGoal?.unit || ''}</span>
-                    <span className="text-purple-600 dark:text-purple-400">{monthlyProgress.percent}%</span>
-                  </div>
-                </div>
+                  return (
+                    <div key={g.type} className={`bg-gray-50 dark:bg-slate-700/50 rounded-2xl ${getCardPadding(activeGoals.length)} relative group transition-all`}>
+                      <span className={`inline-block px-2 py-0.5 rounded ${bgMap[g.color]} text-[10px] font-bold tracking-wide mb-3`}>
+                        {g.title}
+                      </span>
+                      <p className={`font-semibold text-gray-900 dark:text-white ${activeGoals.length > 3 ? 'text-xs mb-1 line-clamp-1' : 'text-sm mb-1'}`}>
+                        {g.goal?.label}
+                      </p>
+                      {g.type === 'custom' && (g.goal as any).startDate && (
+                        <p className="text-[10px] text-gray-400 dark:text-slate-500 mb-4 font-mono">
+                          {(g.goal as any).startDate} ~ {(g.goal as any).endDate}
+                        </p>
+                      )}
+                      {g.type !== 'custom' && <div className={activeGoals.length > 3 ? 'mb-4' : 'mb-6'} />}
+                      <div className="w-full bg-gray-200 dark:bg-slate-600 rounded-full h-1.5 mb-2">
+                        <div className={`${progressColorMap[g.color]} h-1.5 rounded-full transition-all duration-500`} style={{ width: `${g.progress.percent}%` }}></div>
+                      </div>
+                      <div className={`flex justify-between items-center text-gray-500 dark:text-slate-400 font-medium ${activeGoals.length > 3 ? 'text-[10px]' : 'text-xs'}`}>
+                        <span>{g.progress.current} / {g.goal?.target || 0} {g.goal?.unit || ''}</span>
+                        <span className={`${textColorMap[g.color]} dark:brightness-110`}>{g.progress.percent}%</span>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

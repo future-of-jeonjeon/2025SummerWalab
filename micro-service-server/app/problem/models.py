@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import TYPE_CHECKING, List, Optional, Any
+from typing import TYPE_CHECKING, List, Optional, Any, Union
 
 from sqlalchemy import Column, Integer, Text, Boolean, DateTime, ForeignKey, Table, func
 from sqlalchemy.dialects.postgresql import JSONB  # PostgreSQL의 JSONB 타입 사용
@@ -42,7 +42,7 @@ class Problem(Base):
     output_description: Mapped[str] = mapped_column(Text, nullable=False)
     samples: Mapped[list] = mapped_column(JSONB, nullable=False)
     test_case_id: Mapped[str] = mapped_column(Text, nullable=False)
-    test_case_score: Mapped[Optional[dict | list | Any]] = mapped_column(JSONB)
+    test_case_score: Mapped[Optional[Union[dict, list, Any]]] = mapped_column(JSONB)
     hint: Mapped[Optional[str]] = mapped_column(Text)
     languages: Mapped[list] = mapped_column(JSONB, nullable=False)
     template: Mapped[dict] = mapped_column(JSONB, nullable=False)

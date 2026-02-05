@@ -19,5 +19,6 @@ class Todo(BaseEntity, Base):
     day_todo: Mapped[str] = mapped_column(String(255), nullable=True)
     week_todo: Mapped[str] = mapped_column(String(255), nullable=True)
     month_todo: Mapped[str] = mapped_column(String(255), nullable=True)
+    custom_todo: Mapped[str] = mapped_column(String(255), nullable=True)
 
     user = relationship("User", backref="todos", uselist=False)

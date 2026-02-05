@@ -6,6 +6,7 @@ class TodoBase(BaseModel):
     day_todo: Optional[str] = Field(None, description="Daily goal identifier or configuration")
     week_todo: Optional[str] = Field(None, description="Weekly goal identifier or configuration")
     month_todo: Optional[str] = Field(None, description="Monthly goal identifier or configuration")
+    custom_todo: Optional[str] = Field(None, description="Custom goal identifier or configuration")
 
 
 class TodoCreate(TodoBase):

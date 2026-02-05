@@ -17,14 +17,15 @@ async def create_todo(db: AsyncSession, todo: Todo) -> Todo:
     return todo
 
 
-async def update_todo(db: AsyncSession, user_id: int, day_todo: str | None, week_todo: str | None, month_todo: str | None) -> Todo | None:
+async def update_todo(db: AsyncSession, user_id: int, day_todo: str | None, week_todo: str | None, month_todo: str | None, custom_todo: str | None) -> Todo | None:
     stmt = (
         update(Todo)
         .where(Todo.user_id == user_id)
         .values(
             day_todo=day_todo,
             week_todo=week_todo,
-            month_todo=month_todo
+            month_todo=month_todo,
+            custom_todo=custom_todo
         )
         .returning(Todo)
     )
@@ -33,16 +34,18 @@ async def update_todo(db: AsyncSession, user_id: int, day_todo: str | None, week
     return result.scalars().first()
 
 
-async def upsert_todo(db: AsyncSession, user_id: int, day_todo: str | None, week_todo: str | None, month_todo: str | None) -> Todo:
+async def upsert_todo(db: AsyncSession, user_id: int, day_todo: str | None, week_todo: str | None, month_todo: str | None, custom_todo: str | None) -> Todo:
     existing = await get_todo_by_user_id(db, user_id)
     if existing:
         new_day = day_todo if day_todo is not None else existing.day_todo
         new_week = week_todo if week_todo is not None else existing.week_todo
         new_month = month_todo if month_todo is not None else existing.month_todo
+        new_custom = custom_todo if custom_todo is not None else existing.custom_todo
         
         existing.day_todo = new_day
         existing.week_todo = new_week
         existing.month_todo = new_month
+        existing.custom_todo = new_custom
         
         db.add(existing)
         await db.commit()
@@ -53,7 +56,8 @@ async def upsert_todo(db: AsyncSession, user_id: int, day_todo: str | None, week
             user_id=user_id,
             day_todo=day_todo,
             week_todo=week_todo,
-            month_todo=month_todo
+            month_todo=month_todo,
+            custom_todo=custom_todo
         )
         return await create_todo(db, new_todo)
 
