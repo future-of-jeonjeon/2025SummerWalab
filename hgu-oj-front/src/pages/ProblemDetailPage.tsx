@@ -15,6 +15,8 @@ import { Contest, ExecutionResult, Problem } from '../types';
 import { executionService } from '../services/executionService';
 import { submissionService, SubmissionDetail, SubmissionListItem } from '../services/submissionService';
 import { useAuthStore } from '../stores/authStore';
+import 'katex/dist/katex.min.css';
+
 
 type StatusTone = 'success' | 'error' | 'warning' | 'info';
 type SectionKey = 'description' | 'problem-list' | 'submissions';
@@ -791,6 +793,28 @@ export const ProblemDetailPage: React.FC = () => {
     }
   }, [activeSection, isSubmissionModalOpen, closeSubmissionModal]);
 
+  const problemContentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (activeSection === 'description' && problemContentRef.current) {
+      import('katex/dist/contrib/auto-render.mjs').then(({ default: renderMathInElement }) => {
+        if (problemContentRef.current) {
+          renderMathInElement(problemContentRef.current, {
+            delimiters: [
+              { left: "$$", right: "$$", display: true },
+              { left: "$", right: "$", display: false },
+              { left: "\\(", right: "\\)", display: false },
+              { left: "\\[", right: "\\]", display: true }
+            ],
+            throwOnError: false
+          });
+        }
+      }).catch(err => {
+        console.error("Failed to load katex auto-render", err);
+      });
+    }
+  }, [activeSection, problem]);
+
   useEffect(() => {
     if (!isAuthenticated) {
       setSelectedSubmissionId(null);
@@ -1461,7 +1485,8 @@ export const ProblemDetailPage: React.FC = () => {
                 </div>
               </div>
 
-              <div className="py-6 space-y-6">
+
+              <div className="py-6 space-y-6" ref={problemContentRef}>
                 {activeSection === 'description' ? (
                   <>
                     <div className="mb-6">
@@ -1547,7 +1572,9 @@ export const ProblemDetailPage: React.FC = () => {
 
                     {problem.hint && (
                       <CollapsibleSection title="힌트" headingClassName={headingTextClass}>
-                        <p className="whitespace-pre-wrap">{problem.hint}</p>
+                        <div className={`${proseClass} max-w-4xl leading-relaxed`}>
+                          <div dangerouslySetInnerHTML={{ __html: problem.hint }} />
+                        </div>
                       </CollapsibleSection>
                     )}
                   </>
@@ -1665,77 +1692,79 @@ export const ProblemDetailPage: React.FC = () => {
           />
         </div>
       </div>
-      {isSubmissionModalOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
-          onClick={closeSubmissionModal}
-        >
+      {
+        isSubmissionModalOpen && (
           <div
-            className={`max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-lg shadow-xl ${isDarkTheme ? 'bg-slate-900 text-slate-100 border border-slate-700' : 'bg-white text-gray-900'}`}
-            onClick={(event) => event.stopPropagation()}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+            onClick={closeSubmissionModal}
           >
-            <div className={`flex items-center justify-between border-b px-5 py-3 ${isDarkTheme ? 'border-slate-700' : 'border-gray-200'}`}>
-              <h3 className="text-lg font-semibold">
-                {modalSubmissionIdDisplay ? `제출 ${modalSubmissionIdDisplay}` : '제출 상세'}
-              </h3>
-              <button
-                type="button"
-                onClick={closeSubmissionModal}
-                className={`rounded-md px-3 py-1 text-sm font-medium transition ${isDarkTheme
-                  ? 'bg-slate-800 text-slate-200 hover:bg-slate-700'
-                  : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                  }`}
-              >
-                닫기
-              </button>
-            </div>
-            <div className="max-h-[70vh] overflow-y-auto px-5 py-4 space-y-5">
-              {submissionModalLoading ? (
-                <div className="flex h-48 items-center justify-center">
-                  <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
-                </div>
-              ) : submissionModalError ? (
-                <div className={`py-12 text-center text-sm ${isDarkTheme ? 'text-rose-300' : 'text-red-600'}`}>
-                  {submissionModalError}
-                </div>
-              ) : modalSubmissionCombined ? (
-                <>
-                  <div className="space-y-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      <span className={`inline-flex items-center px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide rounded ${modalToneStyle.badge}`}>
-                        {modalStatusMeta?.code ?? 'INFO'}
-                      </span>
-                      <span className={`text-sm font-semibold ${isDarkTheme ? 'text-slate-100' : 'text-gray-900'}`}>
-                        {modalStatusMeta?.label ?? '채점 중'}
-                      </span>
+            <div
+              className={`max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-lg shadow-xl ${isDarkTheme ? 'bg-slate-900 text-slate-100 border border-slate-700' : 'bg-white text-gray-900'}`}
+              onClick={(event) => event.stopPropagation()}
+            >
+              <div className={`flex items-center justify-between border-b px-5 py-3 ${isDarkTheme ? 'border-slate-700' : 'border-gray-200'}`}>
+                <h3 className="text-lg font-semibold">
+                  {modalSubmissionIdDisplay ? `제출 ${modalSubmissionIdDisplay}` : '제출 상세'}
+                </h3>
+                <button
+                  type="button"
+                  onClick={closeSubmissionModal}
+                  className={`rounded-md px-3 py-1 text-sm font-medium transition ${isDarkTheme
+                    ? 'bg-slate-800 text-slate-200 hover:bg-slate-700'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    }`}
+                >
+                  닫기
+                </button>
+              </div>
+              <div className="max-h-[70vh] overflow-y-auto px-5 py-4 space-y-5">
+                {submissionModalLoading ? (
+                  <div className="flex h-48 items-center justify-center">
+                    <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
+                  </div>
+                ) : submissionModalError ? (
+                  <div className={`py-12 text-center text-sm ${isDarkTheme ? 'text-rose-300' : 'text-red-600'}`}>
+                    {submissionModalError}
+                  </div>
+                ) : modalSubmissionCombined ? (
+                  <>
+                    <div className="space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className={`inline-flex items-center px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide rounded ${modalToneStyle.badge}`}>
+                          {modalStatusMeta?.code ?? 'INFO'}
+                        </span>
+                        <span className={`text-sm font-semibold ${isDarkTheme ? 'text-slate-100' : 'text-gray-900'}`}>
+                          {modalStatusMeta?.label ?? '채점 중'}
+                        </span>
+                      </div>
                     </div>
+                    <div className={`grid gap-3 text-sm ${isDarkTheme ? 'text-slate-200' : 'text-gray-700'} sm:grid-cols-2`}>
+                      <div><span className="font-semibold">제출 ID:</span> {modalSubmissionIdDisplay ?? '-'}</div>
+                      <div><span className="font-semibold">문제 ID:</span> {modalProblemIdentifier ?? '-'}</div>
+                      <div><span className="font-semibold">언어:</span> {modalLanguage ?? '-'}</div>
+                      <div><span className="font-semibold">제출 시각:</span> {modalSubmittedAt ? formatDateTime(modalSubmittedAt) : '-'}</div>
+                      <div><span className="font-semibold">실행 시간:</span> {formatExecutionTimeValue(modalExecutionTime)}</div>
+                      <div><span className="font-semibold">메모리:</span> {formatMemoryUsageValue(modalMemoryUsage)}</div>
+                      <div><span className="font-semibold">테스트 케이스:</span> {modalCaseStats ? `${modalCaseStats.passed}/${modalCaseStats.total}` : '-'}</div>
+                    </div>
+                    <div>
+                      <h4 className={`mb-2 font-semibold ${isDarkTheme ? 'text-slate-100' : 'text-gray-900'}`}>소스 코드</h4>
+                      <pre className={`overflow-x-auto rounded-md border px-4 py-3 text-xs leading-5 ${isDarkTheme ? 'border-slate-700 bg-slate-950 text-slate-100' : 'border-gray-200 bg-gray-900 text-gray-100'
+                        }`}>
+                        {modalCodeDisplay}
+                      </pre>
+                    </div>
+                  </>
+                ) : (
+                  <div className={`py-12 text-center text-sm ${isDarkTheme ? 'text-slate-400' : 'text-gray-500'}`}>
+                    제출 정보를 불러오지 못했습니다.
                   </div>
-                  <div className={`grid gap-3 text-sm ${isDarkTheme ? 'text-slate-200' : 'text-gray-700'} sm:grid-cols-2`}>
-                    <div><span className="font-semibold">제출 ID:</span> {modalSubmissionIdDisplay ?? '-'}</div>
-                    <div><span className="font-semibold">문제 ID:</span> {modalProblemIdentifier ?? '-'}</div>
-                    <div><span className="font-semibold">언어:</span> {modalLanguage ?? '-'}</div>
-                    <div><span className="font-semibold">제출 시각:</span> {modalSubmittedAt ? formatDateTime(modalSubmittedAt) : '-'}</div>
-                    <div><span className="font-semibold">실행 시간:</span> {formatExecutionTimeValue(modalExecutionTime)}</div>
-                    <div><span className="font-semibold">메모리:</span> {formatMemoryUsageValue(modalMemoryUsage)}</div>
-                    <div><span className="font-semibold">테스트 케이스:</span> {modalCaseStats ? `${modalCaseStats.passed}/${modalCaseStats.total}` : '-'}</div>
-                  </div>
-                  <div>
-                    <h4 className={`mb-2 font-semibold ${isDarkTheme ? 'text-slate-100' : 'text-gray-900'}`}>소스 코드</h4>
-                    <pre className={`overflow-x-auto rounded-md border px-4 py-3 text-xs leading-5 ${isDarkTheme ? 'border-slate-700 bg-slate-950 text-slate-100' : 'border-gray-200 bg-gray-900 text-gray-100'
-                      }`}>
-                      {modalCodeDisplay}
-                    </pre>
-                  </div>
-                </>
-              ) : (
-                <div className={`py-12 text-center text-sm ${isDarkTheme ? 'text-slate-400' : 'text-gray-500'}`}>
-                  제출 정보를 불러오지 못했습니다.
-                </div>
-              )}
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       <AlertModal
         isOpen={alertModal.isOpen}
@@ -1744,6 +1773,6 @@ export const ProblemDetailPage: React.FC = () => {
         message={alertModal.message}
         type={alertModal.type}
       />
-    </div>
+    </div >
   );
 };

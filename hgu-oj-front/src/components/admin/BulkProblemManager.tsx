@@ -37,6 +37,8 @@ export const BulkProblemManager: React.FC = () => {
   const [importFile, setImportFile] = useState<File | null>(null);
   const [importMessage, setImportMessage] = useState<MessageState>({});
   const [isImporting, setIsImporting] = useState(false);
+  const [importStatus, setImportStatus] = useState<string | null>(null);
+
 
   const {
     selectedProblems: selectedExportProblems,
@@ -48,32 +50,56 @@ export const BulkProblemManager: React.FC = () => {
   const [exportMessage, setExportMessage] = useState<MessageState>({});
   const [isExporting, setIsExporting] = useState(false);
 
+  const pollImportStatus = async (pollingKey: string) => {
+    try {
+      const status = await adminProblemBulkService.getImportPollingStatus(pollingKey);
+
+      if (status.status === 'done') {
+        setIsImporting(false);
+        setImportMessage({ success: `총 ${status.imported_problem}개의 문제를 처리했습니다.` });
+        setImportStatus(null);
+        setImportFile(null);
+        // Reset file input
+        const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+        if (fileInput) fileInput.value = '';
+      } else {
+        setImportStatus(`처리 중... (${status.imported_problem} / ${status.all_problem})`);
+        setTimeout(() => pollImportStatus(pollingKey), 1000);
+      }
+    } catch (error) {
+      setIsImporting(false);
+      setImportStatus(null);
+      const message = error instanceof Error ? error.message : '상태 조회 중 오류가 발생했습니다.';
+      setImportMessage({ error: message });
+    }
+  };
+
   const handleImportSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setImportMessage({});
+    setImportStatus(null);
 
     if (!importFile) {
       setImportMessage({ error: '업로드할 ZIP 파일을 선택하세요.' });
       return;
     }
 
-    const form = event.currentTarget;
-
     try {
       setIsImporting(true);
+      setImportStatus('업로드 및 분석 중...');
       const result = await adminProblemBulkService.importProblems(importFile);
-      const count = typeof result?.import_count === 'number' ? result.import_count : 0;
-      setImportMessage({ success: `총 ${count}개의 문제를 처리했습니다.` });
-      setImportFile(null);
-      const fileInput = form.querySelector('input[type="file"]') as HTMLInputElement | null;
-      if (fileInput) {
-        fileInput.value = '';
+
+      if (result.polling_key) {
+        setImportStatus('처리 대기 중...');
+        pollImportStatus(result.polling_key);
+      } else {
+        throw new Error('폴링 키를 받지 못했습니다.');
       }
     } catch (error) {
+      setIsImporting(false);
+      setImportStatus(null);
       const message = error instanceof Error ? error.message : '문제 대량 등록 중 오류가 발생했습니다.';
       setImportMessage({ error: message });
-    } finally {
-      setIsImporting(false);
     }
   };
 
@@ -117,6 +143,15 @@ export const BulkProblemManager: React.FC = () => {
           {importMessage.success && (
             <div className="rounded-md bg-green-50 px-4 py-3 text-sm text-green-600">{importMessage.success}</div>
           )}
+          {importStatus && (
+            <div className="rounded-md bg-blue-50 px-4 py-3 text-sm text-blue-600 flex items-center space-x-2">
+              <svg className="animate-spin h-4 w-4 text-blue-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              <span>{importStatus}</span>
+            </div>
+          )}
 
           <div className="flex flex-col md:flex-row md:items-center gap-4">
             <input
@@ -129,7 +164,9 @@ export const BulkProblemManager: React.FC = () => {
           </div>
 
           <div className="flex justify-end">
-            <Button type="submit" loading={isImporting}>대량 등록</Button>
+            <Button type="submit" loading={isImporting} disabled={isImporting}>
+              {isImporting ? '처리 중' : '대량 등록'}
+            </Button>
           </div>
         </form>
 

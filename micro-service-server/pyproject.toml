@@ -20,4 +20,5 @@ dependencies = [
     "sqlalchemy[asyncio]>=2.0.0",
     "starlette>=0.50.0",
     "uvicorn[standard]>=0.40.0",
+    "markdown>=3.4.4",
 ]
