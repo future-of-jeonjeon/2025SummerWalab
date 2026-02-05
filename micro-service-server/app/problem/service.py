@@ -358,15 +358,19 @@ def parse_problem_md(content: str):
 
     if 'samples' in sections:
         sample_pattern = re.compile(
-            r'###\s*input\s*\d*\s*\n(.*?)\n###\s*output\s*\d*\s*\n(.*?)(?=\n###\s*input|\Z)',
+            r'###\s*input.*?\n(.*?)\n###\s*output.*?\n(.*?)(?=\n###\s*input|\Z)',
             re.DOTALL | re.IGNORECASE
         )
+        def clean_sample(text):
+            text = text.strip()
+            text = re.sub(r'^```[a-zA-Z0-9]*\s*\n', '', text)
+            text = re.sub(r'\n\s*```$', '', text)
+            return text.strip()
+
         sections['samples'] = [
-            {"input": m[0].strip(), "output": m[1].strip()}
+            {"input": clean_sample(m[0]), "output": clean_sample(m[1])}
             for m in sample_pattern.findall(sections['samples'] + '\n')
         ]
-
-    # Convert markdown to HTML for specific sections
     html_sections = ['description', 'input_description', 'output_description', 'hint']
     for section in html_sections:
         if section in sections:
