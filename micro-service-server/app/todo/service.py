@@ -27,7 +27,8 @@ async def set_user_todo(db: AsyncSession, user_id: int, data: TodoUpdate) -> Tod
         user_id, 
         data.day_todo, 
         data.week_todo, 
-        data.month_todo
+        data.month_todo,
+        data.custom_todo
     )
     return TodoResponse.model_validate(todo)
 

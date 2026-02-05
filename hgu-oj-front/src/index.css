@@ -52,10 +52,15 @@ body {
   color: white;
 }
 
-/* 포커스 스타일 */
-:focus {
+/* 포커스 스타일 (키보드 네비게이션 시에만 보이도록) */
+:focus-visible {
   outline: 2px solid #a855f7;
   outline-offset: 2px;
+}
+
+/* 마우스 클릭 시의 기본 아웃라인 제거 */
+:focus:not(:focus-visible) {
+  outline: none;
 }
 
 /* 버튼 기본 스타일 리셋 */

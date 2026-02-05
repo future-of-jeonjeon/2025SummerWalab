@@ -18,6 +18,7 @@ export interface UserTodo {
     day_todo: string | null;
     week_todo: string | null;
     month_todo: string | null;
+    custom_todo: string | null;
 }
 
 export interface SolveCountStats {
