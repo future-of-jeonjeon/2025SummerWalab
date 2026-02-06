@@ -115,6 +115,7 @@ export type ProblemImportPollingStatus = {
   imported_problem: number;
   left_problem: number;
   all_problem: number;
+  message?: string;
 };
 
 export type ExportProblemsResult = {
@@ -142,7 +143,7 @@ export const adminProblemBulkService = {
       if (data && typeof data.polling_key === 'string') {
         return { polling_key: data.polling_key };
       }
-      
+
       // Fallback for types not matching directly (should not happen with correct backend)
       const unwrapped = unwrapResponse<any>(data);
       if (unwrapped && typeof unwrapped.polling_key === 'string') {
@@ -169,8 +170,8 @@ export const adminProblemBulkService = {
       });
       return response.data as ProblemImportPollingStatus;
     } catch (error) {
-       const message = extractErrorMessage(error, '상태 조회에 실패했습니다.');
-       throw new Error(message);
+      const message = extractErrorMessage(error, '상태 조회에 실패했습니다.');
+      throw new Error(message);
     }
   },
 

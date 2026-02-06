@@ -12,6 +12,7 @@ import markdown
 from datetime import datetime
 from io import BytesIO
 from typing import List, Optional, Dict
+import shutil
 
 from fastapi import UploadFile
 from sqlalchemy import asc, desc, case, cast, Float
@@ -50,7 +51,7 @@ async def import_problem_polling(polling_key: str) -> ProblemImportPollingStatus
     if not raw:
         logger.warning(f"Polling key not found: {polling_key}")
         problem_exception.polling_not_found()
-    
+
     logger.info(f"Polling check for {polling_key}: {raw}")
     status = ProblemImportPollingStatus.model_validate_json(raw)
 
@@ -74,66 +75,83 @@ async def setup_polling(problem_num: int) -> str:
 
 
 async def import_problem_from_file(polling_key: str, zip_file: UploadFile, user_data: UserData, ):
-    async for db in get_background_database():
-        if not zip_file:
-            logger.error("No zip file provided for problem import")
-            problem_exceptions.bad_zip_file()
+    problems = []
+    testcase_list = []
+    redis = await get_polling_task()
+    raw = await redis.get(polling_key)
+    if not raw:
+        problem_exception.polling_not_found()
+    status = ProblemImportPollingStatus.model_validate_json(raw)
+    try:
+        async for db in get_background_database():
+            if not zip_file:
+                logger.error("No zip file provided for problem import")
+                problem_exceptions.bad_zip_file()
 
-        logger.info(f"Starting problem import for user_id: {user_data.user_id}, file: {zip_file.filename}")
-        contents = await zip_file.read()
-        try:
-            zip_ref = zipfile.ZipFile(io.BytesIO(contents), "r")
-        except zipfile.BadZipFile:
-            logger.error(f"Bad zip file uploaded by user_id: {user_data.user_id}")
-            problem_exceptions.bad_zip_file()
+            logger.info(f"Starting problem import for user_id: {user_data.user_id}, file: {zip_file.filename}")
+            contents = await zip_file.read()
+            try:
+                zip_ref = zipfile.ZipFile(io.BytesIO(contents), "r")
+            except zipfile.BadZipFile:
+                logger.error(f"Bad zip file uploaded by user_id: {user_data.user_id}")
+                problem_exceptions.bad_zip_file()
+            with zip_ref:
+                file_list = zip_ref.namelist()
+                md_paths = [
+                    p for p in file_list
+                    if p.endswith("problem.md") and not p.startswith(
+                        "__MACOSX/") and "/._" not in p and not os.path.basename(p).startswith("._")
+                ]
+                logger.info(f"Found {len(md_paths)} problem definitions in zip file")
 
-        problems = []
-        redis = await get_polling_task()
-        if not redis:
-            pass  # todo: error
-        raw = await redis.get(polling_key)
-        if not raw:
-            problem_exception.polling_not_found()
-        status = ProblemImportPollingStatus.model_validate_json(raw)
-
-        with zip_ref:
-            file_list = zip_ref.namelist()
-            md_paths = [
-                p for p in file_list 
-
-                # mac exception 
-                if p.endswith("problem.md") and not p.startswith("__MACOSX/") and "/._" not in p and not os.path.basename(p).startswith("._")
-            ]
-            logger.info(f"Found {len(md_paths)} problem definitions in zip file")
-
-            for i, path in enumerate(md_paths):
-                problem = await _process_single_problem(zip_ref, file_list, path, user_data.user_id, db)
-                problems.append(problem)
-                status.status = "processing"
-                status.imported_problem = i + 1
-                status.left_problem = status.all_problem - status.imported_problem
-                logger.info(f"Updating polling status for {polling_key}: {status}")
+                for i, path in enumerate(md_paths):
+                    problem = await _process_single_problem(zip_ref, file_list, path, user_data.user_id, db)
+                    problems.append(problem)
+                    testcase_list.append(problem.test_case_id)
+                    status.status = "processing"
+                    status.imported_problem = i + 1
+                    status.left_problem = status.all_problem - status.imported_problem
+                    logger.info(f"Updating polling status for {polling_key}: {status}")
+                    await redis.set(polling_key, status.model_dump_json(), ex=POLLING_SESSION_TIME)
+                status.status = "done"
+                status.left_problem = 0
+                logger.info(f"Polling finished for {polling_key}: {status}")
                 await redis.set(polling_key, status.model_dump_json(), ex=POLLING_SESSION_TIME)
-            status.status = "done"
-            status.left_problem = 0
-            logger.info(f"Polling finished for {polling_key}: {status}")
-            await redis.set(polling_key, status.model_dump_json(), ex=POLLING_SESSION_TIME)
 
-        await problem_repository.create_problems(db, problems)
-        logger.info(f"Successfully imported {len(problems)} problems")
-        return problems
+            await problem_repository.create_problems(db, problems)
+            logger.info(f"Successfully imported {len(problems)} problems")
+            return problems
+    except Exception as e:
+        logger.error(f"Problem import failed: {e}")
+        status.status = "error"
+        status.error_code=e.detail.get("code")
+        await redis.set(polling_key, status.model_dump_json(), ex=POLLING_SESSION_TIME)
+        await _remove_testcase(testcase_list)
+        return None
+
+
+async def _remove_testcase(test_case_ids: List[str]):
+    if not test_case_ids:
+        return
+    logger.info(f"Cleaning up {len(test_case_ids)} test cases due to import failure")
+    for test_case_id in test_case_ids:
+        try:
+            target_dir = os.path.join(settings.TEST_CASE_DATA_PATH, test_case_id)
+            if os.path.exists(target_dir):
+                shutil.rmtree(target_dir)
+                logger.info(f"Removed test case directory: {target_dir}")
+        except Exception as e:
+            logger.error(f"Failed to remove test case directory {test_case_id}: {e}")
 
 
 def _rand_str(length=32, type="lower_hex"):
     if type == "str":
         return "".join(random.choice(string.ascii_letters + string.digits) for _ in range(length))
-    elif type == "lower_str":
+    if type == "lower_str":
         return "".join(random.choice(string.ascii_lowercase + string.digits) for _ in range(length))
-    elif type == "lower_hex":
+    if type == "lower_hex":
         return random.choice("123456789abcdef") + "".join(random.choice("0123456789abcdef") for _ in range(length - 1))
-    else:
-        return random.choice("123456789") + "".join(random.choice("0123456789") for _ in range(length - 1))
-
+    return random.choice("123456789") + "".join(random.choice("0123456789") for _ in range(length - 1))
 
 
 def _normalize_languages(languages: List[str]) -> List[str]:
@@ -153,12 +171,12 @@ def _normalize_languages(languages: List[str]) -> List[str]:
         "java": "Java",
     }
     lang_map.update(aliases)
-    
+
     for lang in languages:
         canonical = lang_map.get(lang.lower())
         if canonical:
-            normalized.append(canonical)            
-    return sorted(list(set(normalized)), key=lambda x: LANGUAGE_LIST.index(x) if x in LANGUAGE_LIST else 999) 
+            normalized.append(canonical)
+    return sorted(list(set(normalized)), key=lambda x: LANGUAGE_LIST.index(x) if x in LANGUAGE_LIST else 999)
 
 
 def _natural_sort_key(s, _nsre=re.compile(r"(\d+)")):
@@ -223,7 +241,7 @@ async def _process_single_problem(zip_ref: zipfile.ZipFile, file_list: List[str]
     try:
         problem = _create_problem_from_metadata(meta_data, sections, display_id, test_case_id, test_case_list)
         problem.created_by_id = user_id
-        
+
         tags = meta_data.get("tags", [])
         if tags:
             problem.tags = await _process_tags(db, tags)
@@ -361,6 +379,7 @@ def parse_problem_md(content: str):
             r'###\s*input.*?\n(.*?)\n###\s*output.*?\n(.*?)(?=\n###\s*input|\Z)',
             re.DOTALL | re.IGNORECASE
         )
+
         def clean_sample(text):
             text = text.strip()
             text = re.sub(r'^```[a-zA-Z0-9]*\s*\n', '', text)
@@ -534,7 +553,8 @@ async def count_problems_in_file(file: UploadFile) -> int:
     count = 0
     with zipfile.ZipFile(BytesIO(content)) as zf:
         for name in zf.namelist():
-            if name.endswith("problem.md") and not name.startswith("__MACOSX/") and "/._" not in name and not os.path.basename(name).startswith("._"):
+            if name.endswith("problem.md") and not name.startswith(
+                    "__MACOSX/") and "/._" not in name and not os.path.basename(name).startswith("._"):
                 count += 1
     await file.seek(0)
 

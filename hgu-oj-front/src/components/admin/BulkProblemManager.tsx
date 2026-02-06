@@ -62,6 +62,10 @@ export const BulkProblemManager: React.FC = () => {
         // Reset file input
         const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
         if (fileInput) fileInput.value = '';
+      } else if (status.status === 'error') {
+        setIsImporting(false);
+        setImportStatus(null);
+        setImportMessage({ error: status.message || `문제 등록 중 오류가 발생했습니다. 에러코드: ${status.error_code}` });
       } else {
         setImportStatus(`처리 중... (${status.imported_problem} / ${status.all_problem})`);
         setTimeout(() => pollImportStatus(pollingKey), 1000);
