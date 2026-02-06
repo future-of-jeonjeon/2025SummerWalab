@@ -124,6 +124,7 @@ async def import_problem_from_file(polling_key: str, zip_file: UploadFile, user_
     except Exception as e:
         logger.error(f"Problem import failed: {e}")
         status.status = "error"
+        status.error_code=e.detail.get("code")
         await redis.set(polling_key, status.model_dump_json(), ex=POLLING_SESSION_TIME)
         await _remove_testcase(testcase_list)
         return None
