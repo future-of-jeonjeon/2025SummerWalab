@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 
 from pydantic import BaseModel, Field
+from app.common.page import Page
 
 
 class Sample(BaseModel):
@@ -78,11 +79,8 @@ class ProblemSchema(BaseModel):
         from_attributes = True  # NOTE: SQLAlchemy 인스턴스를 그대로 직렬화하기 위해 옵션 유지
 
 
-class ProblemListResponse(BaseModel):
-    total: int
-    page: int
-    page_size: int
-    problems: List[ProblemSchema]
+class ProblemListResponse(Page[ProblemSchema]):
+    problems: List[ProblemSchema] = Field(..., alias="items")
 
 
 class ImportProblemSerializer(BaseModel):

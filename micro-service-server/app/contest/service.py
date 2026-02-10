@@ -61,7 +61,7 @@ async def update_contest(update_contest_dto: ReqUpdateContestDTO,
     else:  # 없는 경우 생성 -> 레거시 데이터 보존
         contest_language = ContestLanguage(contest_id=contest.id, languages=update_contest_dto.languages)
         await contest_repo.create_contest_language(contest_language, db)
-    await problem_repo.update_problem_languages_by_contest_id(db, contest.id, update_contest_dto.languages)\
+    await problem_repo.update_problem_languages_by_contest_id(db, contest.id, update_contest_dto.languages)
     return await _create_contest_data_dto_from_entity(contest, update_contest_dto.languages, 0, db)
 
 
@@ -178,37 +178,41 @@ async def _create_contest_data_dto_from_entity(contest: Contest, languages: List
     )
 
 
-async def _process_contest_response(results, total: int, db: AsyncSession) -> PaginatedContestResponse:
+async def _process_contest_response(page: Page, db: AsyncSession) -> PaginatedContestResponse:
     dtos = []
-    for contest, languages, user, userdata in results:
+    for contest, languages, user, userdata in page.items:
         contest_participants_num = await contest_repo.count_contest_participants_by_contest_id(contest.id, db)
         dto = await _create_contest_data_dto_from_entity(contest, languages if languages else [],
                                                          contest_participants_num, db)
         dtos.append(dto)
-    return PaginatedContestResponse(results=dtos, total=total)
+    return PaginatedContestResponse(
+        items=dtos,
+        total=page.total,
+        page=page.page,
+        size=page.size
+    )
 
 
 async def get_all_contests_admin(
-        offset: int, limit: int, keyword: str, user_id: int, admin_type: str, db: AsyncSession
+        page: int, size: int, keyword: str, user_id: int, admin_type: str, db: AsyncSession
 ) -> PaginatedContestResponse:
     created_by_id = None
     if admin_type != "Super Admin":
         created_by_id = user_id
 
-    results, total = await contest_repo.get_contest_list(
-        db, limit, offset, keyword, rule_type=None, status=None,
+    contest_page = await contest_repo.get_contest_list(
+        db, page, size, keyword, rule_type=None, status=None,
         created_by_id=created_by_id, visible_only=False
     )
-    return await _process_contest_response(results, total, db)
+    return await _process_contest_response(contest_page, db)
 
 
 async def get_contest_list_paginated(
-        page: int, limit: int, keyword: str, rule_type: str, status: str, db: AsyncSession
+        page: int, size: int, keyword: str, rule_type: str, status: str, db: AsyncSession
 ) -> PaginatedContestResponse:
-    offset = (page - 1) * limit
-    results, total = await contest_repo.get_contest_list(db, limit, offset, keyword, rule_type, status)
+    contest_page = await contest_repo.get_contest_list(db, page, size, keyword, rule_type, status)
 
-    return await _process_contest_response(results, total, db)
+    return await _process_contest_response(contest_page, db)
 
 
 def _create_cloned_problem_entity(original_problem: Problem, contest_id: int, display_id: str, user_id: int,

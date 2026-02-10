@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.problem.models import Problem
 from app.workbook.models import Workbook, WorkbookProblem
+from app.common.page import Page, paginate
 
 WORKBOOK_WITH_RELATIONS = (
     selectinload(Workbook.problems)
@@ -28,10 +29,9 @@ async def find_by_id(workbook_id: int, db: AsyncSession) -> Optional[Workbook]:
     return result.scalars().unique().one_or_none()
 
 
-async def find_all_is_public_is_true(db: AsyncSession) -> List[Workbook]:
+async def find_public_paginated(db: AsyncSession, page: int, size: int) -> Page[Workbook]:
     stmt = select(Workbook).options(*WORKBOOK_WITH_RELATIONS).where(Workbook.is_public == True)
-    result = await db.execute(stmt)
-    return result.scalars().unique().all()
+    return await paginate(db, stmt, page, size)
 
 
 async def delete_by_id(workbook_id: int, db: AsyncSession) -> Optional[Workbook]:
@@ -64,7 +64,6 @@ async def update_problems(workbook: Workbook, problem_ids: List[int], db: AsyncS
     return True
 
 
-async def find_all(db: AsyncSession) -> List[Workbook]:
+async def find_all_paginated(db: AsyncSession, page: int, size: int) -> Page[Workbook]:
     stmt = select(Workbook).options(*WORKBOOK_WITH_RELATIONS)
-    result = await db.execute(stmt)
-    return result.scalars().unique().all()
+    return await paginate(db, stmt, page, size)

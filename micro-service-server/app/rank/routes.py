@@ -8,11 +8,11 @@ router = APIRouter(prefix="/api/rank", tags=["rank"])
 
 @router.get("/organization")
 async def get_organization_rank(
-    limit: int = Query(25, ge=1),
-    offset: int = Query(0, ge=0),
+    page: int = Query(1, ge=1),
+    size: int = Query(25, ge=1),
     db: AsyncSession = Depends(get_database),
 ):
-    return await serv.get_organization_rank(limit, offset, db)
+    return await serv.get_organization_rank(page, size, db)
 
 
 @router.get("/contest/{contest_id}")

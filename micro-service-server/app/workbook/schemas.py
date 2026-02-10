@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, List
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 
 
 class ProblemSummary(BaseModel):
@@ -16,9 +16,10 @@ class ProblemSummary(BaseModel):
 
     class Config:
         from_attributes = True
-        allow_population_by_field_name = True
+        populate_by_name = True
 
-    @validator('tags', pre=True, always=True)
+    @field_validator('tags', mode='before')
+    @classmethod
     def extract_tag_names(cls, value):
         if value is None:
             return []
@@ -48,7 +49,7 @@ class WorkbookCreate(WorkbookBase):
 
     class Config:
         from_attributes = True
-        allow_population_by_field_name = True
+        populate_by_name = True
 
 
 class WorkbookUpdate(BaseModel):

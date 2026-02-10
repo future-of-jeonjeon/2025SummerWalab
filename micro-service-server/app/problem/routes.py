@@ -62,7 +62,7 @@ async def get_filter_sorted_problems(
         order: Optional[str] = Query("asc"),
         # 페이지네이션 관련
         page: int = Query(1, ge=1),
-        page_size: int = Query(20, ge=1, le=250),
+        size: int = Query(20, ge=1, le=250),
         db: AsyncSession = Depends(get_database)
 ):
-    return await serv.get_filter_sorted_problems(tags, sort_option, order, page, page_size, db)
+    return await serv.get_filter_sorted_problems(tags, sort_option, order, page, size, db)

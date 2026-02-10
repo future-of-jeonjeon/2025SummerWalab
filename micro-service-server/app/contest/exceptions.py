@@ -15,14 +15,11 @@ def contest_not_found():
 
 
 def contest_language_not_found():
-    # Using generic NOT_FOUND as there is no specific code for contest language yet
     handlers.not_found("Contest language not found", ErrorCode.NOT_FOUND)
 
 
 def contest_ended():
     handlers.bad_request("Contest has ended", ErrorCode.CONTEST_ENDED)
-
-
 
 
 def display_id_conflict():

@@ -1,7 +1,8 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional, List
+from app.common.page import Page
 
 
 class ContestDTO(BaseModel):
@@ -71,6 +72,5 @@ class ReqAddContestProblemDTO(BaseModel):
     display_id: str
     
 
-class PaginatedContestResponse(BaseModel):
-    results: List[ContestDataDTO]
-    total: int
+class PaginatedContestResponse(Page[ContestDataDTO]):
+    results: List[ContestDataDTO] = Field(..., alias="items")

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
@@ -14,13 +14,13 @@ router = APIRouter(prefix="/api/contest", tags=["contest"])
 
 @router.get("", response_model=PaginatedContestResponse)
 async def get_contest_list(
-        page: int = 1,
-        limit: int = 20,
+        page: int = Query(1, ge=1),
+        size: int = Query(20, ge=1),
         keyword: Optional[str] = None,
         rule_type: Optional[str] = None,
         status: Optional[str] = None,
         db: AsyncSession = Depends(get_database)):
-    return await serv.get_contest_list_paginated(page, limit, keyword, rule_type, status, db)
+    return await serv.get_contest_list_paginated(page, size, keyword, rule_type, status, db)
 
 
 @router.post("", response_model=ContestDataDTO, status_code=status.HTTP_201_CREATED)
@@ -52,12 +52,12 @@ async def delete_contest(
 @router.get("/all", response_model=PaginatedContestResponse)
 @require_role("Admin")
 async def get_all_contests_admin(
-        offset: int = 0,
-        limit: int = 10,
+        page: int = Query(1, ge=1),
+        size: int = Query(10, ge=1),
         keyword: Optional[str] = None,
         userdata: UserData = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)):
-    return await serv.get_all_contests_admin(offset, limit, keyword, userdata.user_id, userdata.admin_type, db)
+    return await serv.get_all_contests_admin(page, size, keyword, userdata.user_id, userdata.admin_type, db)
 
 
 @router.post("/add_problem_from_public")

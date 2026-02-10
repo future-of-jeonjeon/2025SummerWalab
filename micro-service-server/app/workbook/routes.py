@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from app.workbook import exceptions
 from app.api.deps import get_userdata
 from app.user.schemas import UserData
@@ -7,6 +7,7 @@ from app.workbook.schemas import WorkbookCreate, Workbook, WorkbookProblem
 from app.api.deps import get_database
 from sqlalchemy.ext.asyncio import AsyncSession
 import app.workbook.service as serv
+from app.common.page import Page
 
 router = APIRouter(prefix="/api/workbook", tags=["workbook"])
 
@@ -20,18 +21,22 @@ async def create_workbook(
     return await serv.create_workbook(workbook, userdata, db)
 
 
-@router.get("/", response_model=list[Workbook])
+@router.get("/", response_model=Page[Workbook])
 async def get_public_workbooks(
+        page: int = Query(1, ge=1),
+        size: int = Query(20, ge=1),
         db: AsyncSession = Depends(get_database)):
-    return await serv.get_public_workbooks(db)
+    return await serv.get_public_workbooks(db, page, size)
 
 
-@router.get("/all", response_model=list[Workbook])
+@router.get("/all", response_model=Page[Workbook])
 @require_role("Admin")
 async def get_workbooks(
+        page: int = Query(1, ge=1),
+        size: int = Query(20, ge=1),
         userdata: UserData = Depends(get_userdata),  # 보안검사용
         db: AsyncSession = Depends(get_database)):
-    return await serv.get_workbooks(db)
+    return await serv.get_workbooks(db, page, size)
 
 
 @router.get("/{workbook_id}", response_model=Workbook)

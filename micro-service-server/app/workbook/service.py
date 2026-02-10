@@ -1,4 +1,5 @@
 from sqlalchemy.ext.asyncio import AsyncSession
+from app.common.page import Page
 from app.user.schemas import UserData
 from app.workbook.models import Workbook, WorkbookProblem
 from app.workbook.schemas import WorkbookCreate, WorkbookUpdate
@@ -41,14 +42,12 @@ async def get_workbook(workbook_id: int, userdata: UserData, db: AsyncSession) -
     return workbook
 
 
-async def get_workbooks(db: AsyncSession) -> List[Workbook]:
-    ## TODO : 이후 pagination 방식으로 개선 필요
-    return await workbook_repo.find_all(db)
+async def get_workbooks(db: AsyncSession, page: int = 1, size: int = 20) -> Page[Workbook]:
+    return await workbook_repo.find_all_paginated(db, page, size)
 
 
-async def get_public_workbooks(db: AsyncSession) -> List[Workbook]:
-    ## TODO : 이후 pagination 방식으로 개선 필요
-    return await workbook_repo.find_all_is_public_is_true(db)
+async def get_public_workbooks(db: AsyncSession, page: int = 1, size: int = 20) -> Page[Workbook]:
+    return await workbook_repo.find_public_paginated(db, page, size)
 
 
 async def update_workbook(workbook_id: int, workbook_data: WorkbookUpdate, db: AsyncSession) -> Optional[Workbook]:

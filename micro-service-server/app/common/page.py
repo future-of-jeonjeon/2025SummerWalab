@@ -1,20 +1,21 @@
 from typing import Generic, List, TypeVar
-from pydantic.generics import GenericModel
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.sql import Select
+from pydantic import BaseModel
 
 T = TypeVar("T")
 
 
-class Page(GenericModel, Generic[T]):
+class Page(BaseModel, Generic[T]):
     items: List[T]
     total: int
     page: int
     size: int
 
-    class Config:
-        arbitrary_types_allowed = True
+    model_config = {
+        "arbitrary_types_allowed": True
+    }
 
     @property
     def has_next(self) -> bool:

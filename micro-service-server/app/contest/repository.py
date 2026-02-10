@@ -10,7 +10,9 @@ from app.user.models import User, UserData
 from app.problem.models import Problem
 
 from sqlalchemy import delete
-async def get_contest_list(db: AsyncSession, limit: int, offset: int, keyword: Optional[str], rule_type: Optional[str], status: Optional[str], created_by_id: Optional[int] = None, visible_only: bool = True):
+from app.common.page import Page, paginate
+
+async def get_contest_list(db: AsyncSession, page: int, size: int, keyword: Optional[str], rule_type: Optional[str], status: Optional[str], created_by_id: Optional[int] = None, visible_only: bool = True) -> Page:
     # filter conditions
     filters = []
     if visible_only:
@@ -32,23 +34,23 @@ async def get_contest_list(db: AsyncSession, limit: int, offset: int, keyword: O
         filters.append(Contest.start_time > now)
 
     # Main query
-    stmt = select(Contest, ContestLanguage.languages, User, UserData)\
-        .join(User, Contest.created_by_id == User.id)\
-        .outerjoin(UserData, User.id == UserData.user_id)\
-        .outerjoin(ContestLanguage, Contest.id == ContestLanguage.contest_id)\
-        .where(*filters)\
-        .order_by(desc(Contest.create_time))\
-        .offset(offset).limit(limit)
+    stmt = (
+        select(Contest, ContestLanguage.languages, User, UserData)
+        .join(User, Contest.created_by_id == User.id)
+        .outerjoin(UserData, User.id == UserData.user_id)
+        .outerjoin(ContestLanguage, Contest.id == ContestLanguage.contest_id)
+        .where(*filters)
+        .order_by(desc(Contest.create_time))
+    )
 
-    result = await db.execute(stmt)
-    contests = result.all()
-
-    # Count query
-    count_stmt = select(func.count(Contest.id)).where(*filters)
-    count_result = await db.execute(count_stmt)
-    total = count_result.scalar() or 0
-
-    return contests, total
+    # Note: paginate will handle offset and limit internally based on page/size. 
+    # But here repository is called with limit and offset. 
+    # Let's adjust paginate or how we call it.
+    # Actually, let's change get_contest_list signature to take page and size.
+    
+    # Wait, the current common.page.paginate takes page and size. 
+    # So I should change the repository method signature.
+    return await paginate(db, stmt, page, size)
 
 
 async def find_contest_by_id(contest_id: int, db: AsyncSession) -> Optional[Contest]:

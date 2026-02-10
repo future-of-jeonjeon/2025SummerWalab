@@ -498,7 +498,7 @@ async def get_filter_sorted_problems(
     direction = (order or "asc").lower()
     ordering = desc(column) if direction == "desc" else asc(column)
 
-    problems, total_count = await problem_repository.fetch_filtered_problems(
+    problem_page = await problem_repository.fetch_filtered_problems(
         db,
         tags=tags,
         ordering=ordering,
@@ -506,13 +506,13 @@ async def get_filter_sorted_problems(
         page_size=page_size,
     )
 
-    serialized = [_serialize_problem(problem) for problem in problems]
+    serialized = [_serialize_problem(problem) for problem in problem_page.items]
 
     return ProblemListResponse(
-        total=total_count,
-        page=page,
-        page_size=page_size,
-        problems=serialized,
+        total=problem_page.total,
+        page=problem_page.page,
+        size=problem_page.size,
+        items=serialized,
     )
 
 
