@@ -64,7 +64,7 @@ async def organization_join_code(
         organization_id: int,
         request_user: UserData,
         db: AsyncSession):
-    await _check_organization_admin(organization_id, request_user, db)
+    await check_organization_admin(organization_id, request_user, db)
     organization = await _get_organization_by_id(organization_id, db)
     user = await user_repo.find_user_by_id(request_user.user_id, db)
     if not user:
@@ -110,7 +110,7 @@ async def edit_organization_user(
         request_user: UserData,
         user_update_data: OrganizationMemberUpdateRequest,
         db: AsyncSession) -> OrganizationMemberResponse:
-    await _check_organization_admin(organization_id, request_user, db)
+    await check_organization_admin(organization_id, request_user, db)
 
     await _get_organization_by_id(organization_id, db)
     member_data = await (organization_repo
@@ -127,7 +127,7 @@ async def delete_organization_user(
         request_user_data: UserData,
         target_user_id: int,
         db: AsyncSession):
-    await _check_organization_admin(organization_id, request_user_data, db)
+    await check_organization_admin(organization_id, request_user_data, db)
     await _get_organization_by_id(organization_id, db)
     member_data = await (organization_repo
                          .get_member_by_organization_id_and_user_id(organization_id, target_user_id, db))
@@ -146,7 +146,7 @@ async def _get_organization_by_id(
     return organization
 
 
-async def _check_organization_admin(
+async def check_organization_admin(
         organization_id: int,
         request_user: UserData,
         db: AsyncSession) -> bool:

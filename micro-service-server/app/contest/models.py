@@ -58,3 +58,12 @@ class ContestLanguage(BaseEntity, Base):
     __table_args__ = {"schema": "public"}
     contest_id: Mapped[int] = mapped_column(Integer, ForeignKey("public.contest.id"), nullable=False)
     languages: Mapped[list] = mapped_column(JSONB, nullable=False)
+
+
+
+class OrganizationContest(BaseEntity, Base):
+    __tablename__ = "micro_organization_contest"
+    __table_args__ = {"schema": "public"}
+
+    contest_id: Mapped[int] = mapped_column(Integer, ForeignKey("public.contest.id"), nullable=False)
+    organization_id: Mapped[int] = mapped_column(Integer, ForeignKey("public.micro_organization.id"), nullable=False)

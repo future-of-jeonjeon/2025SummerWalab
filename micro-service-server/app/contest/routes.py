@@ -24,9 +24,8 @@ async def get_contest_list(
 
 
 @router.post("", response_model=ContestDataDTO, status_code=status.HTTP_201_CREATED)
-@require_role("Admin")
 async def create_contest(
-        create_contest_dto: ReqCreateContestDTO,
+        create_contest_dto: CreateContestRequest,
         userdata: UserData = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)):
     return await serv.create_contest(create_contest_dto, userdata, db)

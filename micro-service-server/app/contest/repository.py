@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List, Optional
 from datetime import datetime
 
-from app.contest.models import Contest, ACMContestRank, OIContestRank, ContestLanguage
+from app.contest.models import *
 from app.contest_user.models import ContestUser
 from app.user.models import User, UserData
 from app.problem.models import Problem
@@ -134,3 +134,10 @@ async def delete_contest_users(contest_id: int, db: AsyncSession) -> None:
 
 async def delete_contest_problems(contest_id: int, db: AsyncSession) -> None:
     await db.execute(delete(Problem).where(Problem.contest_id == contest_id))
+
+
+async def create_organization_contest(organization_contest: OrganizationContest, db: AsyncSession) -> OrganizationContest:
+    db.add(organization_contest)
+    await db.flush()
+    await db.refresh(organization_contest)
+    return organization_contest

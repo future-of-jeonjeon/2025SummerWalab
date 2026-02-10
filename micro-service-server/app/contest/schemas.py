@@ -35,7 +35,7 @@ class ContestDataDTO(BaseModel):
     languages: list[str]
 
 
-class ReqCreateContestDTO(BaseModel):
+class CreateContestRequest(BaseModel):
     title: str
     description: str
     start_time: datetime
@@ -47,6 +47,7 @@ class ReqCreateContestDTO(BaseModel):
     allowed_ip_ranges: list[str]
     requires_approval: Optional[bool] = False
     languages: list[str]
+    organization_id:int
 
 
 class ReqUpdateContestDTO(BaseModel):
