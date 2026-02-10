@@ -251,23 +251,13 @@ export const rankingService = {
     const base = ORGANIZATION_RANKING_ENDPOINT;
     const normalizedBase = base.endsWith('/') && !base.includes('?') ? base.slice(0, -1) : base;
     const searchParams = new URLSearchParams({
-      limit: String(limit),
-      offset: String(offset),
+      page: String(page),
+      size: String(limit),
     });
     const separator = normalizedBase.includes('?') ? '&' : '?';
     const endpoint = `${normalizedBase}${separator}${searchParams.toString()}`;
 
-    const response = await apiClient.get<{
-      items?: Array<Record<string, unknown>>;
-      results?: Array<Record<string, unknown>>;
-      data?: Array<Record<string, unknown>>;
-      total?: number;
-      total_count?: number;
-      count?: number;
-      limit?: number;
-      page?: number;
-      offset?: number;
-    }>(endpoint, {
+    const response = await apiClient.get<any>(endpoint, {
       signal: options.signal,
     });
 
@@ -282,7 +272,9 @@ export const rankingService = {
           : [];
 
     const total = toNumber(payload.total ?? payload.total_count ?? payload.count) ?? rawItems.length;
-    const normalizedItems: OrganizationRankingEntry[] = rawItems.map((item, index) => {
+    const returnPage = toNumber(payload.page) ?? page;
+    const returnSize = toNumber(payload.size) ?? limit;
+    const normalizedItems: OrganizationRankingEntry[] = rawItems.map((item: any, index: number) => {
       const rank = toNumber(item.rank) ?? offset + index + 1;
       const totalSolved = toNumber((item as any).total_solved ?? (item as any).totalAccepted ?? (item as any).total_accepted);
       const totalSubmission = toNumber((item as any).total_submission ?? (item as any).totalSubmission);
@@ -309,13 +301,13 @@ export const rankingService = {
       };
     });
 
-    const totalPages = limit > 0 ? Math.max(1, Math.ceil(total / limit)) : 1;
+    const totalPages = returnSize > 0 ? Math.max(1, Math.ceil(total / returnSize)) : 1;
 
     return {
       data: normalizedItems,
       total,
-      page,
-      limit,
+      page: returnPage,
+      limit: returnSize,
       totalPages,
     };
   },

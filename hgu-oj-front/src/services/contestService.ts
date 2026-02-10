@@ -141,7 +141,7 @@ export const contestService = {
   }): Promise<PaginatedResponse<Contest>> => {
     const queryParams: any = {
       page: params?.page || 1,
-      limit: params?.limit || 20,
+      size: params?.limit || 20,
     };
     if (params?.keyword) queryParams.keyword = params.keyword;
     if (params?.ruleType) queryParams.rule_type = params.ruleType;
@@ -154,13 +154,19 @@ export const contestService = {
       throw new Error('MS_API_BASE not defined');
     }
 
-    const response = await apiClient.get<{ results: any[], total: number }>(`${MICRO_API_BASE}/contest`, { params: queryParams });
+    const response = await apiClient.get<any>(`${MICRO_API_BASE}/contest`, { params: queryParams });
+    const payload = response.data;
+    const items = payload.items ?? payload.results ?? [];
+    const total = payload.total ?? items.length;
+    const page = payload.page ?? params?.page ?? 1;
+    const size = payload.size ?? params?.limit ?? 20;
+
     return {
-      data: response.data.results.map(mapContest),
-      total: response.data.total,
-      page: params?.page || 1,
-      limit: params?.limit || 20,
-      totalPages: Math.ceil(response.data.total / (params?.limit || 20))
+      data: items.map(mapContest),
+      total,
+      page,
+      limit: size,
+      totalPages: Math.ceil(total / size)
     };
   },
 

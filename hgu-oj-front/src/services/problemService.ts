@@ -304,7 +304,7 @@ const buildMicroProblemListParams = (filter: ProblemFilter) => {
   const order = (filter.sortOrder ?? 'asc').toLowerCase() === 'desc' ? 'desc' : 'asc';
 
   params.set('page', String(page));
-  params.set('page_size', String(Math.min(Math.max(limit, 1), 250)));
+  params.set('size', String(Math.min(Math.max(limit, 1), 250)));
   params.set('sort_option', sortOption);
   params.set('order', order);
 
@@ -334,11 +334,11 @@ const fetchMicroProblemList = async (
       signal: options?.signal,
     });
     const payload = response.data;
-    const rawProblems = Array.isArray(payload?.problems) ? payload.problems : [];
+    const rawProblems = Array.isArray(payload?.items) ? payload.items : Array.isArray(payload?.problems) ? payload.problems : [];
     const adapted = rawProblems.map((problem: any) => adaptProblem(problem));
     const total = Number(payload?.total ?? rawProblems.length) || 0;
     const page = Number(payload?.page ?? filter.page ?? 1) || 1;
-    const limit = Number(payload?.page_size ?? filter.limit ?? DEFAULT_PAGE_LIMIT) || DEFAULT_PAGE_LIMIT;
+    const limit = Number(payload?.size ?? payload?.page_size ?? filter.limit ?? DEFAULT_PAGE_LIMIT) || DEFAULT_PAGE_LIMIT;
     const totalPages = limit > 0 ? Math.max(1, Math.ceil(total / limit)) : 1;
     const publicProblems = filterPublicProblems(adapted);
     const { total: adjustedTotal, totalPages: adjustedTotalPages } = deriveVisibleTotals(
