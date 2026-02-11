@@ -116,6 +116,7 @@ export type ProblemImportPollingStatus = {
   left_problem: number;
   all_problem: number;
   message?: string;
+  error_code?: string | number;
 };
 
 export type ExportProblemsResult = {
