@@ -2,7 +2,7 @@ from datetime import datetime
 from sqlalchemy import func
 from typing import Optional
 
-from sqlalchemy import Integer, Text, Boolean, DateTime, ForeignKey
+from sqlalchemy import Integer, Text, Boolean, DateTime, ForeignKey, String, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -60,10 +60,37 @@ class ContestLanguage(BaseEntity, Base):
     languages: Mapped[list] = mapped_column(JSONB, nullable=False)
 
 
-
 class OrganizationContest(BaseEntity, Base):
     __tablename__ = "micro_organization_contest"
     __table_args__ = {"schema": "public"}
 
     contest_id: Mapped[int] = mapped_column(Integer, ForeignKey("public.contest.id"), nullable=False)
     organization_id: Mapped[int] = mapped_column(Integer, ForeignKey("public.micro_organization.id"), nullable=False)
+    is_organization_only: Mapped[bool] = mapped_column(Boolean, nullable=False)
+
+
+class ContestUser(BaseEntity, Base):
+    __tablename__ = "micro_contest_user"
+    __table_args__ = (
+        UniqueConstraint("contest_id", "user_id", name="uq_micro_contest_user_contest_user"),
+        {"schema": "public"},
+    )
+
+    contest_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="approved")
+    approved_by: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    approved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ContestAnnouncement(Base):
+    __tablename__ = "contest_announcement"
+    __table_args__ = {"schema": "public"}
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    content: Mapped[str] = mapped_column(Text, nullable=False)
+    create_time: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    contest_id: Mapped[int] = mapped_column(Integer, ForeignKey("public.contest.id"), nullable=False, index=True)
+    created_by_id: Mapped[int] = mapped_column(Integer, ForeignKey("public.user.id"), nullable=False, index=True)
+    visible: Mapped[bool] = mapped_column(Boolean, nullable=False)

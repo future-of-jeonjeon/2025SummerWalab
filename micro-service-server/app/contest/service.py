@@ -2,7 +2,7 @@ from ipaddress import ip_network
 from typing import Union
 
 from sqlalchemy.ext.asyncio import AsyncSession
-
+from datetime import timezone
 import app.contest.repository as contest_repo
 import app.organization.service as organization_service
 import app.problem.repository as problem_repo
@@ -11,8 +11,9 @@ import app.user.repository as user_repo
 import app.contest.exceptions as contest_exception
 import app.organization.exceptions as organization_exception
 from app.problem import exceptions as problem_exceptions
-from app.contest.models import Contest, ContestLanguage, OrganizationContest
+from app.contest.models import *
 from app.contest.schemas import *
+from app.organization.models import OrganizationRole
 from app.problem.models import Problem
 from app.user.schemas import UserData
 
@@ -41,20 +42,27 @@ async def create_contest(request_data: CreateContestRequest, user_data: UserData
     contest_language = ContestLanguage(contest_id=contest.id, languages=request_data.languages)
     organization_id = request_data.organization_id
     await contest_repo.create_contest_language(contest_language, db)
-    organization_contest = OrganizationContest(contest.id, organization_id)
+    organization_contest = OrganizationContest(contest_id=contest.id,
+                                               organization_id=organization_id,
+                                               is_organization_only=request_data.is_organization_only)
     await contest_repo.create_organization_contest(organization_contest, db)
+    if request_data.requires_approval:
+        await contest_repo.upsert_policy(contest.id, request_data.requires_approval, db)
     return await _create_contest_data_dto_from_entity(contest, request_data.languages, 0, db)
 
 
-async def update_contest(update_contest_dto: ReqUpdateContestDTO,
+async def update_contest(update_contest_dto: ReqUpdateContestDTO, user_data: UserData,
                          db: AsyncSession) -> ContestDataDTO:
     contest = await contest_repo.find_contest_by_id(update_contest_dto.id, db)
     if not contest:
         contest_exception.contest_not_found()
+    organization = await organization_repo.find_by_id(update_contest_dto.organization_id, db)
+    if not organization:
+        organization_exception.organization_not_found()
+    await organization_service.check_organization_admin(organization.id, user_data, db)
     _check_contest_options(update_contest_dto)
     _update_contest_data(contest, update_contest_dto)
     await contest_repo.update_contest(contest, db)
-
     contest_language = await contest_repo.find_contest_language_by_contest_id(contest.id, db)
     if contest_language:
         await contest_repo.update_contest_language(contest_language, update_contest_dto.languages, db)
@@ -62,6 +70,15 @@ async def update_contest(update_contest_dto: ReqUpdateContestDTO,
         contest_language = ContestLanguage(contest_id=contest.id, languages=update_contest_dto.languages)
         await contest_repo.create_contest_language(contest_language, db)
     await problem_repo.update_problem_languages_by_contest_id(db, contest.id, update_contest_dto.languages)
+
+    # Update Organization Contest settings
+    org_contest = await contest_repo.find_organization_contest_by_contest_id(contest.id, db)
+    if org_contest and update_contest_dto.is_organization_only is not None:
+        org_contest.is_organization_only = update_contest_dto.is_organization_only
+        await contest_repo.create_organization_contest(org_contest, db)
+
+    if update_contest_dto.requires_approval is not None:
+        await contest_repo.upsert_policy(contest.id, update_contest_dto.requires_approval, db)
     return await _create_contest_data_dto_from_entity(contest, update_contest_dto.languages, 0, db)
 
 
@@ -112,12 +129,18 @@ async def add_contest_problem(contest_problem_dto: ReqAddContestProblemDTO, user
     return None
 
 
-async def delete_contest(contest_id: int, db: AsyncSession):
+async def delete_contest(contest_id: int, user_data: UserData, db: AsyncSession):
     contest = await contest_repo.find_contest_by_id(contest_id, db)
     if not contest:
         contest_exception.contest_not_found()
+    organization_contest = await  contest_repo.find_organization_contest_by_contest_id(contest_id, db)
+    organization = await organization_repo.find_by_id(organization_contest.organization_id, db)
+    if not organization:
+        organization_exception.organization_not_found()
+    await organization_service.check_organization_admin(organization.id, user_data, db)
     await contest_repo.delete_contest_languages(contest_id, db)
     await contest_repo.delete_contest_users(contest_id, db)
+    await contest_repo.delete_organization_contest_by_contest_id(organization_contest.contest_id, db)
     await contest_repo.delete_contest_problems(contest_id, db)
     await contest_repo.delete_contest(contest_id, db)
 
@@ -159,6 +182,11 @@ async def _create_contest_data_dto_from_entity(contest: Contest, languages: List
         id=creator_user.id,
         username=creator_user.username,
     )
+    org_contest = await contest_repo.find_organization_contest_by_contest_id(contest.id, db)
+    is_organization_only = org_contest.is_organization_only if org_contest else False
+
+    policy = await contest_repo.get_policy(contest.id, db)
+
     return ContestDataDTO(
         id=contest.id,
         title=contest.title,
@@ -174,16 +202,19 @@ async def _create_contest_data_dto_from_entity(contest: Contest, languages: List
         status="0",
         participants=participants_num or 0,
         createdBy=created_by_dto,
-        languages=languages
+        languages=languages,
+        is_organization_only=is_organization_only,
+        requires_approval=policy
     )
 
 
 async def _process_contest_response(page: Page, db: AsyncSession) -> PaginatedContestResponse:
     dtos = []
-    for contest, languages, user, userdata in page.items:
+    for contest in page.items:
         contest_participants_num = await contest_repo.count_contest_participants_by_contest_id(contest.id, db)
-        dto = await _create_contest_data_dto_from_entity(contest, languages if languages else [],
-                                                         contest_participants_num, db)
+        contest_language = await contest_repo.find_contest_language_by_contest_id(contest.id, db)
+        languages = contest_language.languages if contest_language else []
+        dto = await _create_contest_data_dto_from_entity(contest, languages, contest_participants_num, db)
         dtos.append(dto)
     return PaginatedContestResponse(
         items=dtos,
@@ -194,12 +225,13 @@ async def _process_contest_response(page: Page, db: AsyncSession) -> PaginatedCo
 
 
 async def get_all_contests_admin(
-        page: int, size: int, keyword: str, user_id: int, admin_type: str, db: AsyncSession
-) -> PaginatedContestResponse:
+        page: int, 
+        size: int,
+         keyword: str,
+          user_id: int, 
+          admin_type: str, 
+          db: AsyncSession) -> PaginatedContestResponse:
     created_by_id = None
-    if admin_type != "Super Admin":
-        created_by_id = user_id
-
     contest_page = await contest_repo.get_contest_list(
         db, page, size, keyword, rule_type=None, status=None,
         created_by_id=created_by_id, visible_only=False
@@ -240,7 +272,6 @@ def _create_cloned_problem_entity(original_problem: Problem, contest_id: int, di
         difficulty=original_problem.difficulty,
         source=original_problem.source,
         total_score=original_problem.total_score,
-
         contest_id=contest_id,
         _id=display_id,
         created_by_id=user_id,
@@ -250,3 +281,268 @@ def _create_cloned_problem_entity(original_problem: Problem, contest_id: int, di
         accepted_number=0,
         statistic_info={}
     )
+
+
+async def get_organization_contest_list(
+        page: int,
+        size: int,
+        organization_id: int,
+        db: AsyncSession):
+    contest_page = await contest_repo.get_contest_list_page_by_organization_id(organization_id, page, size, db)
+    return await _process_contest_response(contest_page, db)
+
+
+def _normalize_datetime(value: datetime | None) -> datetime | None:
+    if value is None:
+        return None
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
+
+
+# ======================================================================================================================
+
+APPROVED: ParticipationStatus = "approved"
+PENDING: ParticipationStatus = "pending"
+REJECTED: ParticipationStatus = "rejected"
+
+
+async def join_contest(contest_id: int, userdata: UserData, db: AsyncSession) -> ContestUserStatus:
+    contest = await contest_repo.find_contest_by_id(contest_id, db)
+    if not contest:
+        contest_exception.contest_not_found()
+    organization_contest = await contest_repo.find_organization_contest_by_contest_id(contest_id, db)
+    if not organization_contest:
+        contest_exception.contest_not_found()
+    is_admin_user = await organization_service.is_organization_admin(organization_contest.organization_id, userdata, db)
+
+    if organization_contest.is_organization_only:
+        is_member = await organization_repo.get_member_by_organization_id_and_user_id(
+            organization_contest.organization_id, userdata.user_id, db
+        )
+        if not is_member:
+            contest_exception.cannot_participate_in_organization_contest()
+
+    if _has_contest_ended(contest.end_time):
+        contest_exception.cannot_participate_in_ended_contest()
+
+    requires_approval_policy = await contest_repo.get_policy(contest_id, db)
+    status: ParticipationStatus = APPROVED
+    approver = userdata.user_id if is_admin_user else None
+
+    if not is_admin_user and requires_approval_policy and _has_contest_started(contest.start_time):
+        status = PENDING
+
+    membership = await contest_repo.upsert_membership(contest_id, userdata.user_id, status, approver, db)
+    return _build_status(
+        contest_id,
+        userdata,
+        membership,
+        is_admin=is_admin_user,
+        requires_approval=requires_approval_policy,
+    )
+
+
+async def get_membership_status(contest_id: int, userdata: UserData, db: AsyncSession) -> ContestUserStatus:
+    if not userdata:
+        contest_exception.not_authenticated()
+
+    contest = await contest_repo.find_contest_by_id(contest_id, db)
+    if not contest:
+        contest_exception.contest_not_found()
+
+    organization_contest = await contest_repo.find_organization_contest_by_contest_id(contest_id, db)
+    is_admin_user = False
+    if organization_contest:
+        is_admin_user = await organization_service.is_organization_admin(organization_contest.organization_id, userdata,
+                                                                         db)
+
+    requires_approval_policy = await contest_repo.get_policy(contest_id, db)
+    if is_admin_user:
+        return ContestUserStatus(
+            contest_id=contest_id,
+            user_id=userdata.user_id,
+            joined=True,
+            joined_at=None,
+            is_admin=True,
+            status=APPROVED,
+            requires_approval=False,
+        )
+
+    membership = await contest_repo.find_by_contest_and_user(contest_id, userdata.user_id, db)
+    return _build_status(
+        contest_id,
+        userdata,
+        membership,
+        is_admin=False,
+        requires_approval=requires_approval_policy,
+    )
+
+
+async def list_contest_users(contest_id: int, userdata: UserData, db: AsyncSession) -> ContestUserListResponse:
+    await _ensure_contest_permission(contest_id, userdata, db)
+
+    rows = await contest_repo.list_memberships(contest_id, db)
+    approved: List[ContestUserDetail] = []
+    pending: List[ContestUserDetail] = []
+
+    for membership, user in rows:
+        decided_at = membership.approved_at if membership.status == APPROVED else membership.updated_time
+        detail = ContestUserDetail(
+            user_id=membership.user_id,
+            username=getattr(user, "username", None),
+            status=membership.status,
+            applied_at=membership.created_time,
+            decided_at=decided_at,
+            decided_by=membership.approved_by,
+        )
+        if membership.status == PENDING:
+            pending.append(detail)
+        elif membership.status == APPROVED:
+            approved.append(detail)
+    return ContestUserListResponse(approved=approved, pending=pending)
+
+
+async def decide_contest_user(
+        contest_id: int,
+        user_id: int,
+        action: str,
+        userdata: UserData,
+        db: AsyncSession,
+) -> ContestUserDetail:
+    await _ensure_contest_permission(contest_id, userdata, db)
+
+    target_status = APPROVED if action == "approve" else REJECTED
+    membership = await contest_repo.update_membership_status(
+        contest_id,
+        user_id,
+        target_status,
+        userdata.user_id,
+        db,
+    )
+
+    if membership is None:
+        contest_exception.members_not_found()
+
+    user = await user_repo.find_user_by_id(user_id, db)
+    username = getattr(user, "username", None) if user else None
+    decided_at = membership.approved_at if membership.status == APPROVED else membership.updated_time
+    return ContestUserDetail(
+        user_id=membership.user_id,
+        username=username,
+        status=membership.status,
+        applied_at=membership.created_time,
+        decided_at=decided_at,
+        decided_by=membership.approved_by,
+    )
+
+
+def _has_contest_started(start_time: datetime | None) -> bool:
+    normalized_start = _normalize_datetime(start_time)
+    if normalized_start is None:
+        return False
+    now = datetime.now(timezone.utc)
+    return now >= normalized_start
+
+
+def _has_contest_ended(end_time: datetime | None) -> bool:
+    normalized_end = _normalize_datetime(end_time)
+    if normalized_end is None:
+        return False
+
+    now = datetime.now(timezone.utc)
+    return now > normalized_end
+
+
+def _build_status(
+        contest_id: int,
+        userdata: UserData,
+        membership: ContestUser | None,
+        *,
+        is_admin: bool,
+        requires_approval: bool,
+) -> ContestUserStatus:
+    status = membership.status if membership else (APPROVED if is_admin else None)
+    joined = (status == APPROVED) or is_admin
+    joined_at = membership.created_time if membership else None
+    requires_approval_flag = requires_approval and status == PENDING
+    return ContestUserStatus(
+        contest_id=contest_id,
+        user_id=userdata.user_id,
+        joined=joined,
+        joined_at=joined_at,
+        is_admin=is_admin,
+        status=status,
+        requires_approval=requires_approval_flag,
+    )
+
+
+async def set_approval_policy(contest_id: int, requires_approval: bool, userdata: UserData,
+                              db: AsyncSession) -> ContestApprovalPolicy:
+    await _ensure_contest_permission(contest_id, userdata, db)
+    await contest_repo.upsert_policy(contest_id, requires_approval, db)
+    return ContestApprovalPolicy(contest_id=contest_id, requires_approval=requires_approval)
+
+
+async def get_approval_policy(contest_id: int, db: AsyncSession) -> ContestApprovalPolicy:
+    contest = await contest_repo.find_contest_by_id(contest_id, db)
+    if not contest:
+        contest_exception.contest_not_found()
+    requires = await contest_repo.get_policy(contest_id, db)
+    return ContestApprovalPolicy(contest_id=contest_id, requires_approval=requires)
+
+
+async def _ensure_contest_permission(contest_id: int, userdata: UserData, db: AsyncSession):
+    contest = await contest_repo.find_contest_by_id(contest_id, db)
+    if not contest:
+        contest_exception.contest_not_found()
+    org_contest = await contest_repo.find_organization_contest_by_contest_id(contest_id, db)
+    if org_contest:
+        await organization_service.check_organization_admin(org_contest.organization_id, userdata, db)
+    else:
+        if userdata.admin_type not in ["Admin", "Super Admin"]:
+            contest_exception.permission_denied()
+
+
+# =====================================================================================================================
+async def create_announcement(contest_id, request_data, userdata, db):
+    organization_contest = await contest_repo.find_organization_contest_by_contest_id(contest_id, db)
+    if not organization_contest:
+        contest_exception.contest_not_found()
+    await organization_service.is_organization_admin(organization_contest.organization_id, userdata, db)
+    entity = ContestAnnouncement(
+        title=request_data.title,
+        content=request_data.content,
+        visible=request_data.visible,
+        contest_id=contest_id,
+        created_by_id=userdata.user_id,
+    )
+    await contest_repo.save_announcement(entity, db)
+    return ContestAnnouncementResponse.from_entity(entity, userdata.username)
+
+
+async def update_announcement(contest_id, announcement_id, request_data, userdata, db):
+    organization_contest = await contest_repo.find_organization_contest_by_contest_id(contest_id, db)
+    if not organization_contest:
+        contest_exception.contest_not_found()
+    await organization_service.is_organization_admin(organization_contest.organization_id, userdata, db)
+    announcement = await contest_repo.find_announcement_by_announcement_id(announcement_id, db)
+    if not announcement:
+        contest_exception.contest_announcement_not_found()
+    announcement.title = request_data.title
+    announcement.content = request_data.content
+    announcement.visible = request_data.visible
+    announcement = await contest_repo.save_announcement(announcement, db)
+    return ContestAnnouncementResponse.from_entity(announcement, userdata.username)
+
+
+async def delete_announcement(contest_id, announcement_id, userdata, db):
+    organization_contest = await contest_repo.find_organization_contest_by_contest_id(contest_id, db)
+    if not organization_contest:
+        contest_exception.contest_not_found()
+    announcement = await contest_repo.find_announcement_by_announcement_id(announcement_id, db)
+    if not announcement:
+        contest_exception.contest_announcement_not_found()
+    await contest_repo.delete_contest_announcement_by_announcement_id(announcement.id, db)
+    await organization_service.is_organization_admin(organization_contest.organization_id, userdata, db)
+    return

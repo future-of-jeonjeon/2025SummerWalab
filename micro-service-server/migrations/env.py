@@ -21,7 +21,7 @@ import app.workbook.models
 import app.code_autosave.models
 import app.organization.models
 import app.contest.models
-import app.contest_user.models
+
 import app.submission.models
 import app.execution.models
 import app.todo.models

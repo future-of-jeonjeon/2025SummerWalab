@@ -87,6 +87,29 @@ export interface Contest {
   requiresApproval?: boolean;
   participants: number;
   languages?: string[];
+  isOrganizationOnly?: boolean;
+}
+
+export interface ContestDataDTO {
+  id: number;
+  title: string;
+  description: string;
+  startTime: string;
+  endTime: string;
+  createTime: string;
+  ruleType: string;
+  visible: boolean;
+  real_time_rank: boolean;
+  allowed_ip_ranges: string[];
+  password?: string | null;
+  status: string;
+  createdBy: {
+    id: number;
+    username: string;
+    realName?: string;
+  };
+  participants: number;
+  languages: string[];
 }
 
 export interface ContestAnnouncement {
@@ -96,15 +119,27 @@ export interface ContestAnnouncement {
   content: string;
   visible: boolean;
   createdAt: string;
-  createdBy: {
-    id: number;
-    username: string;
-    realName?: string;
-  };
+  createdBy: string;
 }
 
 export interface ContestAccess {
   access: boolean;
+}
+
+export interface CreateContestRequest {
+  title: string;
+  description: string;
+  start_time: string; // ISO string
+  end_time: string;   // ISO string
+  rule_type: string;
+  password?: string | null;
+  visible: boolean;
+  real_time_rank: boolean;
+  allowed_ip_ranges: string[];
+  requires_approval?: boolean;
+  is_organization_only?: boolean;
+  languages: string[];
+  organization_id: number;
 }
 
 export interface ContestRankEntry {

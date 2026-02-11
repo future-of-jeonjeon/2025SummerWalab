@@ -146,14 +146,20 @@ async def _get_organization_by_id(
     return organization
 
 
+async def is_organization_admin(organization_id: int, user_data: UserData, db: AsyncSession) -> bool:
+    if user_data.admin_type in ["Admin", "Super Admin"]:
+        return True
+    member = await organization_repo.get_member_by_organization_id_and_user_id(organization_id, user_data.user_id, db)
+    if member and member.role in {OrganizationRole.ORG_ADMIN, OrganizationRole.ORG_SUPER_ADMIN}:
+        return True
+    return False
+
+
 async def check_organization_admin(
         organization_id: int,
         request_user: UserData,
         db: AsyncSession) -> bool:
-    req_user = await (organization_repo
-                      .get_member_by_organization_id_and_user_id(organization_id, request_user.user_id, db))
-    if ((request_user.admin_type not in ["Admin", "Super Admin"])
-            and (not req_user or req_user.role not in {OrganizationRole.ORG_ADMIN, OrganizationRole.ORG_SUPER_ADMIN})):
+    if not await is_organization_admin(organization_id, request_user, db):
         exceptions.forbidden()
     return True
 

@@ -262,12 +262,11 @@ export const adminService = {
       offset: (page - 1) * limit,
       limit,
       ...(keyword && keyword.trim().length > 0 ? { keyword: keyword.trim() } : {}),
+      paging: true,
     };
 
-    const baseUrl = getMsBaseUrl();
-    const response = await apiClient.get<{ results: any[]; total: number }>(`${baseUrl}/contest/all`, { params });
-
-    const data = response.data;
+    const response = await api.get<any>('/admin/contest', params);
+    const data = unwrap(response);
     const results = Array.isArray(data.results) ? data.results.map(mapAdminContest) : [];
 
     return {
