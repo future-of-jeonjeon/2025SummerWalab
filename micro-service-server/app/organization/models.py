@@ -41,11 +41,11 @@ class OrganizationMember(BaseEntity, Base):
         {"schema": "public"},
     )
 
-    organization_id: Mapped[str] = mapped_column(
+    organization_id: Mapped[int] = mapped_column(
         ForeignKey("public.micro_organization.id", ondelete="CASCADE"),
         nullable=False,
     )
-    user_id: Mapped[str] = mapped_column(
+    user_id: Mapped[int] = mapped_column(
         ForeignKey("public.user.id", ondelete="CASCADE"),
         nullable=False,
     )
