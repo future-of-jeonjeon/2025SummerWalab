@@ -270,4 +270,10 @@ export const organizationService = {
     const response = await apiClient.post<string>(url, {}, { signal: options?.signal });
     return response.data;
   },
+
+  verifyJoinCode: async (organizationId: number, joinCode: string, options?: RequestOptions): Promise<boolean> => {
+    const url = buildUrl(`/${organizationId}/verify-join-code`, { join_code: joinCode });
+    const response = await apiClient.get<boolean>(url, { signal: options?.signal });
+    return response.data;
+  },
 };
