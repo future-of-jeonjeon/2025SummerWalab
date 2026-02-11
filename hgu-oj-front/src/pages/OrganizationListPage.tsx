@@ -1,18 +1,19 @@
 import React, { useEffect, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { organizationService } from '../services/organizationService';
 import { Organization } from '../types';
 import { useAuthStore } from '../stores/authStore';
 import { Button } from '../components/atoms/Button';
 import { OrganizationLogo } from '../components/atoms/OrganizationLogo';
+import { OrganizationApplyModal } from '../components/organisms/OrganizationApplyModal';
 
 export const OrganizationListPage: React.FC = () => {
     const [organizations, setOrganizations] = useState<Organization[]>([]);
     const [total, setTotal] = useState(0);
     const [loading, setLoading] = useState(true);
     const [searchParams, setSearchParams] = useSearchParams();
-    const navigate = useNavigate();
-    const { user } = useAuthStore();
+    const { isAuthenticated } = useAuthStore();
+    const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
 
     const page = parseInt(searchParams.get('page') || '1', 10);
     const size = 12; // Adjusted size for grid
@@ -50,12 +51,15 @@ export const OrganizationListPage: React.FC = () => {
                         <h1 className="text-3xl font-extrabold text-gray-900 tracking-tight">단체</h1>
 
                     </div>
-                    {user && (user.admin_type === 'Admin' || user.admin_type === 'Super Admin') && (
+                    {isAuthenticated && (
                         <Button
-                            onClick={() => navigate('/organizations/new')}
-                            className="bg-blue-600 hover:bg-blue-700 text-white shadow-md transition-all duration-200"
+                            onClick={() => setIsApplyModalOpen(true)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white shadow-md transition-all duration-200 flex items-center gap-2"
                         >
-                            + 단체 생성
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                            </svg>
+                            단체 신청하기
                         </Button>
                     )}
                 </div>
@@ -161,6 +165,11 @@ export const OrganizationListPage: React.FC = () => {
                     </>
                 )}
             </div>
+
+            <OrganizationApplyModal
+                isOpen={isApplyModalOpen}
+                onClose={() => setIsApplyModalOpen(false)}
+            />
         </div>
     );
 };

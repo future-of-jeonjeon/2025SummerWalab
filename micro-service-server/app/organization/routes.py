@@ -42,7 +42,7 @@ async def update_organization(
         data: OrganizationUpdateRequest,
         userdata: UserData = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)):
-    return await organization_serv.update_organization(organization_id, data, db)
+    return await organization_serv.update_organization(organization_id, userdata, data, db)
 
 
 @router.delete("/{organization_id}")
@@ -50,7 +50,7 @@ async def delete_organization(
         organization_id: int,
         userdata: UserData = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)):
-    await organization_serv.delete_organization(organization_id, db)
+    await organization_serv.delete_organization(organization_id, userdata, db)
     return {}
 
 

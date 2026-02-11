@@ -446,3 +446,28 @@ export interface OrganizationPayload {
   description?: string | null;
   img_url?: string | null;
 }
+
+export type OrganizationApplicationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface OrganizationApplication {
+  id: string; // Redis UUID
+  name: string;
+  description: string;
+  img_url?: string | null;
+  applicant_id: number;
+  applicant_name: string;
+  status: OrganizationApplicationStatus;
+  admin_comment?: string | null;
+  created_at: string;
+}
+
+export interface OrganizationApplicationPayload {
+  name: string;
+  description: string;
+  img_url?: string | null;
+}
+
+export interface OrganizationApplicationApprovePayload {
+  status: OrganizationApplicationStatus;
+  admin_comment?: string | null;
+}

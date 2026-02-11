@@ -1,4 +1,4 @@
-import { Organization, OrganizationListResponse, OrganizationMember, OrganizationPayload } from '../types';
+import { Organization, OrganizationListResponse, OrganizationMember, OrganizationPayload, OrganizationApplication, OrganizationApplicationPayload, OrganizationApplicationApprovePayload } from '../types';
 import { apiClient, MS_API_BASE } from './api';
 
 type RequestOptions = {
@@ -275,5 +275,22 @@ export const organizationService = {
     const url = buildUrl(`/${organizationId}/verify-join-code`, { join_code: joinCode });
     const response = await apiClient.get<boolean>(url, { signal: options?.signal });
     return response.data;
+  },
+
+  createApply: async (payload: OrganizationApplicationPayload): Promise<OrganizationApplication> => {
+    const url = ensureBase('/organization/apply');
+    const response = await apiClient.post<OrganizationApplication>(url, payload);
+    return response.data;
+  },
+
+  getApplies: async (): Promise<OrganizationApplication[]> => {
+    const url = ensureBase('/organization/apply/list');
+    const response = await apiClient.get<OrganizationApplication[]>(url);
+    return response.data;
+  },
+
+  handleApply: async (applyId: string, payload: OrganizationApplicationApprovePayload): Promise<void> => {
+    const url = ensureBase(`/organization/apply/${applyId}/handle`);
+    await apiClient.post(url, payload);
   },
 };
