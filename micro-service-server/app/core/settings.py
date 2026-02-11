@@ -5,33 +5,33 @@ class Settings(BaseSettings):
 
 
     # Logging
-    LOG_FILE_PATH: str
-    LOG_LEVEL: str
+    LOG_FILE_PATH: str = "app.log"
+    LOG_LEVEL: str = "INFO"
 
 
 
     # DB
-    DB_HOST: str
-    DB_PORT: int
-    DB_NAME: str
-    DB_USER: str
-    DB_PASSWORD: str
+    DB_HOST: str = "localhost"
+    DB_PORT: int = 5432
+    DB_NAME: str = "postgres"
+    DB_USER: str = "postgres"
+    DB_PASSWORD: str = "postgres"
 
     # Redis
-    REDIS_HOST: str
-    REDIS_PORT: int
+    REDIS_HOST: str = "localhost"
+    REDIS_PORT: int = 6379
 
     # Deploy / Service
-    SERVICE_DOMAIN: str
-    HGU_FRONT_VITE_API_URL: str
-    HGU_FRONT_VITE_MS_API_BASE: str
+    SERVICE_DOMAIN: str = "localhost"
+    HGU_FRONT_VITE_API_URL: str = "http://localhost:5173"
+    HGU_FRONT_VITE_MS_API_BASE: str = "http://localhost:8000"
     BACKEND_CORS_ORIGINS: list[str] = ["http://localhost:5173", "http://localhost:3000"]
 
     # Judge
-    JUDGE_SERVER_TOKEN: str
+    JUDGE_SERVER_TOKEN: str = "token"
 
     # SSO & Auth
-    SSO_INTROSPECT_URL: str
+    SSO_INTROSPECT_URL: str = "http://localhost:8000/api/sso"
     TOKEN_COOKIE_NAME: str = "ms_token"
     LOCAL_TOKEN_TTL_SECONDS: int = 1800
     REDIS_SESSION_PREFIX: str = "session:"
