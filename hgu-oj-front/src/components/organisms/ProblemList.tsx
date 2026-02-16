@@ -1,51 +1,34 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React from 'react';
 import { Problem } from '../../types';
 import { Button } from '../atoms/Button';
 import { resolveProblemStatus } from '../../utils/problemStatus';
 import { PROBLEM_STATUS_LABELS } from '../../constants/problemStatus';
-import TagChip from '../atoms/TagChip';
-import { extractProblemTags } from '../../utils/problemTags';
-import { getDifficultyMeta, mapDifficulty } from '../../lib/difficulty';
-import { getTagColor } from '../../utils/tagColor';
 
 interface ProblemListProps {
   problems: Problem[];
   onProblemClick: (problemKey: string) => void;
-  onSearch?: (query: string) => void;
-  onFilterChange?: (filter: { difficulty?: string }) => void;
-  currentFilter?: { difficulty?: string };
   isLoading?: boolean;
   totalPages?: number;
   currentPage?: number;
   onPageChange?: (page: number) => void;
-  showStats?: boolean;
-  showStatus?: boolean;
-  showOriginalId?: boolean;
   onSortChange?: (field: 'number' | 'title' | 'submission' | 'accuracy') => void;
   sortField?: 'number' | 'title' | 'submission' | 'accuracy';
   sortOrder?: 'asc' | 'desc';
   primarySortField?: 'number' | 'title';
-  getRowNumber?: (problem: Problem, index: number) => React.ReactNode;
+  // Removed unused props: showStats, showStatus, showOriginalId, getRowNumber
 }
 
 export const ProblemList: React.FC<ProblemListProps> = ({
   problems,
   onProblemClick,
-  onSearch: _onSearch = () => {},
-  onFilterChange: _onFilterChange = () => {},
-  currentFilter: _currentFilter = {},
   isLoading = false,
   totalPages = 1,
   currentPage = 1,
   onPageChange,
-  showStats = true,
-  showStatus = false,
-  showOriginalId = false,
   onSortChange,
   sortField,
   sortOrder,
   primarySortField = 'number',
-  getRowNumber,
 }) => {
   const renderSortableHeader = (
     label: string,
@@ -83,11 +66,17 @@ export const ProblemList: React.FC<ProblemListProps> = ({
     );
   };
 
-  const resolveStatusState = (problem: Problem) => (showStatus ? resolveProblemStatus(problem) : undefined);
-
   const getStatusBadge = (problem: Problem) => {
-    if (!showStatus) return undefined;
-    const state = resolveStatusState(problem);
+    // Show status implicitly via colors or ignored? 
+    // The previous code had `showStatus` prop. User wanted "Problem Status" removed from detail page HEADER, but maybe kept in list?
+    // The image shows "해결" column with numbers, but no "Solved/Wrong" badge on title? 
+    // The image doesn't show a badge next to title.
+    // I will keep logic but maybe not render it if not requested? 
+    // Wait, the previous code rendered it next to title. The image doesn't show it.
+    // I will checking `resolveProblemStatus` but only return if needed. 
+    // Actually, I'll keep the badge logic but maybe make it subtle or just render it, as it's useful info. 
+    // But the updated `renderDifficultyBadge` is the main request.
+    const state = resolveProblemStatus(problem);
 
     if (state === 'solved') {
       return {
@@ -104,65 +93,6 @@ export const ProblemList: React.FC<ProblemListProps> = ({
     return undefined;
   };
 
-  const [expandedTags, setExpandedTags] = useState<Record<number, boolean>>({});
-
-  const toggleTagExpansion = useCallback((problemId: number) => {
-    setExpandedTags((previous) => ({
-      ...previous,
-      [problemId]: !previous[problemId],
-    }));
-  }, []);
-
-  const problemTagsMap = useMemo(() => {
-    return problems.reduce<Record<number, string[]>>((acc, problem) => {
-      acc[problem.id] = extractProblemTags(problem);
-      return acc;
-    }, {});
-  }, [problems]);
-
-  const renderTagChips = (problem: Problem) => {
-    const tags = problemTagsMap[problem.id] ?? [];
-    const isExpanded = Boolean(expandedTags[problem.id]);
-    const visibleTags = isExpanded ? tags : tags.slice(0, 2);
-    const hiddenCount = tags.length - visibleTags.length;
-
-    if (tags.length === 0) {
-      return <TagChip label="태그 없음" colorScheme={undefined} />;
-    }
-
-    return (
-      <>
-        {visibleTags.map((tag) => (
-          <TagChip key={tag} label={tag} colorScheme={getTagColor(tag)} />
-        ))}
-        {hiddenCount > 0 && !isExpanded && (
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              toggleTagExpansion(problem.id);
-            }}
-            className="text-xs font-semibold text-blue-600 hover:underline"
-          >
-            +{hiddenCount}
-          </button>
-        )}
-        {isExpanded && tags.length > 2 && (
-          <button
-            type="button"
-            onClick={(event) => {
-              event.stopPropagation();
-              toggleTagExpansion(problem.id);
-            }}
-            className="text-xs font-semibold text-blue-600 hover:underline"
-          >
-            접기
-          </button>
-        )}
-      </>
-    );
-  };
-
   const renderDifficultyBadge = (problem: Problem) => {
     const rawDifficulty =
       (problem as any).difficulty ??
@@ -172,17 +102,25 @@ export const ProblemList: React.FC<ProblemListProps> = ({
       (problem as any).difficulty_name ??
       (problem as any).difficultyName;
 
-    const label = mapDifficulty(rawDifficulty);
-    if (label === '-') {
+    // Display raw number if available, otherwise '-'
+    if (rawDifficulty === undefined || rawDifficulty === null || rawDifficulty === '') {
       return <span className="text-sm text-gray-400">-</span>;
     }
 
-    const meta = getDifficultyMeta(rawDifficulty);
-    const className = meta?.className ?? 'bg-blue-100 text-blue-700 border border-blue-200';
+    const level = Number(rawDifficulty);
+    let badgeClass = 'bg-slate-100 text-slate-700'; // Default
+
+    if (!Number.isNaN(level)) {
+      if (level === 1) badgeClass = 'bg-blue-100 text-blue-700';
+      else if (level === 2) badgeClass = 'bg-green-100 text-green-700';
+      else if (level === 3) badgeClass = 'bg-orange-100 text-orange-700';
+      else if (level === 4) badgeClass = 'bg-red-100 text-red-700';
+      else if (level >= 5) badgeClass = 'bg-purple-100 text-purple-700';
+    }
 
     return (
-      <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${className}`}>
-        {label}
+      <span className={`inline-flex items-center justify-center rounded-md px-2.5 py-1 text-xs font-bold ${badgeClass}`}>
+        Lv.{rawDifficulty}
       </span>
     );
   };
@@ -221,165 +159,87 @@ export const ProblemList: React.FC<ProblemListProps> = ({
 
   return (
     <div className="space-y-6">
-
-      {/* 문제 목록 테이블 */}
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-          {showStats ? (
-            <div className="grid grid-cols-[120px_minmax(0,1fr)_220px_110px_120px_120px] items-center gap-4">
-              {primarySortField === 'title' ? (
-                <>
-                  <div className="flex h-full items-center justify-center text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
-                    번호
-                  </div>
-                  <div className="flex h-full items-center">
-                    {renderSortableHeader('제목', 'title', 'left')}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex h-full items-center justify-center">
-                    {renderSortableHeader('번호', 'number')}
-                  </div>
-                  <div className="flex h-full items-center text-left text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
-                    제목
-                  </div>
-                </>
-              )}
-              <div className="flex h-full items-center justify-end text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
-                태그
-              </div>
-              <div className="flex h-full items-center justify-end text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
-                난이도
-              </div>
-              <div className="flex h-full items-center justify-end">
-                {renderSortableHeader('전체 제출수', 'submission', 'right')}
-              </div>
-              <div className="flex h-full items-center justify-end">
-                {renderSortableHeader('정답률', 'accuracy', 'right')}
-              </div>
+          <div className="grid grid-cols-[60px_minmax(0,1fr)_100px_100px_100px] items-center gap-4">
+            {primarySortField === 'title' ? (
+              <>
+                <div className="flex h-full items-center justify-center text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                  #
+                </div>
+                <div className="flex h-full items-center">
+                  {renderSortableHeader('제목', 'title', 'left')}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex h-full items-center justify-center">
+                  {renderSortableHeader('#', 'number')}
+                </div>
+                <div className="flex h-full items-center text-left text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
+                  제목
+                </div>
+              </>
+            )}
+            <div className="flex h-full items-center justify-center text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
+              난이도
             </div>
-          ) : (
-            <div className="grid grid-cols-[150px_minmax(0,1fr)_220px_110px] items-center gap-4">
-              {primarySortField === 'title' ? (
-                <>
-                  <div className="flex h-full items-center justify-center text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
-                    번호
-                  </div>
-                  <div className="flex h-full items-center">
-                    {renderSortableHeader('제목', 'title', 'left')}
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="flex h-full items-center justify-center">
-                    {renderSortableHeader('번호', 'number')}
-                  </div>
-                  <div className="flex h-full items-center text-left text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
-                    제목
-                  </div>
-                </>
-              )}
-              <div className="flex h-full items-center justify-end text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
-                태그
-              </div>
-              <div className="flex h-full items-center justify-end text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
-                난이도
-              </div>
+            <div className="flex h-full items-center justify-end">
+              {renderSortableHeader('해결', 'submission', 'right')}
             </div>
-          )}
+            <div className="flex h-full items-center justify-end">
+              {renderSortableHeader('정답률', 'accuracy', 'right')}
+            </div>
+          </div>
         </div>
         <div className="divide-y divide-gray-200">
           {problems.map((problem, index) => {
             const badge = getStatusBadge(problem);
-            const resolvedNumber = getRowNumber
-              ? getRowNumber(problem, index)
-              : (showOriginalId ? problem._id ?? problem.displayId ?? problem.id : problem.displayId ?? problem.id);
+            // Use sequential index (1-based)
+            const displayIndex = (currentPage - 1) * 6 + index + 1;
+
             return (
               <div
                 key={problem.id}
-                className="px-6 py-4 transition-colors hover:bg-gray-50"
+                className="px-6 py-4 transition-colors hover:bg-gray-50 hover:shadow-sm"
               >
-                {showStats ? (
-                  <div className="grid grid-cols-[120px_minmax(0,1fr)_220px_110px_120px_120px] items-center gap-4">
-                    <div className="flex h-full items-center justify-center text-sm font-medium text-gray-900">
-                      {resolvedNumber}
-                    </div>
-                    <div className="flex h-full items-center justify-start gap-2 text-left">
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          const keyCandidate = problem._id ?? problem.displayId ?? problem.id;
-                          if (keyCandidate === null || keyCandidate === undefined) {
-                            return;
-                          }
-                          const key = String(keyCandidate);
-                          onProblemClick(key);
-                        }}
-                        className="text-sm font-semibold text-gray-900 hover:text-blue-600 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
-                      >
-                        {problem.title}
-                      </button>
-                      {badge && (
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${badge.className}`}>
-                          {badge.label}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex min-h-[32px] flex-wrap items-center justify-end gap-1">
-                      {renderTagChips(problem)}
-                    </div>
-                    <div className="flex h-full items-center justify-end">
-                      {renderDifficultyBadge(problem)}
-                    </div>
-                    <div className="flex h-full items-center justify-end text-sm text-gray-500">
-                      {problem.submissionNumber ?? 0}
-                    </div>
-                    <div className="flex h-full items-center justify-end text-sm text-gray-500">
-                      {problem.acceptedNumber && problem.submissionNumber
-                        ? `${Math.round((problem.acceptedNumber / problem.submissionNumber) * 100)}%`
-                        : '0%'
-                      }
-                    </div>
+                <div className="grid grid-cols-[60px_minmax(0,1fr)_100px_100px_100px] items-center gap-4">
+                  <div className="flex h-full items-center justify-center text-sm font-medium text-gray-400">
+                    {displayIndex}
                   </div>
-                ) : (
-                  <div className="grid grid-cols-[150px_minmax(0,1fr)_220px_110px] items-center gap-4">
-                    <div className="flex h-full items-center justify-center text-sm font-medium text-gray-900">
-                      {resolvedNumber}
-                    </div>
-                    <div className="flex h-full items-center justify-start gap-2 text-left">
-                      <button
-                        type="button"
-                        onClick={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          const keyCandidate = problem._id ?? problem.displayId ?? problem.id;
-                          if (keyCandidate === null || keyCandidate === undefined) {
-                            return;
-                          }
-                          const key = String(keyCandidate);
-                          onProblemClick(key);
-                        }}
-                        className="text-sm font-semibold text-gray-900 hover:text-blue-600 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
-                      >
-                        {problem.title}
-                      </button>
-                      {badge && (
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold whitespace-nowrap ${badge.className}`}>
-                          {badge.label}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex min-h-[32px] flex-wrap items-center justify-end gap-1">
-                      {renderTagChips(problem)}
-                    </div>
-                    <div className="flex h-full items-center justify-end">
-                      {renderDifficultyBadge(problem)}
-                    </div>
+                  <div className="flex h-full items-center justify-start gap-2 text-left">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        // Use displayId or ID for navigation key if needed, or just ID
+                        const key = String(problem.displayId ?? problem.id);
+                        onProblemClick(key);
+                      }}
+                      className="text-base font-semibold text-gray-800 hover:text-blue-600 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                    >
+                      {problem.title}
+                    </button>
+                    {badge && (
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-tight uppercase ${badge.className}`}>
+                        {badge.label}
+                      </span>
+                    )}
                   </div>
-                )}
+                  <div className="flex h-full items-center justify-center">
+                    {renderDifficultyBadge(problem)}
+                  </div>
+                  <div className="flex h-full items-center justify-end text-sm text-gray-600 font-medium">
+                    {problem.acceptedNumber ?? 0}
+                  </div>
+                  <div className="flex h-full items-center justify-end text-sm text-gray-600 font-medium">
+                    {problem.acceptedNumber && problem.submissionNumber
+                      ? `${Math.round((problem.acceptedNumber / problem.submissionNumber) * 100)}%`
+                      : '0%'
+                    }
+                  </div>
+                </div>
               </div>
             );
           })}
@@ -403,7 +263,7 @@ export const ProblemList: React.FC<ProblemListProps> = ({
           >
             이전
           </Button>
-          
+
           <div className="flex space-x-1">
             {(() => {
               const windowSize = Math.min(5, totalPages);
@@ -422,18 +282,17 @@ export const ProblemList: React.FC<ProblemListProps> = ({
                 <Button
                   key={page}
                   onClick={() => onPageChange(page)}
-                  className={`px-3 py-2 rounded-lg font-semibold ${
-                    currentPage === page
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-300 border border-slate-400 text-slate-800 hover:border-blue-500'
-                  }`}
+                  className={`px-3 py-2 rounded-lg font-semibold ${currentPage === page
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-slate-300 border border-slate-400 text-slate-800 hover:border-blue-500'
+                    }`}
                 >
                   {page}
                 </Button>
               );
             })}
           </div>
-          
+
           <Button
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage >= totalPages}

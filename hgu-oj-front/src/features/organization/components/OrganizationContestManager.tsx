@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Contest } from '../../../types';
-// import { Button } from '../../../components/atoms/Button';
+import { Button } from '../../../components/atoms/Button';
 import { contestService } from '../../../services/contestService';
 import { CreateContestModal } from './CreateContestModal';
 import { useParams } from 'react-router-dom';
@@ -61,15 +61,15 @@ export const OrganizationContestManager: React.FC = () => {
         }
     };
 
-    // const handleEditClick = (contest: Contest) => {
-    //     setSelectedContest(contest);
-    //     setIsCreateModalOpen(true);
-    // };
+    const handleEditClick = (contest: Contest) => {
+        setSelectedContest(contest);
+        setIsCreateModalOpen(true);
+    };
 
-    // const handleCreateClick = () => {
-    //     setSelectedContest(undefined);
-    //     setIsCreateModalOpen(true);
-    // };
+    const handleCreateClick = () => {
+        setSelectedContest(undefined);
+        setIsCreateModalOpen(true);
+    };
 
     const getContestStatus = (start: string, end: string) => {
         const now = new Date();
@@ -131,7 +131,7 @@ export const OrganizationContestManager: React.FC = () => {
 
     return (
         <div className="space-y-8 p-6 max-w-7xl mx-auto">
-            {/* <div className="flex justify-end gap-4">
+            <div className="flex justify-end gap-4">
                 <Button
                     onClick={handleCreateClick}
                     className="inline-flex items-center justify-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
@@ -141,7 +141,7 @@ export const OrganizationContestManager: React.FC = () => {
                     </svg>
                     대회 생성
                 </Button>
-            </div> */}
+            </div>
 
             <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden ring-1 ring-black ring-opacity-5">
                 <div className="overflow-x-auto">
@@ -210,7 +210,7 @@ export const OrganizationContestManager: React.FC = () => {
                                             </td>
                                             <td className="px-6 py-5 whitespace-nowrap text-right text-sm font-medium">
                                                 <div className="flex justify-end items-center gap-2">
-                                                    {/* <button
+                                                    <button
                                                         onClick={() => handleEditClick(contest)}
                                                         className="text-gray-400 hover:text-indigo-600 transition-colors p-2 rounded-full hover:bg-indigo-50"
                                                         title="대회 수정"
@@ -218,7 +218,7 @@ export const OrganizationContestManager: React.FC = () => {
                                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
                                                         </svg>
-                                                    </button> */}
+                                                    </button>
                                                     <button
                                                         onClick={() => handleDelete(contest.id)}
                                                         className="text-gray-400 hover:text-red-600 transition-colors p-2 rounded-full hover:bg-red-50"

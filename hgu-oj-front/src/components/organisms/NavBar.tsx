@@ -36,8 +36,8 @@ export const NavBar: React.FC = () => {
               <Link
                 to="/problems"
                 className={`text-sm font-medium transition-colors duration-200 px-3 py-2 focus:outline-none ${isActive('/problems')
-                    ? 'text-blue-600 font-semibold border-b-2 border-blue-600'
-                    : 'text-black hover:text-gray-600'
+                  ? 'text-blue-600 font-semibold border-b-2 border-blue-600'
+                  : 'text-black hover:text-gray-600'
                   }`}
               >
                 문제
@@ -45,8 +45,8 @@ export const NavBar: React.FC = () => {
               <Link
                 to="/workbooks"
                 className={`text-sm font-medium transition-colors duration-200 px-3 py-2 focus:outline-none ${isActive('/workbooks')
-                    ? 'text-blue-600 font-semibold border-b-2 border-blue-600'
-                    : 'text-black hover:text-gray-600'
+                  ? 'text-blue-600 font-semibold border-b-2 border-blue-600'
+                  : 'text-black hover:text-gray-600'
                   }`}
               >
                 문제집
@@ -54,8 +54,8 @@ export const NavBar: React.FC = () => {
               <Link
                 to="/contests"
                 className={`text-sm font-medium transition-colors duration-200 px-3 py-2 focus:outline-none ${isActive('/contests')
-                    ? 'text-blue-600 font-semibold border-b-2 border-blue-600'
-                    : 'text-black hover:text-gray-600'
+                  ? 'text-blue-600 font-semibold border-b-2 border-blue-600'
+                  : 'text-black hover:text-gray-600'
                   }`}
               >
                 대회
@@ -63,17 +63,28 @@ export const NavBar: React.FC = () => {
               <Link
                 to="/organizations"
                 className={`text-sm font-medium transition-colors duration-200 px-3 py-2 focus:outline-none ${isActive('/organizations')
-                    ? 'text-blue-600 font-semibold border-b-2 border-blue-600'
-                    : 'text-black hover:text-gray-600'
+                  ? 'text-blue-600 font-semibold border-b-2 border-blue-600'
+                  : 'text-black hover:text-gray-600'
                   }`}
               >
                 단체
               </Link>
+              {isAuthenticated && (
+                <Link
+                  to="/contribution"
+                  className={`text-sm font-medium transition-colors duration-200 px-3 py-2 focus:outline-none ${isActive('/contribution')
+                    ? 'text-blue-600 font-semibold border-b-2 border-blue-600'
+                    : 'text-black hover:text-gray-600'
+                    }`}
+                >
+                  기여
+                </Link>
+              )}
               <Link
                 to="/ranking"
                 className={`text-sm font-medium transition-colors duration-200 px-3 py-2 focus:outline-none ${isActive('/ranking')
-                    ? 'text-blue-600 font-semibold border-b-2 border-blue-600'
-                    : 'text-black hover:text-gray-600'
+                  ? 'text-blue-600 font-semibold border-b-2 border-blue-600'
+                  : 'text-black hover:text-gray-600'
                   }`}
               >
                 랭킹
@@ -82,8 +93,8 @@ export const NavBar: React.FC = () => {
                 <Link
                   to="/admin"
                   className={`text-sm font-medium transition-colors duration-200 px-3 py-2 focus:outline-none ${isActive('/admin')
-                      ? 'text-blue-600 font-semibold border-b-2 border-blue-600'
-                      : 'text-black hover:text-gray-600'
+                    ? 'text-blue-600 font-semibold border-b-2 border-blue-600'
+                    : 'text-black hover:text-gray-600'
                     }`}
                 >
                   관리

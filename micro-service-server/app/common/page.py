@@ -21,6 +21,14 @@ class Page(BaseModel, Generic[T]):
     def has_next(self) -> bool:
         return self.page * self.size < self.total
 
+    def map(self, func):
+        return Page(
+            items=[func(item) for item in self.items],
+            total=self.total,
+            page=self.page,
+            size=self.size
+        )
+
 
 async def paginate(session: AsyncSession, stmt: Select, page: int, size: int) -> Page[T]:
     page = 1 if page < 1 else page

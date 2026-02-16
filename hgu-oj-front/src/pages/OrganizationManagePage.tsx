@@ -7,6 +7,7 @@ import { Button } from '../components/atoms/Button';
 
 import { OrganizationLogo } from '../components/atoms/OrganizationLogo';
 import { OrganizationContestManager } from '../features/organization/components/OrganizationContestManager';
+import { OrganizationContributionManager } from '../features/organization/components/OrganizationContributionManager';
 
 export const OrganizationManagePage: React.FC = () => {
     const { id } = useParams<{ id: string }>();
@@ -15,7 +16,7 @@ export const OrganizationManagePage: React.FC = () => {
     const isAdmin = user?.admin_type === 'Admin' || user?.admin_type === 'Super Admin';
     const isEditMode = !!id;
 
-    const [activeTab, setActiveTab] = useState<'general' | 'members' | 'contests'>('general');
+    const [activeTab, setActiveTab] = useState<'general' | 'members' | 'contests' | 'contribution'>('general');
 
     const [formData, setFormData] = useState<OrganizationPayload>({
         name: '',
@@ -216,6 +217,20 @@ export const OrganizationManagePage: React.FC = () => {
                                     대회 관리
                                 </button>
                             )}
+                            {isEditMode && (
+                                <button
+                                    onClick={() => setActiveTab('contribution')}
+                                    className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'contribution'
+                                        ? 'bg-blue-50 text-blue-700'
+                                        : 'text-gray-700 hover:bg-gray-50'
+                                        }`}
+                                >
+                                    <svg className="mr-3 h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                    </svg>
+                                    기여 관리
+                                </button>
+                            )}
 
                         </nav>
                         <div className="p-4 border-t border-gray-100 bg-gray-50">
@@ -242,10 +257,10 @@ export const OrganizationManagePage: React.FC = () => {
                         <nav className="text-sm text-gray-500 mb-2">
                             <span className="cursor-pointer" onClick={() => navigate('/organizations')}>Organization</span> &gt;
                             <span className="cursor-pointer font-medium text-gray-700"> {organization?.name || 'Organization'}</span> &gt;
-                            <span className="font-medium text-gray-900"> {activeTab === 'general' ? 'General Settings' : activeTab === 'members' ? 'Members' : 'Contests'}</span>
+                            <span className="font-medium text-gray-900"> {activeTab === 'general' ? 'General Settings' : activeTab === 'members' ? 'Members' : activeTab === 'contests' ? 'Contests' : 'Contribution'}</span>
                         </nav>
                         <h1 className="text-3xl font-extrabold text-gray-900">
-                            {activeTab === 'general' ? '일반 설정' : activeTab === 'members' ? '멤버 관리' : '대회 관리'}
+                            {activeTab === 'general' ? '일반 설정' : activeTab === 'members' ? '멤버 관리' : activeTab === 'contests' ? '대회 관리' : '기여 관리'}
                         </h1>
                     </div>
 
@@ -405,6 +420,11 @@ export const OrganizationManagePage: React.FC = () => {
                     {/* Contests Tab */}
                     {activeTab === 'contests' && isEditMode && (
                         <OrganizationContestManager />
+                    )}
+
+                    {/* Contribution Tab */}
+                    {activeTab === 'contribution' && isEditMode && (
+                        <OrganizationContributionManager />
                     )}
                 </div>
             </div>

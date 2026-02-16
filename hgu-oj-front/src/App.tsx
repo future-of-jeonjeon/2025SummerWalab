@@ -21,6 +21,7 @@ import { OrganizationListPage } from './pages/OrganizationListPage';
 import { OrganizationDetailPage } from './pages/OrganizationDetailPage';
 import { OrganizationManagePage } from './pages/OrganizationManagePage';
 import { OrganizationJoinPage } from './pages/OrganizationJoinPage';
+import { ContributionPage } from './pages/ContributionPage';
 
 const AppShell: React.FC = () => {
   const location = useLocation();
@@ -48,6 +49,7 @@ const AppShell: React.FC = () => {
         <Route path="/organizations/:id" element={<OrganizationDetailPage />} />
         <Route path="/organizations/:id/manage" element={<OrganizationManagePage />} />
         <Route path="/organizations/:id/join" element={<OrganizationJoinPage />} />
+        <Route path="/contribution" element={<ContributionPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </div>
