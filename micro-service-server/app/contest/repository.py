@@ -163,7 +163,7 @@ async def get_contest_list_page_by_organization_id(organization_id, page, size, 
 async def find_organization_contest_by_contest_id(contest_id, db):
     stmt = select(OrganizationContest).where(OrganizationContest.contest_id == contest_id)
     result = await db.execute(stmt)
-    return result.scalars().all()
+    return result.scalar_one_or_none()
     #
     #
     # stmt = delete(OrganizationContest).where(OrganizationContest.contest_id == contest_id)

@@ -13,7 +13,6 @@ router = APIRouter(prefix="/api/workbook", tags=["workbook"])
 
 
 @router.post("/", response_model=Workbook)
-@require_role("Admin")
 async def create_workbook(
         workbook: WorkbookCreate,
         userdata: UserData = Depends(get_userdata),
@@ -80,6 +79,5 @@ async def update_workbook_problems(
         workbook_id: int,
         problems_data: dict,
         userdata: UserData = Depends(get_userdata),
-        db: AsyncSession = Depends(get_database)
-):
+        db: AsyncSession = Depends(get_database)):
     return await serv.update_workbook_problems(workbook_id, problems_data.get("problems", []), db)

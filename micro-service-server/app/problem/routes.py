@@ -1,6 +1,4 @@
-import os
 import asyncio
-from typing import List, Optional
 
 from fastapi import APIRouter, Depends, Query, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -14,20 +12,56 @@ from app.user.schemas import UserData
 router = APIRouter(prefix="/api/problem", tags=["Problem Management"])
 
 
-@require_role("Admin")
+@router.post("")
+async def create_problem(
+        request_data: ProblemCreateRequest,
+        user_data: UserData = Depends(get_userdata)):
+    polling_key = await serv.setup_polling(problem_num=1)
+    asyncio.create_task(serv.create_problem(polling_key, request_data, user_data, is_admin=False))
+    return {"polling_key": polling_key}
+
+
+@router.post("/testcase")
+async def upload_test_case(
+        file: UploadFile = File(...),
+        spj: bool = Query(False),
+        user_data: UserData = Depends(get_userdata)):
+    return await serv.process_test_case_upload(file, spj)
+
+
 @router.post("/import")
 async def import_problem(
         file: UploadFile = File(...),
         user_data: UserData = Depends(get_userdata)):
     problem_num = await serv.count_problems_in_file(file)
     polling_key = await serv.setup_polling(problem_num)
-    asyncio.create_task(serv.import_problem_from_file(polling_key, file, user_data))
+    asyncio.create_task(serv.import_problem_from_file(polling_key, file, user_data, is_admin=False))
     return {"polling_key": polling_key}
 
 
 @require_role("Admin")
-@router.get("/import/polling", response_model=ProblemImportPollingStatus)
-async def import_problem_polling_api(key: str):
+@router.post("/admin/create")
+async def create_problem_admin(
+        request_data: ProblemCreateRequest,
+        user_data: UserData = Depends(get_userdata)):
+    polling_key = await serv.setup_polling(problem_num=1)
+    asyncio.create_task(serv.create_problem(polling_key, request_data, user_data, is_admin=True))
+    return {"polling_key": polling_key}
+
+
+@require_role("Admin")
+@router.post("/admin/import")
+async def import_problem_admin(
+        file: UploadFile = File(...),
+        user_data: UserData = Depends(get_userdata)):
+    problem_num = await serv.count_problems_in_file(file)
+    polling_key = await serv.setup_polling(problem_num)
+    asyncio.create_task(serv.import_problem_from_file(polling_key, file, user_data, is_admin=True))
+    return {"polling_key": polling_key}
+
+
+@router.get("/polling", response_model=ProblemImportPollingStatus)
+async def problem_polling(key: str):
     return await serv.import_problem_polling(key)
 
 

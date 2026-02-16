@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.common.page import Page
 from app.user.schemas import UserData
 from app.workbook.models import Workbook, WorkbookProblem
-from app.workbook.schemas import WorkbookCreate, WorkbookUpdate
+from app.workbook.schemas import WorkbookCreate, WorkbookUpdate, Workbook as WorkbookSchema
 from typing import List, Optional
 from app.user import exceptions as user_exceptions
 from app.workbook import exceptions
@@ -96,3 +96,8 @@ def _update_workbook_data(workbook: Workbook, workbook_data: WorkbookUpdate):
     workbook.category = workbook_data.category
     workbook.is_public = workbook_data.is_public
     return workbook
+
+
+async def get_contributed_workbooks(user_data: UserData, page: int, size: int, db: AsyncSession) -> Page[WorkbookSchema]:
+    workbooks = await workbook_repo.find_workbooks_by_creator_id(user_data.user_id, page, size, db)
+    return workbooks.map(WorkbookSchema.model_validate)
