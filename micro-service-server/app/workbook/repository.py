@@ -47,15 +47,16 @@ async def update_problems(workbook: Workbook, problem_ids: List[int], db: AsyncS
     result = await db.execute(
         select(WorkbookProblem).where(WorkbookProblem.workbook_id == workbook.id)
     )
-    existing_problems = result.scalars().all()
+    existing_problems = result.scalars().unique().all()
 
     for workbook_problem in existing_problems:
         await db.delete(workbook_problem)
 
-    for problem_id in problem_ids:
+    for index, problem_id in enumerate(problem_ids):
         workbook_problem = WorkbookProblem(
             workbook_id=workbook.id,
             problem_id=problem_id,
+            display_order=index + 1
         )
         db.add(workbook_problem)
 
@@ -67,3 +68,18 @@ async def update_problems(workbook: Workbook, problem_ids: List[int], db: AsyncS
 async def find_all_paginated(db: AsyncSession, page: int, size: int) -> Page[Workbook]:
     stmt = select(Workbook).options(*WORKBOOK_WITH_RELATIONS)
     return await paginate(db, stmt, page, size)
+
+
+async def find_workbooks_by_creator_id(
+        creator_id: int,
+        page: int,
+        size: int,
+        session: AsyncSession
+) -> Page[Workbook]:
+    stmt = (
+        select(Workbook)
+        .options(*WORKBOOK_WITH_RELATIONS)
+        .where(Workbook.created_by_id == creator_id)
+        .order_by(Workbook.id.desc())
+    )
+    return await paginate(session, stmt, page, size)
