@@ -9,7 +9,9 @@ export const WorkbookListPage: React.FC = () => {
   const { filter, setFilter } = useWorkbookStore();
   const [searchQuery, setSearchQuery] = useState('');
 
+  // useWorkbooks returns { data, isLoading, error, refetch } from useQuery
   const { data: workbookResponse, isLoading, error } = useWorkbooks(filter);
+
   const workbooks = workbookResponse?.data || [];
   const totalCount = workbookResponse?.total || 0;
   const currentPage = workbookResponse?.page || 1;
@@ -43,12 +45,17 @@ export const WorkbookListPage: React.FC = () => {
     }
   };
 
-
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 py-8">
         {/* Header */}
         <div className="mb-8">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+            <div className="flex flex-col gap-1">
+              <h1 className="text-3xl font-extrabold text-gray-900">문제집</h1>
+            </div>
+          </div>
+
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-3 lg:ml-2">
               <span className="text-sm text-gray-500">전체 문제집 수</span>
