@@ -46,7 +46,9 @@ async def list_organizations(
 
 async def update_organization(
         organization_id: int,
+        request_user: UserData,
         data: OrganizationUpdateRequest, db: AsyncSession):
+    await _check_organization_admin(organization_id, request_user, db)
     organization = await _get_organization_by_id(organization_id, db)
     organization.name = data.name
     organization.description = data.description
@@ -54,7 +56,11 @@ async def update_organization(
     return OrganizationResponse.from_orm(organization)
 
 
-async def delete_organization(organization_id: int, db: AsyncSession):
+async def delete_organization(
+        organization_id: int, 
+        request_user: UserData,
+        db: AsyncSession):
+    await _check_organization_admin(organization_id, request_user, db)
     await _get_organization_by_id(organization_id, db)
     await organization_repo.delete_by_id(organization_id, db)
     return
@@ -125,14 +131,16 @@ async def edit_organization_user(
 async def delete_organization_user(
         organization_id: int,
         request_user_data: UserData,
-        target_user_id: int,
+        member_id: int,
         db: AsyncSession):
     await check_organization_admin(organization_id, request_user_data, db)
     await _get_organization_by_id(organization_id, db)
-    member_data = await (organization_repo
-                         .get_member_by_organization_id_and_user_id(organization_id, target_user_id, db))
+
+    member_data = await organization_repo.get_member_by_id_and_organization_id(member_id, organization_id, db)
+
     if not member_data:
         exceptions.user_not_found()
+
     await organization_repo.delete_member_by_member_id(member_data.id, db)
     return
 
@@ -179,6 +187,15 @@ async def _verify_and_consume_join_code(
         join_code: str,
         organization_id: int,
         redis) -> tuple[int, int]:
+    code_org_id, issuer_id = await _check_join_code(join_code, organization_id, redis)
+    await redis.delete(join_code)
+    return code_org_id, issuer_id
+
+
+async def _check_join_code(
+        join_code: str,
+        organization_id: int,
+        redis) -> tuple[int, int]:
     val = await redis.get(join_code)
     if not val:
         exceptions.forbidden()
@@ -189,5 +206,12 @@ async def _verify_and_consume_join_code(
             exceptions.forbidden()
     except (ValueError, IndexError):
         exceptions.forbidden()
-    await redis.delete(join_code)
     return code_org_id, issuer_id
+
+
+async def verify_join_code(
+        organization_id: int,
+        join_code: str):
+    redis = await get_redis_manage_code()
+    await _check_join_code(join_code, organization_id, redis)
+    return True

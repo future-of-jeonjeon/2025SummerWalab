@@ -4,6 +4,7 @@ import { Card } from '../components/atoms/Card';
 import { Button } from '../components/atoms/Button';
 import { useAuthStore } from '../stores/authStore';
 import { OrganizationManager } from '../components/admin/OrganizationManager';
+import { OrganizationApplyManager } from '../components/admin/OrganizationApplyManager';
 import { ProblemManager } from '../components/admin/ProblemManager';
 import { ContestManager } from '../components/admin/ContestManager';
 import { WorkbookManager } from '../components/admin/WorkbookManager';
@@ -20,6 +21,7 @@ type AdminSection =
   | 'workbook-manage'
   | 'user'
   | 'server'
+  | 'organization-apply'
   | 'organization';
 
 export const AdminPage: React.FC = () => {
@@ -62,6 +64,8 @@ export const AdminPage: React.FC = () => {
     switch (activeSection) {
       case 'organization':
         return <OrganizationManager />;
+      case 'organization-apply':
+        return <OrganizationApplyManager />;
       case 'server':
         return <ServerAdminSection />;
       case 'problem-list':
@@ -259,18 +263,47 @@ export const AdminPage: React.FC = () => {
               </button>
             </div>
 
-            {/* 단체 관리 (단일 메뉴) */}
-            <div className={`rounded-lg border transition-all duration-200 overflow-hidden ${activeSection === 'organization' ? 'border-[#113F67] bg-white ring-1 ring-[#113F67]' : 'border-gray-200 bg-white hover:border-gray-300'
+            {/* 단체 관리 (아코디언) */}
+            <div className={`rounded-lg border transition-all duration-200 overflow-hidden ${['organization', 'organization-apply'].includes(activeSection) ? 'border-[#113F67] bg-white ring-1 ring-[#113F67]' : 'border-gray-200 bg-white hover:border-gray-300'
               }`}>
               <button
-                onClick={() => setActiveSection('organization')}
+                onClick={() => {
+                  const isExpanded = expandedCategory === 'organization';
+                  setExpandedCategory(isExpanded ? null : 'organization');
+                }}
                 className="w-full px-4 py-3 text-left focus:outline-none"
               >
                 <div className="flex items-center justify-between">
-                  <span className={`font-semibold ${activeSection === 'organization' ? 'text-[#113F67]' : 'text-gray-900'}`}>단체 관리</span>
+                  <span className={`font-semibold ${['organization', 'organization-apply'].includes(activeSection) ? 'text-[#113F67]' : 'text-gray-900'}`}>단체 관리</span>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className={`h-4 w-4 text-gray-400 transform transition-transform duration-200 ${expandedCategory === 'organization' ? 'rotate-180' : ''}`}
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
                 </div>
-                <div className="mt-1 text-xs text-gray-500">단체 등록 및 관리</div>
+                <div className="mt-1 text-xs text-gray-500">단체 등록 및 신청 현황 관리</div>
               </button>
+
+              <div className={`transition-all duration-300 ease-in-out overflow-hidden ${expandedCategory === 'organization' ? 'max-h-32 opacity-100' : 'max-h-0 opacity-0'}`}>
+                <div className="bg-gray-50 px-2 py-2 space-y-1 border-t border-gray-100">
+                  <button
+                    onClick={() => setActiveSection('organization-apply')}
+                    className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${activeSection === 'organization-apply' ? 'bg-[#113F67] text-white font-medium' : 'text-gray-600 hover:bg-gray-200'}`}
+                  >
+                    단체 신청 목록
+                  </button>
+                  <button
+                    onClick={() => setActiveSection('organization')}
+                    className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${activeSection === 'organization' ? 'bg-[#113F67] text-white font-medium' : 'text-gray-600 hover:bg-gray-200'}`}
+                  >
+                    단체 목록
+                  </button>
+                </div>
+              </div>
             </div>
           </aside>
 

@@ -42,7 +42,7 @@ async def update_organization(
         data: OrganizationUpdateRequest,
         userdata: UserData = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)):
-    return await organization_serv.update_organization(organization_id, data, db)
+    return await organization_serv.update_organization(organization_id, userdata, data, db)
 
 
 @router.delete("/{organization_id}")
@@ -50,7 +50,7 @@ async def delete_organization(
         organization_id: int,
         userdata: UserData = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)):
-    await organization_serv.delete_organization(organization_id, db)
+    await organization_serv.delete_organization(organization_id, userdata, db)
     return {}
 
 
@@ -80,11 +80,18 @@ async def join_organization(
     return await organization_serv.join_organization(organization_id, userdata, join_code, db)
 
 
-@router.delete("/{organization_id}/users/{user_id}")
+@router.get("/{organization_id}/verify-join-code")
+async def verify_join_code(
+        organization_id: int,
+        join_code: str):
+    return await organization_serv.verify_join_code(organization_id, join_code)
+
+
+@router.delete("/{organization_id}/users/{member_id}")
 async def delete_organization_user(
         organization_id: int,
-        user_id: int,
+        member_id: int,
         userdata: UserData = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)):
-    await organization_serv.delete_organization_user(organization_id, userdata, user_id, db)
+    return await organization_serv.delete_organization_user(organization_id, userdata, member_id, db)
     return {}

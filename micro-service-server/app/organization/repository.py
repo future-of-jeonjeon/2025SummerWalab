@@ -43,6 +43,16 @@ async def get_member_by_organization_id_and_user_id(
     result = await db.execute(stmt)
     return result.scalar_one_or_none()
 
+async def get_member_by_id_and_organization_id(
+        member_id: int,
+        organization_id: int,
+        db: AsyncSession) -> OrganizationMember | None:
+    stmt = (select(OrganizationMember)
+            .where(OrganizationMember.id == member_id)
+            .where(OrganizationMember.organization_id == organization_id))
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()
+
 
 async def delete_member_by_member_id(member_id: int, db: AsyncSession):
     stmt = delete(OrganizationMember).where(OrganizationMember.id == member_id)

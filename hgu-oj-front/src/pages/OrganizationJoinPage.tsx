@@ -23,13 +23,25 @@ export const OrganizationJoinPage: React.FC = () => {
 
         const fetchOrg = async () => {
             try {
-                // If code is present, we could validate it here if there was an endpoint,
-                // but since there's no validateInvite endpoint, we just fetch the org details.
-                // The actual validation happens on join.
+                if (!code) {
+                    setError('초대 코드가 필요한 페이지입니다. 잘못된 접근입니다.');
+                    setLoading(false);
+                    return;
+                }
+
+                // Verify the code first
+                try {
+                    await organizationService.verifyJoinCode(parseInt(id, 10), code);
+                } catch (vErr) {
+                    setError('유효하지 않거나 만료된 초대 코드입니다.');
+                    setLoading(false);
+                    return;
+                }
+
                 const data = await organizationService.get(parseInt(id, 10));
                 setOrganization(data);
             } catch (err) {
-                setError('단체를 찾을 수 없습니다.');
+                setError('단체를 찾을 수 없거나 접근 권한이 없습니다.');
                 console.error(err);
             } finally {
                 setLoading(false);
