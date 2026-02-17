@@ -79,7 +79,7 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({
     const [message, setMessage] = useState<{ success?: string; error?: string }>({});
     const [originalDetail, setOriginalDetail] = useState<AdminProblemDetail | null>(null);
 
-    const [testCaseScores, setTestCaseScores] = useState<Array<{ input_name: string; output_name: string; score: number }>>([]);
+
 
     useEffect(() => {
         if (isOpen) {
@@ -90,7 +90,6 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({
                 setFormState(initialFormState);
                 setSamples([{ input: '', output: '' }]);
                 setTestCaseId('');
-                setTestCaseScores([]);
                 setTestCaseFile(null);
                 setOriginalDetail(null);
             }
@@ -124,7 +123,6 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({
 
             setSamples(detail.samples.length > 0 ? detail.samples : [{ input: '', output: '' }]);
             setTestCaseId(detail.testCaseId);
-            setTestCaseScores(detail.testCaseScore);
         } catch (error) {
             setMessage({ error: '문제 정보를 불러오지 못했습니다.' });
         } finally {
@@ -142,19 +140,7 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({
             setMessage({});
             const result = await adminService.uploadProblemTestCases(testCaseFile, false);
             setTestCaseId(result.id);
-
-            // Automatically generate scores: 100 points per case as requested
-            let newScores: Array<{ input_name: string; output_name: string; score: number }> = [];
-            if (Array.isArray(result.info)) {
-                newScores = result.info.map((item: any) => ({
-                    input_name: item.input_name,
-                    output_name: item.output_name,
-                    score: 100
-                }));
-            }
-            setTestCaseScores(newScores);
-
-            setMessage({ success: `테스트케이스 업로드 완료 (ID: ${result.id}, 케이스 ${newScores.length}개)` });
+            setMessage({ success: `테스트케이스 업로드 완료 (ID: ${result.id})` });
         } catch (error) {
             const msg = error instanceof Error ? error.message : '테스트케이스 업로드 실패';
             setMessage({ error: msg });
@@ -207,68 +193,36 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({
         try {
             if (mode === 'create') {
                 const payload: CreateProblemPayload = {
-                    _id: formState.displayId.trim(),
                     title: formState.title.trim(),
                     description: formState.description,
                     input_description: formState.inputDescription,
                     output_description: formState.outputDescription,
                     samples: cleanedSamples,
-                    test_case_id: testCaseId,
-                    test_case_score: testCaseScores,
                     time_limit: Number(formState.timeLimit) || 1000,
                     memory_limit: Number(formState.memoryLimit) || 256,
                     languages: backendLanguages,
                     template,
-                    rule_type: 'ACM',
-                    io_mode: {
-                        io_mode: 'Standard IO',
-                        input: 'input.txt',
-                        output: 'output.txt',
-                    },
-                    spj: false,
-                    spj_language: null,
-                    spj_code: null,
-                    spj_compile_ok: false,
-                    visible: formState.visible,
                     difficulty: formState.difficulty,
                     tags: formState.tags,
                     hint: formState.hint.trim() || null,
-                    source: null,
-                    share_submission: false,
                 };
                 await adminService.createProblem(payload);
             } else {
                 if (!originalDetail || !problemId) return;
                 const payload: UpdateProblemPayload = {
                     id: problemId,
-                    _id: formState.displayId.trim(),
                     title: formState.title.trim(),
                     description: formState.description,
                     input_description: formState.inputDescription,
                     output_description: formState.outputDescription,
                     samples: cleanedSamples,
-                    test_case_id: testCaseId || originalDetail.testCaseId,
-                    test_case_score: testCaseScores.length > 0 ? testCaseScores : originalDetail.testCaseScore,
                     time_limit: Number(formState.timeLimit) || originalDetail.timeLimit,
                     memory_limit: Number(formState.memoryLimit) || originalDetail.memoryLimit,
                     languages: backendLanguages,
-                    template: originalDetail.template, // Keep existing template or update? Assuming keep for now or simple update
-                    rule_type: 'ACM',
-                    io_mode: {
-                        io_mode: 'Standard IO',
-                        input: 'input.txt',
-                        output: 'output.txt',
-                    },
-                    spj: originalDetail.spj,
-                    spj_language: originalDetail.spjLanguage,
-                    spj_code: originalDetail.spjCode,
-                    spj_compile_ok: originalDetail.spjCompileOk,
-                    visible: formState.visible,
+                    template: originalDetail.template,
                     difficulty: formState.difficulty,
                     tags: formState.tags,
                     hint: formState.hint.trim() || null,
-                    source: null,
-                    share_submission: false,
                 };
                 await adminService.updateAdminProblem(payload);
             }

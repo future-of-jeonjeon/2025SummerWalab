@@ -1,20 +1,24 @@
 from typing import Dict, List, Iterable
 
-from sqlalchemy import text, select, desc
+from sqlalchemy import text, select, desc, func, distinct
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.problem.models import Problem
 from app.submission.models import Submission
 from app.contest.models import ACMContestRank, OIContestRank
 from app.user.models import User, UserData
+from app.organization.models import Organization, OrganizationMember
+from app.common.page import Page, paginate
 
 
 async def get_organizations_order_by_rank_acm(
-    limit: int,
-    offset: int,
     db: AsyncSession,
-) -> Dict[str, object]:
+    page: int,
+    size: int,
+) -> Page:
     order = "total_accepted DESC, total_submission ASC, organization_id ASC"
+    limit = size
+    offset = (page - 1) * size
 
     sql = text(
         f"""
@@ -57,7 +61,7 @@ async def get_organizations_order_by_rank_acm(
         for i, r in enumerate(rows, start=offset + 1)
     ]
 
-    return {"total": total, "limit": limit, "offset": offset, "items": items}
+    return Page(items=items, total=total, page=page, size=size)
 
 
 # Backward-compatible alias (keep existing import sites working)

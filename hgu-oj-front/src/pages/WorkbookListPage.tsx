@@ -9,7 +9,13 @@ export const WorkbookListPage: React.FC = () => {
   const { filter, setFilter } = useWorkbookStore();
   const [searchQuery, setSearchQuery] = useState('');
 
-  const { data: workbooks, isLoading, error } = useWorkbooks(filter);
+  // useWorkbooks returns { data, isLoading, error, refetch } from useQuery
+  const { data: workbookResponse, isLoading, error } = useWorkbooks(filter);
+
+  const workbooks = workbookResponse?.data || [];
+  const totalCount = workbookResponse?.total || 0;
+  const currentPage = workbookResponse?.page || 1;
+  const totalPages = workbookResponse?.totalPages || 1;
 
   const handleWorkbookClick = (workbookId: number) => {
     navigate(`/workbooks/${workbookId}`);
@@ -39,32 +45,21 @@ export const WorkbookListPage: React.FC = () => {
     }
   };
 
-  // 클라이언트 사이드 검색 필터링 및 정렬
-  const filteredWorkbooks = workbooks?.filter((workbook) =>
-    (workbook.title ?? '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (workbook.description ?? '').toLowerCase().includes(searchQuery.toLowerCase())
-  ).sort((a, b) => {
-    if (filter.sortBy === 'created_at') {
-      const dateA = new Date(a.created_at).getTime();
-      const dateB = new Date(b.created_at).getTime();
-      return filter.sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
-    } else if (filter.sortBy === 'title') {
-      return filter.sortOrder === 'desc' 
-        ? b.title.localeCompare(a.title)
-        : a.title.localeCompare(b.title);
-    }
-    return 0;
-  }) || [];
-
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 py-8">
         {/* Header */}
         <div className="mb-8">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+            <div className="flex flex-col gap-1">
+              <h1 className="text-3xl font-extrabold text-gray-900">문제집</h1>
+            </div>
+          </div>
+
           <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-3 lg:ml-2">
               <span className="text-sm text-gray-500">전체 문제집 수</span>
-              <span className="text-2xl font-bold text-blue-600">{filteredWorkbooks.length}</span>
+              <span className="text-2xl font-bold text-blue-600">{totalCount}</span>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
               <form onSubmit={handleSearchSubmit} className="flex w-full sm:w-auto sm:min-w-[320px]">
@@ -97,14 +92,14 @@ export const WorkbookListPage: React.FC = () => {
         </div>
 
         <WorkbookList
-          workbooks={filteredWorkbooks}
+          workbooks={workbooks}
           isLoading={isLoading}
           error={error}
           searchQuery={searchQuery}
           onWorkbookClick={handleWorkbookClick}
           onPageChange={handlePageChange}
-          currentPage={1}
-          totalPages={1}
+          currentPage={currentPage}
+          totalPages={totalPages}
         />
       </div>
     </div>

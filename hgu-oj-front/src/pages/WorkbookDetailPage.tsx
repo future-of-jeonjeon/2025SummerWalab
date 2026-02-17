@@ -252,8 +252,6 @@ export const WorkbookDetailPage: React.FC = () => {
 
 
   const totalProblemCount = workbook.problemCount ?? problems.length;
-  const visibilityLabel = workbook.is_public ? '공개' : '비공개';
-  const visibilityTone = workbook.is_public ? 'text-emerald-600 dark:text-emerald-400' : 'text-rose-600 dark:text-rose-400';
 
 
   return (
@@ -304,12 +302,6 @@ export const WorkbookDetailPage: React.FC = () => {
                   <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">문제 수</span>
                   <span className="text-base font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap">
                     {totalProblemCount}문제
-                  </span>
-                </div>
-                <div className="flex items-center justify-between gap-6">
-                  <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">공개 여부</span>
-                  <span className={`text-base font-semibold ${visibilityTone} whitespace-nowrap`}>
-                    {visibilityLabel}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-6">
@@ -393,7 +385,6 @@ export const WorkbookDetailPage: React.FC = () => {
               currentPage={1}
               showStats
               showStatus
-              showOriginalId
               onSortChange={handleSortToggle}
               sortField={sortField}
               sortOrder={sortOrder}

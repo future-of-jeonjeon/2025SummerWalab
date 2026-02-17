@@ -2,6 +2,7 @@ from datetime import datetime
 from typing import List, Dict, Any, Optional
 
 from pydantic import BaseModel, Field
+from app.common.page import Page
 
 
 class Sample(BaseModel):
@@ -11,7 +12,7 @@ class Sample(BaseModel):
 
 class ProblemImportPollingStatus(BaseModel):
     status: str
-    imported_problem:int
+    processed_problem:int
     left_problem:int
     all_problem:int
     error_code: Optional[str] = None
@@ -57,7 +58,7 @@ class TestCaseScoreSchema(BaseModel):
 
 class ProblemSchema(BaseModel):
     id: int
-    _id: str
+    _id: Optional[str] = None
     title: str
     description: str
     time_limit: int
@@ -75,14 +76,10 @@ class ProblemSchema(BaseModel):
     tags: List[ProblemTagSchema] = []
 
     class Config:
-        from_attributes = True  # NOTE: SQLAlchemy 인스턴스를 그대로 직렬화하기 위해 옵션 유지
+        from_attributes = True  
 
-
-class ProblemListResponse(BaseModel):
-    total: int
-    page: int
-    page_size: int
-    problems: List[ProblemSchema]
+class ProblemListResponse(Page[ProblemSchema]):
+    problems: List[ProblemSchema] = Field(..., alias="items")
 
 
 class ImportProblemSerializer(BaseModel):
@@ -101,3 +98,44 @@ class ImportProblemSerializer(BaseModel):
     spj: Optional[Dict[str, str]]
     tags: List[str]
     test_case_score: List[Dict[str, Any]]
+
+class ProblemCreateRequest(BaseModel):
+    title: str
+    description: str
+    input_description: str
+    output_description: str
+    test_case_id: str
+    samples: List[Sample]
+    time_limit: int
+    memory_limit: int
+    languages: List[str]
+    template: Dict[str, str]
+    difficulty: str
+    tags: List[str]
+    hint: Optional[str] = None
+    solution_code:str
+    solution_code_language:str
+
+
+
+class CreateProblemData(BaseModel):
+    title: str
+    description: str
+    input_description: str
+    output_description: str
+    samples: List[Sample]
+    time_limit: int
+    memory_limit: int
+    languages: List[str]
+    template: Dict[str, str] = {}
+    difficulty: str
+    tags: List[str]
+    hint: Optional[str] = None
+    source: Optional[str] = None
+    spj: bool = False
+    spj_code: Optional[str] = None
+    spj_language: Optional[str] = None
+    rule_type: str = "ACM"
+    io_mode: Dict[str, str] = {"io_mode": "Standard IO", "input": "input.txt", "output": "output.txt"}
+    test_case_score: List[Dict[str, Any]] = []
+    visible: bool = True

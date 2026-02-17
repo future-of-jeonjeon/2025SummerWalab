@@ -10,7 +10,6 @@ if TYPE_CHECKING:
     from app.problem.models import Problem
 
 class Workbook(BaseEntity, Base):
-    """문제집 모델"""
     __tablename__ = "micro_workbook"
     __table_args__ = {"schema": "public"}
 
@@ -19,8 +18,7 @@ class Workbook(BaseEntity, Base):
     category: Mapped[Optional[str]] = mapped_column(String(100))
     created_by_id: Mapped[int] = mapped_column(Integer, nullable=False)
     is_public: Mapped[bool] = mapped_column(Boolean, default=False)
-
-    problems: Mapped[List["WorkbookProblem"]] = relationship("WorkbookProblem", back_populates="workbook")
+    problems: Mapped[List["WorkbookProblem"]] = relationship("WorkbookProblem", back_populates="workbook", order_by="WorkbookProblem.display_order")
 
 
 class WorkbookProblem(Base):
@@ -31,6 +29,7 @@ class WorkbookProblem(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     workbook_id: Mapped[int] = mapped_column(Integer, ForeignKey("public.micro_workbook.id", ondelete="CASCADE"), nullable=False)
     problem_id: Mapped[int] = mapped_column(Integer, ForeignKey("public.problem.id"), nullable=False)
+    display_order: Mapped[int] = mapped_column(Integer, default=0)
 
     workbook: Mapped["Workbook"] = relationship("Workbook", back_populates="problems", passive_deletes=True)
     problem: Mapped["Problem"] = relationship("Problem", lazy="joined")

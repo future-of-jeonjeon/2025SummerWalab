@@ -1,6 +1,5 @@
 import React from 'react';
 import { WorkbookCard } from '../molecules/WorkbookCard';
-import { Button } from '../atoms/Button';
 import { Workbook } from '../../types';
 
 interface WorkbookListProps {
@@ -59,7 +58,7 @@ export const WorkbookList: React.FC<WorkbookListProps> = ({
   return (
     <div className="space-y-6">
       {/* 문제집 목록 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         {workbooks.map((workbook) => (
           <WorkbookCard
             key={workbook.id}
@@ -71,41 +70,56 @@ export const WorkbookList: React.FC<WorkbookListProps> = ({
 
       {/* 페이지네이션 */}
       {totalPages > 1 && (
-        <div className="flex justify-center items-center space-x-2 mt-8">
-          <Button
+        <div className="flex justify-center items-center space-x-1 mt-10">
+          <button
             onClick={() => onPageChange(currentPage - 1)}
-            disabled={currentPage <= 1}
-            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={currentPage === 1}
+            className="px-3 py-2 rounded-md border border-gray-300 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+            aria-label="Previous page"
           >
             이전
-          </Button>
-          
+          </button>
+
           <div className="flex space-x-1">
-            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-              const page = i + 1;
-              return (
-                <Button
+            {(() => {
+              // Simple sliding window logic
+              const maxVisible = 5;
+              let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+              let endPage = startPage + maxVisible - 1;
+
+              if (endPage > totalPages) {
+                endPage = totalPages;
+                startPage = Math.max(1, endPage - maxVisible + 1);
+              }
+
+              const pages = [];
+              for (let i = startPage; i <= endPage; i++) {
+                pages.push(i);
+              }
+
+              return pages.map((page) => (
+                <button
                   key={page}
                   onClick={() => onPageChange(page)}
-                  className={`px-3 py-2 ${
-                    currentPage === page
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 hover:bg-gray-300'
-                  }`}
+                  className={`min-w-[40px] h-10 flex items-center justify-center text-sm font-medium rounded-md border transition-colors ${currentPage === page
+                    ? 'bg-blue-600 border-blue-600 text-white'
+                    : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                    }`}
                 >
                   {page}
-                </Button>
-              );
-            })}
+                </button>
+              ));
+            })()}
           </div>
-          
-          <Button
+
+          <button
             onClick={() => onPageChange(currentPage + 1)}
-            disabled={currentPage >= totalPages}
-            className="px-4 py-2 bg-gray-200 hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={currentPage === totalPages}
+            className="px-3 py-2 rounded-md border border-gray-300 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+            aria-label="Next page"
           >
             다음
-          </Button>
+          </button>
         </div>
       )}
     </div>

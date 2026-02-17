@@ -46,3 +46,7 @@ def test_case_not_match(input_str: str, output_str: str, result_str: str):
         f"- Judge Server Result: {result_str}"
     )
     handlers.bad_request(message, ErrorCode.PROBLEM_TEST_CASE_NOT_MATCH)
+
+
+def test_case_not_found(test_case_id: str):
+    handlers.not_found(f"Test case not found: {test_case_id}", ErrorCode.PROBLEM_TEST_CASE_NOT_FOUND)

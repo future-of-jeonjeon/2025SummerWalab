@@ -4,15 +4,15 @@ from sqlalchemy import Select, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import ColumnElement
-
+from app.common.page import Page, paginate
 from app.problem.models import Problem, ProblemTag, problem_tags_association_table
 
 
 def _public_problem_filter() -> ColumnElement:
     return (
-        Problem.is_public.is_(True)
-        & Problem.visible.is_(True)
-        & Problem.contest_id.is_(None)
+            Problem.is_public.is_(True)
+            & Problem.visible.is_(True)
+            & Problem.contest_id.is_(None)
     )
 
 
@@ -40,6 +40,9 @@ async def fetch_tag_counts(session: AsyncSession) -> Sequence[Tuple[str, int]]:
     return result.all()
 
 
+from app.common.page import Page, paginate
+
+
 async def fetch_filtered_problems(
         session: AsyncSession,
         *,
@@ -47,14 +50,13 @@ async def fetch_filtered_problems(
         ordering: ColumnElement,
         page: int,
         page_size: int,
-) -> Tuple[List[Problem], int]:
+) -> Page[Problem]:
     visibility_filter = _public_problem_filter()
     base_stmt: Select = (
         select(Problem)
         .options(selectinload(Problem.tags))
         .where(visibility_filter)
     )
-    tagged_problem_ids_stmt: Optional[Select] = None
 
     if tags:
         tagged_problem_ids_stmt = (
@@ -69,22 +71,8 @@ async def fetch_filtered_problems(
         )
         base_stmt = base_stmt.where(Problem.id.in_(tagged_problem_ids_stmt))
 
-    offset = max(page - 1, 0) * page_size
-    paginated_stmt = base_stmt.order_by(ordering).offset(offset).limit(page_size)
-
-    result = await session.execute(paginated_stmt)
-    problems = result.scalars().all()
-
-    if tagged_problem_ids_stmt is not None:
-        count_stmt = select(func.count()).select_from(tagged_problem_ids_stmt.subquery())
-    else:
-        visible_problems = select(Problem.id).where(visibility_filter).subquery()
-        count_stmt = select(func.count()).select_from(visible_problems)
-
-    total_result = await session.execute(count_stmt)
-    total_count = total_result.scalar() or 0
-
-    return problems, total_count
+    stmt = base_stmt.order_by(ordering)
+    return await paginate(session, stmt, page, page_size)
 
 
 async def count_contest_problems(session: AsyncSession, contest_id: int) -> int:
@@ -134,7 +122,7 @@ async def find_problem_by_id(problem_id: int, session: AsyncSession) -> Optional
     return await session.get(Problem, problem_id)
 
 
-async def create_problem(problem: Problem, session: AsyncSession) -> Problem:
+async def create_problem(session: AsyncSession, problem: Problem) -> Problem:
     session.add(problem)
     await session.flush()
     await session.refresh(problem)
@@ -145,6 +133,8 @@ async def find_problem_with_tags_by_id(problem_id: int, session: AsyncSession) -
     stmt = select(Problem).options(selectinload(Problem.tags)).where(Problem.id == problem_id)
     result = await session.execute(stmt)
     return result.scalar_one_or_none()
+
+
 async def update_problem_languages_by_contest_id(session: AsyncSession, contest_id: int, languages: List[str]):
     stmt = (
         update(Problem)
@@ -152,3 +142,15 @@ async def update_problem_languages_by_contest_id(session: AsyncSession, contest_
         .values(languages=languages)
     )
     await session.execute(stmt)
+
+
+async def find_problems_by_creator_id(
+        creator_id: int,
+        page: int,
+        size: int,
+        session: AsyncSession) -> Page[Problem]:
+    stmt = (select(Problem)
+            .options(selectinload(Problem.tags))
+            .where(Problem.created_by_id == creator_id)
+            .order_by(Problem.id.desc()))
+    return await paginate(session, stmt, page, size)

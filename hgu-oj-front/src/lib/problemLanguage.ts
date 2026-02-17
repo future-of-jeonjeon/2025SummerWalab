@@ -30,6 +30,8 @@ const LANGUAGE_ALIAS_MAP: Record<string, string> = {
   py: 'python',
   python3: 'python',
   python37: 'python',
+  go: 'go',
+  golang: 'go',
 };
 
 const LANGUAGE_BACKEND_VALUE_MAP: Record<string, string> = {
@@ -38,6 +40,7 @@ const LANGUAGE_BACKEND_VALUE_MAP: Record<string, string> = {
   java: 'Java',
   cpp: 'C++',
   c: 'C',
+  go: 'Go',
 };
 
 const getLanguageBackendValue = (key: string): string => LANGUAGE_BACKEND_VALUE_MAP[key] ?? key;

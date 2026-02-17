@@ -1,4 +1,4 @@
-import { Problem, Workbook } from '../types';
+import { Problem, Workbook, PaginatedResponse } from '../types';
 import { apiClient, MS_API_BASE } from './api';
 import { mapProblem } from '../utils/problemMapper';
 import { WorkbookFilter } from '../stores/workbookStore';
@@ -23,14 +23,27 @@ const buildUrl = (path = '', params?: Record<string, string | number | undefined
 };
 
 export const workbookService = {
-  getWorkbooks: async (filter?: WorkbookFilter) => {
+  getWorkbooks: async (filter?: WorkbookFilter): Promise<PaginatedResponse<Workbook>> => {
+    const page = filter?.page || 1;
+    const limit = filter?.limit || 20;
     const url = buildUrl('/', {
       search: filter?.search,
-      limit: filter?.limit,
+      page: page,
+      size: limit,
     });
 
-    const response = await apiClient.get<Workbook[]>(url);
-    return response.data;
+    const response = await apiClient.get<any>(url);
+    const payload = response.data;
+    const items = payload.items ?? [];
+    const total = payload.total ?? items.length;
+
+    return {
+      data: items,
+      total,
+      page: payload.page ?? page,
+      limit: payload.size ?? limit,
+      totalPages: Math.ceil(total / (payload.size ?? limit))
+    };
   },
 
   getWorkbook: async (id: number): Promise<Workbook> => {

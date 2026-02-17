@@ -17,12 +17,13 @@ from app.common.routes import router as common_router
 from app.user.routes import router as user_router
 from app.rank.routes import router as rank_router
 from app.todo.routes import router as todo_router
+from app.contribute.routes import router as contribute_router
 
 api_router = APIRouter()
 
 api_router.include_router(auth_router)
 api_router.include_router(auto_save_router)
-api_router.include_router(contest_user_router)
+
 api_router.include_router(contest_router)
 api_router.include_router(export_result_router)
 api_router.include_router(problem_router)
@@ -36,3 +37,4 @@ api_router.include_router(common_router)
 api_router.include_router(user_router)
 api_router.include_router(rank_router)
 api_router.include_router(todo_router)
+api_router.include_router(contribute_router)

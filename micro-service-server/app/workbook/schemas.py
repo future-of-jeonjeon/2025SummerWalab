@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional, List
-
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
+from app.common.page import Page
 
 
 class ProblemSummary(BaseModel):
@@ -14,11 +14,13 @@ class ProblemSummary(BaseModel):
     memory_limit: Optional[int] = None
     tags: List[str] = []
 
+
     class Config:
         from_attributes = True
-        allow_population_by_field_name = True
+        populate_by_name = True
 
-    @validator('tags', pre=True, always=True)
+    @field_validator('tags', mode='before')
+    @classmethod
     def extract_tag_names(cls, value):
         if value is None:
             return []
@@ -48,7 +50,7 @@ class WorkbookCreate(WorkbookBase):
 
     class Config:
         from_attributes = True
-        allow_population_by_field_name = True
+        populate_by_name = True
 
 
 class WorkbookUpdate(BaseModel):
@@ -70,7 +72,8 @@ class WorkbookProblem(WorkbookProblemBase):
     id: int
     workbook_id: int
     problem: Optional[ProblemSummary] = None
-    
+    display_order: int
+
     class Config:
         from_attributes = True
 
@@ -82,12 +85,16 @@ class Workbook(BaseModel):
     category: Optional[str] = None
     created_by_id: int
     is_public: bool
-    created_at: datetime
-    updated_at: datetime
-    
+    created_at: datetime = Field(..., validation_alias="created_time")
+    updated_at: datetime = Field(..., validation_alias="updated_time")
+
     class Config:
         from_attributes = True
 
 
 class WorkbookWithProblems(Workbook):
     problems: List[WorkbookProblem] = []
+
+
+class WorkbookListResponse(Page[Workbook]):
+    workbooks: List[Workbook] = Field(..., alias="items")

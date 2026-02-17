@@ -37,30 +37,22 @@ const parseBoolean = (value: unknown): boolean => {
 };
 
 export interface CreateProblemPayload {
-  _id: string;
   title: string;
   description: string;
   input_description: string;
   output_description: string;
   samples: Array<{ input: string; output: string }>;
-  test_case_id: string;
-  test_case_score: Array<{ input_name: string; output_name: string; score: number }>;
   time_limit: number;
   memory_limit: number;
   languages: string[];
   template: Record<string, string>;
-  rule_type: 'ACM' | 'OI';
-  io_mode: { io_mode: string; input: string; output: string };
-  spj: boolean;
-  spj_language: string | null;
-  spj_code: string | null;
-  spj_compile_ok: boolean;
-  visible: boolean;
   difficulty: 'High' | 'Mid' | 'Low';
   tags: string[];
   hint?: string | null;
-  source?: string | null;
-  share_submission: boolean;
+  solution_code: string;
+  solution_code_language: string;
+  test_case_id: string;
+  _id?: string;
 }
 
 export interface UpdateProblemPayload extends CreateProblemPayload {
@@ -262,12 +254,11 @@ export const adminService = {
       offset: (page - 1) * limit,
       limit,
       ...(keyword && keyword.trim().length > 0 ? { keyword: keyword.trim() } : {}),
+      paging: true,
     };
 
-    const baseUrl = getMsBaseUrl();
-    const response = await apiClient.get<{ results: any[]; total: number }>(`${baseUrl}/contest/all`, { params });
-
-    const data = response.data;
+    const response = await api.get<any>('/admin/contest', params);
+    const data = unwrap(response);
     const results = Array.isArray(data.results) ? data.results.map(mapAdminContest) : [];
 
     return {
@@ -795,7 +786,7 @@ const adaptWorkbookProblem = (item: any): WorkbookProblem => {
     id: Number(item?.id) || 0,
     problemId: Number(item?.problem_id ?? item?.problemId ?? problemData?.id ?? 0) || 0,
     problem: problemData,
-    order: Number(item?.order ?? 0) || 0,
+    order: Number(item?.display_order ?? item?.order ?? 0),
     addedTime: item?.added_time ?? item?.addedTime ?? '',
   };
 };

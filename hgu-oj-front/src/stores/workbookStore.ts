@@ -18,7 +18,7 @@ export const useWorkbookStore = create<WorkbookStore>((set) => ({
   filter: {
     search: '',
     page: 1,
-    limit: 20,
+    limit: 6,
     sortBy: 'created_at',
     sortOrder: 'desc',
   },
@@ -31,7 +31,7 @@ export const useWorkbookStore = create<WorkbookStore>((set) => ({
       filter: {
         search: '',
         page: 1,
-        limit: 20,
+        limit: 6,
         sortBy: 'created_at',
         sortOrder: 'desc',
       },

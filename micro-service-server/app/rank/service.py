@@ -14,11 +14,11 @@ from app.problem.models import Problem
 from app.submission.models import Submission
 
 
-async def get_organization_rank(limit: int, offset: int, db: AsyncSession):
+async def get_organization_rank(page: int, size: int, db: AsyncSession):
     return await ranking_repository.get_organizations_order_by_rank_acm(
-        limit=limit,
-        offset=offset,
         db=db,
+        page=page,
+        size=size,
     )
 
 

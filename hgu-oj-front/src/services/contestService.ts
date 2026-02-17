@@ -1,5 +1,5 @@
 import { api, apiClient, MS_API_BASE } from './api';
-import { Contest, ContestAnnouncement, ContestAccess, ContestRankEntry, PaginatedResponse, Problem } from '../types';
+import { Contest, ContestAnnouncement, ContestAccess, ContestRankEntry, PaginatedResponse, Problem, ContestDataDTO, CreateContestRequest } from '../types';
 import { SubmissionListItem } from './submissionService';
 import { mapProblem } from '../utils/problemMapper';
 
@@ -128,9 +128,34 @@ const mapContest = (raw: any): Contest => ({
   })(),
   languages: raw.languages ?? [],
   participants: raw.participants ?? 0,
+  isOrganizationOnly: raw.is_organization_only ?? raw.isOrganizationOnly,
 });
 
+
+
 export const contestService = {
+  create: async (data: CreateContestRequest): Promise<ContestDataDTO> => {
+    if (!MICRO_API_BASE) {
+      throw new Error('MS_API_BASE not defined');
+    }
+    const response = await apiClient.post<ContestDataDTO>(`${MICRO_API_BASE}/contest`, data);
+    return response.data;
+  },
+
+  update: async (contestId: number, data: Partial<CreateContestRequest>): Promise<ContestDataDTO> => {
+    if (!MICRO_API_BASE) {
+      throw new Error('MS_API_BASE not defined');
+    }
+    const response = await apiClient.put<ContestDataDTO>(`${MICRO_API_BASE}/contest`, { ...data, id: contestId });
+    return response.data;
+  },
+
+  delete: async (contestId: number): Promise<void> => {
+    if (!MICRO_API_BASE) {
+      throw new Error('MS_API_BASE not defined');
+    }
+    await apiClient.delete(`${MICRO_API_BASE}/contest/${contestId}`);
+  },
   // 대회 목록 조회
   getContests: async (params?: {
     page?: number;
@@ -141,26 +166,58 @@ export const contestService = {
   }): Promise<PaginatedResponse<Contest>> => {
     const queryParams: any = {
       page: params?.page || 1,
-      limit: params?.limit || 20,
+      size: params?.limit || 20,
     };
     if (params?.keyword) queryParams.keyword = params.keyword;
     if (params?.ruleType) queryParams.rule_type = params.ruleType;
     if (params?.status) queryParams.status = params.status;
 
     if (!MICRO_API_BASE) {
-      // Fallback or error if MS_API_BASE not set? Or use api (Django) as fallback?
-      // Assuming MS_API_BASE is set as we are migrating.
-      // If fallback needed, keep old code. But user wants MS features (languages).
       throw new Error('MS_API_BASE not defined');
     }
 
-    const response = await apiClient.get<{ results: any[], total: number }>(`${MICRO_API_BASE}/contest`, { params: queryParams });
+    const response = await apiClient.get<any>(`${MICRO_API_BASE}/contest`, { params: queryParams });
+    const payload = response.data;
+    const items = payload.items ?? payload.results ?? [];
+    const total = payload.total ?? items.length;
+    const page = payload.page ?? params?.page ?? 1;
+    const size = payload.size ?? params?.limit ?? 20;
+
     return {
-      data: response.data.results.map(mapContest),
-      total: response.data.total,
+      data: items.map(mapContest),
+      total,
+      page,
+      limit: size,
+      totalPages: Math.ceil(total / size)
+    };
+  },
+
+  getOrganizationContests: async (organizationId: number, params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<PaginatedResponse<Contest>> => {
+    const queryParams: any = {
       page: params?.page || 1,
-      limit: params?.limit || 20,
-      totalPages: Math.ceil(response.data.total / (params?.limit || 20))
+      size: params?.limit || 10,
+    };
+
+    if (!MICRO_API_BASE) {
+      throw new Error('MS_API_BASE not defined');
+    }
+
+    const response = await apiClient.get<any>(`${MICRO_API_BASE}/contest/organization/${organizationId}`, { params: queryParams });
+    const payload = response.data;
+    const items = payload.items ?? payload.results ?? [];
+    const total = payload.total ?? items.length;
+    const page = payload.page ?? params?.page ?? 1;
+    const size = payload.size ?? params?.limit ?? 10;
+
+    return {
+      data: items.map(mapContest),
+      total,
+      page,
+      limit: size,
+      totalPages: Math.ceil(total / size)
     };
   },
 
@@ -190,13 +247,7 @@ export const contestService = {
       content: raw.content,
       visible: raw.visible,
       createdAt: raw.create_time ?? raw.created_at ?? raw.createdAt,
-      createdBy: raw.created_by
-        ? {
-          id: raw.created_by.id,
-          username: raw.created_by.username,
-          realName: raw.created_by.real_name ?? raw.created_by.realName,
-        }
-        : raw.createdBy,
+      createdBy: raw.created_by ?? raw.createdBy,
     }));
   },
 

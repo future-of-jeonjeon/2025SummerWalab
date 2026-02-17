@@ -70,7 +70,7 @@ async def organization_join_code(
         organization_id: int,
         request_user: UserData,
         db: AsyncSession):
-    await _check_organization_admin(organization_id, request_user, db)
+    await check_organization_admin(organization_id, request_user, db)
     organization = await _get_organization_by_id(organization_id, db)
     user = await user_repo.find_user_by_id(request_user.user_id, db)
     if not user:
@@ -116,7 +116,7 @@ async def edit_organization_user(
         request_user: UserData,
         user_update_data: OrganizationMemberUpdateRequest,
         db: AsyncSession) -> OrganizationMemberResponse:
-    await _check_organization_admin(organization_id, request_user, db)
+    await check_organization_admin(organization_id, request_user, db)
 
     await _get_organization_by_id(organization_id, db)
     member_data = await (organization_repo
@@ -133,7 +133,7 @@ async def delete_organization_user(
         request_user_data: UserData,
         member_id: int,
         db: AsyncSession):
-    await _check_organization_admin(organization_id, request_user_data, db)
+    await check_organization_admin(organization_id, request_user_data, db)
     await _get_organization_by_id(organization_id, db)
 
     member_data = await organization_repo.get_member_by_id_and_organization_id(member_id, organization_id, db)
@@ -154,14 +154,20 @@ async def _get_organization_by_id(
     return organization
 
 
-async def _check_organization_admin(
+async def is_organization_admin(organization_id: int, user_data: UserData, db: AsyncSession) -> bool:
+    if user_data.admin_type in ["Admin", "Super Admin"]:
+        return True
+    member = await organization_repo.get_member_by_organization_id_and_user_id(organization_id, user_data.user_id, db)
+    if member and member.role in {OrganizationRole.ORG_ADMIN, OrganizationRole.ORG_SUPER_ADMIN}:
+        return True
+    return False
+
+
+async def check_organization_admin(
         organization_id: int,
         request_user: UserData,
         db: AsyncSession) -> bool:
-    req_user = await (organization_repo
-                      .get_member_by_organization_id_and_user_id(organization_id, request_user.user_id, db))
-    if ((request_user.admin_type not in ["Admin", "Super Admin"])
-            and (not req_user or req_user.role not in {OrganizationRole.ORG_ADMIN, OrganizationRole.ORG_SUPER_ADMIN})):
+    if not await is_organization_admin(organization_id, request_user, db):
         exceptions.forbidden()
     return True
 

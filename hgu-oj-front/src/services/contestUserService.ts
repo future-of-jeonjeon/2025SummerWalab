@@ -48,7 +48,7 @@ const normalizeContestUserStatusValue = (value?: string): ContestUserStatusValue
     : undefined;
 };
 
-const CONTEST_USER_API = `${MS_API_BASE}/contest-users`;
+const CONTEST_USER_API = `${MS_API_BASE}/contest`;
 
 const ensureBaseUrl = () => {
   if (!MS_API_BASE) {
@@ -56,7 +56,6 @@ const ensureBaseUrl = () => {
   }
   return CONTEST_USER_API;
 };
-
 
 
 const buildStatus = (payload: RawContestUserStatus | null, fallbackContestId: number): ContestJoinStatus => {
@@ -91,48 +90,50 @@ const adaptRegistration = (entry: RawContestUserRegistration): ContestUserRegist
   };
 };
 
-const request = async <T>(
-  path: string,
-  options?: RequestInit,
-  fallbackContestId?: number,
-): Promise<T> => {
-  const base = ensureBaseUrl();
-  const url = `${base}${path}`;
-
-  const response = await apiClient.request({
-    url,
-    method: options?.method ?? 'GET',
-    headers: options?.headers as any,
-    data: options?.body,
-  });
-
-  const data = response.data as T | RawContestUserStatus | null;
-  if ((data as RawContestUserStatus | null)?.contest_id !== undefined || fallbackContestId) {
-    return buildStatus(data as RawContestUserStatus | null, fallbackContestId ?? 0) as T;
-  }
-  return data as T;
-};
-
 export const contestUserService = {
   getStatus: async (contestId: number): Promise<ContestJoinStatus> => {
     if (!contestId) {
       throw new Error('유효하지 않은 대회입니다.');
     }
-    return request<ContestJoinStatus>(`/${contestId}/me`, undefined, contestId);
+    const response = await apiClient.get<RawContestUserStatus>(`${ensureBaseUrl()}/${contestId}/participants/me`);
+    return buildStatus(response.data, contestId);
   },
+
   join: async (contestId: number): Promise<ContestJoinStatus> => {
     if (!contestId) {
       throw new Error('유효하지 않은 대회입니다.');
     }
-    return request<ContestJoinStatus>(
-      `/`,
-      {
-        method: 'POST',
-        body: JSON.stringify({ contest_id: contestId }),
-      },
-      contestId,
-    );
+    const response = await apiClient.post<RawContestUserStatus>(`${ensureBaseUrl()}/${contestId}/participants`, {});
+    return buildStatus(response.data, contestId);
   },
+
+  getRegistrations: async (contestId: number): Promise<ContestUserRegistrationList> => {
+    if (!contestId) {
+      throw new Error('유효하지 않은 대회입니다.');
+    }
+    const response = await apiClient.get<RawContestUserRegistrationList>(`${ensureBaseUrl()}/${contestId}/participants`);
+    const payload = response.data;
+    return {
+      approved: Array.isArray(payload?.approved) ? payload.approved.map(adaptRegistration) : [],
+      pending: Array.isArray(payload?.pending) ? payload.pending.map(adaptRegistration) : [],
+    };
+  },
+
+  decideRegistration: async (
+    contestId: number,
+    userId: number,
+    action: 'approve' | 'reject',
+  ): Promise<ContestUserRegistration> => {
+    if (!contestId || !userId) {
+      throw new Error('잘못된 요청입니다.');
+    }
+    const response = await apiClient.patch<RawContestUserRegistration>(
+      `${ensureBaseUrl()}/${contestId}/participants/${userId}`,
+      { action },
+    );
+    return adaptRegistration(response.data);
+  },
+
   getPolicy: async (contestId: number): Promise<ContestApprovalPolicy> => {
     if (!contestId) {
       throw new Error('유효하지 않은 대회입니다.');
@@ -144,6 +145,7 @@ export const contestUserService = {
       requiresApproval: Boolean(payload.requires_approval ?? payload.requiresApproval),
     };
   },
+
   setPolicy: async (contestId: number, requiresApproval: boolean): Promise<ContestApprovalPolicy> => {
     if (!contestId) {
       throw new Error('유효하지 않은 대회입니다.');
@@ -158,28 +160,5 @@ export const contestUserService = {
       requiresApproval: Boolean(payload.requires_approval ?? payload.requiresApproval),
     };
   },
-  getRegistrations: async (contestId: number): Promise<ContestUserRegistrationList> => {
-    if (!contestId) {
-      throw new Error('유효하지 않은 대회입니다.');
-    }
-    const payload = await request<RawContestUserRegistrationList>(`/${contestId}/registrations`);
-    return {
-      approved: Array.isArray(payload?.approved) ? payload.approved.map(adaptRegistration) : [],
-      pending: Array.isArray(payload?.pending) ? payload.pending.map(adaptRegistration) : [],
-    };
-  },
-  decideRegistration: async (
-    contestId: number,
-    userId: number,
-    action: 'approve' | 'reject',
-  ): Promise<ContestUserRegistration> => {
-    if (!contestId || !userId) {
-      throw new Error('잘못된 요청입니다.');
-    }
-    const payload = await request<RawContestUserRegistration>(`/${contestId}/decision`, {
-      method: 'POST',
-      body: JSON.stringify({ user_id: userId, action }),
-    });
-    return adaptRegistration(payload);
-  },
 };
+
