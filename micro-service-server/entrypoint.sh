@@ -81,7 +81,21 @@ async def check_and_fix_migration_state():
                         import glob
                         import re
                         
-                        local_version_files = glob.glob('migrations/versions/*.py')
+                        # Try multiple common paths for migrations
+                        possible_paths = [
+                            'migrations/versions/*.py',
+                            'micro-service-server/migrations/versions/*.py',
+                            '/micro-service-server/migrations/versions/*.py'
+                        ]
+                        
+                        local_version_files = []
+                        for path in possible_paths:
+                            local_version_files.extend(glob.glob(path))
+                        
+                        import os
+                        print(f"[entrypoint] CWD: {os.getcwd()}")
+                        print(f"[entrypoint] Found {len(local_version_files)} migration files using patterns: {possible_paths}")
+                        
                         local_versions = []
                         for fpath in local_version_files:
                             try:
