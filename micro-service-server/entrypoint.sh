@@ -6,6 +6,8 @@ python - <<'PY'
 import asyncio
 import os
 import sys
+import glob
+import re
 
 import asyncpg
 
@@ -78,9 +80,6 @@ async def check_and_fix_migration_state():
                     
                     if current_db_version:
                         # 2. Get all local version IDs
-                        import glob
-                        import re
-                        
                         # Try multiple common paths for migrations
                         possible_paths = [
                             'migrations/versions/*.py',
@@ -92,7 +91,6 @@ async def check_and_fix_migration_state():
                         for path in possible_paths:
                             local_version_files.extend(glob.glob(path))
                         
-                        import os
                         print(f"[entrypoint] CWD: {os.getcwd()}")
                         print(f"[entrypoint] Found {len(local_version_files)} migration files using patterns: {possible_paths}")
                         
