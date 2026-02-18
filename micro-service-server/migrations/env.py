@@ -46,7 +46,9 @@ target_metadata = Base.metadata
 
 def _include_object(object_, name, type_, reflected, compare_to):
     if type_ == "table":
-        return name.startswith("micro_")
+        # Table name might be prefixed with schema (e.g., 'public.micro_table')
+        actual_name = name.split('.')[-1]
+        return actual_name.startswith("micro_")
     return True
 
 

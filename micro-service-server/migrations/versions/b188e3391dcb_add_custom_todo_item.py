@@ -1,7 +1,7 @@
 """add custom_todo item
 
 Revision ID: b188e3391dcb
-Revises: 2f20d5f472c2
+Revises: 348f9671d2e8
 Create Date: 2026-02-05 10:12:43.512463
 
 """
