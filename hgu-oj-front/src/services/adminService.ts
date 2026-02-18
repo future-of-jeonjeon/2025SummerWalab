@@ -13,6 +13,7 @@ import {
   AdminContestListResponse,
   ContestAnnouncement,
   SystemMetrics,
+  TestCaseUploadResponse,
 } from '../types';
 import { availableLanguages } from '../lib/problemLanguage';
 
@@ -49,9 +50,23 @@ export interface CreateProblemPayload {
   difficulty: 'High' | 'Mid' | 'Low';
   tags: string[];
   hint?: string | null;
-  solution_code: string;
-  solution_code_language: string;
+  solution_code?: string;
+  solution_code_language?: string;
   test_case_id: string;
+  test_case_score?: any;
+  rule_type?: 'ACM' | 'OI';
+  io_mode?: {
+    io_mode: string;
+    input: string;
+    output: string;
+  };
+  spj?: boolean;
+  spj_language?: string | null;
+  spj_code?: string | null;
+  spj_compile_ok?: boolean;
+  visible?: boolean;
+  source?: string | null;
+  share_submission?: boolean;
   _id?: string;
 }
 
@@ -147,11 +162,6 @@ export interface UpdateUserPayload {
   is_disabled?: boolean;
 }
 
-export interface TestCaseUploadResponse {
-  id: string;
-  info: unknown;
-  spj: boolean;
-}
 
 export interface UpdateJudgeServerPayload {
   id: number;

@@ -4,7 +4,7 @@ import { Input } from '../../../components/atoms/Input';
 import { RichTextEditor } from '../../../components/molecules/RichTextEditor';
 import { TagChip } from '../../../components/atoms/TagChip';
 import { getTagColor } from '../../../utils/tagColor';
-import { adminService, CreateProblemPayload } from '../../../services/adminService';
+import { CreateProblemPayload } from '../../../services/adminService';
 import { contributionService } from '../../../services/contributionService';
 import { availableLanguages, toBackendLanguageList, getLanguageBackendValue, getLanguageLabel, normalizeLanguageKey } from '../../../lib/problemLanguage';
 import codeTemplates from '../../../config/codeTemplates.json';

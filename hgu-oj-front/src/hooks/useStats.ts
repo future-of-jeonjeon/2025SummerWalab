@@ -27,7 +27,7 @@ export const useStats = () => {
 
   return {
     problemCount: problemsData?.total || 0,
-    workbookCount: workbooksData?.length || 0,
+    workbookCount: workbooksData?.total || 0,
     contestCount: contestsData?.total || 0,
   };
 };

@@ -205,6 +205,9 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({
                     difficulty: formState.difficulty,
                     tags: formState.tags,
                     hint: formState.hint.trim() || null,
+                    test_case_id: testCaseId,
+                    solution_code: '',
+                    solution_code_language: 'C++',
                 };
                 await adminService.createProblem(payload);
             } else {
@@ -223,6 +226,9 @@ export const ProblemModal: React.FC<ProblemModalProps> = ({
                     difficulty: formState.difficulty,
                     tags: formState.tags,
                     hint: formState.hint.trim() || null,
+                    test_case_id: testCaseId,
+                    solution_code: '',
+                    solution_code_language: 'C++',
                 };
                 await adminService.updateAdminProblem(payload);
             }

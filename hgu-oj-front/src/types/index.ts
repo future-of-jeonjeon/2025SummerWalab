@@ -212,6 +212,12 @@ export interface AdminWorkbook extends Workbook {
   visible: boolean;
 }
 
+export interface TestCaseUploadResponse {
+  id: string;
+  info: unknown;
+  spj: boolean;
+}
+
 // API 응답 타입
 export interface ApiResponse<T> {
   success: boolean;

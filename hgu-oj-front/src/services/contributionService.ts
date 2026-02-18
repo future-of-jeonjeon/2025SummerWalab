@@ -1,4 +1,4 @@
-import { apiClient, MS_API_BASE, api } from './api';
+import { apiClient, MS_API_BASE } from './api';
 import { PaginatedResponse, Problem, Workbook, TestCaseUploadResponse } from '../types';
 import { CreateProblemPayload } from './adminService';
 
