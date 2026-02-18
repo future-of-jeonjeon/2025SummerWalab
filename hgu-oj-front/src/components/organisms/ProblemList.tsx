@@ -15,7 +15,9 @@ interface ProblemListProps {
   sortField?: 'number' | 'title' | 'submission' | 'accuracy';
   sortOrder?: 'asc' | 'desc';
   primarySortField?: 'number' | 'title';
-  // Removed unused props: showStats, showStatus, showOriginalId, getRowNumber
+  showStatus?: boolean;
+  showStats?: boolean;
+  getRowNumber?: (problem: Problem, index: number) => number;
 }
 
 export const ProblemList: React.FC<ProblemListProps> = ({
