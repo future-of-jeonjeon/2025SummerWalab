@@ -9,7 +9,6 @@ from app.execution.routes import router as execution_router
 from app.code_autosave.routes import router as auto_save_router
 from app.organization.routes import router as organization_router
 from app.organization_apply.routes import router as organization_apply_router
-from app.contest_user.routes import router as contest_user_router
 from app.contest.routes import router as contest_router
 from app.export_result.routes import router as export_result_router
 from app.submission.routes import router as submission_router
@@ -23,7 +22,6 @@ api_router = APIRouter()
 
 api_router.include_router(auth_router)
 api_router.include_router(auto_save_router)
-
 api_router.include_router(contest_router)
 api_router.include_router(export_result_router)
 api_router.include_router(problem_router)
