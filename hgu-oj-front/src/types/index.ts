@@ -288,6 +288,7 @@ export interface LanguageOption {
 // 필터 관련 타입
 export interface ProblemFilter {
   difficulty?: 'Low' | 'Mid' | 'High' | '상' | '중' | '하';
+  difficultyLevel?: number;
   search?: string;
   page?: number;
   limit?: number;

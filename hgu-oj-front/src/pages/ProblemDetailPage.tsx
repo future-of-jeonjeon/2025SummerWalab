@@ -17,6 +17,34 @@ import { submissionService, SubmissionDetail, SubmissionListItem } from '../serv
 import { useAuthStore } from '../stores/authStore';
 import 'katex/dist/katex.min.css';
 
+const HtmlWithMath = React.memo(({ html, className }: { html?: string | null; className?: string }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (html && containerRef.current) {
+      import('katex/dist/contrib/auto-render.mjs').then(({ default: renderMathInElement }) => {
+        if (containerRef.current) {
+          renderMathInElement(containerRef.current, {
+            delimiters: [
+              { left: "$$", right: "$$", display: true },
+              { left: "$", right: "$", display: false },
+              { left: "\\(", right: "\\)", display: false },
+              { left: "\\[", right: "\\]", display: true }
+            ],
+            throwOnError: false
+          });
+        }
+      }).catch(err => {
+        console.error("Failed to load katex auto-render", err);
+      });
+    }
+  }, [html]);
+
+  if (!html) return null;
+
+  return <div ref={containerRef} className={className ?? ''} dangerouslySetInnerHTML={{ __html: html }} />;
+});
+
 
 type StatusTone = 'success' | 'error' | 'warning' | 'info';
 type SectionKey = 'description' | 'problem-list' | 'submissions';
@@ -795,25 +823,6 @@ export const ProblemDetailPage: React.FC = () => {
 
   const problemContentRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => {
-    if (activeSection === 'description' && problemContentRef.current) {
-      import('katex/dist/contrib/auto-render.mjs').then(({ default: renderMathInElement }) => {
-        if (problemContentRef.current) {
-          renderMathInElement(problemContentRef.current, {
-            delimiters: [
-              { left: "$$", right: "$$", display: true },
-              { left: "$", right: "$", display: false },
-              { left: "\\(", right: "\\)", display: false },
-              { left: "\\[", right: "\\]", display: true }
-            ],
-            throwOnError: false
-          });
-        }
-      }).catch(err => {
-        console.error("Failed to load katex auto-render", err);
-      });
-    }
-  }, [activeSection, problem]);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -1456,7 +1465,6 @@ export const ProblemDetailPage: React.FC = () => {
                       )}
                     </h1>
                     <div className={`flex flex-wrap items-center gap-3 text-xs ${subtleTextClass}`}>
-                      <span>ID {problem.displayId ?? problem.id}</span>
                       <span>시간 {problem.timeLimit}ms · 메모리 {problem.memoryLimit}MB</span>
                     </div>
                   </div>
@@ -1492,7 +1500,7 @@ export const ProblemDetailPage: React.FC = () => {
                     <div className="mb-6">
                       <CollapsibleSection title="문제 설명" headingClassName={headingTextClass}>
                         <div className={`${proseClass} max-w-4xl leading-relaxed`}>
-                          <div dangerouslySetInnerHTML={{ __html: problem.description }} />
+                          <HtmlWithMath html={problem.description} />
                         </div>
                       </CollapsibleSection>
                     </div>
@@ -1500,7 +1508,7 @@ export const ProblemDetailPage: React.FC = () => {
                     {problem.inputDescription && (
                       <CollapsibleSection title="입력" headingClassName={headingTextClass}>
                         <div className={`${proseClass} max-w-4xl leading-relaxed prose-h3:text-base prose-h3:font-medium prose-h3:mt-4 prose-h3:mb-2`}>
-                          <div dangerouslySetInnerHTML={{ __html: problem.inputDescription }} />
+                          <HtmlWithMath html={problem.inputDescription} />
                         </div>
                       </CollapsibleSection>
                     )}
@@ -1508,7 +1516,7 @@ export const ProblemDetailPage: React.FC = () => {
                     {problem.outputDescription && (
                       <CollapsibleSection title="출력" headingClassName={headingTextClass}>
                         <div className={`${proseClass} max-w-4xl leading-relaxed prose-h3:text-base prose-h3:font-medium prose-h3:mt-4 prose-h3:mb-2`}>
-                          <div dangerouslySetInnerHTML={{ __html: problem.outputDescription }} />
+                          <HtmlWithMath html={problem.outputDescription} />
                         </div>
                       </CollapsibleSection>
                     )}
@@ -1573,7 +1581,7 @@ export const ProblemDetailPage: React.FC = () => {
                     {problem.hint && (
                       <CollapsibleSection title="힌트" headingClassName={headingTextClass}>
                         <div className={`${proseClass} max-w-4xl leading-relaxed`}>
-                          <div dangerouslySetInnerHTML={{ __html: problem.hint }} />
+                          <HtmlWithMath html={problem.hint} />
                         </div>
                       </CollapsibleSection>
                     )}
