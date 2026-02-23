@@ -99,7 +99,7 @@ async def check_and_fix_migration_state():
                             try:
                                 with open(fpath, 'r') as f:
                                     content = f.read()
-                                    match = re.search(r"revision[:\s]+[=:]\s*['\"]([^'\"]+)['\"]", content)
+                                    match = re.search(r"^revision[^\n=]*=\s*['\"]([^'\"]+)['\"]", content, re.MULTILINE)
                                     if match:
                                         local_versions.append(match.group(1))
                             except Exception:
