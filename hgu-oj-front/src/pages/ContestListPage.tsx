@@ -1,11 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useContests } from '../hooks/useContests';
-import { useAuthStore } from '../stores/authStore';
-
 export const ContestListPage: React.FC = () => {
   const navigate = useNavigate();
-  const { user } = useAuthStore();
 
   const [endedPage, setEndedPage] = useState(1);
   const endedLimit = 10;

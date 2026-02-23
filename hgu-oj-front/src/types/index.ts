@@ -150,6 +150,7 @@ export interface ContestRankEntry {
     realName?: string;
     studentId?: string;
   };
+  rank?: number;
   acceptedNumber?: number;
   submissionNumber?: number;
   totalTime?: number;

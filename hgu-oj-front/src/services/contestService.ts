@@ -392,7 +392,7 @@ export const contestService = {
       // Note: The MS currently returns the full list, pagination might be handled on the client side or added to MS later.
       // For now, we return the full list as 'results' and length as 'total'.
 
-      const entries = data.map((raw: any) => ({
+      const entries = data.map((raw: any, index: number) => ({
         id: raw.user_id ?? raw.id,
         user: {
           id: raw.user_id ?? raw.user?.id,
@@ -400,6 +400,7 @@ export const contestService = {
           realName: raw.real_name ?? raw.user?.real_name ?? raw.user?.realName,
           studentId: raw.student_id ?? raw.user?.student_id ?? raw.user?.studentId,
         },
+        rank: index + 1,
         acceptedNumber: raw.accepted_number ?? raw.acceptedNumber,
         submissionNumber: raw.submission_number ?? raw.submissionNumber ?? 0,
         totalTime: raw.total_time ?? raw.totalTime,

@@ -4,7 +4,6 @@ import { useContest, useContestRank } from '../hooks/useContests';
 import { useAuthStore } from '../stores/authStore';
 import { Button } from '../components/atoms/Button';
 import { Card } from '../components/atoms/Card';
-import { PROBLEM_SUMMARY_LABELS } from '../constants/problemStatus';
 import { useContestTimer } from '../features/contestDetail/hooks/useContestTimer';
 import { useContestAccessState } from '../features/contestDetail/hooks/useContestAccessState';
 import { useContestAnnouncementsManager } from '../features/contestDetail/hooks/useContestAnnouncementsManager';
@@ -19,11 +18,7 @@ import { ContestSubmissionDetailsTab } from '../features/contestDetail/component
 
 import type { ContestTab } from '../features/contestDetail/types';
 
-const statusLabel: Record<string, string> = {
-  '1': '시작 예정',
-  '0': '진행 중',
-  '-1': '종료',
-};
+// Removed status label
 
 const baseTabs: Array<{ id: ContestTab; label: string; requiresAccess?: boolean }> = [
   { id: 'overview', label: '메인' },
@@ -165,6 +160,14 @@ export const ContestDetailPage: React.FC = () => {
     return myEntry?.totalScore ?? 0;
   }, [rankEntries, authUser?.id]);
 
+  const myRank = useMemo(() => {
+    if (!authUser?.id) return null;
+    const myEntry = rankEntries.find((entry) => entry.user.id === authUser.id);
+    return myEntry?.rank ?? null;
+  }, [rankEntries, authUser?.id]);
+
+  const totalParticipants = publicRankData?.total ?? rankEntries.length;
+
   const problemsController = useContestProblemsController({
     contestId,
     canFetch: contestId > 0,
@@ -237,7 +240,7 @@ export const ContestDetailPage: React.FC = () => {
     [tabs, hasContestAdminOverride, contestLockReason, hasAccess],
   );
 
-  const contestStatus = contest?.status ?? '';
+  // Removed contestStatus
   const lockState = {
     locked: contestLockedForUser,
     reason: contestLockReason,
@@ -319,8 +322,8 @@ export const ContestDetailPage: React.FC = () => {
   }
 
   return (
-    <>
-      <div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 py-8">
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
         {contestLockedForUser && (
           <Card className="mb-6 border border-amber-200 bg-amber-50 px-6 py-4 text-amber-800 dark:border-amber-500/40 dark:bg-amber-900/30 dark:text-amber-100">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
@@ -341,58 +344,7 @@ export const ContestDetailPage: React.FC = () => {
           </Card>
         )}
 
-        <div className="mb-8 grid gap-4 lg:grid-cols-[1fr_320px]">
-          <div className="rounded-xl bg-slate-100/80 px-6 py-6 text-sm dark:bg-slate-800/70">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div className="flex items-center gap-3 max-w-full">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => navigate('/contests')}
-                  className="h-9 w-9 flex-shrink-0 rounded-full border-slate-300 px-0 py-0 text-lg text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
-                >
-                  <span aria-hidden="true">←</span>
-                  <span className="sr-only">대회 목록으로 돌아가기</span>
-                </Button>
-                <div className="flex flex-wrap items-center gap-3">
-                  <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100 break-words">{contest.title}</h1>
-                  {contestStatus && (
-                    <div className="flex items-center gap-2">
-                      <span className={`inline-flex items-center rounded-full px-3 py-1 text-sm font-semibold ${contestStatus === '0'
-                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200'
-                        : 'bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300'
-                        }`}>
-                        {statusLabel[contestStatus] ?? contestStatus}
-                      </span>
-                      {contestStatus === '0' && (
-                        <span className="font-mono text-lg font-bold text-emerald-600 dark:text-emerald-400">
-                          {timeLeft}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-xl bg-white px-6 py-5 text-sm shadow-sm ring-1 ring-slate-200 dark:bg-slate-900 dark:ring-slate-700 h-full flex flex-col justify-center">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-center gap-6 sm:gap-0 sm:divide-x sm:divide-slate-200 dark:sm:divide-slate-700">
-              <div className="flex-1 sm:px-4 text-center">
-                <p className="text-xs font-medium text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">{PROBLEM_SUMMARY_LABELS.solved}</p>
-                <p className="mt-1 text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                  {solvedProblems} <span className="text-2xl text-slate-400 dark:text-slate-500">/ {totalProblems}</span>
-                </p>
-              </div>
-              <div className="flex-1 sm:px-4 text-center">
-                <p className="text-xs font-medium text-blue-600 dark:text-blue-400 uppercase tracking-wider">내 점수</p>
-                <p className="mt-1 text-2xl font-bold text-blue-600 dark:text-blue-400">{myScore}<span className="text-sm font-normal ml-1">점</span></p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-col lg:flex-row gap-6">
+        <div className="flex flex-col lg:flex-row gap-6 mt-6">
           <aside className="w-[180px] min-w-[180px] max-w-[180px] space-y-2">
             {tabs.map((tab) => {
               const disabled = disabledTabs(tab.id);
@@ -417,11 +369,12 @@ export const ContestDetailPage: React.FC = () => {
             })}
           </aside>
 
-          <div className="flex-1 space-y-6">
+          <div className="flex-1 space-y-6 min-w-0 w-full">
             {activeTab === 'overview' && (
               <ContestOverviewTab
                 contest={contest}
                 timeData={{ startTimeDisplay, endTimeDisplay, timeLeftDisplay: timeLeft || '-', timeTextClass }}
+                stats={{ solvedProblems, totalProblems, myScore, myRank, totalParticipants }}
                 joinState={overviewJoinState}
                 accessState={overviewAccessState}
                 announcementsNode={announcementsNode}
@@ -490,6 +443,6 @@ export const ContestDetailPage: React.FC = () => {
         </div>
       </div>
 
-    </>
+    </div>
   );
 };
