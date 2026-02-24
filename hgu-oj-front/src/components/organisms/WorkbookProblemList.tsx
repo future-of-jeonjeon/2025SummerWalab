@@ -1,117 +1,134 @@
 import React from 'react';
-import { WorkbookProblem } from '../../types';
-import { Button } from '../atoms/Button';
-import { mapDifficulty } from '../../lib/difficulty';
+import { Problem } from '../../types';
+import { resolveProblemStatus } from '../../utils/problemStatus';
+
+// icons
+const CheckCircleIcon = () => (
+  <svg className="w-6 h-6 text-green-500" fill="currentColor" viewBox="0 0 20 20">
+    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+  </svg>
+);
+
+const ErrorCircleIcon = () => (
+  <svg className="w-6 h-6 text-red-500" fill="currentColor" viewBox="0 0 20 20">
+    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+  </svg>
+);
+
+const EmptyCircleIcon = () => (
+  <svg className="w-6 h-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+    <circle cx="12" cy="12" r="9" strokeWidth="2" />
+  </svg>
+);
 
 interface WorkbookProblemListProps {
-  problems: WorkbookProblem[];
-  onProblemClick?: (problemKey: string) => void;
-  onSolve?: (problemKey: string) => void;
+  problems: Problem[];
+  onProblemClick: (problemKey: string) => void;
 }
 
-export const WorkbookProblemList: React.FC<WorkbookProblemListProps> = ({
-  problems,
-  onProblemClick,
-  onSolve,
-}) => {
-  const getDifficultyColor = (difficulty?: string) => {
-    const label = mapDifficulty(difficulty);
-    switch (label) {
-      case '하':
-        return 'text-green-600 bg-green-100';
-      case '중':
-        return 'text-yellow-600 bg-yellow-100';
-      case '상':
-        return 'text-red-600 bg-red-100';
-      default:
-        return 'text-gray-600 bg-gray-100';
-    }
+export const WorkbookProblemList: React.FC<WorkbookProblemListProps> = ({ problems, onProblemClick }) => {
+  const getStatusIcon = (problem: Problem) => {
+    const status = resolveProblemStatus(problem);
+    if (status === 'solved') return <CheckCircleIcon />;
+    if (status === 'wrong') return <ErrorCircleIcon />;
+    return <EmptyCircleIcon />;
   };
 
-  const getDifficultyText = (difficulty?: string) => {
-    const label = mapDifficulty(difficulty);
-    if (label === '-') {
-      return '정보 없음';
-    }
-    return label;
-  };
+  const renderDifficultyBadge = (problem: Problem) => {
+    const rawDifficulty =
+      (problem as any).difficulty ??
+      (problem as any).level ??
+      (problem as any).difficulty_level ??
+      (problem as any).difficultyLevel ??
+      (problem as any).difficulty_name ??
+      (problem as any).difficultyName;
 
-  if (!problems.length) {
+    if (!rawDifficulty) {
+      return null;
+    }
+
+    const displayDifficulty = String(rawDifficulty).replace(/^Lv\.\s*/i, '');
+    const level = Number(displayDifficulty);
+    let badgeClass = 'bg-slate-100 text-slate-700'; // Default
+    let label = `Lv.${displayDifficulty}`;
+
+    if (!Number.isNaN(level)) {
+      if (level === 1) { badgeClass = 'bg-green-100 text-green-700 text-green-800'; label = 'Easy'; }
+      else if (level <= 3) { badgeClass = 'bg-orange-100 text-yellow-800'; label = 'Medium'; }
+      else { badgeClass = 'bg-red-100 text-red-800'; label = 'Hard'; }
+    }
+
     return (
-      <div className="text-center py-8">
-        <div className="text-gray-600 text-lg">이 문제집에는 아직 문제가 없습니다.</div>
+      <span className={`inline-flex min-w-[70px] justify-center items-center rounded-full px-3 py-1 text-xs font-bold ${badgeClass}`}>
+        {label}
+      </span>
+    );
+  };
+
+  const getAccuracyString = (problem: Problem) => {
+    if (problem.acceptedNumber && problem.submissionNumber) {
+      const acc = Math.round((problem.acceptedNumber / problem.submissionNumber) * 100);
+      return `정답률 ${acc}%`;
+    }
+    return `정답률 0%`;
+  };
+
+  if (problems.length === 0) {
+    return (
+      <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
+        <div className="text-gray-600 text-lg mb-4">문제가 없습니다</div>
+        <p className="text-gray-500">다른 조건을 선택해보세요.</p>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-        <div className="grid grid-cols-12 gap-4 text-sm font-medium text-gray-500 uppercase tracking-wider">
-          <div className="col-span-1 text-center">순서</div>
-          <div className="col-span-5">문제</div>
-          <div className="col-span-2 text-center">난이도</div>
-          <div className="col-span-2 text-center">시간 / 메모리</div>
-          <div className="col-span-2 text-center">액션</div>
-        </div>
-      </div>
-      <div className="divide-y divide-gray-200">
-        {problems.map((item, index) => {
-          const problem = item.problem;
-          if (!problem) {
-            return null;
-          }
-
-          const displayOrder = index + 1;
-          const externalId = String(
-            (problem as any)._id ?? problem._id ?? problem.displayId ?? problem.id ?? '',
-          ).trim();
+    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
+      <div className="divide-y divide-gray-100">
+        {problems.map((problem, index) => {
+          // get top 2 tags maximum
+          const displayTags = problem.tags ? problem.tags.slice(0, 2) : [];
+          const key = String(problem.displayId ?? problem.id);
 
           return (
             <div
-              key={item.id ?? `${externalId || problem.id}-${index}`}
-              className="px-6 py-4 hover:bg-gray-50 transition-colors"
+              key={key}
+              onClick={() => onProblemClick(key)}
+              className="flex items-center px-6 py-5 hover:bg-gray-50 transition-colors cursor-pointer group"
             >
-              <div className="grid grid-cols-12 gap-4 items-center">
-                <div className="col-span-1 text-sm font-medium text-gray-900 text-center">
-                  {displayOrder}
+              {/* Status Icon */}
+              <div className="flex-shrink-0 mr-4">
+                {getStatusIcon(problem)}
+              </div>
+
+              {/* Problem Info */}
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base font-bold text-gray-900 group-hover:text-blue-600 truncate mb-1.5 flex items-center gap-2">
+                  <span>{index + 1}.</span> {problem.title}
+                </h3>
+
+                <div className="flex items-center gap-3 text-[13px] text-gray-500">
+                  {/* Tags */}
+                  {displayTags.length > 0 && (
+                    <>
+                      <div className="flex gap-1.5">
+                        {displayTags.map(tag => (
+                          <span key={tag} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded whitespace-nowrap font-medium">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+                      <span className="text-gray-300">|</span>
+                    </>
+                  )}
+                  {/* Accuracy */}
+                  <span className="font-medium">{getAccuracyString(problem)}</span>
                 </div>
-                <div className="col-span-5">
-                  <button
-                    type="button"
-                    className="text-left text-sm font-medium text-blue-600 hover:underline"
-                    onClick={() => {
-                      if (!externalId) return;
-                      onProblemClick?.(externalId);
-                    }}
-                  >
-                    {problem.title}
-                  </button>
-                  <p className="text-xs text-gray-500 line-clamp-2 mt-1">
-                    {problem.description?.replace(/<[^>]*>/g, '') || '설명이 없습니다.'}
-                  </p>
-                </div>
-                <div className="col-span-2 text-center">
-                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getDifficultyColor(problem.difficulty)}`}>
-                    {getDifficultyText(problem.difficulty)}
-                  </span>
-                </div>
-                <div className="col-span-2 text-sm text-gray-500 text-center">
-                  {problem.timeLimit ?? 0}ms / {problem.memoryLimit ?? 0}MB
-                </div>
-                <div className="col-span-2 flex justify-center">
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    className="px-4"
-                    onClick={() => {
-                      if (!externalId) return;
-                      onSolve?.(externalId);
-                    }}
-                  >
-                    풀기
-                  </Button>
-                </div>
+              </div>
+
+              {/* Difficulty Badge */}
+              <div className="flex-shrink-0 ml-4">
+                {renderDifficultyBadge(problem)}
               </div>
             </div>
           );

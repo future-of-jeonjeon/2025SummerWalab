@@ -14,7 +14,6 @@ interface ProblemListProps {
   onSortChange?: (field: 'number' | 'title' | 'submission' | 'accuracy') => void;
   sortField?: 'number' | 'title' | 'submission' | 'accuracy';
   sortOrder?: 'asc' | 'desc';
-  primarySortField?: 'number' | 'title';
   showStatus?: boolean;
   showStats?: boolean;
   getRowNumber?: (problem: Problem, index: number) => number;
@@ -30,7 +29,6 @@ export const ProblemList: React.FC<ProblemListProps> = ({
   onSortChange,
   sortField,
   sortOrder,
-  primarySortField = 'number',
 }) => {
   const renderSortableHeader = (
     label: string,
@@ -109,7 +107,8 @@ export const ProblemList: React.FC<ProblemListProps> = ({
       return <span className="text-sm text-gray-400">-</span>;
     }
 
-    const level = Number(rawDifficulty);
+    const displayDifficulty = String(rawDifficulty).replace(/^Lv\.\s*/i, '');
+    const level = Number(displayDifficulty);
     let badgeClass = 'bg-slate-100 text-slate-700'; // Default
 
     if (!Number.isNaN(level)) {
@@ -122,7 +121,7 @@ export const ProblemList: React.FC<ProblemListProps> = ({
 
     return (
       <span className={`inline-flex items-center justify-center rounded-md px-2.5 py-1 text-xs font-bold ${badgeClass}`}>
-        Lv.{rawDifficulty}
+        Lv.{displayDifficulty}
       </span>
     );
   };
@@ -163,31 +162,12 @@ export const ProblemList: React.FC<ProblemListProps> = ({
     <div className="space-y-6">
       <div className="bg-white rounded-lg shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
-          <div className="grid grid-cols-[60px_minmax(0,1fr)_100px_100px_100px] items-center gap-4">
-            {primarySortField === 'title' ? (
-              <>
-                <div className="flex h-full items-center justify-center text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
-                  #
-                </div>
-                <div className="flex h-full items-center">
-                  {renderSortableHeader('제목', 'title', 'left')}
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="flex h-full items-center justify-center">
-                  {renderSortableHeader('#', 'number')}
-                </div>
-                <div className="flex h-full items-center text-left text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
-                  제목
-                </div>
-              </>
-            )}
+          <div className="grid grid-cols-[minmax(0,1fr)_100px_100px] items-center gap-4">
+            <div className="flex h-full items-center">
+              {renderSortableHeader('제목', 'title', 'left')}
+            </div>
             <div className="flex h-full items-center justify-center text-sm font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">
               난이도
-            </div>
-            <div className="flex h-full items-center justify-end">
-              {renderSortableHeader('해결', 'submission', 'right')}
             </div>
             <div className="flex h-full items-center justify-end">
               {renderSortableHeader('정답률', 'accuracy', 'right')}
@@ -195,20 +175,15 @@ export const ProblemList: React.FC<ProblemListProps> = ({
           </div>
         </div>
         <div className="divide-y divide-gray-200">
-          {problems.map((problem, index) => {
+          {problems.map((problem) => {
             const badge = getStatusBadge(problem);
-            // Use sequential index (1-based)
-            const displayIndex = (currentPage - 1) * 6 + index + 1;
 
             return (
               <div
                 key={problem.id}
                 className="px-6 py-4 transition-colors hover:bg-gray-50 hover:shadow-sm"
               >
-                <div className="grid grid-cols-[60px_minmax(0,1fr)_100px_100px_100px] items-center gap-4">
-                  <div className="flex h-full items-center justify-center text-sm font-medium text-gray-400">
-                    {displayIndex}
-                  </div>
+                <div className="grid grid-cols-[minmax(0,1fr)_100px_100px] items-center gap-4">
                   <div className="flex h-full items-center justify-start gap-2 text-left">
                     <button
                       type="button"
@@ -233,9 +208,6 @@ export const ProblemList: React.FC<ProblemListProps> = ({
                     {renderDifficultyBadge(problem)}
                   </div>
                   <div className="flex h-full items-center justify-end text-sm text-gray-600 font-medium">
-                    {problem.acceptedNumber ?? 0}
-                  </div>
-                  <div className="flex h-full items-center justify-end text-sm text-gray-600 font-medium">
                     {problem.acceptedNumber && problem.submissionNumber
                       ? `${Math.round((problem.acceptedNumber / problem.submissionNumber) * 100)}%`
                       : '0%'
@@ -246,71 +218,86 @@ export const ProblemList: React.FC<ProblemListProps> = ({
             );
           })}
         </div>
-      </div>
 
-      {/* 페이지네이션 */}
-      {totalPages > 1 && onPageChange && (
-        <div className="flex justify-center items-center space-x-2 mt-8">
-          <Button
-            onClick={() => onPageChange(1)}
-            disabled={currentPage <= 1}
-            className="px-4 py-2 rounded-lg text-white bg-slate-500 hover:bg-slate-600 disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            처음
-          </Button>
-          <Button
-            onClick={() => onPageChange(currentPage - 1)}
-            disabled={currentPage <= 1}
-            className="px-4 py-2 rounded-lg text-white bg-slate-500 hover:bg-slate-600 disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            이전
-          </Button>
+        {/* 페이지네이션 */}
+        {totalPages > 0 && onPageChange && (
+          <div className="flex items-center justify-between p-4 bg-white border-t border-gray-200">
+            <Button
+              onClick={() => onPageChange(currentPage - 1)}
+              disabled={currentPage <= 1}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              이전
+            </Button>
 
-          <div className="flex space-x-1">
-            {(() => {
-              const windowSize = Math.min(5, totalPages);
-              const halfWindow = Math.floor(windowSize / 2);
-              let start = currentPage - halfWindow;
-              if (start < 1) {
-                start = 1;
-              }
-              const end = Math.min(totalPages, start + windowSize - 1);
-              if (end - start + 1 < windowSize) {
-                start = Math.max(1, end - windowSize + 1);
-              }
-              return Array.from({ length: end - start + 1 }, (_, idx) => start + idx);
-            })().map((page) => {
-              return (
-                <Button
-                  key={page}
-                  onClick={() => onPageChange(page)}
-                  className={`px-3 py-2 rounded-lg font-semibold ${currentPage === page
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-300 border border-slate-400 text-slate-800 hover:border-blue-500'
-                    }`}
-                >
-                  {page}
-                </Button>
-              );
-            })}
+            <div className="flex hidden sm:flex space-x-1 sm:space-x-2">
+              {(() => {
+                // 화면 중앙에 보여줄 페이지 번호 개수 (ex: 5개)
+                const maxVisible = 5;
+                let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+                let end = start + maxVisible - 1;
+
+                if (end > totalPages) {
+                  end = totalPages;
+                  start = Math.max(1, end - maxVisible + 1);
+                }
+
+                const renderPage = (page: number) => (
+                  <Button
+                    key={page}
+                    onClick={() => onPageChange(page)}
+                    className={`min-w-[36px] px-3 py-2 rounded-lg text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${currentPage === page
+                      ? 'bg-blue-600 text-white border border-blue-600 hover:bg-blue-700'
+                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                      }`}
+                  >
+                    {page}
+                  </Button>
+                );
+
+                const items = [];
+
+                if (start > 1) {
+                  items.push(renderPage(1));
+                  if (start > 2) {
+                    items.push(<span key="start-dots" className="px-2 py-2 text-gray-500">...</span>);
+                  }
+                }
+
+                for (let i = start; i <= end; i++) {
+                  items.push(renderPage(i));
+                }
+
+                if (end < totalPages) {
+                  if (end < totalPages - 1) {
+                    items.push(<span key="end-dots" className="px-2 py-2 text-gray-500">...</span>);
+                  }
+                  items.push(renderPage(totalPages));
+                }
+
+                if (items.length === 0 && totalPages > 0) {
+                  items.push(renderPage(1));
+                }
+
+                return items;
+              })()}
+            </div>
+
+            {/* 모바일 환경에서는 페이지 번호를 줄여서 보여줌 */}
+            <div className="sm:hidden text-sm text-gray-600 font-medium">
+              {currentPage} / {totalPages}
+            </div>
+
+            <Button
+              onClick={() => onPageChange(currentPage + 1)}
+              disabled={currentPage >= totalPages}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              다음
+            </Button>
           </div>
-
-          <Button
-            onClick={() => onPageChange(currentPage + 1)}
-            disabled={currentPage >= totalPages}
-            className="px-4 py-2 rounded-lg text-white bg-slate-500 hover:bg-slate-600 disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            다음
-          </Button>
-          <Button
-            onClick={() => onPageChange(totalPages)}
-            disabled={currentPage >= totalPages}
-            className="px-4 py-2 rounded-lg text-white bg-slate-500 hover:bg-slate-600 disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            마지막
-          </Button>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 };

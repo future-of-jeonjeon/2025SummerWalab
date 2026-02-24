@@ -1,9 +1,8 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
-import { Card } from '../components/atoms/Card';
 import { Button } from '../components/atoms/Button';
-import { ProblemList } from '../components/organisms/ProblemList';
+import { WorkbookProblemList } from '../components/organisms/WorkbookProblemList';
 import { useWorkbook, useWorkbookProblems } from '../hooks/useWorkbooks';
 import { Problem } from '../types';
 import { problemService } from '../services/problemService';
@@ -17,11 +16,8 @@ export const WorkbookDetailPage: React.FC = () => {
 
   const { data: workbook, isLoading: workbookLoading, error: workbookError } = useWorkbook(workbookId);
   const { data: problemsData, isLoading: problemsLoading, error: problemsError } = useWorkbookProblems(workbookId);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchField, setSearchField] = useState<'title' | 'tag' | 'number'>('title');
-  const [sortField, setSortField] = useState<'number' | 'submission' | 'accuracy'>('number');
-  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [statusFilter, setStatusFilter] = useState<'all' | ProblemStatusKey>('all');
+  const [difficultyFilter, setDifficultyFilter] = useState<string>('all'); // Added for dropdown
 
   const getProblemExternalId = useCallback((problem: Problem | undefined): string | undefined => {
     if (!problem) return undefined;
@@ -51,15 +47,14 @@ export const WorkbookDetailPage: React.FC = () => {
     navigate('/workbooks');
   };
 
-  const formatDate = (value?: string) => {
+  const formatDateWithDots = (value?: string) => {
     if (!value) return '-';
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return value;
-    return date.toLocaleDateString('ko-KR', {
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
+    const yyyy = date.getFullYear();
+    const mm = String(date.getMonth() + 1).padStart(2, '0');
+    const dd = String(date.getDate()).padStart(2, '0');
+    return `${yyyy}.${mm}.${dd}`;
   };
 
   const getErrorMessage = (error: unknown) => {
@@ -110,73 +105,47 @@ export const WorkbookDetailPage: React.FC = () => {
   }, [getProblemExternalId, normalizedProblems, statusMap]);
 
   const processedProblems = useMemo(() => {
-    const query = searchQuery.trim().toLowerCase();
-
-    const matchesSearch = (problem: Problem) => {
-      if (!query) return true;
-      if (searchField === 'tag') {
-        return (problem.tags ?? []).some((tag) => tag.toLowerCase().includes(query));
-      }
-      if (searchField === 'number') {
-        const identifier = (problem.displayId ?? (problem as any)._id ?? problem.id ?? '').toString().toLowerCase();
-        return identifier.includes(query);
-      }
-      return problem.title.toLowerCase().includes(query);
-    };
-
-    const safeNumber = (value: unknown) => {
-      const numeric = Number(value);
-      return Number.isNaN(numeric) ? null : numeric;
-    };
-
-    const getProblemNumber = (problem: Problem) => {
-      const raw = (problem.displayId ?? (problem as any)._id ?? problem.id ?? '').toString();
-      const numericOnly = raw.replace(/[^0-9]/g, '');
-      return {
-        numeric: numericOnly ? safeNumber(numericOnly) : null,
-        raw,
-      };
-    };
-
-    const getAccuracy = (problem: Problem) => {
-      const submissions = Number(problem.submissionNumber ?? 0);
-      const accepted = Number(problem.acceptedNumber ?? 0);
-      if (!submissions) return 0;
-      return accepted / submissions;
-    };
-
     const matchesStatusFilter = (problem: Problem) => {
       const status = resolveProblemStatus(problem);
       if (statusFilter === 'all') return true;
       return status === statusFilter;
     };
 
-    const filtered = enrichedProblems.filter(matchesSearch).filter(matchesStatusFilter);
+    const matchesDifficultyFilter = (problem: Problem) => {
+      if (difficultyFilter === 'all') return true;
+      const rawDifficulty =
+        (problem as any).difficulty ??
+        (problem as any).level ??
+        (problem as any).difficulty_level ??
+        (problem as any).difficultyLevel ??
+        (problem as any).difficulty_name ??
+        (problem as any).difficultyName;
+      if (!rawDifficulty) return false;
+      const displayDifficulty = String(rawDifficulty).replace(/^Lv\.\s*/i, '');
+      const level = Number(displayDifficulty);
+      if (Number.isNaN(level)) return false;
 
-    const sorted = [...filtered].sort((a, b) => {
-      let result = 0;
-      if (sortField === 'submission') {
-        result = (a.submissionNumber ?? 0) - (b.submissionNumber ?? 0);
-      } else if (sortField === 'accuracy') {
-        result = getAccuracy(a) - getAccuracy(b);
-      } else {
-        const aNum = getProblemNumber(a);
-        const bNum = getProblemNumber(b);
-        if (typeof aNum.numeric === 'number' && typeof bNum.numeric === 'number') {
-          result = aNum.numeric - bNum.numeric;
-        } else if (typeof aNum.numeric === 'number') {
-          result = -1;
-        } else if (typeof bNum.numeric === 'number') {
-          result = 1;
-        } else {
-          result = aNum.raw.localeCompare(bNum.raw, undefined, { numeric: true, sensitivity: 'base' });
-        }
-      }
-      return sortOrder === 'desc' ? -result : result;
-    });
+      if (difficultyFilter === 'easy') return level === 1;
+      if (difficultyFilter === 'medium') return level === 2 || level === 3;
+      if (difficultyFilter === 'hard') return level >= 4;
+      return true;
+    };
 
-    return sorted;
-  }, [enrichedProblems, searchQuery, searchField, sortField, sortOrder, statusFilter]);
+    const filtered = enrichedProblems
+      .filter(matchesStatusFilter)
+      .filter(matchesDifficultyFilter);
+
+    // Keep original ordering for now (which usually is problem order in the workbook)
+    return filtered;
+  }, [enrichedProblems, statusFilter, difficultyFilter]);
+
+  const totalProblemCount = workbook?.problemCount ?? problems.length;
+
+  const solvedCount = useMemo(() => {
+    return enrichedProblems.filter(p => resolveProblemStatus(p) === 'solved').length;
+  }, [enrichedProblems]);
+
+  const progressPercentage = totalProblemCount > 0 ? Math.round((solvedCount / totalProblemCount) * 100) : 0;
 
   if (workbookLoading) {
     return (
@@ -196,7 +165,7 @@ export const WorkbookDetailPage: React.FC = () => {
           variant="outline"
           size="sm"
           onClick={handleBackClick}
-          className="h-9 w-9 rounded-full border-slate-300 px-0 py-0 text-lg text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
+          className="h-9 w-9 rounded-full border-slate-300 px-0 py-0 text-lg text-slate-600 hover:bg-slate-100"
         >
           <span aria-hidden="true">←</span>
           <span className="sr-only">문제집 목록으로 돌아가기</span>
@@ -205,193 +174,138 @@ export const WorkbookDetailPage: React.FC = () => {
     );
   }
 
-  const handleSearchChange = (query: string) => {
-    setSearchQuery(query);
-  };
-
-  const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setSearchQuery((prev) => prev.trim());
-  };
-
-  const handleSearchFieldChange = (value: string) => {
-    const field = (value || 'title') as typeof searchField;
-    setSearchField(field);
-  };
-
-  const handleSortToggle = (field: 'number' | 'submission' | 'accuracy' | 'title') => {
-    const normalizedField: typeof sortField = field === 'title' ? 'number' : field;
-    setSortOrder((prevOrder) => {
-      if (sortField === normalizedField) {
-        return prevOrder === 'asc' ? 'desc' : 'asc';
-      }
-      return 'asc';
-    });
-    setSortField(normalizedField);
-  };
-
-  const handleResetFilters = () => {
-    setSearchQuery('');
-    setSearchField('title');
-    setSortField('number');
-    setSortOrder('asc');
-    setStatusFilter('all');
-  };
-
-  const handleStatusFilterChange = (value: string) => {
+  const handleStatusFilterChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    const value = event.target.value;
     if (value === 'all') {
       setStatusFilter('all');
-      return;
-    }
-    if (isProblemStatusKey(value)) {
+    } else if (isProblemStatusKey(value)) {
       setStatusFilter(value);
-    } else {
-      setStatusFilter('all');
     }
   };
 
-
-  const totalProblemCount = workbook.problemCount ?? problems.length;
-
+  const handleDifficultyFilterChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
+    setDifficultyFilter(event.target.value);
+  };
 
   return (
-    <div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 py-8 space-y-8">
-      <Card className="border-0 bg-white p-6 shadow-md dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:gap-4">
-          <div className="flex-shrink-0">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleBackClick}
-              className="h-9 w-9 rounded-full border-slate-300 px-0 py-0 text-lg text-slate-600 hover:bg-slate-100 dark:border-slate-600 dark:text-slate-200 dark:hover:bg-slate-800"
-            >
-              <span aria-hidden="true">←</span>
-              <span className="sr-only">문제집 목록으로 돌아가기</span>
-            </Button>
-          </div>
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
-          <div className="flex-1 space-y-4 lg:pl-6">
-            <div className="flex flex-wrap items-center gap-3">
-              <h1 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-slate-100">
-                {workbook.title}
-              </h1>
-              {workbook.category && (
-                <span className="rounded-full bg-blue-50 px-3 py-1 text-sm font-medium text-blue-600 dark:bg-slate-800 dark:text-blue-300">
-                  {workbook.category}
-                </span>
-              )}
+        {/* Navigation Breadcrumb */}
+        <nav className="flex text-sm text-gray-500">
+          <span className="cursor-pointer hover:text-gray-900" onClick={() => navigate('/workbooks')}>Workbooks</span>
+          <span className="mx-2">/</span>
+          <span className="text-gray-900 font-medium truncate">{workbook.title}</span>
+        </nav>
+
+        {/* 1. Header Card */}
+        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden relative">
+          <div className="p-8 sm:p-10">
+            {/* Tags */}
+            <div className="flex items-center gap-2 mb-4">
+              <span className="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-extrabold tracking-wide uppercase rounded-full">
+                OFFICIAL
+              </span>
+              <span className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-bold rounded-full">
+                {workbook.category || '기본 커리큘럼'}
+              </span>
             </div>
 
-            <div className="text-sm leading-relaxed text-slate-600 dark:text-slate-300">
-              {workbook.description ? (
-                <div dangerouslySetInnerHTML={{ __html: workbook.description }} />
-              ) : (
-                <p>문제집 소개가 아직 등록되지 않았습니다.</p>
-              )}
-            </div>
-          </div>
+            <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-10 lg:gap-16">
+              <div className="max-w-3xl flex-1">
+                {/* Title */}
+                <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-4 tracking-tight">
+                  {workbook.title}
+                </h1>
 
-          <div className="w-full lg:w-[300px]">
-            <Card
-              padding="md"
-              shadow="sm"
-              className="border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800"
-            >
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center justify-between gap-6">
-                  <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">문제 수</span>
-                  <span className="text-base font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap">
-                    {totalProblemCount}문제
-                  </span>
+                {/* Description */}
+                <div className="text-[15px] text-gray-600 mb-6 leading-relaxed max-w-2xl">
+                  {workbook.description ? (
+                    <div dangerouslySetInnerHTML={{ __html: workbook.description }} />
+                  ) : (
+                    <p>이 문제집에 대한 설명이 없습니다.</p>
+                  )}
                 </div>
-                <div className="flex items-center justify-between gap-6">
-                  <span className="text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-slate-400">생성일</span>
-                  <span className="text-base font-semibold text-slate-900 dark:text-slate-100 whitespace-nowrap">
-                    {formatDate(workbook.created_at)}
-                  </span>
+
+                {/* Meta Info */}
+                <div className="flex items-center gap-6 text-sm text-gray-500 font-medium mb-4 lg:mb-0">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                    최종 업데이트: {formatDateWithDots(workbook.updated_at || workbook.created_at)}
+                  </div>
                 </div>
               </div>
-            </Card>
+
+              {/* Progress Bar Area - Right side */}
+              <div className="w-full lg:w-[350px] flex-shrink-0">
+                <div className="flex justify-between items-end mb-2">
+                  <div className="text-[13px] font-medium text-gray-500">전체 진행률</div>
+                  <div className="text-3xl font-extrabold text-blue-600 leading-none">{progressPercentage}%</div>
+                </div>
+                <div className="text-[15px] font-bold text-gray-900 mb-3">
+                  {solvedCount} / {totalProblemCount} 문제 완료
+                </div>
+                <div className="w-full bg-gray-100 rounded-full h-3.5 overflow-hidden">
+                  <div
+                    className="bg-blue-500 h-3.5 rounded-full transition-all duration-500 ease-out"
+                    style={{ width: `${progressPercentage}%` }}
+                  ></div>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
-      </Card>
 
-      <Card className="border-0 bg-white p-6 shadow-lg dark:border-slate-800 dark:bg-slate-900">
+        {/* 2. Problem List Header & Filters */}
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mt-8 mb-4">
+          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+            <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2h-1.5v-2.5a1.5 1.5 0 00-1.5-1.5h-2a1.5 1.5 0 00-1.5 1.5V18H6a2 2 0 01-2-2V4z" /></svg>
+            문제 목록
+          </h2>
+
+          <div className="flex items-center gap-2.5">
+            <select
+              value={difficultyFilter}
+              onChange={handleDifficultyFilterChange}
+              className="rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 hover:bg-gray-50 cursor-pointer shadow-sm min-w-[120px]"
+            >
+              <option value="all">모든 난이도</option>
+              <option value="easy">Easy (Lv 1)</option>
+              <option value="medium">Medium (Lv 2-3)</option>
+              <option value="hard">Hard (Lv 4+)</option>
+            </select>
+
+            <select
+              value={statusFilter}
+              onChange={handleStatusFilterChange}
+              className="rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 hover:bg-gray-50 cursor-pointer shadow-sm min-w-[120px]"
+            >
+              <option value="all">해결 상태</option>
+              <option value="solved">{PROBLEM_STATUS_LABELS.solved}</option>
+              <option value="wrong">{PROBLEM_STATUS_LABELS.wrong}</option>
+              <option value="untouched">{PROBLEM_STATUS_LABELS.untouched}</option>
+            </select>
+          </div>
+        </div>
+
+        {/* 3. Problem List Component */}
         {problemsLoading || statusLoading ? (
-          <div className="flex h-32 items-center justify-center">
+          <div className="flex h-32 items-center justify-center bg-white rounded-xl border border-gray-200">
             <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
           </div>
         ) : problemsError ? (
-          <div className="text-center py-8">
-            <div className="text-red-600 dark:text-red-400 mb-2">문제 목록을 불러오는 중 오류가 발생했습니다.</div>
-            <p className="text-sm text-slate-600 dark:text-slate-300">{getErrorMessage(problemsError)}</p>
+          <div className="text-center py-8 bg-white rounded-xl border border-gray-200">
+            <div className="text-red-500 font-medium mb-2">문제 목록을 불러오는 중 오류가 발생했습니다.</div>
+            <p className="text-sm text-gray-500">{getErrorMessage(problemsError)}</p>
           </div>
         ) : (
-          <div className="space-y-6">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end sm:gap-3 lg:ml-auto lg:w-auto">
-              <form onSubmit={handleSearchSubmit} className="flex w-full sm:w-auto sm:min-w-[320px]">
-                <label htmlFor="workbook-problem-search" className="sr-only">문제 검색</label>
-                <input
-                  id="workbook-problem-search"
-                  type="search"
-                  value={searchQuery}
-                  onChange={(event) => handleSearchChange(event.target.value)}
-                  placeholder="문제 검색..."
-                  className="w-full rounded-l-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                <select
-                  value={searchField}
-                  onChange={(event) => handleSearchFieldChange(event.target.value)}
-                  className="w-28 border-y border-r border-gray-300 bg-white px-2 text-sm font-medium text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  <option value="title">제목</option>
-                  <option value="tag">태그</option>
-                  <option value="number">번호</option>
-                </select>
-                <button
-                  type="submit"
-                  className="min-w-[60px] rounded-r-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white text-center shadow-sm transition hover:bg-blue-700"
-                >
-                  검색
-                </button>
-              </form>
-              <div className="flex w-full justify-end sm:w-auto sm:items-center sm:gap-2">
-                <label htmlFor="workbook-status-filter" className="sr-only">문제 상태 필터</label>
-                <select
-                  id="workbook-status-filter"
-                  value={statusFilter}
-                  onChange={(event) => handleStatusFilterChange(event.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-28"
-                >
-                  <option value="all">전체</option>
-                  <option value="untouched">{PROBLEM_STATUS_LABELS.untouched}</option>
-                  <option value="solved">{PROBLEM_STATUS_LABELS.solved}</option>
-                  <option value="wrong">{PROBLEM_STATUS_LABELS.wrong}</option>
-                </select>
-                <button
-                  type="button"
-                  onClick={handleResetFilters}
-                  className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 text-center shadow-sm transition hover:border-blue-400 hover:text-blue-600"
-                >
-                  초기화
-                </button>
-              </div>
-            </div>
-
-            <ProblemList
-              problems={processedProblems}
-              onProblemClick={handleProblemClick}
-              isLoading={false}
-              totalPages={1}
-              currentPage={1}
-              showStats
-              showStatus
-              onSortChange={handleSortToggle}
-              sortField={sortField}
-              sortOrder={sortOrder}
-            />
-          </div>
+          <WorkbookProblemList
+            problems={processedProblems}
+            onProblemClick={handleProblemClick}
+          />
         )}
-      </Card>
+
+      </div>
     </div>
   );
 };

@@ -150,6 +150,7 @@ export interface ContestRankEntry {
     realName?: string;
     studentId?: string;
   };
+  rank?: number;
   acceptedNumber?: number;
   submissionNumber?: number;
   totalTime?: number;
@@ -194,6 +195,7 @@ export interface Workbook {
   updated_at: string;
   is_public: boolean;
   problemCount?: number;
+  tags?: string[];
 }
 
 export interface WorkbookProblem {
@@ -288,6 +290,7 @@ export interface LanguageOption {
 // 필터 관련 타입
 export interface ProblemFilter {
   difficulty?: 'Low' | 'Mid' | 'High' | '상' | '중' | '하';
+  difficultyLevel?: number;
   search?: string;
   page?: number;
   limit?: number;

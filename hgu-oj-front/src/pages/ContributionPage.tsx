@@ -96,14 +96,14 @@ export const ContributionPage: React.FC = () => {
 
                 {/* Mobile Nav Placeholder */}
                 <div className="md:hidden mb-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
-                    <span className="font-bold">기여 관리</span>
+                    <span className="font-bold">기여</span>
                 </div>
 
                 {/* Sidebar */}
                 <div className="w-full md:w-64 flex-shrink-0">
                     <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden sticky top-24">
                         <div className="p-6 border-b border-gray-100 bg-gray-50">
-                            <h2 className="text-lg font-bold text-gray-900">기여 관리</h2>
+                            <h2 className="text-lg font-bold text-gray-900">기여</h2>
                         </div>
                         <nav className="p-2 space-y-1">
                             <button
@@ -137,9 +137,10 @@ export const ContributionPage: React.FC = () => {
                 {/* Main Content */}
                 <div className="flex-1 min-w-0">
                     <div className="mb-10">
-                        <nav className="text-sm text-gray-500 mb-2">
-                            <span className="cursor-pointer" onClick={() => navigate('/')}>Home</span> &gt;
-                            <span className="font-medium text-gray-900"> Contribution</span>
+                        <nav className="flex text-sm text-gray-500 mb-2">
+                            <span className="cursor-pointer hover:text-gray-900" onClick={() => navigate('/contribution')}>Contribute</span>
+                            <span className="mx-2">/</span>
+                            <span className="font-medium text-gray-900">{activeTab === 'problems' ? 'Problem' : 'Workbook'}</span>
                         </nav>
                         <h1 className="text-3xl font-extrabold text-gray-900">
                             {activeTab === 'problems' ? '문제 등록' : '문제집 등록'}

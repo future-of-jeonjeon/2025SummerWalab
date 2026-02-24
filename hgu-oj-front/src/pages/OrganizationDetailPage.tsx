@@ -45,7 +45,7 @@ export const OrganizationDetailPage: React.FC = () => {
 
     if (error || !organization) {
         return (
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+            <div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 py-12">
                 <div className="bg-white p-8 rounded-lg shadow-sm text-center">
                     <div className="text-red-500 text-lg mb-4">{error || '단체를 찾을 수 없습니다.'}</div>
                     <Button onClick={() => navigate('/organizations')}>
@@ -61,7 +61,7 @@ export const OrganizationDetailPage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 py-8">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10">
 
                 {/* Navigation Breadcrumb */}
                 <nav className="flex mb-6 text-sm text-gray-500">
@@ -108,35 +108,7 @@ export const OrganizationDetailPage: React.FC = () => {
                     </div>
                 </div>
 
-                {/* Stats Grid */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between h-32">
-                        <div className="text-gray-500 font-medium text-sm">총 멤버</div>
-                        <div className="flex items-end justify-between">
-                            <div className="text-4xl font-extrabold text-gray-900">{organization.members?.length || 0}</div>
-                        </div>
-                    </div>
 
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between h-32">
-                        <div className="text-gray-500 font-medium text-sm">진행 중인 대회</div>
-                        <div className="flex items-end justify-between">
-                            <div className="text-4xl font-extrabold text-gray-900">0</div>
-                            <div className="text-gray-400 text-xs mb-1">Coming Soon</div>
-                        </div>
-                    </div>
-
-                    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex flex-col justify-between h-32">
-                        <div className="text-gray-500 font-medium text-sm">해결된 문제 수</div>
-                        <div className="flex items-end justify-between">
-                            <div className="text-4xl font-extrabold text-gray-900">0</div>
-                            <div className="text-blue-500 h-6 w-6">
-                                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                            </div>
-                        </div>
-                    </div>
-                </div>
 
                 {/* Members Section */}
                 <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">

@@ -105,16 +105,13 @@ export const useAuthStore = create<AuthState & AuthActions>()(
 
         try {
           // 1. Online Judge 로그인
-          console.log('Starting login process...');
           const loginResponse = await authService.login({
             username,
             password,
             tfa_code: tfaCode,
           });
 
-          console.log('Login response received:', loginResponse);
           if (!loginResponse.success) {
-            console.log('Login failed:', loginResponse.message);
             set({ error: loginResponse.message || '로그인에 실패했습니다.', isLoading: false });
             return false;
           }
@@ -149,11 +146,9 @@ export const useAuthStore = create<AuthState & AuthActions>()(
 
         try {
           // 1. Google Login Callback
-          console.log('Starting Google login process...');
           const loginResponse = await authService.googleLoginCallback(code);
 
           if (!loginResponse.success) {
-            console.log('Google login failed:', loginResponse.message);
             set({ error: loginResponse.message || 'Google 로그인에 실패했습니다.', isLoading: false });
             return false;
           }

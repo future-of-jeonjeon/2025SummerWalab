@@ -75,7 +75,6 @@ export const OrganizationJoinPage: React.FC = () => {
 
     const handleDecline = async () => {
         if (code) {
-            console.log(`Declining invite code: ${code}`);
             // TODO: Call backend to remove redis key
             // await organizationService.declineInvite(code);
         }

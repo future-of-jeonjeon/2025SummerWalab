@@ -1,55 +1,31 @@
-export type NormalizedDifficulty = 'LOW' | 'MID' | 'HIGH';
+export type NormalizedDifficulty = 0 | 1 | 2 | 3 | 4;
 
 const DIFFICULTY_LABELS: Record<NormalizedDifficulty, string> = {
-  HIGH: '상',
-  MID: '중',
-  LOW: '하',
+  0: 'Lv.0',
+  1: 'Lv.1',
+  2: 'Lv.2',
+  3: 'Lv.3',
+  4: 'Lv.4',
 };
 
 const DIFFICULTY_BADGE_CLASSES: Record<NormalizedDifficulty, string> = {
-  HIGH: 'bg-rose-100 text-rose-700 border border-rose-200',
-  MID: 'bg-amber-100 text-amber-700 border border-amber-200',
-  LOW: 'bg-emerald-100 text-emerald-700 border border-emerald-200',
+  0: 'bg-slate-100 text-slate-800 border border-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700',
+  1: 'bg-blue-100 text-blue-800 border border-blue-200 dark:bg-blue-500/10 dark:text-blue-400 dark:border-blue-500/30',
+  2: 'bg-emerald-100 text-emerald-800 border border-emerald-200 dark:bg-emerald-500/10 dark:text-emerald-400 dark:border-emerald-500/30',
+  3: 'bg-orange-100 text-orange-800 border border-orange-200 dark:bg-orange-500/10 dark:text-orange-400 dark:border-orange-500/30',
+  4: 'bg-red-100 text-red-800 border border-red-200 dark:bg-red-500/10 dark:text-red-400 dark:border-red-500/30',
 };
 
 const isNumericString = (value: string): boolean => /^[0-9]+$/.test(value);
 
 const mapNumberToDifficulty = (value: number): NormalizedDifficulty | null => {
   if (Number.isNaN(value)) return null;
-  if (value >= 3) return 'HIGH';
-  if (value === 2) return 'MID';
-  if (value <= 1) return 'LOW';
-  return null;
+  if (value >= 4) return 4;
+  if (value === 3) return 3;
+  if (value === 2) return 2;
+  if (value === 1) return 1;
+  return 0; // Default to 0 for 0 or negative
 };
-
-export function mapDifficulty(value: string | number | undefined | null): string {
-  if (value === undefined || value === null || value === '') return '-';
-  const raw = typeof value === 'number' ? value : String(value).trim();
-
-  if (typeof raw === 'number') {
-    const mapped = mapNumberToDifficulty(raw);
-    return mapped ? DIFFICULTY_LABELS[mapped] : '-';
-  }
-
-  if (isNumericString(raw)) {
-    const mapped = mapNumberToDifficulty(Number(raw));
-    return mapped ? DIFFICULTY_LABELS[mapped] : '-';
-  }
-
-  const key = raw.toUpperCase();
-  if (['3', 'HIGH', 'HARD', 'H'].includes(key)) return '상';
-  if (['2', 'MID', 'MEDIUM', 'NORMAL', 'M'].includes(key)) return '중';
-  if (['1', 'LOW', 'EASY', 'L'].includes(key)) return '하';
-
-  if (typeof raw === 'string') {
-    const trimmed = raw.trim();
-    if (['상', '上'].includes(trimmed)) return '상';
-    if (['중', '中'].includes(trimmed)) return '중';
-    if (['하', '下'].includes(trimmed)) return '하';
-  }
-
-  return '-';
-}
 
 export const normalizeDifficulty = (raw: unknown): NormalizedDifficulty | null => {
   if (raw === null || raw === undefined) return null;
@@ -59,27 +35,35 @@ export const normalizeDifficulty = (raw: unknown): NormalizedDifficulty | null =
   }
 
   const value = String(raw).trim();
-  if (!value) return null;
+  if (!value || value === '-') return null;
 
   if (isNumericString(value)) {
     return mapNumberToDifficulty(Number(value));
   }
 
   const upper = value.toUpperCase();
-  if (upper === 'HIGH' || upper === 'HARD' || upper === 'H') return 'HIGH';
-  if (upper === 'MID' || upper === 'MEDIUM' || upper === 'NORMAL' || upper === 'M') return 'MID';
-  if (upper === 'LOW' || upper === 'EASY' || upper === 'L') return 'LOW';
+  // Master / Extreme -> 4
+  if (['MASTER', 'EXTREME', '상', '上'].includes(upper)) return 4;
+  // Hard / High -> 3
+  if (['HIGH', 'HARD', 'H'].includes(upper)) return 3;
+  // Mid / Medium -> 2
+  if (['MID', 'MEDIUM', 'NORMAL', 'M', '중', '中'].includes(upper)) return 2;
+  // Low / Easy -> 1
+  if (['LOW', 'EASY', 'L', '하', '下'].includes(upper)) return 1;
 
-  if (['상', '上'].includes(value)) return 'HIGH';
-  if (['중', '中'].includes(value)) return 'MID';
-  if (['하', '下'].includes(value)) return 'LOW';
-
-  return null;
+  // Unmapped string defaults to 0
+  return 0;
 };
+
+export function mapDifficulty(value: string | number | undefined | null): string {
+  if (value === undefined || value === null || value === '') return '-';
+  const normalized = normalizeDifficulty(value);
+  return normalized !== null ? DIFFICULTY_LABELS[normalized] : '-';
+}
 
 export const getDifficultyMeta = (raw: unknown) => {
   const normalized = normalizeDifficulty(raw);
-  if (!normalized) return null;
+  if (normalized === null) return null;
   return {
     level: normalized,
     label: DIFFICULTY_LABELS[normalized],

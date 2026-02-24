@@ -91,7 +91,7 @@ export const ContestProblemsTab: React.FC<ContestProblemsTabProps> = ({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-end">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3 sm:self-end lg:ml-auto lg:justify-end">
           <form onSubmit={handlers.handleSearchSubmit} className="flex w-full sm:w-auto sm:min-w-[360px]">

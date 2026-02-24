@@ -4,10 +4,20 @@ import { WorkbookList } from '../components/organisms/WorkbookList';
 import { useWorkbooks } from '../hooks/useWorkbooks';
 import { useWorkbookStore } from '../stores/workbookStore';
 
+// 임시 더미 카테고리 데이터
+const DUMMY_CATEGORIES = [
+  { name: '알고리즘', count: 12 },
+  { name: '자료구조', count: 8 },
+  { name: '코딩테스트 기초', count: 15 },
+  { name: '기출문제', count: 5 }
+];
+
 export const WorkbookListPage: React.FC = () => {
   const navigate = useNavigate();
   const { filter, setFilter } = useWorkbookStore();
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [showAllCategories, setShowAllCategories] = useState(false);
 
   // useWorkbooks returns { data, isLoading, error, refetch } from useQuery
   const { data: workbookResponse, isLoading, error } = useWorkbooks(filter);
@@ -45,62 +55,127 @@ export const WorkbookListPage: React.FC = () => {
     }
   };
 
+  const handleCategoryToggle = (categoryName: string) => {
+    let newCategories = [];
+    if (selectedCategories.includes(categoryName)) {
+      newCategories = selectedCategories.filter((c) => c !== categoryName);
+    } else {
+      newCategories = [...selectedCategories, categoryName];
+    }
+    setSelectedCategories(newCategories);
+    // TODO: 백엔드 카테고리/태그 지원 시 setFilter({ tags: newCategories }) 등 추가
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 py-8">
-        {/* Header */}
-        <div className="mb-8">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-            <div className="flex flex-col gap-1">
-              <h1 className="text-3xl font-extrabold text-gray-900">문제집</h1>
-            </div>
-          </div>
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-center gap-3 lg:ml-2">
-              <span className="text-sm text-gray-500">전체 문제집 수</span>
-              <span className="text-2xl font-bold text-blue-600">{totalCount}</span>
-            </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-              <form onSubmit={handleSearchSubmit} className="flex w-full sm:w-auto sm:min-w-[320px]">
-                <label htmlFor="workbook-search" className="sr-only">문제집 검색</label>
+
+
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Sidebar */}
+          <div className="w-full lg:w-64 shrink-0 space-y-6">
+
+            {/* Search */}
+            <div>
+              <form onSubmit={handleSearchSubmit} className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                  </svg>
+                </div>
                 <input
-                  id="workbook-search"
+                  id="search-input"
                   type="search"
                   value={searchQuery}
                   onChange={(event) => handleSearchChange(event.target.value)}
-                  placeholder="문제집 검색..."
-                  className="w-full rounded-l-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  placeholder="제목, 내용 검색"
+                  className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white shadow-sm"
                 />
-                <button
-                  type="submit"
-                  className="min-w-[72px] rounded-r-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white text-center shadow-sm transition hover:bg-blue-700"
-                >
-                  검색
-                </button>
               </form>
-              <select
-                value={filter.sortBy === 'created_at' && filter.sortOrder === 'desc' ? 'newest' : 'oldest'}
-                onChange={(e) => handleSortChange(e.target.value)}
-                className="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-900 focus:border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-40"
-              >
-                <option value="newest">최신순</option>
-                <option value="oldest">오래된순</option>
-              </select>
             </div>
-          </div>
-        </div>
 
-        <WorkbookList
-          workbooks={workbooks}
-          isLoading={isLoading}
-          error={error}
-          searchQuery={searchQuery}
-          onWorkbookClick={handleWorkbookClick}
-          onPageChange={handlePageChange}
-          currentPage={currentPage}
-          totalPages={totalPages}
-        />
+            {/* Categories */}
+            <div className="bg-white p-5 border border-gray-200 rounded-xl shadow-sm">
+              <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <svg className="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"></path></svg>
+                카테고리
+              </h3>
+              <div className="space-y-3">
+                <label className="flex items-center justify-between cursor-pointer group">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={selectedCategories.length === 0}
+                      onChange={() => setSelectedCategories([])}
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700 group-hover:text-gray-900">전체 보기</span>
+                  </div>
+                  <span className="text-xs font-medium bg-gray-100 text-gray-600 py-1 px-2.5 rounded-full">{totalCount}</span>
+                </label>
+
+                {DUMMY_CATEGORIES.slice(0, showAllCategories ? undefined : 8).map((category) => (
+                  <label key={category.name} className="flex items-center justify-between cursor-pointer group">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        checked={selectedCategories.includes(category.name)}
+                        onChange={() => handleCategoryToggle(category.name)}
+                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <span className="ml-3 text-sm font-medium text-gray-700 group-hover:text-gray-900">{category.name}</span>
+                    </div>
+                    <span className="text-xs font-medium bg-gray-100 text-gray-600 py-1 px-2.5 rounded-full">{category.count}</span>
+                  </label>
+                ))}
+
+                {DUMMY_CATEGORIES.length > 8 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllCategories(!showAllCategories)}
+                    className="w-full text-left text-sm font-medium text-blue-600 hover:text-blue-700 mt-2"
+                  >
+                    {showAllCategories ? '간략히 보기' : '+ 더보기'}
+                  </button>
+                )}
+              </div>
+            </div>
+
+          </div>
+
+          {/* Main Content */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-sm text-gray-500">
+                총 <span className="font-bold text-gray-900">{totalCount}</span>개의 문제집
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-500">정렬:</span>
+                <select
+                  value={filter.sortBy === 'created_at' && filter.sortOrder === 'desc' ? 'newest' : 'oldest'}
+                  onChange={(e) => handleSortChange(e.target.value)}
+                  className="bg-transparent text-sm font-bold text-gray-900 border-none focus:ring-0 cursor-pointer p-0 pr-6"
+                >
+                  <option value="newest">최신순</option>
+                  <option value="oldest">오래된순</option>
+                </select>
+              </div>
+            </div>
+
+            <WorkbookList
+              workbooks={workbooks}
+              isLoading={isLoading}
+              error={error}
+              searchQuery={searchQuery}
+              onWorkbookClick={handleWorkbookClick}
+              onPageChange={handlePageChange}
+              currentPage={currentPage}
+              totalPages={totalPages}
+            />
+          </div>
+
+        </div>
       </div>
     </div>
   );

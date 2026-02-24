@@ -7,7 +7,6 @@ export const authService = {
   // Online Judge 로그인
   login: async (credentials: LoginForm): Promise<LoginResponse> => {
     const response = await api.post<string>('/login', credentials);
-    console.log('Login API Response:', response);
 
     const result = {
       success: response.success && response.data === "Succeeded",
@@ -15,15 +14,12 @@ export const authService = {
       message: response.message
     };
 
-    console.log('Login Service Result:', result);
-    console.log('Login Service Result:', result);
     return result;
   },
 
   // Google Login Callback
   googleLoginCallback: async (code: string): Promise<any> => {
     const response = await api.get<any>(`/oauth/callback/?code=${code}`);
-    console.log('Google Login Callback Response:', response);
 
     return {
       success: response.success,
