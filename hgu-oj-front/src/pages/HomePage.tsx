@@ -96,15 +96,10 @@ export const HomePage: React.FC = () => {
 
         <div className="relative mx-auto max-w-7xl 2xl:max-w-screen-2xl px-4 sm:px-6 lg:px-8 2xl:px-10">
           <div className="max-w-3xl">
-            <span className="inline-flex items-center gap-2 rounded-full border border-teal-500/30 bg-teal-500/10 px-3 py-1 text-xs font-medium text-teal-300 backdrop-blur-sm">
-              <span className="h-1.5 w-1.5 rounded-full bg-teal-400"></span>
-              새로운 대회: Weekly Code #42 - 3시간 후 시작
-            </span>
-
-            <h1 className="mt-8 text-5xl font-extrabold tracking-tight sm:text-6xl lg:text-7xl">
-              Handong Code Round
+            <h1 className="mt-8 text-5xl font-extrabold tracking-tight sm:text-6xl lg:text-7xl" style={{ fontFamily: '"Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif' }}>
+              H Code Round
             </h1>
-            <h2 className="mt-2 text-5xl font-extrabold tracking-tight sm:text-6xl lg:text-7xl">
+            <h2 className="mt-2 text-5xl font-extrabold tracking-tight sm:text-6xl lg:text-7xl" style={{ fontFamily: '"Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif' }}>
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-500">
                 당신의 한계를 넘어서는
                 <br />
@@ -112,9 +107,7 @@ export const HomePage: React.FC = () => {
               </span>
             </h2>
 
-            <p className="mt-8 max-w-2xl text-lg text-slate-400 leading-relaxed">
-              알고리즘 마스터를 위한 국내 최고의 개발자 커뮤니티에 합류하세요. 실전 같은 코딩 챌린지를 해결하고, 정기 콘테스트에서 실력을 증명하며, 다가올 기술 면접을 완벽하게 대비하세요.
-            </p>
+
 
             {/* Empty space for where buttons and stats would be */}
             <div className="mt-16 h-32 w-full"></div>

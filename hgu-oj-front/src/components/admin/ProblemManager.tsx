@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Card } from '../atoms/Card';
 import { Button } from '../atoms/Button';
 import { Input } from '../atoms/Input';
-import { ProblemModal } from './ProblemModal';
+import { ProblemRegistrationModal } from '../../features/contribution/components/ProblemRegistrationModal';
 import { adminService } from '../../services/adminService';
 import { Problem } from '../../types';
 
@@ -15,8 +15,6 @@ export const ProblemManager: React.FC = () => {
     const [problemSearchKeyword, setProblemSearchKeyword] = useState('');
     const problemSearchTimerRef = useRef<number | null>(null);
     const [isProblemModalOpen, setIsProblemModalOpen] = useState(false);
-    const [problemModalMode, setProblemModalMode] = useState<'create' | 'edit'>('create');
-    const [selectedProblemIdForModal, setSelectedProblemIdForModal] = useState<number | null>(null);
 
     const fetchProblems = useCallback(async (page: number = 1, keyword: string = '') => {
         setProblemListLoading(true);
@@ -45,9 +43,11 @@ export const ProblemManager: React.FC = () => {
         }, 300);
     };
 
-    const handleOpenProblemModal = (mode: 'create' | 'edit', id?: number) => {
-        setProblemModalMode(mode);
-        setSelectedProblemIdForModal(id ?? null);
+    const handleOpenProblemModal = (mode: 'create' | 'edit') => {
+        if (mode === 'edit') {
+            alert('기존 문제 수정 기능은 추후 제공될 예정입니다.');
+            return;
+        }
         setIsProblemModalOpen(true);
     };
 
@@ -73,7 +73,6 @@ export const ProblemManager: React.FC = () => {
                         <h2 className="text-xl font-semibold text-gray-900">문제 목록</h2>
                         <p className="text-sm text-gray-500">등록된 문제를 관리합니다.</p>
                     </div>
-                    <Button onClick={() => handleOpenProblemModal('create')}>문제 등록</Button>
                 </div>
 
                 <div className="flex gap-2">
@@ -131,11 +130,9 @@ export const ProblemManager: React.FC = () => {
                     </div>
                 </div>
             </div>
-            <ProblemModal
+            <ProblemRegistrationModal
                 isOpen={isProblemModalOpen}
                 onClose={() => setIsProblemModalOpen(false)}
-                mode={problemModalMode}
-                problemId={selectedProblemIdForModal}
                 onSuccess={() => fetchProblems(problemPage, problemSearchKeyword)}
             />
         </Card>

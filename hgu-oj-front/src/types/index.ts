@@ -195,6 +195,7 @@ export interface Workbook {
   updated_at: string;
   is_public: boolean;
   problemCount?: number;
+  tags?: string[];
 }
 
 export interface WorkbookProblem {

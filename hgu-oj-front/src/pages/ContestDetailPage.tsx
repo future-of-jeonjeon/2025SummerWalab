@@ -84,7 +84,7 @@ export const ContestDetailPage: React.FC = () => {
     [location.pathname, location.search, navigate],
   );
 
-  const { contestPhase, serverClock, timeLeft, startTimeDisplay, endTimeDisplay } = useContestTimer(contest);
+  const { contestPhase, timeLeft, startTimeDisplay, endTimeDisplay } = useContestTimer(contest);
   const timeTextClass = useMemo(
     () => (timeLeft.includes('종료') ? 'text-red-600 dark:text-red-400' : 'text-slate-900 dark:text-slate-100'),
     [timeLeft],
@@ -328,9 +328,6 @@ export const ContestDetailPage: React.FC = () => {
           <Card className="mb-6 border border-amber-200 bg-amber-50 px-6 py-4 text-amber-800 dark:border-amber-500/40 dark:bg-amber-900/30 dark:text-amber-100">
             <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
               <span className="font-semibold">{lockBannerText}</span>
-              <span className="text-sm">
-                현재 서버 시간: <span className="font-mono text-base">{serverClock}</span>
-              </span>
             </div>
             {contestLockReason === 'not-joined' && (
               <div className="mt-2 text-sm text-amber-700 dark:text-amber-100">대회 시작 전 메인 탭에서 참여 신청을 완료해야 입장할 수 있습니다.</div>

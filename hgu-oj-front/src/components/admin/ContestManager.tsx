@@ -78,7 +78,6 @@ export const ContestManager: React.FC = () => {
                         <h2 className="text-xl font-semibold text-gray-900">대회 목록</h2>
                         <p className="text-sm text-gray-500">등록된 대회를 관리합니다.</p>
                     </div>
-                    <Button onClick={() => openModal('create')}>대회 등록</Button>
                 </div>
 
                 <div className="flex gap-2">

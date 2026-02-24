@@ -189,17 +189,12 @@ const LoginPage: React.FC = () => {
                   const responseType = 'code';
                   const state = 'login';
 
-                  console.log('Google Login Debug Info:');
-                  console.log('Client ID:', clientId);
-                  console.log('Redirect URI:', decodeURIComponent(redirectUri));
-
                   if (!clientId) {
                     alert('Google Client ID is missing in environment variables!');
                     return;
                   }
 
                   const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=${responseType}&scope=${scope}&state=${state}`;
-                  console.log('Auth URL:', authUrl);
 
                   window.location.href = authUrl;
                 }}
