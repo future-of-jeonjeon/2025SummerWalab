@@ -113,7 +113,7 @@ export const ProblemManager: React.FC = () => {
                                             </span>
                                         </td>
                                         <td className="px-4 py-3 text-sm text-right space-x-2">
-                                            <Button size="sm" variant="outline" onClick={() => handleOpenProblemModal('edit', problem.id)}>수정</Button>
+                                            <Button size="sm" variant="outline" onClick={() => handleOpenProblemModal('edit')}>수정</Button>
                                             <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleDeleteProblem(problem.id, problem.title)}>삭제</Button>
                                         </td>
                                     </tr>
