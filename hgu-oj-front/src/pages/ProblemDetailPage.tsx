@@ -1394,37 +1394,37 @@ export const ProblemDetailPage: React.FC = () => {
     <div className={`w-full px-0 py-0 h-screen flex flex-col overflow-hidden ${isDarkTheme ? 'bg-slate-950 text-slate-100' : 'bg-gray-50 text-gray-900'}`}>
       {contestContextId && contestMeta && (
         <div className={`border-b px-4 py-3 text-xs sm:text-sm flex-none ${isDarkTheme ? 'border-slate-700 bg-slate-900 text-slate-200' : 'border-slate-200 bg-white text-slate-600'}`}>
-          <div className="mx-auto flex max-w-7xl flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
-            <div className="flex items-center gap-3">
+          <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
+            <div className="flex items-center gap-3 lg:pl-12">
               <span className={`text-lg font-semibold ${isDarkTheme ? 'text-slate-100' : 'text-slate-900'}`}>
                 {contestMeta.title}
               </span>
             </div>
-            <div className="flex flex-1 flex-wrap items-end justify-center gap-6 text-right">
-              <div className="flex flex-col items-start">
-                <span className={`font-medium uppercase tracking-wide ${isDarkTheme ? 'text-slate-400' : 'text-slate-500'}`}>시작</span>
+            <div className="flex flex-1 flex-wrap items-end justify-end gap-6 text-right">
+              <div className="flex flex-col items-end">
+                <span className={`font-medium uppercase tracking-wide whitespace-nowrap ${isDarkTheme ? 'text-slate-400' : 'text-slate-500'}`}>시작</span>
                 <span className={`text-sm font-semibold ${isDarkTheme ? 'text-slate-100' : 'text-slate-900'}`}>{contestMeta.startTime ? formatDateTime(contestMeta.startTime) : '-'}</span>
               </div>
-              <div className="flex flex-col items-start">
-                <span className={`font-medium uppercase tracking-wide ${isDarkTheme ? 'text-slate-400' : 'text-slate-500'}`}>종료</span>
+              <div className="flex flex-col items-end">
+                <span className={`font-medium uppercase tracking-wide whitespace-nowrap ${isDarkTheme ? 'text-slate-400' : 'text-slate-500'}`}>종료</span>
                 <span className={`text-sm font-semibold ${isDarkTheme ? 'text-slate-100' : 'text-slate-900'}`}>{contestMeta.endTime ? formatDateTime(contestMeta.endTime) : '-'}</span>
               </div>
               <div className="flex flex-col items-end">
-                <span className="font-medium uppercase tracking-wide text-blue-600 dark:text-blue-300">남은 시간</span>
-                <span className={`text-xl font-bold ${isDarkTheme ? 'text-blue-300' : 'text-blue-700'}`}>{contestTimeLeft ?? '-'}</span>
+                <span className="font-medium uppercase tracking-wide whitespace-nowrap text-blue-600 dark:text-blue-300">남은 시간</span>
+                <span className={`w-[14ch] whitespace-nowrap text-right text-xl font-bold tabular-nums ${isDarkTheme ? 'text-blue-300' : 'text-blue-700'}`}>{contestTimeLeft ?? '-'}</span>
               </div>
-            </div>
-            <div className={`flex items-center divide-x ${isDarkTheme ? 'divide-slate-700' : 'divide-slate-200'}`}>
-              <div className="px-4 text-center">
-                <div className="text-[10px] font-medium uppercase tracking-wider text-emerald-600 dark:text-emerald-400">{PROBLEM_SUMMARY_LABELS.solved}</div>
-                <div className="mt-0.5 text-xl font-bold text-emerald-600 dark:text-emerald-400">
-                  {contestProblemStats?.solved ?? '-'} <span className={`text-xl ${isDarkTheme ? 'text-slate-500' : 'text-slate-400'}`}>/ {contestProblemStats?.total ?? '-'}</span>
+              <div className={`flex items-center divide-x ${isDarkTheme ? 'divide-slate-700' : 'divide-slate-200'}`}>
+                <div className="px-4 text-right">
+                  <div className="text-[10px] font-medium uppercase tracking-wider text-emerald-600 dark:text-emerald-400">{PROBLEM_SUMMARY_LABELS.solved}</div>
+                  <div className="mt-0.5 w-[9ch] text-xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                    {contestProblemStats?.solved ?? '-'} <span className={`text-xl ${isDarkTheme ? 'text-slate-500' : 'text-slate-400'}`}>/ {contestProblemStats?.total ?? '-'}</span>
+                  </div>
                 </div>
-              </div>
-              <div className="px-4 text-center">
-                <div className="text-[10px] font-medium uppercase tracking-wider text-blue-600 dark:text-blue-400">내 점수</div>
-                <div className="mt-0.5 text-xl font-bold text-blue-600 dark:text-blue-400">
-                  {contestRankProgress?.totalScore ?? 0}<span className="text-xs font-normal ml-0.5">점</span>
+                <div className="px-4 text-right">
+                  <div className="text-[10px] font-medium uppercase tracking-wider text-blue-600 dark:text-blue-400">내 점수</div>
+                  <div className="mt-0.5 w-[8ch] text-xl font-bold text-blue-600 dark:text-blue-400 tabular-nums">
+                    {contestRankProgress?.totalScore ?? 0}<span className="text-xs font-normal ml-0.5">점</span>
+                  </div>
                 </div>
               </div>
             </div>
