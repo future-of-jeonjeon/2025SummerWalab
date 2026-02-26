@@ -3,12 +3,18 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { Button } from '../atoms/Button';
 
-// 더미 알림 데이터
-const dummyNotifications = [
-  { id: 1, title: '대회 시작 예정', message: 'H Code Round가 10분 뒤 시작됩니다.', time: '10분 전', isRead: false },
-  { id: 2, title: '문제 제출 결과', message: 'A번 문제가 정답 처리되었습니다. (+15점)', time: '1시간 전', isRead: true },
-  { id: 3, title: '공지사항', message: '새로운 랭킹 시스템이 도입되었습니다.', time: '1일 전', isRead: true },
-];
+import { notificationService, NotificationResponse } from '../../services/notificationService';
+
+const formatTimeAgo = (dateString: string) => {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+
+  if (diffInSeconds < 60) return `방금 전`;
+  if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}분 전`;
+  if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}시간 전`;
+  return `${Math.floor(diffInSeconds / 86400)}일 전`;
+};
 
 export const NavBar: React.FC = () => {
   const location = useLocation();
@@ -17,6 +23,9 @@ export const NavBar: React.FC = () => {
   const isAdmin = user?.admin_type === 'Admin' || user?.admin_type === 'Super Admin';
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -29,6 +38,28 @@ export const NavBar: React.FC = () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, []);
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      const fetchNotifications = async () => {
+        try {
+          const res = await notificationService.getNotifications();
+          if (res.success && res.data) {
+            setNotifications(res.data);
+          }
+          const countRes = await notificationService.getUnreadCount();
+          if (countRes.success && countRes.data) {
+            setUnreadCount(countRes.data.unchecked_num);
+          }
+        } catch (error) {
+          console.error('Failed to fetch notifications', error);
+        }
+      };
+      fetchNotifications();
+
+      // Optional: Set up polling or WebSocket for real-time updates here
+    }
+  }, [isAuthenticated]);
 
   const isActive = (path: string) => {
     if (path === '/') {
@@ -140,10 +171,12 @@ export const NavBar: React.FC = () => {
                     <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" aria-hidden="true">
                       <path strokeLinecap="round" strokeLinejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
                     </svg>
-                    {dummyNotifications.length > 0 && (
+                    {unreadCount > 0 && (
                       <span className="absolute top-1 right-1.5 flex h-2.5 w-2.5">
                         <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 border-2 border-white"></span>
+                        <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-red-500 border-2 border-white text-[8px] flex items-center justify-center text-transparent">
+                          {unreadCount}
+                        </span>
                       </span>
                     )}
                   </button>
@@ -156,17 +189,26 @@ export const NavBar: React.FC = () => {
                         <button className="text-xs text-blue-600 hover:text-blue-800 font-medium">모두 읽음 처리</button>
                       </div>
                       <div className="max-h-96 overflow-y-auto w-full no-scrollbar">
-                        {dummyNotifications.length > 0 ? (
+                        {notifications.length > 0 ? (
                           <ul className="divide-y divide-gray-100 w-full">
-                            {dummyNotifications.map(notification => (
-                              <li key={notification.id} className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer ${!notification.isRead ? 'bg-blue-50/30' : ''}`}>
+                            {notifications.map(notification => (
+                              <li
+                                key={notification.id}
+                                className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer ${!notification.is_checked ? 'bg-blue-50/30' : ''}`}
+                                onClick={() => {
+                                  setIsNotificationOpen(false);
+                                  if (notification.payload?.link) {
+                                    navigate(notification.payload.link);
+                                  }
+                                }}
+                              >
                                 <div className="flex gap-3">
                                   <div className="flex-1 space-y-1">
-                                    <p className="text-sm font-medium text-gray-900">{notification.title}</p>
-                                    <p className="text-xs text-gray-500">{notification.message}</p>
-                                    <p className="text-[10px] text-gray-400 mt-1">{notification.time}</p>
+                                    <p className="text-sm font-medium text-gray-900">{notification.payload?.title || '알림'}</p>
+                                    <p className="text-xs text-gray-500">{notification.payload?.message || ''}</p>
+                                    <p className="text-[10px] text-gray-400 mt-1">{formatTimeAgo(notification.created_time)}</p>
                                   </div>
-                                  {!notification.isRead && (
+                                  {!notification.is_checked && (
                                     <div className="w-2 h-2 rounded-full bg-blue-600 mt-1.5 flex-shrink-0"></div>
                                   )}
                                 </div>
@@ -179,11 +221,7 @@ export const NavBar: React.FC = () => {
                           </div>
                         )}
                       </div>
-                      <div className="p-3 border-t border-gray-100 bg-gray-50 text-center">
-                        <button className="text-xs font-medium text-gray-600 hover:text-gray-900">
-                          알림 설정 가기
-                        </button>
-                      </div>
+
                     </div>
                   )}
                 </div>

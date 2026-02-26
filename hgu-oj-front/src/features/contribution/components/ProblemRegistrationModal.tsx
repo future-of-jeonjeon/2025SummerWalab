@@ -4,7 +4,7 @@ import { Input } from '../../../components/atoms/Input';
 import { RichTextEditor } from '../../../components/molecules/RichTextEditor';
 import { TagChip } from '../../../components/atoms/TagChip';
 import { getTagColor } from '../../../utils/tagColor';
-import { CreateProblemPayload } from '../../../services/adminService';
+import { CreateProblemPayload, adminService } from '../../../services/adminService';
 import { contributionService } from '../../../services/contributionService';
 import { availableLanguages, toBackendLanguageList, getLanguageBackendValue, getLanguageLabel, normalizeLanguageKey } from '../../../lib/problemLanguage';
 import codeTemplates from '../../../config/codeTemplates.json';
@@ -13,6 +13,7 @@ interface ProblemRegistrationModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSuccess: () => void;
+    editProblemId?: number;
 }
 
 type ProblemFormState = {
@@ -52,7 +53,7 @@ const initialFormState: ProblemFormState = {
 };
 
 export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> = ({
-    isOpen, onClose, onSuccess
+    isOpen, onClose, onSuccess, editProblemId
 }) => {
     const [formState, setFormState] = useState<ProblemFormState>(initialFormState);
     const [samples, setSamples] = useState<Array<{ input: string; output: string }>>([
@@ -68,19 +69,75 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
 
     React.useEffect(() => {
         if (isOpen) {
-            setFormState(initialFormState);
-            setSamples([{ input: '', output: '' }]);
-            setTestCaseId('');
-            setTestCaseFile(null);
             setMessage({});
-            // Initialize templates
-            const initialTemplates = availableLanguages.reduce((acc, lang) => {
-                acc[lang] = (codeTemplates as any)[lang] || '';
-                return acc;
-            }, {} as Record<string, string>);
-            setFormState(prev => ({ ...prev, templates: initialTemplates }));
+            if (editProblemId) {
+                setLoading(true);
+                adminService.getAdminProblemDetail(editProblemId)
+                    .then((detail: any) => {
+                        const initialTemplates = availableLanguages.reduce((acc, lang) => {
+                            acc[lang] = (codeTemplates as any)[lang] || '';
+                            return acc;
+                        }, {} as Record<string, string>);
+
+                        const backendTemplates = detail.template || {};
+                        const selectedTplLangs = availableLanguages.filter(lang =>
+                            !!backendTemplates[getLanguageBackendValue(lang)]
+                        );
+
+                        const frontendLanguages = detail.languages.map((bl: string) => {
+                            return availableLanguages.find((l: string) => getLanguageBackendValue(l) === bl) || bl;
+                        }).filter((l: string) => availableLanguages.includes(l));
+
+                        setFormState({
+                            title: detail.title,
+                            description: detail.description,
+                            inputDescription: detail.inputDescription,
+                            outputDescription: detail.outputDescription,
+                            difficulty: detail.difficulty,
+                            timeLimit: String(detail.timeLimit),
+                            memoryLimit: String(detail.memoryLimit),
+                            tags: detail.tags,
+                            useHint: !!detail.hint,
+                            hint: detail.hint || '',
+                            languages: frontendLanguages.length > 0 ? frontendLanguages : [...availableLanguages],
+                            selectedTemplateLanguages: selectedTplLangs,
+                            templates: {
+                                ...initialTemplates,
+                                ...Object.fromEntries(
+                                    availableLanguages.map(lang => [
+                                        lang,
+                                        backendTemplates[getLanguageBackendValue(lang)] || initialTemplates[lang]
+                                    ])
+                                )
+                            },
+                            solutionLanguage: availableLanguages[0] || 'C',
+                            solutionCode: '',
+                        });
+
+                        setSamples(detail.samples.length > 0 ? detail.samples : [{ input: '', output: '' }]);
+                        setTestCaseId(detail.testCaseId || '');
+                        setTestCaseFile(null);
+                        setLoading(false);
+                    })
+                    .catch((err: any) => {
+                        console.error('Failed to load problem details:', err);
+                        setMessage({ error: '문제 정보를 불러오지 못했습니다.' });
+                        setLoading(false);
+                    });
+            } else {
+                setFormState(initialFormState);
+                setSamples([{ input: '', output: '' }]);
+                setTestCaseId('');
+                setTestCaseFile(null);
+
+                const initialTemplates = availableLanguages.reduce((acc, lang) => {
+                    acc[lang] = (codeTemplates as any)[lang] || '';
+                    return acc;
+                }, {} as Record<string, string>);
+                setFormState(prev => ({ ...prev, templates: initialTemplates }));
+            }
         }
-    }, [isOpen]);
+    }, [isOpen, editProblemId]);
 
     if (!isOpen) return null;
 
@@ -206,19 +263,28 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                 test_case_id: testCaseId,
             };
 
-            const { polling_key } = await contributionService.createProblem(payload);
-
-            let isPolling = true;
-            while (isPolling) {
-                const status = await contributionService.getPollingStatus(polling_key);
-                if (status.status === 'done') {
+            if (editProblemId) {
+                await adminService.updateAdminProblem({ ...payload, id: editProblemId });
+                setMessage({ success: '성공적으로 수정되었습니다.' });
+                setTimeout(() => {
                     onSuccess();
                     onClose();
-                    isPolling = false;
-                } else if (status.status === 'error') {
-                    throw new Error(`문제 생성 실패: ${status.error_code || '알 수 없는 오류'}`);
-                } else {
-                    await new Promise((resolve) => setTimeout(resolve, 1000));
+                }, 1000);
+            } else {
+                const { polling_key } = await contributionService.createProblem(payload);
+
+                let isPolling = true;
+                while (isPolling) {
+                    const status = await contributionService.getPollingStatus(polling_key);
+                    if (status.status === 'done') {
+                        onSuccess();
+                        onClose();
+                        isPolling = false;
+                    } else if (status.status === 'error') {
+                        throw new Error(`문제 생성 실패: ${status.error_code || '알 수 없는 오류'}`);
+                    } else {
+                        await new Promise((resolve) => setTimeout(resolve, 1000));
+                    }
                 }
             }
         } catch (error) {
@@ -245,7 +311,7 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                         <div className="sm:flex sm:items-start">
                             <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
                                 <h3 className="text-2xl font-bold leading-6 text-gray-900 tracking-tight mb-6" id="modal-title">
-                                    새 문제 등록
+                                    {editProblemId ? '문제 수정' : '새 문제 등록'}
                                 </h3>
 
                                 {message.error && (
@@ -598,7 +664,7 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                             disabled={loading}
                             className="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-5 py-2.5 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm transition-colors"
                         >
-                            {loading ? '등록 중...' : '등록하기'}
+                            {loading ? (editProblemId ? '수정 중...' : '등록 중...') : (editProblemId ? '수정하기' : '등록하기')}
                         </Button>
                         <Button
                             onClick={onClose}

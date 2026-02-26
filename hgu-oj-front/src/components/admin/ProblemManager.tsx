@@ -15,6 +15,7 @@ export const ProblemManager: React.FC = () => {
     const [problemSearchKeyword, setProblemSearchKeyword] = useState('');
     const problemSearchTimerRef = useRef<number | null>(null);
     const [isProblemModalOpen, setIsProblemModalOpen] = useState(false);
+    const [editingProblemId, setEditingProblemId] = useState<number | undefined>(undefined);
 
     const fetchProblems = useCallback(async (page: number = 1, keyword: string = '') => {
         setProblemListLoading(true);
@@ -43,10 +44,11 @@ export const ProblemManager: React.FC = () => {
         }, 300);
     };
 
-    const handleOpenProblemModal = (mode: 'create' | 'edit') => {
-        if (mode === 'edit') {
-            alert('기존 문제 수정 기능은 추후 제공될 예정입니다.');
-            return;
+    const handleOpenProblemModal = (mode: 'create' | 'edit', problemId?: number) => {
+        if (mode === 'edit' && problemId) {
+            setEditingProblemId(problemId);
+        } else {
+            setEditingProblemId(undefined);
         }
         setIsProblemModalOpen(true);
     };
@@ -91,16 +93,17 @@ export const ProblemManager: React.FC = () => {
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">제목</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">난이도</th>
                                 <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">상태</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">작성자</th>
                                 <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">관리</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-200 bg-white">
                             {problemListLoading ? (
-                                <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500">로딩 중...</td></tr>
+                                <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">로딩 중...</td></tr>
                             ) : problemListError ? (
-                                <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-red-600">{problemListError}</td></tr>
+                                <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-red-600">{problemListError}</td></tr>
                             ) : problemList.length === 0 ? (
-                                <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500">문제가 없습니다.</td></tr>
+                                <tr><td colSpan={6} className="px-4 py-8 text-center text-sm text-gray-500">문제가 없습니다.</td></tr>
                             ) : (
                                 problemList.map((problem) => (
                                     <tr key={problem.id} className="hover:bg-gray-50">
@@ -112,8 +115,9 @@ export const ProblemManager: React.FC = () => {
                                                 {problem.visible ? '공개' : '비공개'}
                                             </span>
                                         </td>
+                                        <td className="px-4 py-3 text-sm text-gray-500">{problem.createdBy?.realName || problem.createdBy?.username || '-'}</td>
                                         <td className="px-4 py-3 text-sm text-right space-x-2">
-                                            <Button size="sm" variant="outline" onClick={() => handleOpenProblemModal('edit')}>수정</Button>
+                                            <Button size="sm" variant="outline" onClick={() => handleOpenProblemModal('edit', problem.id)}>수정</Button>
                                             <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleDeleteProblem(problem.id, problem.title)}>삭제</Button>
                                         </td>
                                     </tr>
@@ -132,8 +136,12 @@ export const ProblemManager: React.FC = () => {
             </div>
             <ProblemRegistrationModal
                 isOpen={isProblemModalOpen}
-                onClose={() => setIsProblemModalOpen(false)}
+                onClose={() => {
+                    setIsProblemModalOpen(false);
+                    setEditingProblemId(undefined);
+                }}
                 onSuccess={() => fetchProblems(problemPage, problemSearchKeyword)}
+                editProblemId={editingProblemId}
             />
         </Card>
     );

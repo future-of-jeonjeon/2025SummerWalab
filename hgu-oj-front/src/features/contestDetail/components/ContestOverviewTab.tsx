@@ -101,7 +101,9 @@ export const ContestOverviewTab: React.FC<ContestOverviewTabProps> = ({
           <Card className="border border-slate-200 bg-white shadow-sm overflow-hidden p-6 sm:p-10 flex flex-col md:flex-row items-center justify-between min-h-[180px] relative rounded-lg h-full">
             <div className="text-left w-full md:w-auto mb-6 md:mb-0 flex-1 flex flex-col justify-center md:items-start items-center">
               <div className="flex items-center gap-2 min-w-[200px]">
-                <h2 className="text-base sm:text-lg font-bold text-slate-800 whitespace-nowrap">대회 종료까지</h2>
+                <h2 className="text-base sm:text-lg font-bold text-slate-800 whitespace-nowrap">
+                  {contestPhase === 'before' ? '대회 시작까지' : '대회 종료까지'}
+                </h2>
               </div>
               <div className="text-xs sm:text-sm text-slate-500 mt-2 space-y-1 text-center md:text-left">
                 <p><span className="font-semibold text-slate-600">시작</span> {startTimeDisplay}</p>

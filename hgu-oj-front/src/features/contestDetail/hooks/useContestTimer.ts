@@ -47,8 +47,12 @@ export const useContestTimer = (contest?: Contest) => {
         return;
       }
 
-      const diff = endTimeMs - nowWithOffset;
-      if (diff <= 0) {
+      let diff = 0;
+      if (!Number.isNaN(startTimeMs) && nowWithOffset < startTimeMs) {
+        diff = startTimeMs - nowWithOffset;
+      } else if (nowWithOffset <= endTimeMs) {
+        diff = endTimeMs - nowWithOffset;
+      } else {
         setTimeLeft('대회가 종료되었습니다.');
         return;
       }

@@ -341,30 +341,65 @@ export const ContestDetailPage: React.FC = () => {
           </Card>
         )}
 
-        <div className="flex flex-col lg:flex-row gap-6 mt-6">
-          <aside className="w-[180px] min-w-[180px] max-w-[180px] space-y-2">
-            {tabs.map((tab) => {
-              const disabled = disabledTabs(tab.id);
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => {
-                    if (!disabled) {
-                      handleTabChange(tab.id);
-                    }
-                  }}
-                  disabled={disabled}
-                  aria-disabled={disabled}
-                  className={`w-full text-center whitespace-nowrap px-4 py-3 rounded-lg font-medium transition-colors ${isActive ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-blue-50'
-                    } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-          </aside>
+        {/* Mobile Nav Placeholder */}
+        <div className="lg:hidden mb-4 mt-6 bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
+          <span className="font-bold">대회 메뉴</span>
+        </div>
+
+        <div className="flex flex-col lg:flex-row gap-8 lg:mt-6">
+          <div className="w-full lg:w-64 flex-shrink-0">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden sticky top-24">
+              <div className="p-6 border-b border-gray-100 bg-gray-50">
+                <h2 className="text-lg font-bold text-gray-900">대회 메뉴</h2>
+              </div>
+              <nav className="p-2 space-y-1">
+                {tabs.map((tab) => {
+                  const disabled = disabledTabs(tab.id);
+                  const isActive = activeTab === tab.id;
+
+                  let iconPath = null;
+                  if (tab.id === 'overview') {
+                    iconPath = <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />;
+                  } else if (tab.id === 'problems') {
+                    iconPath = <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />;
+                  } else if (tab.id === 'rank') {
+                    iconPath = <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />;
+                  } else if (tab.id === 'user-management') {
+                    iconPath = <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />;
+                  } else if (tab.id === 'submission-details') {
+                    iconPath = <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />;
+                  }
+
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => {
+                        if (!disabled) {
+                          handleTabChange(tab.id);
+                        }
+                      }}
+                      disabled={disabled}
+                      aria-disabled={disabled}
+                      className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${isActive
+                          ? 'bg-blue-50 text-blue-700'
+                          : disabled
+                            ? 'text-gray-400 opacity-50 cursor-not-allowed'
+                            : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                    >
+                      {iconPath && (
+                        <svg className={`mr-3 h-5 w-5 flex-shrink-0 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          {iconPath}
+                        </svg>
+                      )}
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+          </div>
 
           <div className="flex-1 space-y-6 min-w-0 w-full">
             {activeTab === 'overview' && (
