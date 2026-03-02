@@ -12,7 +12,7 @@ import codeTemplates from '../../../config/codeTemplates.json';
 interface ProblemRegistrationModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSuccess: () => void;
+    onSuccess: (created?: { problemId: number; title?: string }) => void;
     editProblemId?: number;
 }
 
@@ -277,7 +277,11 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                 while (isPolling) {
                     const status = await contributionService.getPollingStatus(polling_key);
                     if (status.status === 'done') {
-                        onSuccess();
+                        const createdProblemId = Number(status.problem_id ?? 0);
+                        if (!Number.isFinite(createdProblemId) || createdProblemId <= 0) {
+                            throw new Error('문제 생성은 완료되었지만 problem_id를 받지 못했습니다. 잠시 후 다시 시도해주세요.');
+                        }
+                        onSuccess({ problemId: createdProblemId, title: formState.title.trim() });
                         onClose();
                         isPolling = false;
                     } else if (status.status === 'error') {

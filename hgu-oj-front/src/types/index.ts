@@ -130,6 +130,11 @@ export interface ContestAccess {
   access: boolean;
 }
 
+export interface ContestProblemInputDTO {
+  problem_id: number;
+  display_id: string;
+}
+
 export interface CreateContestRequest {
   title: string;
   description: string;
@@ -144,6 +149,7 @@ export interface CreateContestRequest {
   is_organization_only?: boolean;
   languages: string[];
   organization_id: number;
+  problems?: ContestProblemInputDTO[];
 }
 
 export interface ContestRankEntry {

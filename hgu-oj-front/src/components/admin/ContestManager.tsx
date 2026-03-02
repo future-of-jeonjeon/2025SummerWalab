@@ -2,10 +2,10 @@ import React, { useCallback, useEffect, useState } from 'react';
 import { Card } from '../atoms/Card';
 import { Button } from '../atoms/Button';
 import { Input } from '../atoms/Input';
-import { ContestModal } from './ContestModal';
 import { adminService } from '../../services/adminService';
 import { AdminContest } from '../../types';
 import { formatDateTime } from '../../lib/date';
+import { CreateContestModal } from '../../features/organization/components/CreateContestModal';
 
 export const ContestManager: React.FC = () => {
     const [contestList, setContestList] = useState<AdminContest[]>([]);
@@ -16,8 +16,7 @@ export const ContestManager: React.FC = () => {
     const [keyword, setKeyword] = useState('');
 
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
-    const [selectedContestId, setSelectedContestId] = useState<number | null>(null);
+    const [selectedContest, setSelectedContest] = useState<AdminContest | undefined>(undefined);
 
     const fetchContests = useCallback(async (p: number = 1, k: string = '') => {
         setLoading(true);
@@ -44,9 +43,8 @@ export const ContestManager: React.FC = () => {
         setTimeout(() => fetchContests(1, val), 300);
     };
 
-    const openModal = (mode: 'create' | 'edit', id?: number) => {
-        setModalMode(mode);
-        setSelectedContestId(id ?? null);
+    const openModal = (contest?: AdminContest) => {
+        setSelectedContest(contest);
         setIsModalOpen(true);
     };
 
@@ -78,6 +76,9 @@ export const ContestManager: React.FC = () => {
                         <h2 className="text-xl font-semibold text-gray-900">대회 목록</h2>
                         <p className="text-sm text-gray-500">등록된 대회를 관리합니다.</p>
                     </div>
+                    <Button onClick={() => openModal()} className="bg-[#113F67] text-white hover:bg-[#0d3354]">
+                        대회 생성
+                    </Button>
                 </div>
 
                 <div className="flex gap-2">
@@ -123,7 +124,7 @@ export const ContestManager: React.FC = () => {
                                             </span>
                                         </td>
                                         <td className="px-4 py-3 text-sm text-right space-x-2">
-                                            <Button size="sm" variant="outline" onClick={() => openModal('edit', contest.id)}>수정</Button>
+                                            <Button size="sm" variant="outline" onClick={() => openModal(contest)}>수정</Button>
                                             <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleDelete(contest.id, contest.title)}>삭제</Button>
                                         </td>
                                     </tr>
@@ -140,12 +141,20 @@ export const ContestManager: React.FC = () => {
                     </div>
                 </div>
             </div>
-            <ContestModal
+            <CreateContestModal
                 isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                mode={modalMode}
-                contestId={selectedContestId}
-                onSuccess={() => fetchContests(page, keyword)}
+                onClose={() => {
+                    setIsModalOpen(false);
+                    setSelectedContest(undefined);
+                }}
+                context="admin"
+                contestId={selectedContest?.id ?? null}
+                initialData={selectedContest}
+                onSuccess={() => {
+                    setIsModalOpen(false);
+                    setSelectedContest(undefined);
+                    fetchContests(page, keyword);
+                }}
             />
         </Card>
     );

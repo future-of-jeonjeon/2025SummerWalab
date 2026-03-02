@@ -12,6 +12,7 @@ import {
   AdminContest,
   AdminContestListResponse,
   ContestAnnouncement,
+  CreateContestRequest,
   SystemMetrics,
   TestCaseUploadResponse,
 } from '../types';
@@ -115,19 +116,9 @@ export interface AdminProblemDetail {
   shareSubmission: boolean;
 }
 
-export interface CreateContestPayload {
-  title: string;
-  description: string;
-  start_time: string;
-  end_time: string;
-  rule_type: 'ACM' | 'OI';
-  password?: string;
-  visible: boolean;
-  real_time_rank: boolean;
-  allowed_ip_ranges: string[];
-  requires_approval?: boolean;
-  languages: string[];
-}
+export type CreateContestPayload = Omit<CreateContestRequest, 'organization_id'> & {
+  organization_id?: number;
+};
 
 export interface CreateWorkbookPayload {
   title: string;
@@ -168,20 +159,10 @@ export interface UpdateJudgeServerPayload {
   is_disabled: boolean;
 }
 
-export interface UpdateContestPayload {
+export type UpdateContestPayload = CreateContestPayload & {
   id: number;
-  title: string;
-  description: string;
-  start_time: string;
-  end_time: string;
   password?: string | null;
-  visible: boolean;
-  real_time_rank: boolean;
-  allowed_ip_ranges: string[];
-  requires_approval?: boolean;
-  languages: string[];
-  rule_type: 'ACM' | 'OI';
-}
+};
 
 interface ContestProblemListPayload {
   results: any[];
@@ -425,14 +406,20 @@ export const adminService = {
   },
 
   searchAdminProblems: async ({ keyword, limit = 20, offset = 0 }: AdminProblemListParams = {}): Promise<Problem[]> => {
-    const response = await api.get<AdminProblemListResponse>('/admin/problem', {
-      paging: true,
-      limit,
-      offset,
+    const page = Math.floor(offset / limit) + 1;
+    const response = await api.get<any>('/problem/contest/serach', {
+      page,
+      size: limit,
       ...(keyword && keyword.trim().length > 0 ? { keyword: keyword.trim() } : {}),
     });
     const data = unwrap(response);
-    const results = Array.isArray(data?.results) ? data.results : [];
+    const results: any[] = Array.isArray(data)
+      ? data
+      : Array.isArray(data?.results)
+        ? data.results
+        : Array.isArray(data?.items)
+          ? data.items
+          : [];
     return results.map(adaptProblem);
   },
 
