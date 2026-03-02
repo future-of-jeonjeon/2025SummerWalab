@@ -317,6 +317,14 @@ const buildMicroProblemListParams = (filter: ProblemFilter) => {
   );
   tags.forEach((tag) => params.append('tags', tag));
 
+  if (filter.search && filter.search.trim().length > 0) {
+    params.set('keyword', filter.search.trim());
+  }
+
+  if (filter.difficultyLevel && filter.difficultyLevel > 0) {
+    params.set('difficulty', String(filter.difficultyLevel));
+  }
+
   return params;
 };
 

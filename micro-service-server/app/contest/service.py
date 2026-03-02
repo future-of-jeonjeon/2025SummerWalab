@@ -184,6 +184,13 @@ async def _create_contest_data_dto_from_entity(contest: Contest, languages: List
     )
     org_contest = await contest_repo.find_organization_contest_by_contest_id(contest.id, db)
     is_organization_only = org_contest.is_organization_only if org_contest else False
+    
+    organization_id = org_contest.organization_id if org_contest else None
+    organization_name = None
+    if organization_id:
+        org = await organization_repo.find_by_id(organization_id, db)
+        if org:
+            organization_name = org.name
 
     policy = await contest_repo.get_policy(contest.id, db)
 
@@ -204,7 +211,9 @@ async def _create_contest_data_dto_from_entity(contest: Contest, languages: List
         createdBy=created_by_dto,
         languages=languages,
         is_organization_only=is_organization_only,
-        requires_approval=policy
+        requires_approval=policy,
+        organization_id=organization_id,
+        organization_name=organization_name
     )
 
 

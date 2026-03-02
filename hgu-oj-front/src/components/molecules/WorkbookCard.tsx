@@ -5,42 +5,38 @@ import { Workbook } from '../../types';
 interface WorkbookCardProps {
   workbook: Workbook;
   onClick: (workbookId: number) => void;
+  onTagClick?: (tag: string) => void;
 }
 
-export const WorkbookCard: React.FC<WorkbookCardProps> = ({ workbook, onClick }) => {
+export const WorkbookCard: React.FC<WorkbookCardProps> = ({ workbook, onClick, onTagClick }) => {
   const handleClick = () => onClick(workbook.id);
 
-  const dummyTags = ['기본', '입출력', '연산자', '조건문', '반복문', '배열', '문자열'];
-  const displayTags = workbook.tags && workbook.tags.length > 0
-    ? workbook.tags
-    : dummyTags.slice(0, Math.floor(Math.random() * 4) + 3);
+  // 임시 더미 카테고리/태그 지원이 백엔드에서 되면 아래 slice 같은 부분 조정 필요
+  // 우선은 API 데이터 기반 태그만 렌더링하도록 변경합니다.
+  const displayTags = workbook.tags || [];
 
   return (
     <Card
       onClick={handleClick}
       className="mx-auto w-full p-5 bg-white border border-gray-200 hover:border-blue-400 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 cursor-pointer h-[280px] flex flex-col rounded-2xl relative"
     >
-      {/* 1. Header: Category and Problem Count */}
+      {/* 1. Header: Author and Problem Count */}
       <div className="flex items-center justify-between mb-4">
-        {workbook.category ? (
-          <span className="text-[11px] font-bold text-gray-500 tracking-wider">
-            {workbook.category}
-          </span>
-        ) : (
-          <span className="text-[11px] font-bold text-gray-400 tracking-wider">
-            기본 커리큘럼
-          </span>
-        )}
-        <span className="px-2.5 py-1 text-[11px] font-bold text-gray-600 bg-gray-100 rounded-full">
+        <h3 className="text-sm font-bold text-blue-500 flex items-center gap-1.5 line-clamp-1">
+          {workbook.writer}
+        </h3>
+        <span className="px-2.5 py-1 text-[11px] font-bold text-gray-600 bg-gray-100 rounded-full shrink-0">
           총 {workbook.problemCount || 0}문제
         </span>
       </div>
 
-      {/* 2. Title & Author */}
+      {/* 2. Title & Category */}
       <div className="mb-4">
-        <h3 className="text-sm font-bold text-blue-500 mb-1.5 flex items-center gap-1.5 line-clamp-1">
-          User {workbook.created_by_id}
-        </h3>
+        {workbook.category && (
+          <span className="text-[11px] font-bold text-gray-500 tracking-wider mb-2 block">
+            {workbook.category}
+          </span>
+        )}
         <h2 className="text-xl font-extrabold text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-2 leading-tight">
           {workbook.title}
         </h2>
@@ -52,9 +48,15 @@ export const WorkbookCard: React.FC<WorkbookCardProps> = ({ workbook, onClick })
           {displayTags.map((tag, idx) => (
             <span
               key={idx}
-              className="text-[12px] font-medium text-gray-600 bg-white border border-gray-200 px-2.5 py-0.5 rounded shadow-sm whitespace-nowrap"
+              onClick={(e) => {
+                if (onTagClick) {
+                  e.stopPropagation();
+                  onTagClick(tag);
+                }
+              }}
+              className={`text-[12px] font-medium text-gray-600 bg-white border border-gray-200 px-2.5 py-0.5 rounded shadow-sm whitespace-nowrap ${onTagClick ? 'hover:bg-gray-50 hover:text-blue-600 hover:border-blue-300 transition-colors' : ''}`}
             >
-              {tag}
+              #{tag}
             </span>
           ))}
         </div>

@@ -1,9 +1,10 @@
+from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from app.workbook import exceptions
 from app.api.deps import get_userdata
 from app.user.schemas import UserData
 from app.core.auth.guards import require_role
-from app.workbook.schemas import WorkbookCreate, Workbook, WorkbookProblem
+from app.workbook.schemas import WorkbookCreate, WorkbookResponse, WorkbookProblem
 from app.api.deps import get_database
 from sqlalchemy.ext.asyncio import AsyncSession
 import app.workbook.service as serv
@@ -12,7 +13,7 @@ from app.common.page import Page
 router = APIRouter(prefix="/api/workbook", tags=["workbook"])
 
 
-@router.post("/", response_model=Workbook)
+@router.post("/", response_model=WorkbookResponse)
 async def create_workbook(
         workbook: WorkbookCreate,
         userdata: UserData = Depends(get_userdata),
@@ -20,25 +21,35 @@ async def create_workbook(
     return await serv.create_workbook(workbook, userdata, db)
 
 
-@router.get("/", response_model=Page[Workbook])
+@router.get("/", response_model=Page[WorkbookResponse])
 async def get_public_workbooks(
         page: int = Query(1, ge=1),
         size: int = Query(20, ge=1),
+        search: Optional[str] = None,
+        sort_by: Optional[str] = "created_time",
+        sort_order: Optional[str] = "desc",
+        category: Optional[str] = None,
+        tags: Optional[str] = None,
         db: AsyncSession = Depends(get_database)):
-    return await serv.get_public_workbooks(db, page, size)
+    return await serv.get_public_workbooks(db, page, size, search, sort_by, sort_order, category, tags)
 
 
-@router.get("/all", response_model=Page[Workbook])
+@router.get("/all", response_model=Page[WorkbookResponse])
 @require_role("Admin")
 async def get_workbooks(
         page: int = Query(1, ge=1),
         size: int = Query(20, ge=1),
+        search: Optional[str] = None,
+        sort_by: Optional[str] = "created_time",
+        sort_order: Optional[str] = "desc",
+        category: Optional[str] = None,
+        tags: Optional[str] = None,
         userdata: UserData = Depends(get_userdata),  # 보안검사용
         db: AsyncSession = Depends(get_database)):
-    return await serv.get_workbooks(db, page, size)
+    return await serv.get_workbooks(db, page, size, search, sort_by, sort_order, category, tags)
 
 
-@router.get("/{workbook_id}", response_model=Workbook)
+@router.get("/{workbook_id}", response_model=WorkbookResponse)
 async def get_workbook(
         workbook_id: int,
         userdata: UserData = Depends(get_userdata),
@@ -46,7 +57,7 @@ async def get_workbook(
     return await serv.get_workbook(workbook_id, userdata, db)
 
 
-@router.put("/{workbook_id}", response_model=Workbook)
+@router.put("/{workbook_id}", response_model=WorkbookResponse)
 @require_role("Admin")
 async def update_workbook(
         workbook_id: int,
@@ -69,8 +80,9 @@ async def delete_workbook(
 @router.get("/{workbook_id}/problems", response_model=list[WorkbookProblem])
 async def get_workbook_problems(
         workbook_id: int,
+        userdata: UserData = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)):
-    return await serv.get_workbook_problems(workbook_id, db)
+    return await serv.get_workbook_problems(workbook_id, userdata, db)
 
 
 @router.put("/{workbook_id}/problems")

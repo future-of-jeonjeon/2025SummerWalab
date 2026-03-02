@@ -186,7 +186,6 @@ export const NavBar: React.FC = () => {
                     <div className="absolute right-0 mt-2 w-80 rounded-xl bg-white shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none z-50 overflow-hidden">
                       <div className="p-4 border-b border-gray-100 bg-gray-50 flex justify-between items-center">
                         <h3 className="text-sm font-semibold text-gray-900">알림</h3>
-                        <button className="text-xs text-blue-600 hover:text-blue-800 font-medium">모두 읽음 처리</button>
                       </div>
                       <div className="max-h-96 overflow-y-auto w-full no-scrollbar">
                         {notifications.length > 0 ? (

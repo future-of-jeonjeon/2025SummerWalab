@@ -8,6 +8,7 @@ interface WorkbookListProps {
   error: Error | null;
   searchQuery: string;
   onWorkbookClick: (workbookId: number) => void;
+  onTagClick?: (tag: string) => void;
   onPageChange: (page: number) => void;
   currentPage: number;
   totalPages: number;
@@ -19,6 +20,7 @@ export const WorkbookList: React.FC<WorkbookListProps> = ({
   error,
   searchQuery,
   onWorkbookClick,
+  onTagClick,
   onPageChange,
   currentPage,
   totalPages,
@@ -64,6 +66,7 @@ export const WorkbookList: React.FC<WorkbookListProps> = ({
             key={workbook.id}
             workbook={workbook}
             onClick={onWorkbookClick}
+            onTagClick={onTagClick}
           />
         ))}
       </div>

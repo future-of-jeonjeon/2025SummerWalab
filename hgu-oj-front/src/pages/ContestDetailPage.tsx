@@ -350,7 +350,14 @@ export const ContestDetailPage: React.FC = () => {
           <div className="w-full lg:w-64 flex-shrink-0">
             <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden sticky top-24">
               <div className="p-6 border-b border-gray-100 bg-gray-50">
-                <h2 className="text-lg font-bold text-gray-900">대회 메뉴</h2>
+                <h2 className="text-lg font-bold text-gray-900 leading-tight">{contest?.title || '대회'}</h2>
+                {contest?.organization_name && (
+                  <div className="text-xs text-gray-500 font-medium mt-1 mb-2">
+                    - {contest.organization_name}
+                  </div>
+                )}
+                {!contest?.organization_name && <div className="mb-2"></div>}
+                <div className="text-xs text-gray-500 font-medium tracking-wide uppercase">대회 메뉴</div>
               </div>
               <nav className="p-2 space-y-1">
                 {tabs.map((tab) => {
@@ -382,10 +389,10 @@ export const ContestDetailPage: React.FC = () => {
                       disabled={disabled}
                       aria-disabled={disabled}
                       className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${isActive
-                          ? 'bg-blue-50 text-blue-700'
-                          : disabled
-                            ? 'text-gray-400 opacity-50 cursor-not-allowed'
-                            : 'text-gray-700 hover:bg-gray-50'
+                        ? 'bg-blue-50 text-blue-700'
+                        : disabled
+                          ? 'text-gray-400 opacity-50 cursor-not-allowed'
+                          : 'text-gray-700 hover:bg-gray-50'
                         }`}
                     >
                       {iconPath && (

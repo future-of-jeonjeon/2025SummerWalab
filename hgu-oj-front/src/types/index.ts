@@ -88,6 +88,8 @@ export interface Contest {
   participants: number;
   languages?: string[];
   isOrganizationOnly?: boolean;
+  organization_id?: number | null;
+  organization_name?: string | null;
 }
 
 export interface ContestDataDTO {
@@ -110,6 +112,8 @@ export interface ContestDataDTO {
   };
   participants: number;
   languages: string[];
+  organization_id?: number | null;
+  organization_name?: string | null;
 }
 
 export interface ContestAnnouncement {
@@ -196,6 +200,7 @@ export interface Workbook {
   is_public: boolean;
   problemCount?: number;
   tags?: string[];
+  writer?: string;
 }
 
 export interface WorkbookProblem {

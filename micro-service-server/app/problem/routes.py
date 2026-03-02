@@ -90,6 +90,8 @@ async def get_contest_problem_count(contest_id: int, db: AsyncSession = Depends(
 async def get_filter_sorted_problems(
         # 태그로 필털이할 때 태그값 받음
         tags: Optional[List[str]] = Query(None),
+        keyword: Optional[str] = Query(None),
+        difficulty: Optional[int] = Query(None),
         # 정렬옵션 넣을 때 받을 변수, 기본값 : id
         sort_option: Optional[str] = Query("id"),
         # 오름, 내림차순 받을 변수, 기본은 오름차순
@@ -99,4 +101,4 @@ async def get_filter_sorted_problems(
         size: int = Query(20, ge=1, le=250),
         db: AsyncSession = Depends(get_database)
 ):
-    return await serv.get_filter_sorted_problems(tags, sort_option, order, page, size, db)
+    return await serv.get_filter_sorted_problems(tags, keyword, difficulty, sort_option, order, page, size, db)

@@ -10,7 +10,7 @@ async def get_user_notification(
         user_data: UserData,
         db: AsyncSession) -> list[NotificationResponse]:
     notifications_list: list[Notification] = await (notification_repo
-                                                    .find_notifications_by_user_id(user_id=user_data.id, db=db))
+                                                    .find_notifications_by_user_id(user_id=user_data.user_id, db=db))
     for notification in notifications_list:
         notification.is_checked = True
     notifications_response_list = [NotificationResponse.model_validate(notification) for notification in

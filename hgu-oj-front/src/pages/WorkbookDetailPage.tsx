@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Button } from '../components/atoms/Button';
 import { WorkbookProblemList } from '../components/organisms/WorkbookProblemList';
 import { useWorkbook, useWorkbookProblems } from '../hooks/useWorkbooks';
+import { useWorkbookStore } from '../stores/workbookStore';
 import { Problem } from '../types';
 import { problemService } from '../services/problemService';
 import { resolveProblemStatus } from '../utils/problemStatus';
@@ -16,6 +17,7 @@ export const WorkbookDetailPage: React.FC = () => {
 
   const { data: workbook, isLoading: workbookLoading, error: workbookError } = useWorkbook(workbookId);
   const { data: problemsData, isLoading: problemsLoading, error: problemsError } = useWorkbookProblems(workbookId);
+  const { setFilter } = useWorkbookStore();
   const [statusFilter, setStatusFilter] = useState<'all' | ProblemStatusKey>('all');
   const [difficultyFilter, setDifficultyFilter] = useState<string>('all'); // Added for dropdown
 
@@ -44,6 +46,11 @@ export const WorkbookDetailPage: React.FC = () => {
   };
 
   const handleBackClick = () => {
+    navigate('/workbooks');
+  };
+
+  const handleTagClick = (tag: string) => {
+    setFilter({ search: tag, page: 1 });
     navigate('/workbooks');
   };
 
@@ -202,13 +209,25 @@ export const WorkbookDetailPage: React.FC = () => {
         <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden relative">
           <div className="p-8 sm:p-10">
             {/* Tags */}
-            <div className="flex items-center gap-2 mb-4">
-              <span className="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-extrabold tracking-wide uppercase rounded-full">
-                OFFICIAL
+            <div className="flex items-center gap-2 mb-4 flex-wrap">
+              <span className="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-extrabold tracking-wide rounded-full shrink-0 flex items-center gap-1">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                {workbook.writer || `User ${workbook.created_by_id}`}
               </span>
-              <span className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-bold rounded-full">
-                {workbook.category || '기본 커리큘럼'}
-              </span>
+              {workbook.category && (
+                <span className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-bold rounded-full shrink-0">
+                  {workbook.category}
+                </span>
+              )}
+              {workbook.tags && workbook.tags.length > 0 && workbook.tags.map((tag, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleTagClick(tag)}
+                  className="px-3 py-1 bg-white border border-gray-200 text-gray-600 text-xs font-bold rounded-full hover:bg-gray-50 hover:text-blue-600 hover:border-blue-300 transition-colors shrink-0"
+                >
+                  #{tag}
+                </button>
+              ))}
             </div>
 
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-10 lg:gap-16">

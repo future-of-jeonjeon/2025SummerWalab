@@ -1,26 +1,103 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { WorkbookList } from '../components/organisms/WorkbookList';
 import { useWorkbooks } from '../hooks/useWorkbooks';
 import { useWorkbookStore } from '../stores/workbookStore';
+import { problemService } from '../services/problemService';
 
-// 임시 더미 카테고리 데이터
-const DUMMY_CATEGORIES = [
-  { name: '알고리즘', count: 12 },
-  { name: '자료구조', count: 8 },
-  { name: '코딩테스트 기초', count: 15 },
-  { name: '기출문제', count: 5 }
-];
+const normalizeTags = (tags: string[]): string[] => {
+  const unique = new Set(
+    tags
+      .map((tag) => tag?.trim())
+      .filter((tag): tag is string => Boolean(tag))
+  );
+  return Array.from(unique).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+};
+
+const areTagArraysEqual = (a: string[], b: string[]): boolean => {
+  if (a.length !== b.length) return false;
+  return a.every((value, index) => value === b[index]);
+};
+
+const parseTagsFromQuery = (value: string | null): string[] => {
+  if (!value) return [];
+  return normalizeTags(value.split(','));
+};
 
 export const WorkbookListPage: React.FC = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const { filter, setFilter } = useWorkbookStore();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState(filter.search || '');
   const [showAllCategories, setShowAllCategories] = useState(false);
 
   // useWorkbooks returns { data, isLoading, error, refetch } from useQuery
   const { data: workbookResponse, isLoading, error } = useWorkbooks(filter);
+
+  const {
+    data: tagCountsData,
+    isLoading: isTagCountsLoading,
+  } = useQuery({
+    queryKey: ['problem', 'tag-counts'],
+    queryFn: ({ signal }) => problemService.getTagCounts({ signal }),
+  });
+
+  const tagStats = useMemo(() => {
+    return (tagCountsData ?? [])
+      .map(({ tag, count }) => ({
+        name: tag,
+        count,
+      }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+  }, [tagCountsData]);
+
+  const selectedTags = useMemo(
+    () => normalizeTags(filter.tags ?? []),
+    [filter.tags]
+  );
+
+  const searchParamsString = searchParams.toString();
+  const selectedTagsRef = useRef<string[]>(selectedTags);
+
+  useEffect(() => {
+    selectedTagsRef.current = selectedTags;
+  }, [selectedTags]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(searchParamsString);
+    const parsed = parseTagsFromQuery(params.get('tags'));
+    if (!areTagArraysEqual(parsed, selectedTagsRef.current)) {
+      setFilter({ tags: parsed, page: 1 });
+    }
+  }, [searchParamsString, setFilter]);
+
+  useEffect(() => {
+    const normalized = normalizeTags(selectedTags);
+    const params = new URLSearchParams(searchParamsString);
+    const current = params.get('tags');
+
+    if (normalized.length === 0) {
+      if (current) {
+        params.delete('tags');
+        setSearchParams(params, { replace: true });
+      }
+      return;
+    }
+
+    const joined = normalized.join(',');
+    if (current !== joined) {
+      params.set('tags', joined);
+      setSearchParams(params, { replace: true });
+    }
+  }, [selectedTags, searchParamsString, setSearchParams]);
+
+  const handleCategoryToggle = (tagName: string) => {
+    const newTags = selectedTags.includes(tagName)
+      ? selectedTags.filter((t) => t !== tagName)
+      : [...selectedTags, tagName];
+    setFilter({ tags: newTags, page: 1 });
+  };
 
   const workbooks = workbookResponse?.data || [];
   const totalCount = workbookResponse?.total || 0;
@@ -34,6 +111,12 @@ export const WorkbookListPage: React.FC = () => {
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
     setFilter({ search: query, page: 1 });
+  };
+
+  const handleTagClick = (tag: string) => {
+    const newQuery = searchQuery ? `${searchQuery} ${tag}` : tag;
+    setSearchQuery(newQuery);
+    setFilter({ search: newQuery, page: 1 });
   };
 
   const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -53,17 +136,6 @@ export const WorkbookListPage: React.FC = () => {
     } else if (sortValue === 'oldest') {
       setFilter({ sortBy: 'created_at', sortOrder: 'asc', page: 1 });
     }
-  };
-
-  const handleCategoryToggle = (categoryName: string) => {
-    let newCategories = [];
-    if (selectedCategories.includes(categoryName)) {
-      newCategories = selectedCategories.filter((c) => c !== categoryName);
-    } else {
-      newCategories = [...selectedCategories, categoryName];
-    }
-    setSelectedCategories(newCategories);
-    // TODO: 백엔드 카테고리/태그 지원 시 setFilter({ tags: newCategories }) 등 추가
   };
 
   return (
@@ -101,13 +173,16 @@ export const WorkbookListPage: React.FC = () => {
                 <svg className="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"></path></svg>
                 카테고리
               </h3>
+              {isTagCountsLoading && (
+                <div className="text-sm text-gray-500 mb-3">태그를 불러오는 중입니다...</div>
+              )}
               <div className="space-y-3">
                 <label className="flex items-center justify-between cursor-pointer group">
                   <div className="flex items-center">
                     <input
                       type="checkbox"
-                      checked={selectedCategories.length === 0}
-                      onChange={() => setSelectedCategories([])}
+                      checked={selectedTags.length === 0}
+                      onChange={() => setFilter({ tags: [], page: 1 })}
                       className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                     />
                     <span className="ml-3 text-sm font-medium text-gray-700 group-hover:text-gray-900">전체 보기</span>
@@ -115,12 +190,12 @@ export const WorkbookListPage: React.FC = () => {
                   <span className="text-xs font-medium bg-gray-100 text-gray-600 py-1 px-2.5 rounded-full">{totalCount}</span>
                 </label>
 
-                {DUMMY_CATEGORIES.slice(0, showAllCategories ? undefined : 8).map((category) => (
+                {(tagStats || []).slice(0, showAllCategories ? undefined : 8).map((category) => (
                   <label key={category.name} className="flex items-center justify-between cursor-pointer group">
                     <div className="flex items-center">
                       <input
                         type="checkbox"
-                        checked={selectedCategories.includes(category.name)}
+                        checked={selectedTags.includes(category.name)}
                         onChange={() => handleCategoryToggle(category.name)}
                         className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                       />
@@ -130,7 +205,7 @@ export const WorkbookListPage: React.FC = () => {
                   </label>
                 ))}
 
-                {DUMMY_CATEGORIES.length > 8 && (
+                {(tagStats || []).length > 8 && (
                   <button
                     type="button"
                     onClick={() => setShowAllCategories(!showAllCategories)}
@@ -169,6 +244,7 @@ export const WorkbookListPage: React.FC = () => {
               error={error}
               searchQuery={searchQuery}
               onWorkbookClick={handleWorkbookClick}
+              onTagClick={handleTagClick}
               onPageChange={handlePageChange}
               currentPage={currentPage}
               totalPages={totalPages}

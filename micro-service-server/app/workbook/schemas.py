@@ -78,23 +78,26 @@ class WorkbookProblem(WorkbookProblemBase):
         from_attributes = True
 
 
-class Workbook(BaseModel):
+class WorkbookResponse(BaseModel):
     id: int
     title: str
     description: Optional[str] = None
     category: Optional[str] = None
     created_by_id: int
+    writer: str = ""
     is_public: bool
     created_at: datetime = Field(..., validation_alias="created_time")
     updated_at: datetime = Field(..., validation_alias="updated_time")
+    tags: List[str] = []
+    problem_count: int = Field(default=0, serialization_alias="problemCount")
 
     class Config:
         from_attributes = True
 
 
-class WorkbookWithProblems(Workbook):
+class WorkbookWithProblems(WorkbookResponse):
     problems: List[WorkbookProblem] = []
 
 
-class WorkbookListResponse(Page[Workbook]):
-    workbooks: List[Workbook] = Field(..., alias="items")
+class WorkbookListResponse(Page[WorkbookResponse]):
+    workbooks: List[WorkbookResponse] = Field(..., alias="items")

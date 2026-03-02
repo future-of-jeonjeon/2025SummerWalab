@@ -254,6 +254,8 @@ async def get_tag_count(db: AsyncSession):
 
 async def get_filter_sorted_problems(
         tags: Optional[List[str]],
+        keyword: Optional[str],
+        difficulty: Optional[int],
         sort_option: Optional[str],
         order: Optional[str],
         page: int,
@@ -288,6 +290,8 @@ async def get_filter_sorted_problems(
     problem_page = await problem_repository.fetch_filtered_problems(
         db,
         tags=tags,
+        keyword=keyword,
+        difficulty=difficulty,
         ordering=ordering,
         page=page,
         page_size=page_size,

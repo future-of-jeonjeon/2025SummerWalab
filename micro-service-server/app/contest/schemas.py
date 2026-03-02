@@ -37,6 +37,8 @@ class ContestDataDTO(BaseModel):
     languages: list[str]
     is_organization_only: bool = False
     requires_approval: bool = False
+    organization_id: Optional[int] = None
+    organization_name: Optional[str] = None
 
 
 class CreateContestRequest(BaseModel):

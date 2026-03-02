@@ -146,10 +146,15 @@ export const ContestListPage: React.FC = () => {
 
         <div className="flex-1 min-w-0">
           <div className="flex flex-col gap-2">
-            <div className="flex items-start justify-between gap-4">
+            <div className="flex flex-col items-start gap-1">
               <h3 className="text-lg font-bold text-gray-900 truncate">
                 {contest.title}
               </h3>
+              {contest.organization_name && (
+                <div className="text-sm text-gray-500 font-medium">
+                  - {contest.organization_name}
+                </div>
+              )}
             </div>
 
             <div className="flex items-center gap-3 text-sm">
@@ -260,6 +265,9 @@ export const ContestListPage: React.FC = () => {
                     >
                       <td className="px-6 py-4">
                         <div className="font-medium text-gray-900">{contest.title}</div>
+                        {contest.organization_name && (
+                          <div className="text-xs text-gray-500 mt-1">- {contest.organization_name}</div>
+                        )}
                       </td>
                       <td className="px-6 py-4 text-center text-gray-500">
                         {formatDate(new Date(contest.startTime))}

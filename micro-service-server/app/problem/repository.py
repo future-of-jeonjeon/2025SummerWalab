@@ -47,10 +47,13 @@ async def fetch_filtered_problems(
         session: AsyncSession,
         *,
         tags: Optional[List[str]],
+        keyword: Optional[str] = None,
+        difficulty: Optional[int] = None,
         ordering: ColumnElement,
         page: int,
         page_size: int,
 ) -> Page[Problem]:
+    from sqlalchemy import or_
     visibility_filter = _public_problem_filter()
     base_stmt: Select = (
         select(Problem)
@@ -70,6 +73,17 @@ async def fetch_filtered_problems(
             .distinct()
         )
         base_stmt = base_stmt.where(Problem.id.in_(tagged_problem_ids_stmt))
+
+    if keyword:
+        search_term = f"%{keyword}%"
+        base_stmt = base_stmt.where(or_(Problem.title.ilike(search_term), Problem._id.ilike(search_term)))
+
+    if difficulty:
+        base_stmt = base_stmt.where(or_(
+            Problem.difficulty.ilike(f"%Lv.%{difficulty}%"),
+            Problem.difficulty.ilike(f"%Lv.{difficulty}%"),
+            Problem.difficulty == str(difficulty)
+        ))
 
     stmt = base_stmt.order_by(ordering)
     return await paginate(session, stmt, page, page_size)
