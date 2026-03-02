@@ -16,6 +16,7 @@ class ProblemImportPollingStatus(BaseModel):
     left_problem:int
     all_problem:int
     error_code: Optional[str] = None
+    problem_id: Optional[int] = None
 
 class ProblemMetadata(BaseModel):
     display_id: str = Field(..., alias='_id', description="문제의 고유 Display ID")

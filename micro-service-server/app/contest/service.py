@@ -48,6 +48,10 @@ async def create_contest(request_data: CreateContestRequest, user_data: UserData
     await contest_repo.create_organization_contest(organization_contest, db)
     if request_data.requires_approval:
         await contest_repo.upsert_policy(contest.id, request_data.requires_approval, db)
+        
+    for p_input in (request_data.problems or []):
+        await _clone_and_add_problem(db, contest.id, p_input.problem_id, p_input.display_id, user_data.user_id, request_data.languages)
+
     return await _create_contest_data_dto_from_entity(contest, request_data.languages, 0, db)
 
 
@@ -79,6 +83,20 @@ async def update_contest(update_contest_dto: ReqUpdateContestDTO, user_data: Use
 
     if update_contest_dto.requires_approval is not None:
         await contest_repo.upsert_policy(contest.id, update_contest_dto.requires_approval, db)
+        
+    if update_contest_dto.problems is not None and len(update_contest_dto.problems) > 0:
+        existing_problems = await problem_repo.find_problems_by_contest_id(db, contest.id)
+        existing_display_ids = {p._id: p for p in existing_problems}
+        new_display_ids = {p.display_id for p in update_contest_dto.problems}
+        
+        problems_to_delete = [p for p in existing_problems if p._id not in new_display_ids]
+        if problems_to_delete:
+            await problem_repo.delete_problems(db, problems_to_delete)
+            
+        for p_input in update_contest_dto.problems:
+            if p_input.display_id not in existing_display_ids:
+                await _clone_and_add_problem(db, contest.id, p_input.problem_id, p_input.display_id, user_data.user_id, update_contest_dto.languages)
+
     return await _create_contest_data_dto_from_entity(contest, update_contest_dto.languages, 0, db)
 
 
@@ -107,25 +125,29 @@ async def get_contest_detail(contest_id: int, db: AsyncSession) -> ContestDataDT
     return await _create_contest_data_dto_from_entity(contest, languages, contest_participants_num, db)
 
 
+async def _clone_and_add_problem(db: AsyncSession, contest_id: int, problem_id: int, display_id: str, user_id: int, languages: List[str]):
+    problem = await problem_repo.find_problem_with_tags_by_id(problem_id, db)
+    if not problem:
+        problem_exceptions.problem_not_found()
+    if await contest_repo.exists_display_id_in_contest(contest_id, display_id, db):
+        contest_exception.display_id_conflict()
+    new_problem = _create_cloned_problem_entity(problem, contest_id, display_id, user_id, languages)
+    new_problem.tags = list(problem.tags)
+    return await problem_repo.create_problem(session=db, problem=new_problem)
+
+
 async def add_contest_problem(contest_problem_dto: ReqAddContestProblemDTO, user_data: UserData, db: AsyncSession):
     contest = await contest_repo.find_contest_by_id(contest_problem_dto.contest_id, db)
     contest_language = await contest_repo.find_contest_language_by_contest_id(contest_problem_dto.contest_id, db)
-    problem = await problem_repo.find_problem_with_tags_by_id(contest_problem_dto.problem_id, db)
 
     if not contest:
         contest_exception.contest_not_found()
     if not contest_language:
         contest_exception.contest_language_not_found()
-    if not problem:
-        problem_exceptions.problem_not_found()
     if contest.end_time <= datetime.now():
         contest_exception.contest_ended()
-    if contest_repo.exists_display_id_in_contest(contest.id, contest_problem_dto.display_id, db):
-        contest_exception.display_id_conflict()
-    new_problem = _create_cloned_problem_entity(problem, contest.id, contest_problem_dto.display_id, user_data.user_id,
-                                                contest_language.languages)
-    new_problem.tags = list(problem.tags)
-    await problem_repo.create_problem(new_problem, db)
+        
+    await _clone_and_add_problem(db, contest.id, contest_problem_dto.problem_id, contest_problem_dto.display_id, user_data.user_id, contest_language.languages)
     return None
 
 

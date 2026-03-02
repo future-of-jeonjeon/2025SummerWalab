@@ -5,6 +5,11 @@ from typing import Optional, List, Literal
 from app.common.page import Page
 
 
+class ContestProblemInputDTO(BaseModel):
+    problem_id: int
+    display_id: str
+
+
 class ContestDTO(BaseModel):
     contest_id: int
     title: str
@@ -55,6 +60,7 @@ class CreateContestRequest(BaseModel):
     requires_approval: Optional[bool] = False
     languages: list[str]
     organization_id:int
+    problems: Optional[List[ContestProblemInputDTO]] = []
 
 
 class ReqUpdateContestDTO(BaseModel):
@@ -72,6 +78,7 @@ class ReqUpdateContestDTO(BaseModel):
     is_organization_only: Optional[bool] = None
     languages: list[str]
     organization_id: int
+    problems: Optional[List[ContestProblemInputDTO]] = []
 
 
 class ReqAddContestProblemDTO(BaseModel):

@@ -102,3 +102,30 @@ async def get_filter_sorted_problems(
         db: AsyncSession = Depends(get_database)
 ):
     return await serv.get_filter_sorted_problems(tags, keyword, difficulty, sort_option, order, page, size, db)
+
+
+@router.get("/available", response_model=ProblemListResponse)
+@require_role("Admin", "OrganizationAdmin", "User")
+async def get_available_problems(
+        keyword: Optional[str] = Query(None),
+        page: int = Query(1, ge=1),
+        size: int = Query(20, ge=1, le=250),
+        user_data: UserData = Depends(get_userdata),
+        db: AsyncSession = Depends(get_database)
+):
+    return await serv.get_available_contest_problem(page, size, keyword, user_data, db)
+
+
+@router.get("/contest/search", response_model=ProblemListResponse)
+@require_role("Admin", "OrganizationAdmin", "User")
+async def get_available_contest_problem(
+        page: int = Query(1, ge=1),
+        size: int = Query(20, ge=1, le=250),
+        keyword: Optional[str] = Query(None),
+        request_user: UserData = Depends(get_userdata),
+        db: AsyncSession = Depends(get_database)):
+    return await serv.get_available_contest_problem(page=page,
+                                                    size=size,
+                                                    keyword=keyword,
+                                                    request_user=request_user,
+                                                    db=db)

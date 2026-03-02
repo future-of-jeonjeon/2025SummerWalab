@@ -2,7 +2,6 @@ import io
 import os
 import uuid
 import zipfile
-
 from fastapi import UploadFile
 from sqlalchemy import asc, desc, case, cast, Float
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -49,7 +48,7 @@ async def create_problem(
             if create_data.tags:
                 problem.tags = await _process_tags(db, create_data.tags)
             await problem_repository.create_problem(db, problem)
-        await _set_redis_polling_state(polling_key, "done", 1, 0, 1)
+        await _set_redis_polling_state(polling_key, "done", 1, 0, 1, problem_id=problem.id)
     except Exception as e:
         logger.error(f"Failed to create problem: {e}")
         error_code = getattr(e, "detail", {}).get("code") if hasattr(e, "detail") else "unknown_error"
@@ -63,7 +62,8 @@ async def _set_redis_polling_state(
         processed_problem: int,
         left_problem: int,
         all_problem: int,
-        error_code: str = "", ):
+        error_code: str = "",
+        problem_id: int | None = None):
     redis = await get_polling_task()
     if status != "initialized" and not await redis.get(polling_key):
         problem_exceptions.polling_not_found()
@@ -71,7 +71,8 @@ async def _set_redis_polling_state(
         status=status,
         processed_problem=processed_problem,
         left_problem=left_problem,
-        all_problem=all_problem)
+        all_problem=all_problem,
+        problem_id=problem_id)
     if error_code != "":
         data.error_code = error_code
     await redis.set(polling_key, data.model_dump_json(), ex=POLLING_SESSION_TIME)
@@ -354,3 +355,27 @@ async def count_problems_in_file(file: UploadFile) -> int:
 async def get_contributed_problem(user_data: UserData, page: int, size: int, db: AsyncSession):
     problems = await problem_repository.find_problems_by_creator_id(user_data.user_id, page, size, db)
     return problems.map(ProblemSchema.model_validate)
+
+
+async def get_available_contest_problem(
+        page: int,
+        size: int,
+        keyword: Optional[str],
+        request_user: UserData,
+        db: AsyncSession
+) -> ProblemListResponse:
+    page_data = await problem_repository.find_available_problems_by_creator_id_and_keyword(
+        page=page,
+        page_size=size,
+        user_id=request_user.user_id,
+        keyword=keyword,
+        db=db)
+
+    serialized = [_serialize_problem(problem) for problem in page_data.items]
+
+    return ProblemListResponse(
+        total=page_data.total,
+        page=page_data.page,
+        size=page_data.size,
+        items=serialized,
+    )

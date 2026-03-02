@@ -1,10 +1,8 @@
 from typing import List, Optional, Sequence, Tuple
-
-from sqlalchemy import Select, func, select, update
+from sqlalchemy import Select, func, select, update, or_, union
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import ColumnElement
-from app.common.page import Page, paginate
 from app.problem.models import Problem, ProblemTag, problem_tags_association_table
 
 
@@ -143,6 +141,18 @@ async def create_problem(session: AsyncSession, problem: Problem) -> Problem:
     return problem
 
 
+async def find_problems_by_contest_id(session: AsyncSession, contest_id: int) -> List[Problem]:
+    stmt = select(Problem).where(Problem.contest_id == contest_id)
+    result = await session.execute(stmt)
+    return result.scalars().all()
+
+
+async def delete_problems(session: AsyncSession, problems: List[Problem]):
+    for problem in problems:
+        await session.delete(problem)
+    await session.flush()
+
+
 async def find_problem_with_tags_by_id(problem_id: int, session: AsyncSession) -> Optional[Problem]:
     stmt = select(Problem).options(selectinload(Problem.tags)).where(Problem.id == problem_id)
     result = await session.execute(stmt)
@@ -168,3 +178,41 @@ async def find_problems_by_creator_id(
             .where(Problem.created_by_id == creator_id)
             .order_by(Problem.id.desc()))
     return await paginate(session, stmt, page, size)
+
+
+async def find_available_problems_by_creator_id_and_keyword(
+        page: int,
+        page_size: int,
+        user_id: int,
+        keyword: str | None,
+        db: AsyncSession,
+):
+    visibility = (
+            Problem.is_public.is_(True)
+            & Problem.visible.is_(True)
+            & Problem.contest_id.is_(None)
+    )
+    author = (Problem.created_by_id == user_id)
+
+    public_ids = (_apply_keyword(keyword, select(Problem.id).where(visibility)))
+    mine_ids = _apply_keyword(keyword, select(Problem.id).where(author))
+
+    ids_union = union(public_ids, mine_ids).subquery()
+    stmt = (
+        select(Problem)
+        .join(ids_union, ids_union.c.id == Problem.id)
+        .options(selectinload(Problem.tags))
+        .order_by(Problem.id.desc())
+    )
+
+    return await paginate(db, stmt, page, page_size)
+
+
+def _apply_keyword(keyword, stmt):
+    if not keyword:
+        return stmt
+    term = f"%{keyword}%"
+    return stmt.where(or_(
+        Problem.title.ilike(term),
+        Problem._id.ilike(term),
+    ))

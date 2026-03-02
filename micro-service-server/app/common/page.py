@@ -33,7 +33,7 @@ class Page(BaseModel, Generic[T]):
 async def paginate(session: AsyncSession, stmt: Select, page: int, size: int) -> Page[T]:
     page = 1 if page < 1 else page
     size = 1 if size < 1 else size
-    size = 100 if size > 100 else size
+    size = 250 if size > 250 else size
 
     count_stmt = select(func.count()).select_from(stmt.subquery())
     total = (await session.execute(count_stmt)).scalar() or 0
