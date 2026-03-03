@@ -42,19 +42,20 @@ def upgrade() -> None:
         schema='public'
         )
         op.create_index(op.f('ix_public_micro_todo_id'), 'micro_todo', ['id'], unique=False, schema='public')
-    op.create_table('micro_organization_contest',
-    sa.Column('contest_id', sa.Integer(), nullable=False),
-    sa.Column('organization_id', sa.Integer(), nullable=False),
-    sa.Column('is_organization_only', sa.Boolean(), nullable=False),
-    sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False),
-    sa.Column('created_time', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.Column('updated_time', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
-    sa.ForeignKeyConstraint(['contest_id'], ['public.contest.id'], ),
-    sa.ForeignKeyConstraint(['organization_id'], ['public.micro_organization.id'], ),
-    sa.PrimaryKeyConstraint('id'),
-    schema='public'
-    )
-    op.create_index(op.f('ix_public_micro_organization_contest_id'), 'micro_organization_contest', ['id'], unique=False, schema='public')
+    if not inspector.has_table('micro_organization_contest', schema='public'):
+        op.create_table('micro_organization_contest',
+        sa.Column('contest_id', sa.Integer(), nullable=False),
+        sa.Column('organization_id', sa.Integer(), nullable=False),
+        sa.Column('is_organization_only', sa.Boolean(), nullable=False),
+        sa.Column('id', sa.BigInteger(), autoincrement=True, nullable=False),
+        sa.Column('created_time', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+        sa.Column('updated_time', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
+        sa.ForeignKeyConstraint(['contest_id'], ['public.contest.id'], ),
+        sa.ForeignKeyConstraint(['organization_id'], ['public.micro_organization.id'], ),
+        sa.PrimaryKeyConstraint('id'),
+        schema='public'
+        )
+        op.create_index(op.f('ix_public_micro_organization_contest_id'), 'micro_organization_contest', ['id'], unique=False, schema='public')
     op.drop_constraint(op.f('micro_contest_language_contest_id_fkey'), 'micro_contest_language', type_='foreignkey')
     op.create_foreign_key(None, 'micro_contest_language', 'contest', ['contest_id'], ['id'], source_schema='public', referent_schema='public')
     op.drop_constraint(op.f('micro_organization_member_organization_id_fkey'), 'micro_organization_member', type_='foreignkey')
@@ -71,7 +72,9 @@ def upgrade() -> None:
     op.drop_constraint(op.f('micro_workbook_problem_workbook_id_fkey'), 'micro_workbook_problem', type_='foreignkey')
     op.create_foreign_key(None, 'micro_workbook_problem', 'micro_workbook', ['workbook_id'], ['id'], source_schema='public', referent_schema='public', ondelete='CASCADE')
     op.create_foreign_key(None, 'micro_workbook_problem', 'problem', ['problem_id'], ['id'], source_schema='public', referent_schema='public')
-    op.add_column('micro_workbook_problem', sa.Column('display_order', sa.Integer(), nullable=False, server_default='0'))
+    workbook_problem_columns = {col["name"] for col in inspector.get_columns("micro_workbook_problem", schema="public")}
+    if "display_order" not in workbook_problem_columns:
+        op.add_column('micro_workbook_problem', sa.Column('display_order', sa.Integer(), nullable=False, server_default='0'))
     # ### end Alembic commands ###
 
 
