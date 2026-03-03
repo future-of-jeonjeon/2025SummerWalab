@@ -223,30 +223,17 @@ export const HomePage: React.FC = () => {
                 {userRanking.loading ? (
                   Array.from({ length: 3 }).map((_, i) => (
                     <div key={i} className="flex items-center gap-3 animate-pulse">
-                      <div className="w-4 h-4 bg-slate-200 rounded"></div>
                       <div className="w-10 h-10 bg-slate-200 rounded-full"></div>
-                      <div className="flex-1 space-y-2">
-                        <div className="h-3 w-20 bg-slate-200 rounded"></div>
-                        <div className="h-2 w-16 bg-slate-200 rounded"></div>
-                      </div>
+                      <div className="h-3 w-20 bg-slate-200 rounded"></div>
                     </div>
                   ))
                 ) : userRanking.items.length > 0 ? (
                   userRanking.items.slice(0, 3).map((user, idx) => (
-                    <div key={user.rank} className="flex items-center gap-3">
-                      <span className="w-5 text-center text-sm font-bold text-slate-400">{user.rank}</span>
+                    <div key={user.rank ?? idx} className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden shrink-0">
                         <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`} alt="avatar" className="w-full h-full object-cover" />
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">{user.username}</p>
-                          <span className={`text-[10px] font-bold ${idx === 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-500 dark:text-red-400'}`}>
-                            {idx === 0 ? 'Grandmaster' : 'International Master'}
-                          </span>
-                        </div>
-                        <p className="text-xs text-slate-500">Rating: {user.solvedCount ? 2000 + user.solvedCount * 10 : 2500}</p>
-                      </div>
+                      <p className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">{user.username}</p>
                     </div>
                   ))
                 ) : (
