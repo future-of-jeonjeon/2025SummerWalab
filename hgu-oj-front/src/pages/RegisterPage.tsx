@@ -171,27 +171,27 @@ const RegisterPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 dark:bg-slate-950">
       <div className="max-w-md w-full space-y-8">
         <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-slate-100">
             회원가입
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
+          <p className="mt-2 text-center text-sm text-gray-600 dark:text-slate-400">
             HGU Online Judge에 가입하세요
           </p>
         </div>
 
-        <Card className="mt-8">
+        <Card className="mt-8 dark:border dark:border-slate-800 dark:bg-slate-900">
           {registrationDisabled ? (
             <div className="text-center py-8">
-              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100 mb-4">
+              <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-yellow-100 mb-4 dark:bg-yellow-900/30">
                 <svg className="h-6 w-6 text-yellow-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                 </svg>
               </div>
-              <h3 className="text-lg font-medium text-gray-900 mb-2">회원가입 일시 중단</h3>
-              <p className="text-gray-500 mb-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-2 dark:text-slate-100">회원가입 일시 중단</h3>
+              <p className="text-gray-500 mb-6 dark:text-slate-400">
                 현재 시스템 점검 및 업데이트로 인해<br />
                 회원가입이 일시적으로 중단되었습니다.<br />
                 관리자에게 문의해주세요.
@@ -205,13 +205,13 @@ const RegisterPage: React.FC = () => {
           ) : (
             <form className="space-y-6" onSubmit={handleSubmit}>
               {errors.general && (
-                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md">
+                <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md dark:bg-red-950/40 dark:border-red-900 dark:text-red-300">
                   {errors.general}
                 </div>
               )}
 
               <div>
-                <label htmlFor="username" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="username" className="block text-sm font-medium text-gray-700 dark:text-slate-300">
                   사용자명 *
                 </label>
                 <input
@@ -221,7 +221,7 @@ const RegisterPage: React.FC = () => {
                   required
                   value={formData.username}
                   onChange={handleInputChange}
-                  className={`mt-1 w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.username ? 'border-red-500' : 'border-gray-300'
+                  className={`mt-1 w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 ${errors.username ? 'border-red-500 dark:border-red-700' : 'border-gray-300 dark:border-slate-700'
                     }`}
                   placeholder="사용자명을 입력하세요"
                 />
@@ -231,7 +231,7 @@ const RegisterPage: React.FC = () => {
               </div>
 
               <div>
-                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-slate-300">
                   이메일 *
                 </label>
                 <input
@@ -241,7 +241,7 @@ const RegisterPage: React.FC = () => {
                   required
                   value={formData.email}
                   onChange={handleInputChange}
-                  className={`mt-1 w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.email ? 'border-red-500' : 'border-gray-300'
+                  className={`mt-1 w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 ${errors.email ? 'border-red-500 dark:border-red-700' : 'border-gray-300 dark:border-slate-700'
                     }`}
                   placeholder="이메일을 입력하세요"
                 />
@@ -251,7 +251,7 @@ const RegisterPage: React.FC = () => {
               </div>
 
               <div>
-                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-slate-300">
                   비밀번호 *
                 </label>
                 <input
@@ -261,7 +261,7 @@ const RegisterPage: React.FC = () => {
                   required
                   value={formData.password}
                   onChange={handleInputChange}
-                  className={`mt-1 w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.password ? 'border-red-500' : 'border-gray-300'
+                  className={`mt-1 w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 ${errors.password ? 'border-red-500 dark:border-red-700' : 'border-gray-300 dark:border-slate-700'
                     }`}
                   placeholder="비밀번호를 입력하세요"
                 />
@@ -271,7 +271,7 @@ const RegisterPage: React.FC = () => {
               </div>
 
               <div>
-                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 dark:text-slate-300">
                   비밀번호 확인 *
                 </label>
                 <input
@@ -281,7 +281,7 @@ const RegisterPage: React.FC = () => {
                   required
                   value={formData.confirmPassword}
                   onChange={handleInputChange}
-                  className={`mt-1 w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.confirmPassword ? 'border-red-500' : 'border-gray-300'
+                  className={`mt-1 w-full px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 ${errors.confirmPassword ? 'border-red-500 dark:border-red-700' : 'border-gray-300 dark:border-slate-700'
                     }`}
                   placeholder="비밀번호를 다시 입력하세요"
                 />
@@ -291,7 +291,7 @@ const RegisterPage: React.FC = () => {
               </div>
 
               <div>
-                <label htmlFor="captcha" className="block text-sm font-medium text-gray-700">
+                <label htmlFor="captcha" className="block text-sm font-medium text-gray-700 dark:text-slate-300">
                   캡차 *
                 </label>
                 <div className="mt-1 flex space-x-2">
@@ -302,7 +302,7 @@ const RegisterPage: React.FC = () => {
                     required
                     value={formData.captcha}
                     onChange={handleInputChange}
-                    className={`flex-1 px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.captcha ? 'border-red-500' : 'border-gray-300'
+                    className={`flex-1 px-3 py-2 border rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500 ${errors.captcha ? 'border-red-500 dark:border-red-700' : 'border-gray-300 dark:border-slate-700'
                       }`}
                     placeholder="캡차를 입력하세요"
                   />
@@ -310,21 +310,21 @@ const RegisterPage: React.FC = () => {
                     type="button"
                     onClick={loadCaptcha}
                     disabled={captchaLoading}
-                    className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 border border-gray-300 rounded-md hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-slate-100"
                   >
                     {captchaLoading ? '로딩...' : '새로고침'}
                   </button>
                 </div>
                 <div className="mt-2">
                   {captchaLoading ? (
-                    <div className="flex items-center justify-center h-16 border border-gray-300 rounded bg-gray-50">
-                      <span className="text-sm text-gray-500">캡차 로딩 중...</span>
+                    <div className="flex items-center justify-center h-16 border border-gray-300 rounded bg-gray-50 dark:border-slate-700 dark:bg-slate-800">
+                      <span className="text-sm text-gray-500 dark:text-slate-400">캡차 로딩 중...</span>
                     </div>
                   ) : captchaImage ? (
                     <img
                       src={captchaImage}
                       alt="캡차"
-                      className="border border-gray-300 rounded"
+                      className="border border-gray-300 rounded dark:border-slate-700"
                       style={{ maxHeight: '60px', maxWidth: '200px' }}
                       onError={() => {
                         console.error('캡차 이미지 로드 실패');
@@ -332,8 +332,8 @@ const RegisterPage: React.FC = () => {
                       }}
                     />
                   ) : (
-                    <div className="flex items-center justify-center h-16 border border-gray-300 rounded bg-gray-50">
-                      <span className="text-sm text-gray-500">캡차를 불러오는 중...</span>
+                    <div className="flex items-center justify-center h-16 border border-gray-300 rounded bg-gray-50 dark:border-slate-700 dark:bg-slate-800">
+                      <span className="text-sm text-gray-500 dark:text-slate-400">캡차를 불러오는 중...</span>
                     </div>
                   )}
                 </div>
@@ -353,7 +353,7 @@ const RegisterPage: React.FC = () => {
               </div>
 
               <div className="text-center">
-                <p className="text-sm text-gray-600">
+                <p className="text-sm text-gray-600 dark:text-slate-400">
                   이미 계정이 있으신가요?{' '}
                   <Link
                     to="/login"

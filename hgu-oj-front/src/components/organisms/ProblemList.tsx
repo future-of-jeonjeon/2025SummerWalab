@@ -130,16 +130,16 @@ export const ProblemList: React.FC<ProblemListProps> = ({
     return (
       <div className="space-y-4">
         <div className="animate-pulse">
-          <div className="h-10 bg-gray-200 rounded mb-4"></div>
+          <div className="h-10 bg-gray-200 dark:bg-slate-700 rounded mb-4"></div>
           <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm">
-            <div className="p-4 border-b">
-              <div className="h-6 bg-gray-200 rounded w-1/4"></div>
+            <div className="p-4 border-b border-gray-200 dark:border-slate-700">
+              <div className="h-6 bg-gray-200 dark:bg-slate-700 rounded w-1/4"></div>
             </div>
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="p-4 border-b last:border-b-0">
+              <div key={i} className="p-4 border-b border-gray-200 dark:border-slate-700 last:border-b-0">
                 <div className="flex items-center justify-between">
-                  <div className="h-4 bg-gray-200 rounded w-1/3"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/6"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-slate-700 rounded w-1/3"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-slate-700 rounded w-1/6"></div>
                 </div>
               </div>
             ))}

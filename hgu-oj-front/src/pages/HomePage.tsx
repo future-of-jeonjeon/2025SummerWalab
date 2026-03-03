@@ -223,15 +223,21 @@ export const HomePage: React.FC = () => {
                 {userRanking.loading ? (
                   Array.from({ length: 3 }).map((_, i) => (
                     <div key={i} className="flex items-center gap-3 animate-pulse">
-                      <div className="w-10 h-10 bg-slate-200 rounded-full"></div>
-                      <div className="h-3 w-20 bg-slate-200 rounded"></div>
+                      <div className="w-10 h-10 bg-slate-200 dark:bg-slate-700 rounded-full"></div>
+                      <div className="h-3 w-20 bg-slate-200 dark:bg-slate-700 rounded"></div>
                     </div>
                   ))
                 ) : userRanking.items.length > 0 ? (
                   userRanking.items.slice(0, 3).map((user, idx) => (
                     <div key={user.rank ?? idx} className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden shrink-0">
-                        <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`} alt="avatar" className="w-full h-full object-cover" />
+                        {user.avatarUrl ? (
+                          <img
+                            src={user.avatarUrl}
+                            alt={`${user.username} avatar`}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : null}
                       </div>
                       <p className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">{user.username}</p>
                     </div>

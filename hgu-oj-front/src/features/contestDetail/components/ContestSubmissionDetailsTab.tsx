@@ -576,7 +576,7 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
         type="button"
         onClick={handleExport}
         disabled={exporting}
-        className="px-4 py-2 rounded-md border border-indigo-200 bg-indigo-50 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60"
+        className="px-4 py-2 rounded-md border border-indigo-200 bg-indigo-50 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60 dark:border-indigo-400/50 dark:bg-indigo-900/30 dark:text-indigo-200 dark:hover:bg-indigo-900/50"
       >
         {exporting ? '내보내는 중...' : '대회 결과 다운로드 (xlsx)'}
       </button>
@@ -619,10 +619,9 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
               {scoreboardEntries.map((entry, index) => (
                 <div
                   key={entry.id ?? index}
-                  className="px-1 py-4 transition-colors"
+                  className={`px-1 py-4 transition-colors ${hoveredRow === index ? 'bg-gray-50 dark:bg-slate-800/40' : 'bg-white dark:bg-slate-900'}`}
                   onMouseEnter={() => setHoveredRow(index)}
                   onMouseLeave={() => setHoveredRow(null)}
-                  style={{ backgroundColor: hoveredRow === index ? '#f8fafc' : 'transparent' }}
                 >
                   <div className="grid items-center gap-x-2" style={{ gridTemplateColumns }}>
                     <div
