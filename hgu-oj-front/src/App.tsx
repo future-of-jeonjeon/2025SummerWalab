@@ -28,7 +28,7 @@ const AppShell: React.FC = () => {
   const location = useLocation();
   const hideOnProblemDetail = /^\/problems\/(?:[^/]+)$/.test(location.pathname);
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-slate-950 dark:text-slate-100 flex flex-col">
       {!hideOnProblemDetail && <NavBar />}
       <div className="flex-1 flex flex-col">
         <Routes>

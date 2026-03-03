@@ -83,7 +83,7 @@ export const OrganizationManagePage: React.FC = () => {
 
     if (initializing) {
         return (
-            <div className="flex justify-center items-center h-screen bg-gray-50">
+            <div className="flex justify-center items-center h-screen bg-gray-50 dark:bg-slate-950">
                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
             </div>
         );
@@ -159,27 +159,27 @@ export const OrganizationManagePage: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
             <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 2xl:max-w-screen-2xl 2xl:px-10 py-8 flex flex-col md:flex-row gap-8">
 
                 {/* Mobile Nav Placeholder (Simplified) - visible only on small screens */}
-                <div className="md:hidden mb-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
-                    <span className="font-bold">Admin Settings</span>
+                <div className="md:hidden mb-4 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 flex justify-between items-center">
+                    <span className="font-bold text-gray-900 dark:text-slate-100">Admin Settings</span>
                     <span className="text-sm text-blue-600" onClick={() => navigate(isEditMode ? `/organizations/${id}` : '/organizations')}>Back</span>
                 </div>
 
                 {/* Sidebar - Boxed Card Style */}
                 <div className="w-full md:w-64 flex-shrink-0">
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden sticky top-24">
-                        <div className="p-6 border-b border-gray-100 bg-gray-50">
-                            <h2 className="text-lg font-bold text-gray-900">단체 관리</h2>
+                    <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden sticky top-24">
+                        <div className="p-6 border-b border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-800">
+                            <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">단체 관리</h2>
                         </div>
                         <nav className="p-2 space-y-1">
                             <button
                                 onClick={() => setActiveTab('general')}
                                 className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'general'
                                     ? 'bg-blue-50 text-blue-700'
-                                    : 'text-gray-700 hover:bg-gray-50'
+                                    : 'text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800'
                                     }`}
                             >
                                 <svg className="mr-3 h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -193,7 +193,7 @@ export const OrganizationManagePage: React.FC = () => {
                                     onClick={() => setActiveTab('members')}
                                     className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'members'
                                         ? 'bg-blue-50 text-blue-700'
-                                        : 'text-gray-700 hover:bg-gray-50'
+                                        : 'text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800'
                                         }`}
                                 >
                                     <svg className="mr-3 h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -207,7 +207,7 @@ export const OrganizationManagePage: React.FC = () => {
                                     onClick={() => setActiveTab('contests')}
                                     className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'contests'
                                         ? 'bg-blue-50 text-blue-700'
-                                        : 'text-gray-700 hover:bg-gray-50'
+                                        : 'text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800'
                                         }`}
                                 >
                                     <svg className="mr-3 h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -218,10 +218,10 @@ export const OrganizationManagePage: React.FC = () => {
                             )}
 
                         </nav>
-                        <div className="p-4 border-t border-gray-100 bg-gray-50">
+                        <div className="p-4 border-t border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-800">
                             <Button
                                 variant="secondary"
-                                className="w-full justify-center bg-white border border-gray-200 shadow-sm"
+                                className="w-full justify-center bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 shadow-sm"
                                 onClick={() => navigate(isEditMode ? `/organizations/${id}` : '/organizations')}
                             >
                                 <svg className="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -239,12 +239,12 @@ export const OrganizationManagePage: React.FC = () => {
 
                     {/* Header */}
                     <div className="mb-10">
-                        <nav className="text-sm text-gray-500 mb-2">
+                        <nav className="text-sm text-gray-500 dark:text-slate-400 mb-2">
                             <span className="cursor-pointer" onClick={() => navigate('/organizations')}>Organization</span> &gt;
-                            <span className="cursor-pointer font-medium text-gray-700"> {organization?.name || 'Organization'}</span> &gt;
-                            <span className="font-medium text-gray-900"> {activeTab === 'general' ? 'General Settings' : activeTab === 'members' ? 'Members' : 'Contests'}</span>
+                            <span className="cursor-pointer font-medium text-gray-700 dark:text-slate-300"> {organization?.name || 'Organization'}</span> &gt;
+                            <span className="font-medium text-gray-900 dark:text-slate-100"> {activeTab === 'general' ? 'General Settings' : activeTab === 'members' ? 'Members' : 'Contests'}</span>
                         </nav>
-                        <h1 className="text-3xl font-extrabold text-gray-900">
+                        <h1 className="text-3xl font-extrabold text-gray-900 dark:text-slate-100">
                             {activeTab === 'general' ? '일반 설정' : activeTab === 'members' ? '멤버 관리' : '대회 관리'}
                         </h1>
                     </div>
@@ -260,7 +260,7 @@ export const OrganizationManagePage: React.FC = () => {
 
                     {/* General Settings Tab */}
                     {activeTab === 'general' && (
-                        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
+                        <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 p-8">
                             <form onSubmit={handleSubmit}>
                                 <div className="space-y-6">
                                     <div className="flex justify-center mb-6">
@@ -271,34 +271,34 @@ export const OrganizationManagePage: React.FC = () => {
                                         />
                                     </div>
                                     <div>
-                                        <label htmlFor="name" className="block text-sm font-semibold text-gray-700 mb-1">
+                                        <label htmlFor="name" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1">
                                             단체 이름
                                         </label>
                                         <input
                                             type="text"
                                             id="name"
                                             required
-                                            className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm py-2.5 px-3 border"
+                                            className="block w-full rounded-lg border-gray-300 dark:border-slate-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm py-2.5 px-3 border bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100"
                                             value={formData.name}
                                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                         />
-                                        <p className="mt-1 text-xs text-gray-500">학생 및 교직원에게 표시될 이름입니다.</p>
+                                        <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">학생 및 교직원에게 표시될 이름입니다.</p>
                                     </div>
 
                                     <div>
-                                        <label htmlFor="description" className="block text-sm font-semibold text-gray-700 mb-1">
+                                        <label htmlFor="description" className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1">
                                             설명
                                         </label>
                                         <textarea
                                             id="description"
                                             rows={5}
-                                            className="block w-full rounded-lg border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm py-2.5 px-3 border"
+                                            className="block w-full rounded-lg border-gray-300 dark:border-slate-600 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm py-2.5 px-3 border bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100"
                                             value={formData.description || ''}
                                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                         />
                                     </div>
 
-                                    <div className="pt-6 border-t border-gray-100 flex justify-end">
+                                    <div className="pt-6 border-t border-gray-100 dark:border-slate-800 flex justify-end">
                                         <Button type="submit" disabled={loading} className="px-8">
                                             {loading ? '저장 중...' : '변경사항 저장'}
                                         </Button>
@@ -307,8 +307,8 @@ export const OrganizationManagePage: React.FC = () => {
                             </form>
 
                             {isEditMode && (
-                                <div className="mt-12 pt-10 border-t border-gray-100">
-                                    <div className="rounded-md bg-red-50 p-4">
+                                <div className="mt-12 pt-10 border-t border-gray-100 dark:border-slate-800">
+                                    <div className="rounded-md bg-red-50 dark:bg-red-900/20 p-4">
                                         <div className="flex">
                                             <div className="flex-shrink-0">
                                                 <svg className="h-5 w-5 text-red-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -316,8 +316,8 @@ export const OrganizationManagePage: React.FC = () => {
                                                 </svg>
                                             </div>
                                             <div className="ml-3">
-                                                <h3 className="text-sm font-medium text-red-800">Danger Zone</h3>
-                                                <div className="mt-2 text-sm text-red-700">
+                                                <h3 className="text-sm font-medium text-red-800 dark:text-red-300">Danger Zone</h3>
+                                                <div className="mt-2 text-sm text-red-700 dark:text-red-200">
                                                     <p>단체를 삭제하면 모든 데이터가 영구적으로 제거됩니다. 이 작업은 되돌릴 수 없습니다.</p>
                                                 </div>
                                                 <div className="mt-4">
@@ -341,12 +341,12 @@ export const OrganizationManagePage: React.FC = () => {
                     {activeTab === 'members' && isEditMode && organization && (
                         <div className="space-y-6">
                             {/* Invite Box - Changed to Invitation Link */}
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
-                                <h3 className="text-lg font-bold text-gray-900 mb-4">새 멤버 초대</h3>
-                                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg border border-gray-200">
+                            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 p-6">
+                                <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-4">새 멤버 초대</h3>
+                                <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700">
                                     <div>
-                                        <h4 className="font-semibold text-gray-900">초대 링크 생성</h4>
-                                        <p className="text-sm text-gray-500 mt-1">이 링크를 공유하여 누구나 단체에 가입할 수 있도록 하세요.</p>
+                                        <h4 className="font-semibold text-gray-900 dark:text-slate-100">초대 링크 생성</h4>
+                                        <p className="text-sm text-gray-500 dark:text-slate-400 mt-1">이 링크를 공유하여 누구나 단체에 가입할 수 있도록 하세요.</p>
                                     </div>
                                     <Button onClick={handleCopyInviteLink} variant="primary">
                                         <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -358,31 +358,31 @@ export const OrganizationManagePage: React.FC = () => {
                             </div>
 
                             {/* Members List */}
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                                <div className="px-6 py-5 border-b border-gray-100 flex justify-between items-center">
-                                    <h3 className="text-lg font-bold text-gray-900">멤버 목록</h3>
-                                    <span className="bg-gray-100 text-gray-600 py-1 px-3 rounded-full text-xs font-bold">
+                            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
+                                <div className="px-6 py-5 border-b border-gray-100 dark:border-slate-800 flex justify-between items-center">
+                                    <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100">멤버 목록</h3>
+                                    <span className="bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 py-1 px-3 rounded-full text-xs font-bold">
                                         Total: {organization.members?.length || 0}
                                     </span>
                                 </div>
-                                <ul className="divide-y divide-gray-100">
+                                <ul className="divide-y divide-gray-100 dark:divide-slate-800">
                                     {organization.members?.map((member) => (
-                                        <li key={member.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 transition-colors">
+                                        <li key={member.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
                                             <div className="flex items-center">
                                                 <div>
-                                                    <p className="text-sm font-medium text-gray-900">{member.realName || member.username}</p>
+                                                    <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{member.realName || member.username}</p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center space-x-4">
                                                 <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${member.role === 'ORG_ADMIN' || member.role === 'ORG_SUPER_ADMIN'
-                                                    ? 'bg-green-100 text-green-800'
-                                                    : 'bg-gray-100 text-gray-800'
+                                                    ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
+                                                    : 'bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-slate-300'
                                                     }`}>
                                                     {member.role || 'MEMBER'}
                                                 </span>
                                                 <button
                                                     onClick={() => handleRemoveMember(member.id)}
-                                                    className="text-gray-400 hover:text-red-500 transition-colors p-2 rounded-full hover:bg-red-50"
+                                                    className="text-gray-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20"
                                                     title="Remove Member"
                                                 >
                                                     <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -393,7 +393,7 @@ export const OrganizationManagePage: React.FC = () => {
                                         </li>
                                     ))}
                                     {(!organization.members || organization.members.length === 0) && (
-                                        <li className="px-6 py-8 text-center text-gray-500 italic">
+                                        <li className="px-6 py-8 text-center text-gray-500 dark:text-slate-400 italic">
                                             멤버가 없습니다.
                                         </li>
                                     )}

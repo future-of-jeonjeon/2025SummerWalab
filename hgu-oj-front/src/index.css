@@ -21,6 +21,12 @@ body {
   color: #111827;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+html.dark body {
+  background-color: #020617;
+  color: #e2e8f0;
 }
 
 #root {
@@ -44,6 +50,18 @@ body {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+html.dark ::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
 }
 
 /* 선택 텍스트 스타일 */
@@ -239,4 +257,17 @@ select {
 
 .oj-side-handle svg {
   opacity: 1;
+}
+
+/* Dual range slider: allow two overlaid thumbs to be draggable independently */
+.dual-range {
+  pointer-events: none;
+}
+
+.dual-range::-webkit-slider-thumb {
+  pointer-events: auto;
+}
+
+.dual-range::-moz-range-thumb {
+  pointer-events: auto;
 }

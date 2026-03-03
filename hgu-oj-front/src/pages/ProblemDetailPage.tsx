@@ -342,8 +342,15 @@ export const ProblemDetailPage: React.FC = () => {
   const [submissionModalLoading, setSubmissionModalLoading] = useState(false);
   const [submissionModalError, setSubmissionModalError] = useState<string | null>(null);
   const [editorTheme, setEditorTheme] = useState<'light' | 'dark'>(() => {
-    const saved = localStorage.getItem('oj:editorTheme');
-    return saved === 'light' || saved === 'dark' ? saved : 'dark';
+    const savedEditorTheme = localStorage.getItem('oj:editorTheme');
+    if (savedEditorTheme === 'light' || savedEditorTheme === 'dark') {
+      return savedEditorTheme;
+    }
+    const savedAppTheme = localStorage.getItem('theme');
+    if (savedAppTheme === 'light' || savedAppTheme === 'dark') {
+      return savedAppTheme;
+    }
+    return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
   });
   const { isAuthenticated, user: authUser } = useAuthStore();
   const submissionPollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1410,19 +1417,19 @@ export const ProblemDetailPage: React.FC = () => {
                 <span className={`text-sm font-semibold ${isDarkTheme ? 'text-slate-100' : 'text-slate-900'}`}>{contestMeta.endTime ? formatDateTime(contestMeta.endTime) : '-'}</span>
               </div>
               <div className="flex flex-col items-end">
-                <span className="font-medium uppercase tracking-wide whitespace-nowrap text-blue-600 dark:text-blue-300">남은 시간</span>
+                <span className={`font-medium uppercase tracking-wide whitespace-nowrap ${isDarkTheme ? 'text-blue-300' : 'text-blue-600'}`}>남은 시간</span>
                 <span className={`w-[14ch] whitespace-nowrap text-right text-xl font-bold tabular-nums ${isDarkTheme ? 'text-blue-300' : 'text-blue-700'}`}>{contestTimeLeft ?? '-'}</span>
               </div>
               <div className={`flex items-center divide-x ${isDarkTheme ? 'divide-slate-700' : 'divide-slate-200'}`}>
                 <div className="px-4 text-right">
-                  <div className="text-[10px] font-medium uppercase tracking-wider text-emerald-600 dark:text-emerald-400">{PROBLEM_SUMMARY_LABELS.solved}</div>
-                  <div className="mt-0.5 w-[9ch] text-xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                  <div className={`text-[10px] font-medium uppercase tracking-wider ${isDarkTheme ? 'text-emerald-400' : 'text-emerald-600'}`}>{PROBLEM_SUMMARY_LABELS.solved}</div>
+                  <div className={`mt-0.5 w-[9ch] text-xl font-bold tabular-nums ${isDarkTheme ? 'text-emerald-400' : 'text-emerald-600'}`}>
                     {contestProblemStats?.solved ?? '-'} <span className={`text-xl ${isDarkTheme ? 'text-slate-500' : 'text-slate-400'}`}>/ {contestProblemStats?.total ?? '-'}</span>
                   </div>
                 </div>
                 <div className="px-4 text-right">
-                  <div className="text-[10px] font-medium uppercase tracking-wider text-blue-600 dark:text-blue-400">내 점수</div>
-                  <div className="mt-0.5 w-[8ch] text-xl font-bold text-blue-600 dark:text-blue-400 tabular-nums">
+                  <div className={`text-[10px] font-medium uppercase tracking-wider ${isDarkTheme ? 'text-blue-400' : 'text-blue-600'}`}>내 점수</div>
+                  <div className={`mt-0.5 w-[8ch] text-xl font-bold tabular-nums ${isDarkTheme ? 'text-blue-400' : 'text-blue-600'}`}>
                     {contestRankProgress?.totalScore ?? 0}<span className="text-xs font-normal ml-0.5">점</span>
                   </div>
                 </div>
@@ -1448,7 +1455,7 @@ export const ProblemDetailPage: React.FC = () => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className={`mt-1 ${isDarkTheme ? 'text-slate-200 hover:bg-slate-800' : ''}`}
+                    className={`mt-1 ${isDarkTheme ? 'text-slate-200 hover:bg-slate-800' : 'text-blue-600 hover:bg-blue-50 dark:!text-blue-600 dark:hover:!bg-blue-50'}`}
                     onClick={handleBackClick}
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

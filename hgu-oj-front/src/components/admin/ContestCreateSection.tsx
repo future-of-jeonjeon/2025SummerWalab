@@ -365,8 +365,8 @@ export const ContestCreateSection: React.FC = () => {
     <Card padding="lg">
       <form onSubmit={handleContestSubmit} className="space-y-6">
         <div className="space-y-1">
-          <h2 className="text-xl font-semibold text-gray-900">대회 등록</h2>
-          <p className="text-sm text-gray-500">대회 기본 정보를 입력한 뒤 등록할 수 있습니다.</p>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 dark:text-slate-100">대회 등록</h2>
+          <p className="text-sm text-gray-500 dark:text-slate-400">대회 기본 정보를 입력한 뒤 등록할 수 있습니다.</p>
         </div>
 
         {contestMessage.error && <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-600 whitespace-pre-line">{contestMessage.error}</div>}
@@ -385,7 +385,7 @@ export const ContestCreateSection: React.FC = () => {
             onChange={(event) => setContestForm((prev) => ({ ...prev, password: event.target.value }))}
           />
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">시작 시간</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">시작 시간</label>
             <input
               type="datetime-local"
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
@@ -394,7 +394,7 @@ export const ContestCreateSection: React.FC = () => {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">종료 시간</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">종료 시간</label>
             <input
               type="datetime-local"
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
@@ -403,7 +403,7 @@ export const ContestCreateSection: React.FC = () => {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">룰 타입</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">룰 타입</label>
             <select
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
               value={contestForm.ruleType}
@@ -414,9 +414,9 @@ export const ContestCreateSection: React.FC = () => {
             </select>
           </div>
           <div className="md:col-span-2">
-            <label className="mb-1 block text-sm font-medium text-gray-700">표시 설정</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">표시 설정</label>
             <div className="flex flex-wrap items-center gap-4">
-              <label className="inline-flex items-center space-x-2 text-sm text-gray-700">
+              <label className="inline-flex items-center space-x-2 text-sm text-gray-700 dark:text-slate-300">
                 <input
                   type="checkbox"
                   checked={contestForm.visible}
@@ -424,7 +424,7 @@ export const ContestCreateSection: React.FC = () => {
                 />
                 <span>공개</span>
               </label>
-              <label className="inline-flex items-center space-x-2 text-sm text-gray-700">
+              <label className="inline-flex items-center space-x-2 text-sm text-gray-700 dark:text-slate-300">
                 <input
                   type="checkbox"
                   checked={contestForm.realTimeRank}
@@ -432,7 +432,7 @@ export const ContestCreateSection: React.FC = () => {
                 />
                 <span>실시간 랭크</span>
               </label>
-              <label className="inline-flex items-center space-x-2 text-sm text-gray-700">
+              <label className="inline-flex items-center space-x-2 text-sm text-gray-700 dark:text-slate-300">
                 <input
                   type="checkbox"
                   checked={contestForm.requiresApproval}
@@ -445,7 +445,7 @@ export const ContestCreateSection: React.FC = () => {
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">대회 설명</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">대회 설명</label>
           <textarea
             className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
             rows={4}
@@ -454,10 +454,10 @@ export const ContestCreateSection: React.FC = () => {
           />
         </div>
 
-        <div className="rounded-lg border border-gray-200 p-4">
+        <div className="rounded-lg border border-gray-200 dark:border-slate-700 p-4">
           <div className="mb-3">
-            <h3 className="text-lg font-semibold text-gray-900">대회 공지 추가</h3>
-            <p className="text-sm text-gray-500">대회 생성 시 함께 등록할 공지를 작성해 임시 목록에 추가하세요.</p>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">대회 공지 추가</h3>
+            <p className="text-sm text-gray-500 dark:text-slate-400">대회 생성 시 함께 등록할 공지를 작성해 임시 목록에 추가하세요.</p>
           </div>
           {contestFormAnnouncementMessage.error && (
             <div className="mb-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{contestFormAnnouncementMessage.error}</div>
@@ -473,7 +473,7 @@ export const ContestCreateSection: React.FC = () => {
               onChange={(event) => handleContestAnnouncementDraftChange({ title: event.target.value })}
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
             />
-            <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+            <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-slate-300">
               <input
                 type="checkbox"
                 checked={contestFormAnnouncementDraft.visible}
@@ -494,7 +494,7 @@ export const ContestCreateSection: React.FC = () => {
               공지 추가
             </Button>
             {contestFormAnnouncements.length > 0 && (
-              <span className="text-sm text-gray-600">임시 공지 {contestFormAnnouncements.length}건</span>
+              <span className="text-sm text-gray-600 dark:text-slate-400">임시 공지 {contestFormAnnouncements.length}건</span>
             )}
           </div>
 
@@ -504,11 +504,11 @@ export const ContestCreateSection: React.FC = () => {
                 <div key={`contest-announcement-${index}`} className="rounded-md border border-gray-200 px-3 py-2">
                   <div className="flex items-center justify-between gap-2">
                     <div>
-                      <p className="text-sm font-semibold text-gray-900">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
                         {announcement.title}
-                        {!announcement.visible && <span className="ml-2 text-xs text-gray-500">(비공개)</span>}
+                        {!announcement.visible && <span className="ml-2 text-xs text-gray-500 dark:text-slate-400">(비공개)</span>}
                       </p>
-                      <p className="text-xs text-gray-500 line-clamp-2">{announcement.content}</p>
+                      <p className="text-xs text-gray-500 dark:text-slate-400 line-clamp-2">{announcement.content}</p>
                     </div>
                     <button
                       type="button"
@@ -525,7 +525,7 @@ export const ContestCreateSection: React.FC = () => {
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">허용 IP CIDR (쉼표 또는 줄바꿈 구분)</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">허용 IP CIDR (쉼표 또는 줄바꿈 구분)</label>
           <textarea
             className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
             rows={2}
@@ -537,15 +537,15 @@ export const ContestCreateSection: React.FC = () => {
 
         <div className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700">대회 문제 구성</label>
-            <p className="mt-1 text-xs text-gray-500">등록 전에 포함할 문제를 검색해 선택하세요. 대회 생성 후 자동으로 추가됩니다.</p>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">대회 문제 구성</label>
+            <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">등록 전에 포함할 문제를 검색해 선택하세요. 대회 생성 후 자동으로 추가됩니다.</p>
           </div>
 
           {contestFormProblemMessage.error && <div className="rounded-md bg-red-50 px-4 py-2 text-sm text-red-600">{contestFormProblemMessage.error}</div>}
           {contestFormProblemMessage.success && <div className="rounded-md bg-green-50 px-4 py-2 text-sm text-green-600">{contestFormProblemMessage.success}</div>}
 
           {contestFormProblems.length === 0 ? (
-            <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+            <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500 dark:text-slate-400">
               아직 선택한 문제가 없습니다. 아래에서 검색해 추가하세요.
             </div>
           ) : (
@@ -590,22 +590,22 @@ export const ContestCreateSection: React.FC = () => {
                 }
               }}
             />
-            {contestFormProblemSearch.loading && <p className="text-xs text-gray-500">문제를 검색 중입니다...</p>}
+            {contestFormProblemSearch.loading && <p className="text-xs text-gray-500 dark:text-slate-400">문제를 검색 중입니다...</p>}
             {contestFormProblemSearch.error && <p className="text-xs text-red-600">{contestFormProblemSearch.error}</p>}
             {!contestFormProblemSearch.loading && contestFormProblemSearch.results.length > 0 && (
-              <ul className="max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white">
+              <ul className="max-h-48 overflow-y-auto rounded-lg border border-gray-200 dark:border-slate-700 bg-white">
                 {contestFormProblemSearch.results.map((result) => (
                   <li key={`contest-form-suggestion-${result.id}`}>
                     <button
                       type="button"
-                      className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-gray-50"
+                      className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800"
                       onClick={() => handleSelectContestFormProblemSuggestion(result)}
                     >
                       <div>
                         <p className="font-medium text-gray-800">
                           {result.displayId ?? result.id} · {result.title}
                         </p>
-                        <p className="text-xs text-gray-500">난이도: {result.difficulty}</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400">난이도: {result.difficulty}</p>
                       </div>
                       <span className="text-xs text-[#113F67]">선택</span>
                     </button>

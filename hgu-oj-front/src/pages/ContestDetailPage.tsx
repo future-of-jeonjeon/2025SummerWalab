@@ -313,7 +313,7 @@ export const ContestDetailPage: React.FC = () => {
     return (
       <div className="text-center py-12">
         <div className="text-red-600 text-lg mb-4">대회를 불러오지 못했습니다.</div>
-        <p className="text-gray-600">{error instanceof Error ? error.message : '정보를 가져오는 중 오류가 발생했습니다.'}</p>
+        <p className="text-gray-600 dark:text-slate-400">{error instanceof Error ? error.message : '정보를 가져오는 중 오류가 발생했습니다.'}</p>
         <Button variant="secondary" className="mt-6 w-fit min-w-[180px]" onClick={() => navigate('/contests')}>
           대회 목록으로 이동
         </Button>
@@ -322,7 +322,7 @@ export const ContestDetailPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
         {contestLockedForUser && (
           <Card className="mb-6 border border-amber-200 bg-amber-50 px-6 py-4 text-amber-800 dark:border-amber-500/40 dark:bg-amber-900/30 dark:text-amber-100">
@@ -342,22 +342,22 @@ export const ContestDetailPage: React.FC = () => {
         )}
 
         {/* Mobile Nav Placeholder */}
-        <div className="lg:hidden mb-4 mt-6 bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
-          <span className="font-bold">대회 메뉴</span>
+        <div className="lg:hidden mb-4 mt-6 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 flex justify-between items-center">
+          <span className="font-bold text-gray-900 dark:text-slate-100">대회 메뉴</span>
         </div>
 
         <div className="flex flex-col lg:flex-row gap-8 lg:mt-6">
           <div className="w-full lg:w-64 flex-shrink-0">
-            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden sticky top-24">
-              <div className="p-6 border-b border-gray-100 bg-gray-50">
-                <h2 className="text-lg font-bold text-gray-900 leading-tight">{contest?.title || '대회'}</h2>
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden sticky top-24">
+              <div className="p-6 border-b border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/60">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100 leading-tight">{contest?.title || '대회'}</h2>
                 {contest?.organization_name && (
-                  <div className="text-xs text-gray-500 font-medium mt-1 mb-2">
+                  <div className="text-xs text-gray-500 dark:text-slate-400 font-medium mt-1 mb-2">
                     - {contest.organization_name}
                   </div>
                 )}
                 {!contest?.organization_name && <div className="mb-2"></div>}
-                <div className="text-xs text-gray-500 font-medium tracking-wide uppercase">대회 메뉴</div>
+                <div className="text-xs text-gray-500 dark:text-slate-400 font-medium tracking-wide uppercase">대회 메뉴</div>
               </div>
               <nav className="p-2 space-y-1">
                 {tabs.map((tab) => {
@@ -389,14 +389,14 @@ export const ContestDetailPage: React.FC = () => {
                       disabled={disabled}
                       aria-disabled={disabled}
                       className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${isActive
-                        ? 'bg-blue-50 text-blue-700'
+                        ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
                         : disabled
-                          ? 'text-gray-400 opacity-50 cursor-not-allowed'
-                          : 'text-gray-700 hover:bg-gray-50'
+                          ? 'text-gray-400 dark:text-slate-500 opacity-50 cursor-not-allowed'
+                          : 'text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'
                         }`}
                     >
                       {iconPath && (
-                        <svg className={`mr-3 h-5 w-5 flex-shrink-0 ${isActive ? 'text-blue-600' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className={`mr-3 h-5 w-5 flex-shrink-0 ${isActive ? 'text-blue-600 dark:text-blue-300' : 'text-gray-400 dark:text-slate-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           {iconPath}
                         </svg>
                       )}

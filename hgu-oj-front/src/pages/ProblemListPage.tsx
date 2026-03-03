@@ -36,6 +36,8 @@ export const ProblemListPage: React.FC = () => {
   const { filter, setFilter } = useProblemStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [showAllTags, setShowAllTags] = useState(false);
+  const [minDifficultyLevel, setMinDifficultyLevel] = useState(1);
+  const [maxDifficultyLevel, setMaxDifficultyLevel] = useState(5);
   const { isAuthenticated } = useAuthStore();
 
   const { data, isLoading, error } = useProblems(filter);
@@ -238,19 +240,17 @@ export const ProblemListPage: React.FC = () => {
         return status === statusFilter;
       })
       .filter((problem) => {
-        if (filter.difficultyLevel && filter.difficultyLevel > 0) {
-          const rawDifficulty =
-            (problem as any).difficulty ??
-            (problem as any).level ??
-            (problem as any).difficulty_level ??
-            (problem as any).difficultyLevel ??
-            (problem as any).difficulty_name ??
-            (problem as any).difficultyName;
-          if (!rawDifficulty) return false;
-          const displayDifficulty = String(rawDifficulty).replace(/^Lv\.\s*/i, '');
-          return Number(displayDifficulty) === filter.difficultyLevel;
-        }
-        return true;
+        const rawDifficulty =
+          (problem as any).difficulty ??
+          (problem as any).level ??
+          (problem as any).difficulty_level ??
+          (problem as any).difficultyLevel ??
+          (problem as any).difficulty_name ??
+          (problem as any).difficultyName;
+        if (!rawDifficulty) return false;
+        const displayDifficulty = Number(String(rawDifficulty).replace(/^Lv\.\s*/i, ''));
+        if (Number.isNaN(displayDifficulty)) return false;
+        return displayDifficulty >= minDifficultyLevel && displayDifficulty <= maxDifficultyLevel;
       });
 
     const extractIdentifier = (problem: any) => (problem.displayId ?? problem._id ?? problem.id ?? '').toString();
@@ -325,6 +325,8 @@ export const ProblemListPage: React.FC = () => {
     filter.sortField,
     filter.sortOrder,
     filter.statusFilter,
+    minDifficultyLevel,
+    maxDifficultyLevel,
     isAuthenticated,
     selectedTags,
     normalizedStatusMap,
@@ -366,7 +368,7 @@ export const ProblemListPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         <div className="flex flex-col lg:flex-row gap-6">
@@ -387,19 +389,19 @@ export const ProblemListPage: React.FC = () => {
                   value={searchQuery}
                   onChange={(event) => handleSearchChange(event.target.value)}
                   placeholder="제목, 내용 검색"
-                  className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white shadow-sm"
+                  className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 shadow-sm"
                 />
               </form>
             </div>
 
             {/* Categories */}
-            <div className="bg-white p-5 border border-gray-200 rounded-xl shadow-sm">
-              <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <svg className="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"></path></svg>
+            <div className="bg-white dark:bg-slate-900 p-5 border border-gray-200 dark:border-slate-800 rounded-xl shadow-sm">
+              <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+                <svg className="w-5 h-5 text-gray-500 dark:text-slate-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"></path></svg>
                 카테고리
               </h3>
               {isTagCountsLoading && (
-                <div className="text-sm text-gray-500 mb-3">태그를 불러오는 중입니다...</div>
+                <div className="text-sm text-gray-500 dark:text-slate-400 mb-3">태그를 불러오는 중입니다...</div>
               )}
               <div className="space-y-3">
                 <label className="flex items-center justify-between cursor-pointer group">
@@ -411,9 +413,9 @@ export const ProblemListPage: React.FC = () => {
                       onChange={() => setFilter({ tags: [], page: 1 })}
                       className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                     />
-                    <span className="ml-3 text-sm font-medium text-gray-700 group-hover:text-gray-900">전체 보기</span>
+                    <span className="ml-3 text-sm font-medium text-gray-700 dark:text-slate-300 group-hover:text-gray-900 dark:group-hover:text-slate-100">전체 보기</span>
                   </div>
-                  <span className="text-xs font-medium bg-gray-100 text-gray-600 py-1 px-2.5 rounded-full">{data?.total || microProblems.length}</span>
+                  <span className="text-xs font-medium bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 py-1 px-2.5 rounded-full">{data?.total || microProblems.length}</span>
                 </label>
                 {(tagStats || []).slice(0, showAllTags ? undefined : 8).map((tag) => (
                   <label key={tag.name} className="flex items-center justify-between cursor-pointer group">
@@ -425,9 +427,9 @@ export const ProblemListPage: React.FC = () => {
                         onChange={() => handleTagToggle(tag.name)}
                         className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                       />
-                      <span className="ml-3 text-sm font-medium text-gray-700 group-hover:text-gray-900">{tag.name}</span>
+                      <span className="ml-3 text-sm font-medium text-gray-700 dark:text-slate-300 group-hover:text-gray-900 dark:group-hover:text-slate-100">{tag.name}</span>
                     </div>
-                    <span className="text-xs font-medium bg-gray-100 text-gray-600 py-1 px-2.5 rounded-full">{tag.count}</span>
+                    <span className="text-xs font-medium bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 py-1 px-2.5 rounded-full">{tag.count}</span>
                   </label>
                 ))}
                 {(tagStats || []).length > 8 && (
@@ -443,23 +445,44 @@ export const ProblemListPage: React.FC = () => {
             </div>
 
             {/* Difficulty */}
-            <div className="bg-white p-5 border border-gray-200 rounded-xl shadow-sm">
-              <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+            <div className="bg-white dark:bg-slate-900 p-5 border border-gray-200 dark:border-slate-800 rounded-xl shadow-sm">
+              <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+                <svg className="w-5 h-5 text-gray-500 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
                 난이도
               </h3>
               <div className="px-2">
-                <input
-                  type="range"
-                  min="0"
-                  max="5"
-                  step="1"
-                  value={filter.difficultyLevel ?? 0}
-                  onChange={(e) => setFilter({ difficultyLevel: parseInt(e.target.value, 10), page: 1 })}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                />
-                <div className="flex justify-between text-xs text-gray-500 mt-2 font-medium">
-                  <span>전체</span>
+                <div className="relative h-8">
+                  <div className="absolute inset-x-0 top-3 h-2 rounded-lg bg-gray-200 dark:bg-slate-700" />
+                  <input
+                    type="range"
+                    min="1"
+                    max="5"
+                    step="1"
+                    value={minDifficultyLevel}
+                    onChange={(e) => {
+                      const next = parseInt(e.target.value, 10);
+                      setMinDifficultyLevel(next);
+                      if (next > maxDifficultyLevel) setMaxDifficultyLevel(next);
+                      setFilter({ page: 1 });
+                    }}
+                    className="dual-range dual-range-min absolute inset-x-0 top-3 w-full h-2 bg-transparent appearance-none cursor-pointer accent-blue-600"
+                  />
+                  <input
+                    type="range"
+                    min="1"
+                    max="5"
+                    step="1"
+                    value={maxDifficultyLevel}
+                    onChange={(e) => {
+                      const next = parseInt(e.target.value, 10);
+                      setMaxDifficultyLevel(next);
+                      if (next < minDifficultyLevel) setMinDifficultyLevel(next);
+                      setFilter({ page: 1 });
+                    }}
+                    className="dual-range dual-range-max absolute inset-x-0 top-3 w-full h-2 bg-transparent appearance-none cursor-pointer accent-blue-600"
+                  />
+                </div>
+                <div className="flex justify-between text-xs text-gray-500 dark:text-slate-400 mt-3 font-medium">
                   <span>Lv.1</span>
                   <span>Lv.2</span>
                   <span>Lv.3</span>
@@ -467,14 +490,8 @@ export const ProblemListPage: React.FC = () => {
                   <span>Lv.5</span>
                 </div>
                 <div className="mt-4 text-center">
-                  <span className={`inline-block px-3 py-1 rounded-full text-sm font-bold ${(filter.difficultyLevel === 0 || filter.difficultyLevel === undefined) ? 'bg-slate-100 text-slate-700' :
-                    filter.difficultyLevel === 1 ? 'bg-blue-100 text-blue-700' :
-                      filter.difficultyLevel === 2 ? 'bg-green-100 text-green-700' :
-                        filter.difficultyLevel === 3 ? 'bg-orange-100 text-orange-700' :
-                          filter.difficultyLevel === 4 ? 'bg-red-100 text-red-700' :
-                            'bg-purple-100 text-purple-700'
-                    }`}>
-                    {filter.difficultyLevel === 0 || filter.difficultyLevel === undefined ? '모든 난이도' : `Lv.${filter.difficultyLevel}`}
+                  <span className="inline-block px-3 py-1 rounded-full text-sm font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                    Lv.{minDifficultyLevel} ~ Lv.{maxDifficultyLevel}
                   </span>
                 </div>
               </div>
@@ -482,15 +499,15 @@ export const ProblemListPage: React.FC = () => {
 
             {/* Status */}
             {isAuthenticated && (
-              <div className="bg-white p-5 border border-gray-200 rounded-xl shadow-sm">
-                <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              <div className="bg-white dark:bg-slate-900 p-5 border border-gray-200 dark:border-slate-800 rounded-xl shadow-sm">
+                <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+                  <svg className="w-5 h-5 text-gray-500 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                   상태
                 </h3>
                 <select
                   value={filter.statusFilter ?? 'all'}
                   onChange={(e) => handleStatusFilterChange(e.target.value)}
-                  className="w-full bg-white border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5"
+                  className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5"
                 >
                   <option value="all">모든 문제</option>
                   <option value="untouched">{PROBLEM_STATUS_LABELS.untouched}</option>
@@ -504,13 +521,13 @@ export const ProblemListPage: React.FC = () => {
           {/* Main Content */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between mb-4">
-              <div className="text-sm text-gray-500">
-                총 <span className="font-bold text-gray-900">{data?.total ?? processedProblems.length}</span>개의 문제 중 <span className="font-bold text-gray-900">{processedProblems.length > 0 ? rowNumberBase + 1 : 0}-{Math.min(rowNumberBase + pageSize, data?.total ?? processedProblems.length)}</span> 표시
+              <div className="text-sm text-gray-500 dark:text-slate-400">
+                총 <span className="font-bold text-gray-900 dark:text-slate-100">{data?.total ?? processedProblems.length}</span>개의 문제 중 <span className="font-bold text-gray-900 dark:text-slate-100">{processedProblems.length > 0 ? rowNumberBase + 1 : 0}-{Math.min(rowNumberBase + pageSize, data?.total ?? processedProblems.length)}</span> 표시
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-500">정렬:</span>
+                <span className="text-sm font-medium text-gray-500 dark:text-slate-400">정렬:</span>
                 <select
-                  className="bg-transparent text-sm font-bold text-gray-900 border-none focus:ring-0 cursor-pointer p-0 pr-6"
+                  className="bg-transparent text-sm font-bold text-gray-900 dark:text-slate-100 border-none focus:ring-0 cursor-pointer p-0 pr-6"
                   onChange={(e) => {
                     const value = e.target.value;
                     const isDesc = value.endsWith('-desc');

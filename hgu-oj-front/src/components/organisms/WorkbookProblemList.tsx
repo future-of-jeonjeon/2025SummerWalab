@@ -16,7 +16,7 @@ const ErrorCircleIcon = () => (
 );
 
 const EmptyCircleIcon = () => (
-  <svg className="w-6 h-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+  <svg className="w-6 h-6 text-gray-300 dark:text-slate-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
     <circle cx="12" cy="12" r="9" strokeWidth="2" />
   </svg>
 );
@@ -75,16 +75,16 @@ export const WorkbookProblemList: React.FC<WorkbookProblemListProps> = ({ proble
 
   if (problems.length === 0) {
     return (
-      <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
-        <div className="text-gray-600 text-lg mb-4">문제가 없습니다</div>
-        <p className="text-gray-500">다른 조건을 선택해보세요.</p>
+      <div className="text-center py-12 bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800">
+        <div className="text-gray-600 dark:text-slate-300 text-lg mb-4">문제가 없습니다</div>
+        <p className="text-gray-500 dark:text-slate-400">다른 조건을 선택해보세요.</p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white overflow-hidden shadow-sm">
-      <div className="divide-y divide-gray-100">
+    <div className="rounded-xl border border-gray-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden shadow-sm">
+      <div className="divide-y divide-gray-100 dark:divide-slate-800">
         {problems.map((problem, index) => {
           // get top 2 tags maximum
           const displayTags = problem.tags ? problem.tags.slice(0, 2) : [];
@@ -94,7 +94,7 @@ export const WorkbookProblemList: React.FC<WorkbookProblemListProps> = ({ proble
             <div
               key={key}
               onClick={() => onProblemClick(key)}
-              className="flex items-center px-6 py-5 hover:bg-gray-50 transition-colors cursor-pointer group"
+              className="flex items-center px-6 py-5 hover:bg-gray-50 dark:hover:bg-slate-800/70 transition-colors cursor-pointer group"
             >
               {/* Status Icon */}
               <div className="flex-shrink-0 mr-4">
@@ -103,22 +103,22 @@ export const WorkbookProblemList: React.FC<WorkbookProblemListProps> = ({ proble
 
               {/* Problem Info */}
               <div className="flex-1 min-w-0">
-                <h3 className="text-base font-bold text-gray-900 group-hover:text-blue-600 truncate mb-1.5 flex items-center gap-2">
+                <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 group-hover:text-blue-600 truncate mb-1.5 flex items-center gap-2">
                   <span>{index + 1}.</span> {problem.title}
                 </h3>
 
-                <div className="flex items-center gap-3 text-[13px] text-gray-500">
+                <div className="flex items-center gap-3 text-[13px] text-gray-500 dark:text-slate-400">
                   {/* Tags */}
                   {displayTags.length > 0 && (
                     <>
                       <div className="flex gap-1.5">
                         {displayTags.map(tag => (
-                          <span key={tag} className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded whitespace-nowrap font-medium">
+                          <span key={tag} className="px-2 py-0.5 bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 rounded whitespace-nowrap font-medium">
                             {tag}
                           </span>
                         ))}
                       </div>
-                      <span className="text-gray-300">|</span>
+                      <span className="text-gray-300 dark:text-slate-600">|</span>
                     </>
                   )}
                   {/* Accuracy */}

@@ -131,7 +131,7 @@ export const ProblemList: React.FC<ProblemListProps> = ({
       <div className="space-y-4">
         <div className="animate-pulse">
           <div className="h-10 bg-gray-200 rounded mb-4"></div>
-          <div className="bg-white rounded-lg shadow-sm">
+          <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm">
             <div className="p-4 border-b">
               <div className="h-6 bg-gray-200 rounded w-1/4"></div>
             </div>
@@ -152,16 +152,16 @@ export const ProblemList: React.FC<ProblemListProps> = ({
   if (problems.length === 0) {
     return (
       <div className="text-center py-12">
-        <div className="text-gray-600 text-lg mb-4">문제가 없습니다</div>
-        <p className="text-gray-500">다른 검색어를 시도해보세요</p>
+        <div className="text-gray-600 dark:text-slate-400 text-lg mb-4">문제가 없습니다</div>
+        <p className="text-gray-500 dark:text-slate-400">다른 검색어를 시도해보세요</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800">
           <div className="grid grid-cols-[minmax(0,1fr)_100px_100px] items-center gap-4">
             <div className="flex h-full items-center">
               {renderSortableHeader('제목', 'title', 'left')}
@@ -174,14 +174,14 @@ export const ProblemList: React.FC<ProblemListProps> = ({
             </div>
           </div>
         </div>
-        <div className="divide-y divide-gray-200">
+        <div className="divide-y divide-gray-200 dark:divide-slate-700">
           {problems.map((problem) => {
             const badge = getStatusBadge(problem);
 
             return (
               <div
                 key={problem.id}
-                className="px-6 py-4 transition-colors hover:bg-gray-50 hover:shadow-sm"
+                className="px-6 py-4 transition-colors hover:bg-gray-50 dark:hover:bg-slate-800 hover:shadow-sm"
               >
                 <div className="grid grid-cols-[minmax(0,1fr)_100px_100px] items-center gap-4">
                   <div className="flex h-full items-center justify-start gap-2 text-left">
@@ -194,7 +194,7 @@ export const ProblemList: React.FC<ProblemListProps> = ({
                         const key = String(problem.displayId ?? problem.id);
                         onProblemClick(key);
                       }}
-                      className="text-base font-semibold text-gray-800 hover:text-blue-600 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                      className="text-base font-semibold text-gray-800 dark:text-slate-100 hover:text-blue-600 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                     >
                       {problem.title}
                     </button>
@@ -207,7 +207,7 @@ export const ProblemList: React.FC<ProblemListProps> = ({
                   <div className="flex h-full items-center justify-center">
                     {renderDifficultyBadge(problem)}
                   </div>
-                  <div className="flex h-full items-center justify-end text-sm text-gray-600 font-medium">
+                  <div className="flex h-full items-center justify-end text-sm text-gray-600 dark:text-slate-300 font-medium">
                     {problem.acceptedNumber && problem.submissionNumber
                       ? `${Math.round((problem.acceptedNumber / problem.submissionNumber) * 100)}%`
                       : '0%'
@@ -221,11 +221,11 @@ export const ProblemList: React.FC<ProblemListProps> = ({
 
         {/* 페이지네이션 */}
         {totalPages > 0 && onPageChange && (
-          <div className="flex items-center justify-between p-4 bg-white border-t border-gray-200">
+          <div className="flex items-center justify-between p-4 bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700">
             <Button
               onClick={() => onPageChange(currentPage - 1)}
               disabled={currentPage <= 1}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm font-medium text-gray-700 dark:text-slate-200 bg-white dark:bg-slate-900 hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               이전
             </Button>
@@ -248,7 +248,7 @@ export const ProblemList: React.FC<ProblemListProps> = ({
                     onClick={() => onPageChange(page)}
                     className={`min-w-[36px] px-3 py-2 rounded-lg text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${currentPage === page
                       ? 'bg-blue-600 text-white border border-blue-600 hover:bg-blue-700'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800'
                       }`}
                   >
                     {page}
@@ -260,7 +260,7 @@ export const ProblemList: React.FC<ProblemListProps> = ({
                 if (start > 1) {
                   items.push(renderPage(1));
                   if (start > 2) {
-                    items.push(<span key="start-dots" className="px-2 py-2 text-gray-500">...</span>);
+                    items.push(<span key="start-dots" className="px-2 py-2 text-gray-500 dark:text-slate-400">...</span>);
                   }
                 }
 
@@ -270,7 +270,7 @@ export const ProblemList: React.FC<ProblemListProps> = ({
 
                 if (end < totalPages) {
                   if (end < totalPages - 1) {
-                    items.push(<span key="end-dots" className="px-2 py-2 text-gray-500">...</span>);
+                    items.push(<span key="end-dots" className="px-2 py-2 text-gray-500 dark:text-slate-400">...</span>);
                   }
                   items.push(renderPage(totalPages));
                 }
@@ -284,14 +284,14 @@ export const ProblemList: React.FC<ProblemListProps> = ({
             </div>
 
             {/* 모바일 환경에서는 페이지 번호를 줄여서 보여줌 */}
-            <div className="sm:hidden text-sm text-gray-600 font-medium">
+            <div className="sm:hidden text-sm text-gray-600 dark:text-slate-300 font-medium">
               {currentPage} / {totalPages}
             </div>
 
             <Button
               onClick={() => onPageChange(currentPage + 1)}
               disabled={currentPage >= totalPages}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm font-medium text-gray-700 dark:text-slate-200 bg-white dark:bg-slate-900 hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
               다음
             </Button>

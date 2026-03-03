@@ -141,6 +141,24 @@ const clearCodeCacheForPrefix = (prefix: string) => {
   keysToRemove.forEach((key) => storage.removeItem(key));
 };
 
+const resolveInitialEditorTheme = (preferredTheme?: 'light' | 'dark'): 'light' | 'dark' => {
+  if (preferredTheme) {
+    return preferredTheme;
+  }
+  if (typeof window === 'undefined') {
+    return 'light';
+  }
+  const savedEditorTheme = localStorage.getItem('oj:editorTheme');
+  if (savedEditorTheme === 'light' || savedEditorTheme === 'dark') {
+    return savedEditorTheme;
+  }
+  const savedAppTheme = localStorage.getItem('theme');
+  if (savedAppTheme === 'light' || savedAppTheme === 'dark') {
+    return savedAppTheme;
+  }
+  return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+};
+
 type PendingSaveRequest = {
   force: boolean;
   indicator: 'auto' | 'manual';
@@ -228,11 +246,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   }, [availableLanguageOptions, language, initialCode]);
 
   const [input, setInput] = useState('');
-  const [editorTheme, setEditorTheme] = useState<'light' | 'dark'>(() => {
-    if (preferredTheme) return preferredTheme;
-    const saved = localStorage.getItem(themeKey);
-    return saved === 'light' || saved === 'dark' ? saved : 'dark';
-  });
+  const [editorTheme, setEditorTheme] = useState<'light' | 'dark'>(() => resolveInitialEditorTheme(preferredTheme));
 
   // Layout: vertical split top (editor) / bottom (IO)
   const [ioHeightPct, setIoHeightPct] = useState<number>(() => {
@@ -670,6 +684,22 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     ? 'bg-slate-900 border border-slate-600 text-slate-100'
     : 'bg-white border border-gray-300 text-gray-900';
 
+  const outlineButtonClass = isDarkTheme
+    ? 'border-slate-600 text-slate-200 hover:bg-slate-800'
+    : 'border-blue-600 text-blue-600 hover:bg-blue-50 dark:!border-blue-600 dark:!text-blue-600 dark:hover:!bg-blue-50';
+
+  const executeButtonClass = isDarkTheme
+    ? 'bg-sky-900/40 text-sky-200 hover:bg-sky-900'
+    : 'bg-sky-100 text-blue-700 hover:bg-sky-200 dark:!bg-sky-100 dark:!text-blue-700 dark:hover:!bg-sky-200';
+
+  const submitButtonClass = isDarkTheme
+    ? 'bg-blue-500 text-white hover:bg-blue-400'
+    : 'bg-blue-600 text-white hover:bg-blue-700 dark:!bg-blue-600 dark:!text-white dark:hover:!bg-blue-700';
+
+  const outputCardForceClass = isDarkTheme
+    ? ''
+    : 'dark:!bg-white dark:!border-gray-200 dark:!text-gray-900';
+
 
 
   return (
@@ -712,7 +742,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           <Button
             variant="outline"
             size="sm"
-            className={isDarkTheme ? 'border-slate-600 text-slate-200 hover:bg-slate-800' : ''}
+            className={outlineButtonClass}
             onClick={() => {
               if (confirm('현재 언어의 기본 템플릿으로 초기화할까요?')) {
                 const def = defaultCode[language] || '';
@@ -724,7 +754,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           <Button
             variant="outline"
             size="sm"
-            className={isDarkTheme ? 'border-slate-600 text-slate-200 hover:bg-slate-800' : ''}
+            className={outlineButtonClass}
             onClick={handleManualSave}
             title="Ctrl/Cmd+S"
           >
@@ -733,6 +763,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           <Button
             variant="secondary"
             size="sm"
+            className={executeButtonClass}
             onClick={handleExecute}
             disabled={isExecuting}
             loading={isExecuting}
@@ -742,6 +773,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           <Button
             variant="primary"
             size="sm"
+            className={submitButtonClass}
             onClick={handleSubmit}
             disabled={isSubmitting}
             loading={isSubmitting}
@@ -827,7 +859,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
                     <Button
                       variant="outline"
                       size="sm"
-                      className={`px-2 py-1 text-xs ${isDarkTheme ? 'border-slate-600 text-slate-200 hover:bg-slate-800' : ''}`}
+                      className={`px-2 py-1 text-xs ${outlineButtonClass}`}
                       onClick={() => setInput('')}
                     >
                       지우기
@@ -835,7 +867,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
                     <Button
                       variant="outline"
                       size="sm"
-                      className={`px-2 py-1 text-xs ${isDarkTheme ? 'border-slate-600 text-slate-200 hover:bg-slate-800' : ''}`}
+                      className={`px-2 py-1 text-xs ${outlineButtonClass}`}
                       onClick={() => navigator.clipboard.writeText(input)}
                     >
                       복사
@@ -867,14 +899,14 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
                     <Button
                       variant="outline"
                       size="sm"
-                      className={`px-2 py-1 text-xs ${isDarkTheme ? 'border-slate-600 text-slate-200 hover:bg-slate-800' : ''}`}
+                      className={`px-2 py-1 text-xs ${outlineButtonClass}`}
                       onClick={() => navigator.clipboard.writeText(`${executionResult?.output || ''}${executionResult?.error ? `\n${executionResult.error}` : ''}`)}
                     >
                       복사
                     </Button>
                   </div>
                 </div>
-                <Card className="flex-1" appearance={isDarkTheme ? 'inverted' : 'default'}>
+                <Card className={`flex-1 ${outputCardForceClass}`} appearance={isDarkTheme ? 'inverted' : 'default'}>
                   <div className="h-full overflow-auto space-y-2">
                     {executionResult ? (
                       <>

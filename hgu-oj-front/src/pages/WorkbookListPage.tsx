@@ -139,7 +139,7 @@ export const WorkbookListPage: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
 
@@ -162,19 +162,19 @@ export const WorkbookListPage: React.FC = () => {
                   value={searchQuery}
                   onChange={(event) => handleSearchChange(event.target.value)}
                   placeholder="제목, 내용 검색"
-                  className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white shadow-sm"
+                  className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 shadow-sm"
                 />
               </form>
             </div>
 
             {/* Categories */}
-            <div className="bg-white p-5 border border-gray-200 rounded-xl shadow-sm">
-              <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <svg className="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"></path></svg>
+            <div className="bg-white dark:bg-slate-900 p-5 border border-gray-200 dark:border-slate-800 rounded-xl shadow-sm">
+              <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+                <svg className="w-5 h-5 text-gray-500 dark:text-slate-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"></path></svg>
                 카테고리
               </h3>
               {isTagCountsLoading && (
-                <div className="text-sm text-gray-500 mb-3">태그를 불러오는 중입니다...</div>
+                <div className="text-sm text-gray-500 dark:text-slate-400 mb-3">태그를 불러오는 중입니다...</div>
               )}
               <div className="space-y-3">
                 <label className="flex items-center justify-between cursor-pointer group">
@@ -185,9 +185,9 @@ export const WorkbookListPage: React.FC = () => {
                       onChange={() => setFilter({ tags: [], page: 1 })}
                       className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                     />
-                    <span className="ml-3 text-sm font-medium text-gray-700 group-hover:text-gray-900">전체 보기</span>
+                    <span className="ml-3 text-sm font-medium text-gray-700 dark:text-slate-300 group-hover:text-gray-900 dark:group-hover:text-slate-100">전체 보기</span>
                   </div>
-                  <span className="text-xs font-medium bg-gray-100 text-gray-600 py-1 px-2.5 rounded-full">{totalCount}</span>
+                  <span className="text-xs font-medium bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 py-1 px-2.5 rounded-full">{totalCount}</span>
                 </label>
 
                 {(tagStats || []).slice(0, showAllCategories ? undefined : 8).map((category) => (
@@ -199,9 +199,9 @@ export const WorkbookListPage: React.FC = () => {
                         onChange={() => handleCategoryToggle(category.name)}
                         className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                       />
-                      <span className="ml-3 text-sm font-medium text-gray-700 group-hover:text-gray-900">{category.name}</span>
+                      <span className="ml-3 text-sm font-medium text-gray-700 dark:text-slate-300 group-hover:text-gray-900 dark:group-hover:text-slate-100">{category.name}</span>
                     </div>
-                    <span className="text-xs font-medium bg-gray-100 text-gray-600 py-1 px-2.5 rounded-full">{category.count}</span>
+                    <span className="text-xs font-medium bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 py-1 px-2.5 rounded-full">{category.count}</span>
                   </label>
                 ))}
 
@@ -222,15 +222,15 @@ export const WorkbookListPage: React.FC = () => {
           {/* Main Content */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between mb-4">
-              <div className="text-sm text-gray-500">
-                총 <span className="font-bold text-gray-900">{totalCount}</span>개의 문제집
+              <div className="text-sm text-gray-500 dark:text-slate-400">
+                총 <span className="font-bold text-gray-900 dark:text-slate-100">{totalCount}</span>개의 문제집
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-500">정렬:</span>
+                <span className="text-sm font-medium text-gray-500 dark:text-slate-400">정렬:</span>
                 <select
                   value={filter.sortBy === 'created_at' && filter.sortOrder === 'desc' ? 'newest' : 'oldest'}
                   onChange={(e) => handleSortChange(e.target.value)}
-                  className="bg-transparent text-sm font-bold text-gray-900 border-none focus:ring-0 cursor-pointer p-0 pr-6"
+                  className="bg-transparent text-sm font-bold text-gray-900 dark:text-slate-100 border-none focus:ring-0 cursor-pointer p-0 pr-6"
                 >
                   <option value="newest">최신순</option>
                   <option value="oldest">오래된순</option>

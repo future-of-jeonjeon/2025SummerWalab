@@ -546,8 +546,8 @@ export const ContestEditSection: React.FC = () => {
     <Card padding="lg">
       <div className="space-y-6">
         <div className="space-y-1">
-          <h2 className="text-xl font-semibold text-gray-900">대회 수정</h2>
-          <p className="text-sm text-gray-500">등록된 대회를 검색해 세부 정보를 확인하고 수정합니다.</p>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 dark:text-slate-100">대회 수정</h2>
+          <p className="text-sm text-gray-500 dark:text-slate-400">등록된 대회를 검색해 세부 정보를 확인하고 수정합니다.</p>
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -575,21 +575,21 @@ export const ContestEditSection: React.FC = () => {
         </div>
 
         <section className="space-y-4">
-          <div className="overflow-hidden rounded-lg border border-gray-200">
+          <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-slate-700">
             <table className="min-w-full divide-y divide-gray-200 text-left">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-slate-800">
                 <tr>
-                  <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500">대회 이름</th>
-                  <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500">기간</th>
-                  <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500">공개</th>
-                  <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500">상태</th>
-                  <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500">관리</th>
+                  <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">대회 이름</th>
+                  <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">기간</th>
+                  <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">공개</th>
+                  <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">상태</th>
+                  <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">관리</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
+              <tbody className="divide-y divide-gray-100 dark:divide-slate-700 bg-white dark:bg-slate-900">
                 {contestListLoading ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-6 text-center text-sm text-gray-500">
+                    <td colSpan={5} className="px-4 py-6 text-center text-sm text-gray-500 dark:text-slate-400">
                       대회 목록을 불러오는 중입니다...
                     </td>
                   </tr>
@@ -599,7 +599,7 @@ export const ContestEditSection: React.FC = () => {
                   </tr>
                 ) : contestList.length === 0 ? (
                   <tr>
-                    <td colSpan={5} className="px-4 py-6 text-center text-sm text-gray-500">등록된 대회가 없습니다.</td>
+                    <td colSpan={5} className="px-4 py-6 text-center text-sm text-gray-500 dark:text-slate-400">등록된 대회가 없습니다.</td>
                   </tr>
                 ) : (
                   contestList.map((contest) => {
@@ -608,14 +608,14 @@ export const ContestEditSection: React.FC = () => {
                     return (
                       <tr
                         key={contest.id}
-                        className={`cursor-pointer transition-colors ${isActive ? 'bg-[#E7F2F8]' : 'hover:bg-gray-50'}`}
+                        className={`cursor-pointer transition-colors ${isActive ? 'bg-[#E7F2F8]' : 'hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800'}`}
                         onClick={() => handleSelectContest(contest)}
                       >
-                        <td className="px-4 py-3 text-sm text-gray-900">{contest.title}</td>
-                        <td className="px-4 py-3 text-xs text-gray-600">{duration}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700">{contest.visible ? '공개' : '비공개'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700">{contest.status ?? '-'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700">
+                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-slate-100">{contest.title}</td>
+                        <td className="px-4 py-3 text-xs text-gray-600 dark:text-slate-400">{duration}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-300">{contest.visible ? '공개' : '비공개'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-300">{contest.status ?? '-'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-300">
                           <Button type="button" variant="ghost" onClick={() => handleSelectContest(contest)}>
                             선택
                           </Button>
@@ -628,13 +628,13 @@ export const ContestEditSection: React.FC = () => {
             </table>
           </div>
 
-          <div className="flex flex-col gap-2 text-sm text-gray-600 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-2 text-sm text-gray-600 dark:text-slate-400 sm:flex-row sm:items-center sm:justify-between">
             <span>전체 {contestTotal.toLocaleString()}개 · 현재 {contestList.length}개 표시 중</span>
             <div className="flex items-center gap-3">
               <Button variant="outline" size="sm" disabled={!canPrev} onClick={() => handleContestPageChange('prev')}>
                 이전
               </Button>
-              <span className="text-sm text-gray-600">
+              <span className="text-sm text-gray-600 dark:text-slate-400">
                 {contestPage} / {totalPages}
               </span>
               <Button variant="outline" size="sm" disabled={!canNext} onClick={() => handleContestPageChange('next')}>
@@ -646,12 +646,12 @@ export const ContestEditSection: React.FC = () => {
 
         <section className="space-y-5">
           <div className="space-y-1">
-            <h3 className="text-lg font-semibold text-gray-900">대회 상세</h3>
-            <p className="text-xs text-gray-500">선택한 대회의 기본 정보를 수정할 수 있습니다.</p>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">대회 상세</h3>
+            <p className="text-xs text-gray-500 dark:text-slate-400">선택한 대회의 기본 정보를 수정할 수 있습니다.</p>
           </div>
 
           {contestDetailLoading ? (
-            <div className="flex h-full min-h-[200px] items-center justify-center text-sm text-gray-500">
+            <div className="flex h-full min-h-[200px] items-center justify-center text-sm text-gray-500 dark:text-slate-400">
               대회 정보를 불러오는 중입니다...
             </div>
           ) : selectedContest && contestEditForm ? (
@@ -671,17 +671,17 @@ export const ContestEditSection: React.FC = () => {
                   required
                 />
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">룰 타입</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">룰 타입</label>
                   <input
                     value={selectedContest.ruleType}
-                    className="w-full rounded-md border border-gray-200 bg-gray-100 px-3 py-2 text-sm text-gray-600"
+                    className="w-full rounded-md border border-gray-200 bg-gray-100 px-3 py-2 text-sm text-gray-600 dark:text-slate-400"
                     readOnly
                   />
                 </div>
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-gray-700">설명</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">설명</label>
                 <textarea
                   className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
                   rows={4}
@@ -692,7 +692,7 @@ export const ContestEditSection: React.FC = () => {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">시작 시간</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">시작 시간</label>
                   <input
                     type="datetime-local"
                     className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
@@ -701,7 +701,7 @@ export const ContestEditSection: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">종료 시간</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">종료 시간</label>
                   <input
                     type="datetime-local"
                     className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
@@ -712,7 +712,7 @@ export const ContestEditSection: React.FC = () => {
               </div>
 
               <div className="grid gap-4 sm:grid-cols-3">
-                <label className="flex items-center gap-2 text-sm text-gray-700">
+                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-slate-300">
                   <input
                     type="checkbox"
                     className="h-4 w-4"
@@ -721,7 +721,7 @@ export const ContestEditSection: React.FC = () => {
                   />
                   <span>공개</span>
                 </label>
-                <label className="flex items-center gap-2 text-sm text-gray-700">
+                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-slate-300">
                   <input
                     type="checkbox"
                     className="h-4 w-4"
@@ -730,7 +730,7 @@ export const ContestEditSection: React.FC = () => {
                   />
                   <span>실시간 랭크</span>
                 </label>
-                <label className="flex items-center gap-2 text-sm text-gray-700">
+                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-slate-300">
                   <input
                     type="checkbox"
                     className="h-4 w-4"
@@ -748,7 +748,7 @@ export const ContestEditSection: React.FC = () => {
                   onChange={(e) => handleContestEditChange('password', e.target.value)}
                 />
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">허용 IP (CIDR)</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">허용 IP (CIDR)</label>
                   <textarea
                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
                     rows={3}
@@ -769,7 +769,7 @@ export const ContestEditSection: React.FC = () => {
               </div>
             </form>
           ) : (
-            <div className="flex h-full min-h-[200px] items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-sm text-gray-500">
+            <div className="flex h-full min-h-[200px] items-center justify-center rounded-lg border border-dashed border-gray-300 bg-gray-50 p-8 text-sm text-gray-500 dark:text-slate-400">
               목록에서 수정할 대회를 선택하세요.
             </div>
           )}
@@ -778,8 +778,8 @@ export const ContestEditSection: React.FC = () => {
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">대회 문제 구성</h3>
-              <p className="text-xs text-gray-500">선택된 대회에 포함된 문제 목록을 관리합니다.</p>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">대회 문제 구성</h3>
+              <p className="text-xs text-gray-500 dark:text-slate-400">선택된 대회에 포함된 문제 목록을 관리합니다.</p>
             </div>
             {selectedContest && (
               <Button type="button" variant="outline" size="sm" onClick={() => fetchContestProblems(selectedContest.id)}>
@@ -796,13 +796,13 @@ export const ContestEditSection: React.FC = () => {
           )}
 
           {contestProblemsState.loading ? (
-            <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+            <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500 dark:text-slate-400">
               대회 문제 정보를 불러오는 중입니다...
             </div>
           ) : contestProblemsState.error ? (
             <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-600">{contestProblemsState.error}</div>
           ) : contestProblemsState.items.length === 0 ? (
-            <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+            <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500 dark:text-slate-400">
               아직 선택된 문제가 없습니다. 아래에서 검색해 추가할 수 있습니다.
             </div>
           ) : (
@@ -856,25 +856,25 @@ export const ContestEditSection: React.FC = () => {
                   <div className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-600">{contestProblemSearch.error}</div>
                 )}
                 {!contestProblemSearch.error && contestProblemInput.trim() && contestProblemSearch.loading && (
-                  <p className="text-xs text-gray-500">문제를 검색 중입니다...</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">문제를 검색 중입니다...</p>
                 )}
                 {!contestProblemSearch.error && contestProblemInput.trim() && !contestProblemSearch.loading && contestProblemSearch.results.length === 0 && (
-                  <p className="text-xs text-gray-500">검색 결과가 없습니다.</p>
+                  <p className="text-xs text-gray-500 dark:text-slate-400">검색 결과가 없습니다.</p>
                 )}
                 {!contestProblemSearch.error && contestProblemInput.trim() && contestProblemSearch.results.length > 0 && (
-                  <ul className="divide-y divide-gray-200 overflow-hidden rounded-lg border border-gray-200">
+                  <ul className="divide-y divide-gray-200 overflow-hidden rounded-lg border border-gray-200 dark:border-slate-700">
                     {contestProblemSearch.results.map((result) => (
                       <li key={`contest-problem-suggestion-${result.id}`}>
                         <button
                           type="button"
-                          className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-gray-50"
+                          className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800"
                           onClick={() => handleSelectContestProblemSuggestion(result)}
                         >
                           <div>
                             <p className="font-medium text-gray-800">
                               {result.displayId ?? result.id} · {result.title}
                             </p>
-                            <p className="text-xs text-gray-500">난이도: {result.difficulty}</p>
+                            <p className="text-xs text-gray-500 dark:text-slate-400">난이도: {result.difficulty}</p>
                           </div>
                           <span className="text-xs text-[#113F67]">선택</span>
                         </button>

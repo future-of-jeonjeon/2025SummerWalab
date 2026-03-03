@@ -91,26 +91,26 @@ export const ContributionPage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
             <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 2xl:max-w-screen-2xl 2xl:px-10 py-8 flex flex-col md:flex-row gap-8">
 
                 {/* Mobile Nav Placeholder */}
-                <div className="md:hidden mb-4 bg-white p-4 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center">
+                <div className="md:hidden mb-4 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 flex justify-between items-center">
                     <span className="font-bold">기여</span>
                 </div>
 
                 {/* Sidebar */}
                 <div className="w-full md:w-64 flex-shrink-0">
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden sticky top-24">
-                        <div className="p-6 border-b border-gray-100 bg-gray-50">
-                            <h2 className="text-lg font-bold text-gray-900">기여</h2>
+                    <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 overflow-hidden sticky top-24">
+                        <div className="p-6 border-b border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-800">
+                            <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">기여</h2>
                         </div>
                         <nav className="p-2 space-y-1">
                             <button
                                 onClick={() => setActiveTab('problems')}
                                 className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'problems'
                                     ? 'bg-blue-50 text-blue-700'
-                                    : 'text-gray-700 hover:bg-gray-50'
+                                    : 'text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800'
                                     }`}
                             >
                                 <svg className="mr-3 h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -122,7 +122,7 @@ export const ContributionPage: React.FC = () => {
                                 onClick={() => setActiveTab('workbooks')}
                                 className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'workbooks'
                                     ? 'bg-blue-50 text-blue-700'
-                                    : 'text-gray-700 hover:bg-gray-50'
+                                    : 'text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800'
                                     }`}
                             >
                                 <svg className="mr-3 h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -137,21 +137,21 @@ export const ContributionPage: React.FC = () => {
                 {/* Main Content */}
                 <div className="flex-1 min-w-0">
                     <div className="mb-10">
-                        <nav className="flex text-sm text-gray-500 mb-2">
-                            <span className="cursor-pointer hover:text-gray-900" onClick={() => navigate('/contribution')}>Contribute</span>
+                        <nav className="flex text-sm text-gray-500 dark:text-slate-400 dark:text-slate-400 mb-2">
+                            <span className="cursor-pointer hover:text-gray-900 dark:hover:text-slate-100" onClick={() => navigate('/contribution')}>Contribute</span>
                             <span className="mx-2">/</span>
-                            <span className="font-medium text-gray-900">{activeTab === 'problems' ? 'Problem' : 'Workbook'}</span>
+                            <span className="font-medium text-gray-900 dark:text-slate-100">{activeTab === 'problems' ? 'Problem' : 'Workbook'}</span>
                         </nav>
-                        <h1 className="text-3xl font-extrabold text-gray-900">
+                        <h1 className="text-3xl font-extrabold text-gray-900 dark:text-slate-100">
                             {activeTab === 'problems' ? '문제 등록' : '문제집 등록'}
                         </h1>
                     </div>
 
                     <div className="space-y-6">
                         {activeTab === 'problems' ? (
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                                <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
-                                    <h3 className="text-lg font-medium text-gray-900">내 문제 목록</h3>
+                            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 overflow-hidden">
+                                <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center bg-gray-50 dark:bg-slate-800">
+                                    <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100">내 문제 목록</h3>
                                     <Button
                                         className="inline-flex items-center justify-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
                                         onClick={() => setIsProblemModalOpen(true)}
@@ -163,18 +163,18 @@ export const ContributionPage: React.FC = () => {
                                     </Button>
                                 </div>
                                 <div className="overflow-x-auto">
-                                    <table className="min-w-full divide-y divide-gray-200">
-                                        <thead className="bg-gray-50">
+                                    <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
+                                        <thead className="bg-gray-50 dark:bg-slate-800">
                                             <tr>
                                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">제목</th>
                                                 <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">난이도</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="bg-white divide-y divide-gray-200">
+                                        <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-700 dark:divide-slate-700">
                                             {problems.map((problem) => (
-                                                <tr key={problem.id} className="hover:bg-gray-50 transition-colors">
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{problem.title}</td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 text-right">{problem.difficulty}</td>
+                                                <tr key={problem.id} className="hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-slate-100 dark:text-slate-100">{problem.title}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400 text-right">{problem.difficulty}</td>
                                                 </tr>
                                             ))}
                                         </tbody>
@@ -187,7 +187,7 @@ export const ContributionPage: React.FC = () => {
                                     </div>
                                     <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                                         <div>
-                                            <p className="text-sm text-gray-700">
+                                            <p className="text-sm text-gray-700 dark:text-slate-300">
                                                 Page <span className="font-medium">{page}</span> of <span className="font-medium">{totalPages}</span>
                                             </p>
                                         </div>
@@ -196,7 +196,7 @@ export const ContributionPage: React.FC = () => {
                                                 <Button
                                                     onClick={() => handlePageChange(page - 1)}
                                                     disabled={page === 1}
-                                                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                                                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm font-medium text-gray-500 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800"
                                                 >
                                                     <span className="sr-only">Previous</span>
                                                     <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -206,7 +206,7 @@ export const ContributionPage: React.FC = () => {
                                                 <Button
                                                     onClick={() => handlePageChange(page + 1)}
                                                     disabled={page === totalPages}
-                                                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                                                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm font-medium text-gray-500 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800"
                                                 >
                                                     <span className="sr-only">Next</span>
                                                     <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -219,9 +219,9 @@ export const ContributionPage: React.FC = () => {
                                 </div>
                             </div>
                         ) : (
-                            <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                                <div className="px-6 py-4 border-b border-gray-200 flex justify-between items-center bg-gray-50">
-                                    <h3 className="text-lg font-medium text-gray-900">내 문제집 목록</h3>
+                            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 overflow-hidden">
+                                <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 flex justify-between items-center bg-gray-50 dark:bg-slate-800">
+                                    <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100">내 문제집 목록</h3>
                                     <Button
                                         className="inline-flex items-center justify-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
                                         onClick={() => {
@@ -236,8 +236,8 @@ export const ContributionPage: React.FC = () => {
                                     </Button>
                                 </div>
                                 <div className="overflow-x-auto">
-                                    <table className="min-w-full divide-y divide-gray-200">
-                                        <thead className="bg-gray-50">
+                                    <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
+                                        <thead className="bg-gray-50 dark:bg-slate-800">
                                             <tr>
                                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">제목</th>
                                                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">문제 수</th>
@@ -245,11 +245,11 @@ export const ContributionPage: React.FC = () => {
                                                 <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">관리</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="bg-white divide-y divide-gray-200">
+                                        <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-700 dark:divide-slate-700">
                                             {workbooks.map((workbook) => (
-                                                <tr key={workbook.id} className="hover:bg-gray-50 transition-colors">
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{workbook.title}</td>
-                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{workbook.problemCount || 0}개</td>
+                                                <tr key={workbook.id} className="hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-slate-100 dark:text-slate-100">{workbook.title}</td>
+                                                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">{workbook.problemCount || 0}개</td>
 
                                                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                                                         <button
@@ -283,7 +283,7 @@ export const ContributionPage: React.FC = () => {
                                     </div>
                                     <div className="hidden sm:flex-1 sm:flex sm:items-center sm:justify-between">
                                         <div>
-                                            <p className="text-sm text-gray-700">
+                                            <p className="text-sm text-gray-700 dark:text-slate-300">
                                                 Page <span className="font-medium">{page}</span> of <span className="font-medium">{totalPages}</span>
                                             </p>
                                         </div>
@@ -292,7 +292,7 @@ export const ContributionPage: React.FC = () => {
                                                 <Button
                                                     onClick={() => handlePageChange(page - 1)}
                                                     disabled={page === 1}
-                                                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                                                    className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm font-medium text-gray-500 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800"
                                                 >
                                                     <span className="sr-only">Previous</span>
                                                     <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
@@ -302,7 +302,7 @@ export const ContributionPage: React.FC = () => {
                                                 <Button
                                                     onClick={() => handlePageChange(page + 1)}
                                                     disabled={page === totalPages}
-                                                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+                                                    className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-sm font-medium text-gray-500 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800"
                                                 >
                                                     <span className="sr-only">Next</span>
                                                     <svg className="h-5 w-5" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">

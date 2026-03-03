@@ -38,7 +38,7 @@ export const ProblemProgressCard: React.FC<ProblemProgressCardProps> = ({
 
   if (isLoading) {
     return (
-      <Card className={`p-6 text-gray-500 ${className ?? ''}`.trim()}>
+      <Card className={`p-6 text-gray-500 dark:text-slate-400 ${className ?? ''}`.trim()}>
         문제 진행도를 불러오는 중입니다...
       </Card>
     );
@@ -56,9 +56,9 @@ export const ProblemProgressCard: React.FC<ProblemProgressCardProps> = ({
     <Card className={`p-6 ${className ?? ''}`.trim()}>
       <div className="flex flex-col gap-5 h-full justify-between">
         <div className="text-right">
-          <p className="text-sm font-semibold text-gray-600">총 풀이 진행도</p>
-          <p className="mt-1 text-3xl font-bold text-gray-900">{percentage}%</p>
-          <p className="text-sm text-gray-500">
+          <p className="text-sm font-semibold text-gray-600 dark:text-slate-300">총 풀이 진행도</p>
+          <p className="mt-1 text-3xl font-bold text-gray-900 dark:text-slate-100">{percentage}%</p>
+          <p className="text-sm text-gray-500 dark:text-slate-400">
             {Math.max(0, solvedCount)} / {Math.max(0, totalCount)} 문제 해결
           </p>
         </div>
@@ -67,7 +67,7 @@ export const ProblemProgressCard: React.FC<ProblemProgressCardProps> = ({
           <ProgressBar value={solvedCount} max={normalizedTotal} />
         </div>
 
-        <div className="text-xs text-gray-500 text-right">
+        <div className="text-xs text-gray-500 dark:text-slate-400 text-right">
           {remainingProblems > 0 ? (
             <>남은 문제 {remainingProblems}개</>
           ) : (

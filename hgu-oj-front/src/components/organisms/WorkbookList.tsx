@@ -28,7 +28,7 @@ export const WorkbookList: React.FC<WorkbookListProps> = ({
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
-        <div className="text-gray-600 text-lg">로딩 중...</div>
+        <div className="text-gray-600 dark:text-slate-400 text-lg">로딩 중...</div>
       </div>
     );
   }
@@ -39,7 +39,7 @@ export const WorkbookList: React.FC<WorkbookListProps> = ({
         <div className="text-red-600 text-lg mb-4">
           문제집을 불러오는 중 오류가 발생했습니다.
         </div>
-        <p className="text-gray-600">{error.message}</p>
+        <p className="text-gray-600 dark:text-slate-400">{error.message}</p>
       </div>
     );
   }
@@ -47,11 +47,11 @@ export const WorkbookList: React.FC<WorkbookListProps> = ({
   if (workbooks.length === 0) {
     return (
       <div className="text-center py-12">
-        <div className="text-gray-600 text-lg mb-4">
+        <div className="text-gray-600 dark:text-slate-400 text-lg mb-4">
           {searchQuery ? '검색 결과가 없습니다.' : '등록된 문제집이 없습니다.'}
         </div>
         {searchQuery && (
-          <p className="text-gray-500">다른 검색어를 시도해보세요.</p>
+          <p className="text-gray-500 dark:text-slate-400">다른 검색어를 시도해보세요.</p>
         )}
       </div>
     );
@@ -77,7 +77,7 @@ export const WorkbookList: React.FC<WorkbookListProps> = ({
           <button
             onClick={() => onPageChange(currentPage - 1)}
             disabled={currentPage === 1}
-            className="px-3 py-2 rounded-md border border-gray-300 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+            className="px-3 py-2 rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-500 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
             aria-label="Previous page"
           >
             이전
@@ -106,7 +106,7 @@ export const WorkbookList: React.FC<WorkbookListProps> = ({
                   onClick={() => onPageChange(page)}
                   className={`min-w-[40px] h-10 flex items-center justify-center text-sm font-medium rounded-md border transition-colors ${currentPage === page
                     ? 'bg-blue-600 border-blue-600 text-white'
-                    : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                    : 'bg-white dark:bg-slate-900 border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800'
                     }`}
                 >
                   {page}
@@ -118,7 +118,7 @@ export const WorkbookList: React.FC<WorkbookListProps> = ({
           <button
             onClick={() => onPageChange(currentPage + 1)}
             disabled={currentPage === totalPages}
-            className="px-3 py-2 rounded-md border border-gray-300 bg-white text-gray-500 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
+            className="px-3 py-2 rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-500 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
             aria-label="Next page"
           >
             다음

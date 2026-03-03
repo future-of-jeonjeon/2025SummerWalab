@@ -385,8 +385,8 @@ export const ProblemEditSection: React.FC = () => {
     <Card padding="lg">
       <div className="space-y-6">
         <div className="space-y-1">
-          <h2 className="text-xl font-semibold text-gray-900">문제 수정</h2>
-          <p className="text-sm text-gray-500">OJ 백엔드에 등록된 문제를 검색하고 세부 정보를 수정하세요.</p>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 dark:text-slate-100">문제 수정</h2>
+          <p className="text-sm text-gray-500 dark:text-slate-400">OJ 백엔드에 등록된 문제를 검색하고 세부 정보를 수정하세요.</p>
         </div>
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -404,7 +404,7 @@ export const ProblemEditSection: React.FC = () => {
               }}
             />
           </div>
-          <Button onClick={handleSearchSubmit} className="w-full sm:w-auto bg-[#113F67] text-white hover:bg-[#34699A] focus:ring-[#58A0C8]">
+          <Button onClick={handleSearchSubmit} className="w-full sm:w-auto bg-[#113F67] text-white hover:bg-[#34699A] dark:bg-[#34699A] dark:hover:bg-[#58A0C8] focus:ring-[#58A0C8]">
             검색
           </Button>
         </div>
@@ -412,25 +412,25 @@ export const ProblemEditSection: React.FC = () => {
         <section className="space-y-6">
           <div className="space-y-4">
             <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-              <h3 className="text-sm font-medium text-gray-900">문제 목록</h3>
-              <span className="text-xs text-gray-500">총 {total.toLocaleString()}개</span>
+              <h3 className="text-sm font-medium text-gray-900 dark:text-slate-100">문제 목록</h3>
+              <span className="text-xs text-gray-500 dark:text-slate-400">총 {total.toLocaleString()}개</span>
             </div>
-            <div className="rounded-lg border border-gray-200 bg-white shadow-sm">
+            <div className="rounded-lg border border-gray-200 dark:border-slate-700 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm">
               {listLoading ? (
-                <div className="px-4 py-6 text-center text-sm text-gray-500">문제를 불러오는 중입니다...</div>
+                <div className="px-4 py-6 text-center text-sm text-gray-500 dark:text-slate-400">문제를 불러오는 중입니다...</div>
               ) : listError ? (
                 <div className="px-4 py-6 text-sm text-red-600">{listError}</div>
               ) : problemList.length === 0 ? (
-                <div className="px-4 py-6 text-sm text-gray-500">검색 결과가 없습니다.</div>
+                <div className="px-4 py-6 text-sm text-gray-500 dark:text-slate-400">검색 결과가 없습니다.</div>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="min-w-full divide-y divide-gray-200 text-left">
-                    <thead className="bg-gray-50">
+                    <thead className="bg-gray-50 dark:bg-slate-800">
                       <tr>
-                        <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-gray-500">표시 ID</th>
-                        <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-gray-500">제목</th>
-                        <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-gray-500">난이도</th>
-                        <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-gray-500">공개</th>
+                        <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">표시 ID</th>
+                        <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">제목</th>
+                        <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">난이도</th>
+                        <th className="px-3 py-2 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">공개</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -439,19 +439,19 @@ export const ProblemEditSection: React.FC = () => {
                         return (
                           <tr
                             key={`problem-edit-row-${problem.id}`}
-                            className={`cursor-pointer transition-colors ${isActive ? 'bg-[#113F67]/10' : 'hover:bg-gray-50'}`}
+                            className={`cursor-pointer transition-colors ${isActive ? 'bg-[#113F67]/10' : 'hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800'}`}
                             onClick={() => setSelectedProblemId(problem.id)}
                           >
-                            <td className="px-3 py-2 text-sm text-gray-900">{problem.displayId ?? problem.id}</td>
-                            <td className="px-3 py-2 text-sm text-gray-700">
-                              <div className="font-medium text-gray-900">{problem.title}</div>
+                            <td className="px-3 py-2 text-sm text-gray-900 dark:text-slate-100">{problem.displayId ?? problem.id}</td>
+                            <td className="px-3 py-2 text-sm text-gray-700 dark:text-slate-300">
+                              <div className="font-medium text-gray-900 dark:text-slate-100">{problem.title}</div>
                               {problem.tags && problem.tags.length > 0 && (
-                                <div className="mt-0.5 truncate text-xs text-gray-500">{problem.tags.join(', ')}</div>
+                                <div className="mt-0.5 truncate text-xs text-gray-500 dark:text-slate-400">{problem.tags.join(', ')}</div>
                               )}
                             </td>
-                            <td className="px-3 py-2 text-sm text-gray-700">{problem.difficulty}</td>
+                            <td className="px-3 py-2 text-sm text-gray-700 dark:text-slate-300">{problem.difficulty}</td>
                             <td className="px-3 py-2 text-sm">
-                              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${problem.visible ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600'}`}>
+                              <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${problem.visible ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-600 dark:text-slate-400'}`}>
                                 {problem.visible ? '공개' : '비공개'}
                               </span>
                             </td>
@@ -463,7 +463,7 @@ export const ProblemEditSection: React.FC = () => {
                 </div>
               )}
             </div>
-            <div className="flex items-center justify-between text-xs text-gray-500">
+            <div className="flex items-center justify-between text-xs text-gray-500 dark:text-slate-400">
               <div>
                 {page} / {totalPages}
               </div>
@@ -479,15 +479,15 @@ export const ProblemEditSection: React.FC = () => {
           </div>
 
           {detailLoading ? (
-            <div className="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+            <div className="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500 dark:text-slate-400">
               문제 정보를 불러오는 중입니다...
             </div>
           ) : !formState ? (
-            <div className="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500">
+            <div className="rounded-lg border border-dashed border-gray-300 px-4 py-6 text-sm text-gray-500 dark:text-slate-400">
               수정할 문제를 선택하세요.
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-6 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+            <form onSubmit={handleSubmit} className="space-y-6 rounded-lg border border-gray-200 dark:border-slate-700 bg-white p-6 shadow-sm">
               {message.error && <div className="rounded-md bg-red-50 px-4 py-2 text-sm text-red-600">{message.error}</div>}
               {message.success && <div className="rounded-md bg-green-50 px-4 py-2 text-sm text-green-600">{message.success}</div>}
 
@@ -498,7 +498,7 @@ export const ProblemEditSection: React.FC = () => {
                 <Input label="메모리 제한 (MB)" type="number" value={formState.memoryLimit} onChange={(e) => handleFieldChange('memoryLimit', e.target.value)} />
                 <Input label="태그" placeholder="쉼표로 구분하여 입력" value={formState.tags} onChange={(e) => handleFieldChange('tags', e.target.value)} />
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">난이도</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">난이도</label>
                   <select
                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
                     value={formState.difficulty}
@@ -509,11 +509,11 @@ export const ProblemEditSection: React.FC = () => {
                     <option value="High">High</option>
                   </select>
                 </div>
-                <label className="flex items-center gap-2 text-sm text-gray-700">
+                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-slate-300">
                   <input type="checkbox" className="h-4 w-4" checked={formState.visible} onChange={(e) => handleFieldChange('visible', e.target.checked)} />
                   <span>공개</span>
                 </label>
-                <label className="flex items-center gap-2 text-sm text-gray-700">
+                <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-slate-300">
                   <input type="checkbox" className="h-4 w-4" checked={formState.shareSubmission} onChange={(e) => handleFieldChange('shareSubmission', e.target.checked)} />
                   <span>코드 공유 허용</span>
                 </label>
@@ -521,53 +521,53 @@ export const ProblemEditSection: React.FC = () => {
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">입력 파일 이름</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">입력 파일 이름</label>
                   <Input value={formState.ioInput} onChange={(e) => handleFieldChange('ioInput', e.target.value)} />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">출력 파일 이름</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">출력 파일 이름</label>
                   <Input value={formState.ioOutput} onChange={(e) => handleFieldChange('ioOutput', e.target.value)} />
                 </div>
               </div>
 
               <div className="space-y-3">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">문제 설명</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">문제 설명</label>
                   <RichTextEditor value={formState.description} onChange={(value) => handleFieldChange('description', value)} placeholder="문제 설명을 입력하세요." />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">입력 설명</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">입력 설명</label>
                   <RichTextEditor value={formState.inputDescription} onChange={(value) => handleFieldChange('inputDescription', value)} placeholder="입력에 대한 설명을 입력하세요." />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">출력 설명</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">출력 설명</label>
                   <RichTextEditor value={formState.outputDescription} onChange={(value) => handleFieldChange('outputDescription', value)} placeholder="출력에 대한 설명을 입력하세요." />
                 </div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">힌트</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">힌트</label>
                   <RichTextEditor value={formState.hint} onChange={(value) => handleFieldChange('hint', value)} placeholder="힌트가 있다면 입력하세요." />
                 </div>
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700">출처</label>
+                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">출처</label>
                   <RichTextEditor value={formState.source} onChange={(value) => handleFieldChange('source', value)} placeholder="문제 출처를 입력하세요." />
                 </div>
               </div>
 
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-medium text-gray-900">예시</h4>
+                  <h4 className="text-sm font-medium text-gray-900 dark:text-slate-100">예시</h4>
                   <Button type="button" variant="outline" onClick={handleAddSample}>
                     예시 추가
                   </Button>
                 </div>
                 <div className="space-y-4">
                   {formState.samples.map((sample, index) => (
-                    <div key={`problem-edit-sample-${index}`} className="space-y-3 rounded-lg border border-gray-200 p-4">
+                    <div key={`problem-edit-sample-${index}`} className="space-y-3 rounded-lg border border-gray-200 dark:border-slate-700 p-4">
                       <div className="flex items-center justify-between">
-                        <span className="text-sm font-medium text-gray-700">예시 {index + 1}</span>
+                        <span className="text-sm font-medium text-gray-700 dark:text-slate-300">예시 {index + 1}</span>
                         {formState.samples.length > 1 && (
                           <button type="button" className="text-xs text-red-600 hover:text-red-700" onClick={() => handleRemoveSample(index)}>
                             삭제
@@ -576,7 +576,7 @@ export const ProblemEditSection: React.FC = () => {
                       </div>
                       <div className="grid gap-3 md:grid-cols-2">
                         <div>
-                          <label className="mb-1 block text-xs font-medium text-gray-600">입력</label>
+                          <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-slate-400">입력</label>
                           <textarea
                             className="w-full resize-none rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
                             rows={3}
@@ -585,7 +585,7 @@ export const ProblemEditSection: React.FC = () => {
                           />
                         </div>
                         <div>
-                          <label className="mb-1 block text-xs font-medium text-gray-600">출력</label>
+                          <label className="mb-1 block text-xs font-medium text-gray-600 dark:text-slate-400">출력</label>
                           <textarea
                             className="w-full resize-none rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
                             rows={3}
@@ -600,12 +600,12 @@ export const ProblemEditSection: React.FC = () => {
               </div>
 
               <div className="space-y-2">
-                <h4 className="text-sm font-medium text-gray-900">허용 언어</h4>
+                <h4 className="text-sm font-medium text-gray-900 dark:text-slate-100">허용 언어</h4>
                 <div className="flex flex-wrap gap-3">
                   {availableLanguages.map((language) => {
                     const checked = formState.languages.includes(language);
                     return (
-                      <label key={`problem-edit-language-${language}`} className="inline-flex items-center gap-2 text-xs text-gray-700">
+                      <label key={`problem-edit-language-${language}`} className="inline-flex items-center gap-2 text-xs text-gray-700 dark:text-slate-300">
                         <input type="checkbox" checked={checked} onChange={(e) => handleLanguageToggle(language, e.target.checked)} />
                         <span>{getLanguageLabel(language)}</span>
                       </label>
@@ -626,4 +626,3 @@ export const ProblemEditSection: React.FC = () => {
     </Card>
   );
 };
-

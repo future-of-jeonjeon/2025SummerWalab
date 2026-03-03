@@ -18,14 +18,14 @@ export const WorkbookCard: React.FC<WorkbookCardProps> = ({ workbook, onClick, o
   return (
     <Card
       onClick={handleClick}
-      className="mx-auto w-full p-5 bg-white border border-gray-200 hover:border-blue-400 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 cursor-pointer h-[280px] flex flex-col rounded-2xl relative"
+      className="mx-auto w-full p-5 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 hover:border-blue-400 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 cursor-pointer h-[280px] flex flex-col rounded-2xl relative"
     >
       {/* 1. Header: Author and Problem Count */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-bold text-blue-500 flex items-center gap-1.5 line-clamp-1">
           {workbook.writer}
         </h3>
-        <span className="px-2.5 py-1 text-[11px] font-bold text-gray-600 bg-gray-100 rounded-full shrink-0">
+        <span className="px-2.5 py-1 text-[11px] font-bold text-gray-600 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 rounded-full shrink-0">
           총 {workbook.problemCount || 0}문제
         </span>
       </div>
@@ -33,11 +33,11 @@ export const WorkbookCard: React.FC<WorkbookCardProps> = ({ workbook, onClick, o
       {/* 2. Title & Category */}
       <div className="mb-4">
         {workbook.category && (
-          <span className="text-[11px] font-bold text-gray-500 tracking-wider mb-2 block">
+          <span className="text-[11px] font-bold text-gray-500 dark:text-slate-400 tracking-wider mb-2 block">
             {workbook.category}
           </span>
         )}
-        <h2 className="text-xl font-extrabold text-gray-900 group-hover:text-blue-600 transition-colors line-clamp-2 leading-tight">
+        <h2 className="text-xl font-extrabold text-gray-900 dark:text-slate-100 group-hover:text-blue-600 transition-colors line-clamp-2 leading-tight">
           {workbook.title}
         </h2>
       </div>
@@ -54,7 +54,7 @@ export const WorkbookCard: React.FC<WorkbookCardProps> = ({ workbook, onClick, o
                   onTagClick(tag);
                 }
               }}
-              className={`text-[12px] font-medium text-gray-600 bg-white border border-gray-200 px-2.5 py-0.5 rounded shadow-sm whitespace-nowrap ${onTagClick ? 'hover:bg-gray-50 hover:text-blue-600 hover:border-blue-300 transition-colors' : ''}`}
+              className={`text-[12px] font-medium text-gray-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 px-2.5 py-0.5 rounded shadow-sm whitespace-nowrap ${onTagClick ? 'hover:bg-gray-50 dark:hover:bg-slate-700 hover:text-blue-600 hover:border-blue-300 transition-colors' : ''}`}
             >
               #{tag}
             </span>

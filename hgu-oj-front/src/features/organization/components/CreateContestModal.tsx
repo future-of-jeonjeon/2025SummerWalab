@@ -333,19 +333,19 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
 
                 <span className="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true">&#8203;</span>
 
-                <div className="inline-block h-[92vh] w-full transform overflow-hidden rounded-2xl border border-gray-100 bg-white text-left align-bottom shadow-2xl transition-all sm:my-8 sm:h-[760px] sm:max-w-2xl sm:align-middle">
+                <div className="inline-block h-[92vh] w-full transform overflow-hidden rounded-2xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-900 text-left align-bottom shadow-2xl transition-all sm:my-8 sm:h-[760px] sm:max-w-2xl sm:align-middle">
                     <div className="flex h-full flex-col">
-                        <div className="flex-1 overflow-y-auto bg-white px-8 pb-6 pt-8">
+                        <div className="flex-1 overflow-y-auto bg-white dark:bg-slate-900 px-8 pb-6 pt-8">
                             <div className="w-full">
-                                <h3 className="text-2xl font-bold leading-6 tracking-tight text-gray-900" id="modal-title">
+                                <h3 className="text-2xl font-bold leading-6 tracking-tight text-gray-900 dark:text-slate-100" id="modal-title">
                                     {isEditMode ? '대회 수정' : '새 대회 생성'}
                                 </h3>
-                                <div className="mt-5 flex gap-2 border-b border-gray-100">
+                                <div className="mt-5 flex gap-2 border-b border-gray-100 dark:border-slate-700">
                                     <button
                                         type="button"
                                         className={`border-b-2 px-1 py-2 text-sm font-semibold ${activeTab === 'basic'
-                                            ? 'border-indigo-600 text-indigo-700'
-                                            : 'border-transparent text-gray-500 hover:text-gray-700'
+                                            ? 'border-indigo-600 text-indigo-700 dark:text-indigo-400'
+                                            : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                                             }`}
                                         onClick={() => setActiveTab('basic')}
                                     >
@@ -354,8 +354,8 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                     <button
                                         type="button"
                                         className={`border-b-2 px-1 py-2 text-sm font-semibold ${activeTab === 'problems'
-                                            ? 'border-indigo-600 text-indigo-700'
-                                            : 'border-transparent text-gray-500 hover:text-gray-700'
+                                            ? 'border-indigo-600 text-indigo-700 dark:text-indigo-400'
+                                            : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                                             }`}
                                         onClick={() => setActiveTab('problems')}
                                     >
@@ -364,8 +364,8 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                 </div>
 
                                 {error && (
-                                    <div className="mt-4 flex items-center rounded-lg border border-red-100 bg-red-50 p-4 text-sm text-red-700">
-                                        <svg className="mr-2 h-5 w-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <div className="mt-4 flex items-center rounded-lg border border-red-100 dark:border-red-800/40 bg-red-50 dark:bg-red-900/20 p-4 text-sm text-red-700 dark:text-red-300">
+                                        <svg className="mr-2 h-5 w-5 text-red-400 dark:text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
                                         {error}
@@ -376,11 +376,11 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                     {activeTab === 'basic' && (
                                         <>
                                             <div>
-                                                <label className="mb-1.5 block text-sm font-semibold text-gray-700">대회 제목</label>
+                                                <label className="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-slate-300">대회 제목</label>
                                                 <input
                                                     type="text"
                                                     required
-                                                    className="block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm shadow-sm transition-colors focus:border-indigo-500 focus:bg-white focus:ring-indigo-500"
+                                                    className="block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-800 px-3 py-2.5 text-sm text-gray-900 dark:text-slate-100 shadow-sm transition-colors focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-indigo-500"
                                                     value={formData.title}
                                                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                                                 />
@@ -388,21 +388,21 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
 
                                             <div className="grid grid-cols-2 gap-6">
                                                 <div>
-                                                    <label className="mb-1.5 block text-sm font-semibold text-gray-700">시작 시간</label>
+                                                    <label className="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-slate-300">시작 시간</label>
                                                     <input
                                                         type="datetime-local"
                                                         required
-                                                        className="block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm shadow-sm transition-colors focus:border-indigo-500 focus:bg-white focus:ring-indigo-500"
+                                                        className="block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-800 px-3 py-2.5 text-sm text-gray-900 dark:text-slate-100 shadow-sm transition-colors focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-indigo-500"
                                                         value={formData.start_time}
                                                         onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="mb-1.5 block text-sm font-semibold text-gray-700">종료 시간</label>
+                                                    <label className="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-slate-300">종료 시간</label>
                                                     <input
                                                         type="datetime-local"
                                                         required
-                                                        className="block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm shadow-sm transition-colors focus:border-indigo-500 focus:bg-white focus:ring-indigo-500"
+                                                        className="block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-800 px-3 py-2.5 text-sm text-gray-900 dark:text-slate-100 shadow-sm transition-colors focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-indigo-500"
                                                         value={formData.end_time}
                                                         onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
                                                     />
@@ -410,29 +410,29 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                             </div>
 
                                             <div>
-                                                <label className="mb-1.5 block text-sm font-semibold text-gray-700">설명</label>
+                                                <label className="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-slate-300">설명</label>
                                                 <textarea
                                                     rows={4}
                                                     required
-                                                    className="block w-full resize-none rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm shadow-sm transition-colors focus:border-indigo-500 focus:bg-white focus:ring-indigo-500"
+                                                    className="block w-full resize-none rounded-lg border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-800 px-3 py-2.5 text-sm text-gray-900 dark:text-slate-100 shadow-sm transition-colors focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-indigo-500"
                                                     value={formData.description}
                                                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                                 />
                                             </div>
 
                                             <div>
-                                                <label className="mb-1.5 block text-sm font-semibold text-gray-700">비밀번호 <span className="text-xs font-normal text-gray-400">(선택)</span></label>
+                                                <label className="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-slate-300">비밀번호 <span className="text-xs font-normal text-gray-400 dark:text-slate-500">(선택)</span></label>
                                                 <input
                                                     type="password"
                                                     autoComplete="new-password"
-                                                    className="block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm shadow-sm transition-colors focus:border-indigo-500 focus:bg-white focus:ring-indigo-500"
+                                                    className="block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-800 px-3 py-2.5 text-sm text-gray-900 dark:text-slate-100 shadow-sm transition-colors focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-indigo-500"
                                                     value={formData.password}
                                                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                                                 />
                                             </div>
 
                                             <div className="grid grid-cols-2 gap-4">
-                                                <div className="flex items-center space-x-2 rounded-lg border border-gray-100 bg-gray-50 p-3">
+                                                <div className="flex items-center space-x-2 rounded-lg border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 p-3">
                                                     <input
                                                         id="is_organization_only"
                                                         type="checkbox"
@@ -440,11 +440,11 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                                         checked={formData.is_organization_only}
                                                         onChange={(e) => setFormData({ ...formData, is_organization_only: e.target.checked })}
                                                     />
-                                                    <label htmlFor="is_organization_only" className="ml-2 block cursor-pointer select-none text-sm font-medium text-gray-900">
-                                                        단체 내부 전용 <span className="font-normal text-gray-500">(외부인 불가)</span>
+                                                    <label htmlFor="is_organization_only" className="ml-2 block cursor-pointer select-none text-sm font-medium text-gray-900 dark:text-slate-100">
+                                                        단체 내부 전용 <span className="font-normal text-gray-500 dark:text-slate-400">(외부인 불가)</span>
                                                     </label>
                                                 </div>
-                                                <div className="flex items-center space-x-2 rounded-lg border border-gray-100 bg-gray-50 p-3">
+                                                <div className="flex items-center space-x-2 rounded-lg border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 p-3">
                                                     <input
                                                         id="requires_approval"
                                                         type="checkbox"
@@ -452,19 +452,19 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                                         checked={formData.requires_approval}
                                                         onChange={(e) => setFormData({ ...formData, requires_approval: e.target.checked })}
                                                     />
-                                                    <label htmlFor="requires_approval" className="ml-2 block cursor-pointer select-none text-sm font-medium text-gray-900">
+                                                    <label htmlFor="requires_approval" className="ml-2 block cursor-pointer select-none text-sm font-medium text-gray-900 dark:text-slate-100">
                                                         참가 승인 필요
                                                     </label>
                                                 </div>
                                             </div>
 
                                             <div>
-                                                <label className="mb-1.5 block text-sm font-semibold text-gray-700">
-                                                    허용 IP 범위 <span className="text-xs font-normal text-gray-400">(선택, 쉼표로 구분)</span>
+                                                <label className="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-slate-300">
+                                                    허용 IP 범위 <span className="text-xs font-normal text-gray-400 dark:text-slate-500">(선택, 쉼표로 구분)</span>
                                                 </label>
                                                 <input
                                                     type="text"
-                                                    className="block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm shadow-sm transition-colors focus:border-indigo-500 focus:bg-white focus:ring-indigo-500"
+                                                    className="block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-800 px-3 py-2.5 text-sm text-gray-900 dark:text-slate-100 shadow-sm transition-colors focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-indigo-500"
                                                     placeholder="예: 192.168.1.1/24, 10.0.0.1"
                                                     value={formData.allowed_ip_ranges}
                                                     onChange={(e) => setFormData({ ...formData, allowed_ip_ranges: e.target.value })}
@@ -472,14 +472,14 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                             </div>
 
                                             <div>
-                                                <label className="mb-2.5 block text-sm font-semibold text-gray-700">사용 언어</label>
+                                                <label className="mb-2.5 block text-sm font-semibold text-gray-700 dark:text-slate-300">사용 언어</label>
                                                 <div className="flex flex-wrap gap-2.5">
                                                     {SUPPORTED_LANGUAGES.map((lang) => (
                                                         <label
                                                             key={lang}
                                                             className={`inline-flex cursor-pointer items-center rounded-full border px-3 py-1.5 text-sm font-medium transition-all duration-200 ${formData.languages.includes(lang)
-                                                                ? 'border-indigo-200 bg-indigo-50 text-indigo-700'
-                                                                : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50'
+                                                                ? 'border-indigo-200 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
+                                                                : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'
                                                                 }`}
                                                         >
                                                             <input
@@ -497,9 +497,9 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                     )}
 
                                     {activeTab === 'problems' && (
-                                        <div className="space-y-3 rounded-xl border border-gray-200 bg-white p-4">
+                                        <div className="space-y-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
                                             <div className="flex items-center justify-between">
-                                                <h4 className="text-sm font-semibold text-gray-800">문제 추가</h4>
+                                                <h4 className="text-sm font-semibold text-gray-800 dark:text-slate-200">문제 추가</h4>
                                                 <div className="flex items-center gap-2">
                                                     <Button
                                                         type="button"
@@ -513,27 +513,27 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                             </div>
                                             <>
 
-                                                {problemMessage.error && <div className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-600">{problemMessage.error}</div>}
-                                                {problemMessage.success && <div className="rounded-md bg-green-50 px-3 py-2 text-xs text-green-600">{problemMessage.success}</div>}
+                                                {problemMessage.error && <div className="rounded-md bg-red-50 dark:bg-red-900/20 px-3 py-2 text-xs text-red-600 dark:text-red-300">{problemMessage.error}</div>}
+                                                {problemMessage.success && <div className="rounded-md bg-green-50 dark:bg-emerald-900/20 px-3 py-2 text-xs text-green-600 dark:text-emerald-300">{problemMessage.success}</div>}
 
                                                 <div className="grid gap-2 sm:grid-cols-[1fr_160px_auto]">
                                                     <div className="relative">
                                                         <input
                                                             type="text"
-                                                            className="block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm shadow-sm transition-colors focus:border-indigo-500 focus:bg-white focus:ring-indigo-500"
+                                                            className="block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-800 px-3 py-2.5 text-sm text-gray-900 dark:text-slate-100 shadow-sm transition-colors focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-indigo-500"
                                                             placeholder="문제 검색 (ID, 표시 ID, 제목)"
                                                             value={problemInput}
                                                             onChange={(e) => handleSearchProblem(e.target.value)}
                                                         />
-                                                        {problemSearch.loading && <p className="mt-1 text-xs text-gray-500">검색 중...</p>}
+                                                        {problemSearch.loading && <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">검색 중...</p>}
                                                         {problemSearch.error && <p className="mt-1 text-xs text-red-600">{problemSearch.error}</p>}
                                                         {problemSearch.results.length > 0 && (
-                                                            <ul className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-gray-200 bg-white shadow-lg">
+                                                            <ul className="absolute z-20 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg">
                                                                 {problemSearch.results.map((result) => (
                                                                     <li key={`problem-search-${result.id}`}>
                                                                         <button
                                                                             type="button"
-                                                                            className="w-full px-3 py-2 text-left text-sm hover:bg-gray-50"
+                                                                            className="w-full px-3 py-2 text-left text-sm text-gray-900 dark:text-slate-100 hover:bg-gray-50 dark:hover:bg-slate-800"
                                                                             onClick={() => {
                                                                                 setSelectedProblem(result);
                                                                                 setProblemInput(result.title);
@@ -550,7 +550,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                                     </div>
                                                     <input
                                                         type="text"
-                                                        className="block w-full rounded-lg border-gray-300 bg-gray-50 px-3 py-2.5 text-sm shadow-sm transition-colors focus:border-indigo-500 focus:bg-white focus:ring-indigo-500"
+                                                        className="block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-800 px-3 py-2.5 text-sm text-gray-900 dark:text-slate-100 shadow-sm transition-colors focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-indigo-500"
                                                         placeholder="표시 ID"
                                                         value={problemDisplayId}
                                                         onChange={(e) => setProblemDisplayId(e.target.value)}
@@ -567,24 +567,24 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                                 </div>
 
                                                 {contestProblems.length === 0 ? (
-                                                    <p className="text-xs text-gray-500">등록된 문제가 없습니다.</p>
+                                                    <p className="text-xs text-gray-500 dark:text-slate-400">등록된 문제가 없습니다.</p>
                                                 ) : (
-                                                    <div className="max-h-56 overflow-auto rounded-lg border border-gray-200">
-                                                        <table className="min-w-full divide-y divide-gray-200">
-                                                            <thead className="bg-gray-50">
+                                                    <div className="max-h-56 overflow-auto rounded-lg border border-gray-200 dark:border-slate-700">
+                                                        <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
+                                                            <thead className="bg-gray-50 dark:bg-slate-800">
                                                                 <tr>
-                                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">표시 ID</th>
-                                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">문제명</th>
-                                                                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">관리</th>
+                                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400">표시 ID</th>
+                                                                    <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400">문제명</th>
+                                                                    <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-slate-400">관리</th>
                                                                 </tr>
                                                             </thead>
-                                                            <tbody className="divide-y divide-gray-100 bg-white">
+                                                            <tbody className="divide-y divide-gray-100 dark:divide-slate-700 bg-white dark:bg-slate-900">
                                                                 {[...contestProblems]
                                                                     .sort((a, b) => getDisplayOrder(a.displayId) - getDisplayOrder(b.displayId))
                                                                     .map((problem) => (
                                                                         <tr key={`contest-problem-${problem.id}-${problem.displayId || ''}`}>
-                                                                            <td className="px-3 py-2 text-sm text-gray-700">{problem.displayId || problem.id}</td>
-                                                                            <td className="px-3 py-2 text-sm text-gray-800">{problem.title}</td>
+                                                                            <td className="px-3 py-2 text-sm text-gray-700 dark:text-slate-300">{problem.displayId || problem.id}</td>
+                                                                            <td className="px-3 py-2 text-sm text-gray-800 dark:text-slate-100">{problem.title}</td>
                                                                             <td className="px-3 py-2 text-right">
                                                                                 <button
                                                                                     type="button"
@@ -607,12 +607,12 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                 </form>
                             </div>
                         </div>
-                        <div className="border-t border-gray-100 bg-gray-50/80 px-8 py-5">
+                        <div className="border-t border-gray-100 dark:border-slate-700 bg-gray-50/80 dark:bg-slate-800/70 px-8 py-5">
                             <div className="flex items-center justify-end gap-3">
                                 <Button
                                     onClick={onClose}
                                     variant="outline"
-                                    className="rounded-lg border border-gray-300 bg-white px-5 py-2.5 text-base font-medium text-gray-700 shadow-sm transition-colors hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:text-sm"
+                                    className="rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-5 py-2.5 text-base font-medium text-gray-700 dark:text-slate-200 shadow-sm transition-colors hover:bg-gray-50 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 sm:text-sm"
                                 >
                                     취소
                                 </Button>
@@ -621,7 +621,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                         type="submit"
                                         form="contest-form"
                                         disabled={loading}
-                                        className="inline-flex justify-center rounded-lg border border-transparent bg-indigo-600 px-5 py-2.5 text-base font-medium text-white shadow-sm transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 sm:text-sm"
+                                        className="inline-flex justify-center rounded-lg border border-transparent bg-indigo-600 px-5 py-2.5 text-base font-medium text-white shadow-sm transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 sm:text-sm"
                                     >
                                         {loading ? (isEditMode ? '수정 중...' : '생성 중...') : (isEditMode ? '수정하기' : '생성하기')}
                                     </Button>

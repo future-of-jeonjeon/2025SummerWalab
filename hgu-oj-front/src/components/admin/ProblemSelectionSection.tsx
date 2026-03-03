@@ -150,7 +150,7 @@ export const ProblemSelectionSection: React.FC<ProblemSelectionSectionProps> = (
               }}
               onKeyDown={manualAddEnabled ? onKeyDown : undefined}
             />
-            {helperText && <p className="mt-1 text-xs text-gray-500">{helperText}</p>}
+            {helperText && <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">{helperText}</p>}
           </div>
           {manualAddEnabled && (
             <Button type="button" variant="outline" size="sm" onClick={handleManualAdd}>
@@ -175,27 +175,27 @@ export const ProblemSelectionSection: React.FC<ProblemSelectionSectionProps> = (
         )}
 
         {!error && inputValue.trim() && loading && (
-          <p className="text-xs text-gray-500">문제를 검색 중입니다...</p>
+          <p className="text-xs text-gray-500 dark:text-slate-400">문제를 검색 중입니다...</p>
         )}
 
         {!error && inputValue.trim() && !loading && results.length === 0 && (
-          <p className="text-xs text-gray-500">검색 결과가 없습니다.</p>
+          <p className="text-xs text-gray-500 dark:text-slate-400">검색 결과가 없습니다.</p>
         )}
 
         {!error && results.length > 0 && (
-          <ul className="divide-y divide-gray-200 overflow-hidden rounded-lg border border-gray-200">
+          <ul className="divide-y divide-gray-200 overflow-hidden rounded-lg border border-gray-200 dark:border-slate-700">
             {results.map((problem) => (
               <li key={`problem-selection-suggestion-${problem.id}`}>
                 <button
                   type="button"
-                  className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-gray-50"
+                  className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800"
                   onClick={() => handleSelectProblem(problem)}
                 >
                   <div>
                     <p className="font-medium text-gray-800">
                       {problem.displayId ?? problem.id} · {problem.title}
                     </p>
-                    <p className="text-xs text-gray-500">난이도: {problem.difficulty}</p>
+                    <p className="text-xs text-gray-500 dark:text-slate-400">난이도: {problem.difficulty}</p>
                   </div>
                   <span className="text-xs text-[#113F67]">추가</span>
                 </button>
@@ -205,7 +205,7 @@ export const ProblemSelectionSection: React.FC<ProblemSelectionSectionProps> = (
         )}
 
         {selectedProblems.length === 0 && (
-          <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+          <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500 dark:text-slate-400">
             {emptySelectionText}
           </div>
         )}
@@ -221,7 +221,7 @@ export const ProblemSelectionSection: React.FC<ProblemSelectionSectionProps> = (
                 >
                   <span className="font-medium">문제 {labelText}</span>
                   {problem.title && (
-                    <span className="max-w-[160px] truncate text-xs text-gray-500">
+                    <span className="max-w-[160px] truncate text-xs text-gray-500 dark:text-slate-400">
                       {problem.title}
                     </span>
                   )}
