@@ -9,7 +9,6 @@ import { myPageService, ContestHistoryEntry } from '../services/myPageService';
 import { userService, DEPARTMENTS } from '../services/userService';
 import { submissionService } from '../services/submissionService';
 import { MyProfile, MySolvedProblem, MyWrongProblem } from '../types';
-import { UserInfoModal } from '../components/organisms/UserInfoModal';
 import { ContributionGraph } from '../components/molecules/ContributionGraph';
 import { GoalConfigModal } from '../components/organisms/GoalConfigModal';
 import { todoService, GoalRecommendation } from '../services/todoService';
@@ -24,9 +23,7 @@ import { todoService, GoalRecommendation } from '../services/todoService';
 
 export const MyPage: React.FC = () => {
   const { isAuthenticated } = useAuthStore();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
-
+  
 
   const {
     data: userData,
@@ -246,15 +243,6 @@ export const MyPage: React.FC = () => {
                 <span className="px-2.5 py-0.5 bg-gray-100 text-gray-600 text-sm rounded-full font-medium dark:bg-slate-700 dark:text-slate-300">
                   @{profile?.username || 'root'}
                 </span>
-                <button
-                  onClick={() => setIsModalOpen(true)}
-                  className="ml-1 text-gray-400 hover:text-blue-600 transition-colors"
-                  title="프로필 수정"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                  </svg>
-                </button>
               </div>
 
               <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-slate-400 mb-8">
@@ -281,14 +269,14 @@ export const MyPage: React.FC = () => {
                 <div className="flex flex-col items-end gap-2">
                   <button
                     onClick={() => setIsGoalModalOpen(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-sm transition-all active:scale-95"
+                    className="inline-flex items-center justify-center text-gray-400 hover:text-blue-600 transition-colors"
+                    title="설정"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317a1 1 0 011.35-.936 1.724 1.724 0 002.65 0 1 1 0 011.35.936 1.724 1.724 0 001.824 1.26 1 1 0 01.936 1.35 1.724 1.724 0 000 2.65 1 1 0 01-.936 1.35 1.724 1.724 0 00-1.26 1.824 1 1 0 01-1.35.936 1.724 1.724 0 00-2.65 0 1 1 0 01-1.35-.936 1.724 1.724 0 00-1.824-1.26 1 1 0 01-.936-1.35 1.724 1.724 0 000-2.65 1 1 0 01.936-1.35 1.724 1.724 0 001.26-1.824z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
-                    목표 관리하기
                   </button>
-                  <span className="text-xs text-gray-400">최근 업데이트: {new Date().toLocaleTimeString()}</span>
                 </div>
               </div>
 
@@ -368,19 +356,12 @@ export const MyPage: React.FC = () => {
           </section>
         </div>
 
-        <UserInfoModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          initialData={userData}
-          onSuccess={() => {
-            refetchUserData();
-          }}
-        />
-
         <GoalConfigModal
           isOpen={isGoalModalOpen}
           onClose={() => setIsGoalModalOpen(false)}
           currentTodo={myTodo || null}
+          initialUserData={userData || null}
+          onUserUpdateSuccess={refetchUserData}
         />
 
         <section aria-labelledby="mypage-contests">

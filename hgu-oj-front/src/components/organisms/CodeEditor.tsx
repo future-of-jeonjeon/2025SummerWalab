@@ -32,6 +32,24 @@ const languageOptions: LanguageOption[] = [
   { value: 'cpp', label: 'C++', extension: 'cpp', monacoLanguage: 'cpp' },
   { value: 'c', label: 'C', extension: 'c', monacoLanguage: 'c' },
 ];
+const EDITOR_LANGUAGE_ORDER_KEY = 'oj:editorLanguageOrder';
+
+const normalizeEditorLanguageOrder = (input: string[] | null | undefined): string[] => {
+  const all = languageOptions.map((opt) => opt.value);
+  const valid = new Set(all);
+  const unique: string[] = [];
+  for (const item of input ?? []) {
+    if (valid.has(item) && !unique.includes(item)) {
+      unique.push(item);
+    }
+  }
+  for (const item of all) {
+    if (!unique.includes(item)) {
+      unique.push(item);
+    }
+  }
+  return unique;
+};
 
 const defaultCode: Record<string, string> = codeTemplates as Record<string, string>;
 
@@ -149,8 +167,22 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const autoSaveCacheTtlMs = useMemo(() => resolveAutoSaveCacheTtlMs(), []);
 
   const availableLanguageOptions = useMemo(() => {
+    const ordered = [...languageOptions];
+    if (typeof window !== 'undefined') {
+      const raw = localStorage.getItem(EDITOR_LANGUAGE_ORDER_KEY);
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw) as string[];
+          const order = normalizeEditorLanguageOrder(parsed);
+          const rank = new Map(order.map((lang, idx) => [lang, idx]));
+          ordered.sort((a, b) => (rank.get(a.value) ?? 999) - (rank.get(b.value) ?? 999));
+        } catch {
+          // Ignore malformed localStorage value and fallback to default order.
+        }
+      }
+    }
     if (!allowedLanguages || allowedLanguages.length === 0) {
-      return languageOptions;
+      return ordered;
     }
     const normalized = new Set(allowedLanguages.map((lang) => String(lang).trim().toLowerCase()));
     const matchMap: Record<string, string[]> = {
@@ -160,11 +192,11 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       cpp: ['cpp', 'c++'],
       c: ['c'],
     };
-    const filtered = languageOptions.filter((opt) => {
+    const filtered = ordered.filter((opt) => {
       const candidates = matchMap[opt.value] ?? [opt.value];
       return candidates.some((c) => normalized.has(c));
     });
-    return filtered.length > 0 ? filtered : languageOptions;
+    return filtered.length > 0 ? filtered : ordered;
   }, [allowedLanguages]);
   // Storage keys
   const codeKey = useMemo(() => `oj:code:${problemId ?? 'global'}:`, [problemId]);
@@ -173,7 +205,8 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 
   const [language, setLanguage] = useState(() => {
     const saved = localStorage.getItem(langKey);
-    const initial = saved || initialLanguage;
+    const preferredDefault = availableLanguageOptions[0]?.value;
+    const initial = saved || preferredDefault || initialLanguage;
     const allowedValues = availableLanguageOptions.map((opt) => opt.value);
     if (allowedValues.length > 0 && !allowedValues.includes(initial)) {
       return allowedValues[0];
@@ -346,7 +379,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 
     clearCodeCacheForPrefix(codeKey);
     purgeExpiredCodeCache(codeKey);
-    const savedLanguage = localStorage.getItem(langKey) || initialLanguage;
+    const savedLanguage = localStorage.getItem(langKey) || availableLanguageOptions[0]?.value || initialLanguage;
     languageRef.current = savedLanguage;
     setLanguage((prev) => (prev === savedLanguage ? prev : savedLanguage));
     const baseCode = initialCode || defaultCode[savedLanguage] || '';
@@ -356,7 +389,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     }
     userEditedRef.current = false;
     lastAutoSavedRef.current = '';
-  }, [codeKey, langKey, initialCode, initialLanguage]);
+  }, [codeKey, langKey, initialCode, initialLanguage, availableLanguageOptions]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
