@@ -148,6 +148,7 @@ async def _set_redis_polling_state(
         left_problem: int,
         all_problem: int,
         error_code: str = "",
+        error_message: str = "",
         problem_id: int | None = None):
     redis = await get_polling_task()
     if status != "initialized" and not await redis.get(polling_key):
@@ -160,6 +161,8 @@ async def _set_redis_polling_state(
         problem_id=problem_id)
     if error_code != "":
         data.error_code = error_code
+    if error_message != "":
+        data.error_message = error_message
     await redis.set(polling_key, data.model_dump_json(), ex=POLLING_SESSION_TIME)
 
 
@@ -185,7 +188,8 @@ async def setup_polling(
 
 async def import_problem_from_file(
         polling_key: str,
-        zip_file: UploadFile,
+        file_contents: bytes,
+        filename: str,
         user_profile: UserProfile,
         is_admin: bool) -> str | None:
     problems = []
@@ -197,13 +201,12 @@ async def import_problem_from_file(
     status = ProblemImportPollingStatus.model_validate_json(raw)
     try:
         async for db in get_background_database():
-            if not zip_file:
+            if not file_contents:
                 logger.error("No zip file provided")
                 problem_exceptions.bad_zip_file()
-            logger.info(f"Starting import. user: {user_profile.user_id}, file: {zip_file.filename}")
-            contents = await zip_file.read()
+            logger.info(f"Starting import. user: {user_profile.user_id}, file: {filename}")
             try:
-                zip_ref = utils.open_zip_bytes(contents)
+                zip_ref = utils.open_zip_bytes(file_contents)
             except Exception:
                 problem_exceptions.bad_zip_file()
             with zip_ref:
@@ -211,18 +214,40 @@ async def import_problem_from_file(
                 md_paths = utils.filter_problem_md_paths(file_list)
                 logger.info(f"Found {len(md_paths)} problems in zip")
                 for i, path in enumerate(md_paths):
-                    problem = await _process_single_problem(zip_ref, file_list, path, user_profile.user_id, db)
+                    try:
+                        problem = await _process_single_problem(zip_ref, file_list, path, user_profile.user_id, db)
+                    except Exception as e:
+                        title_hint = ""
+                        try:
+                            md_content = zip_ref.read(path).decode("utf-8")
+                            meta_data, _ = utils.parse_problem_md(md_content)
+                            parsed_title = meta_data.get("title")
+                            if parsed_title:
+                                title_hint = str(parsed_title)
+                        except Exception:
+                            # Keep import failure context best-effort only.
+                            pass
+
+                        context_prefix = f"[Problem {i + 1}/{len(md_paths)}]"
+                        if title_hint:
+                            context_prefix += f" {title_hint}"
+                        context_prefix += f" ({path})"
+
+                        if hasattr(e, "detail") and isinstance(getattr(e, "detail", None), dict):
+                            original_message = e.detail.get("message", str(e))
+                            e.detail["message"] = f"{context_prefix}\n{original_message}"
+                        raise
                     problems.append(problem)
                     testcase_list.append(problem.test_case_id)
                     status.status = "processing"
-                    status.imported_problem = i + 1
-                    status.left_problem = status.all_problem - status.imported_problem
+                    status.processed_problem = i + 1
+                    status.left_problem = status.all_problem - status.processed_problem
                     await _set_redis_polling_state(polling_key, "processing", i + 1, status.left_problem,
                                                    status.all_problem)
                 status.status = "done"
                 status.left_problem = 0
                 logger.info(f"Polling finished: {status}")
-                await _set_redis_polling_state(polling_key, "done", status.imported_problem, 0,
+                await _set_redis_polling_state(polling_key, "done", status.processed_problem, 0,
                                                status.all_problem)
             await problem_repository.create_problems(db, problems)
             logger.info(f"Successfully imported {len(problems)} problems")
@@ -231,8 +256,9 @@ async def import_problem_from_file(
         logger.error(f"Import failed: {e}")
         status.status = "error"
         status.error_code = getattr(e, "detail", {}).get("code") if hasattr(e, "detail") else "unknown_error"
-        await _set_redis_polling_state(polling_key, "error", status.imported_problem, status.left_problem,
-                                       status.all_problem)
+        status.error_message = getattr(e, "detail", {}).get("message") if hasattr(e, "detail") else str(e)
+        await _set_redis_polling_state(polling_key, "error", status.processed_problem, status.left_problem,
+                                       status.all_problem, error_code=status.error_code, error_message=status.error_message)
         utils.remove_test_case_directory(testcase_list)
         return None
 

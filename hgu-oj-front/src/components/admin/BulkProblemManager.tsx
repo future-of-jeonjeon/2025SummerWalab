@@ -56,10 +56,11 @@ export const BulkProblemManager: React.FC = () => {
   const pollImportStatus = async (pollingKey: string) => {
     try {
       const status = await adminProblemBulkService.getImportPollingStatus(pollingKey);
+      const processedProblem = status.processed_problem ?? status.imported_problem ?? 0;
 
       if (status.status === 'done') {
         setIsImporting(false);
-        setImportMessage({ success: `총 ${status.imported_problem}개의 문제를 처리했습니다.` });
+        setImportMessage({ success: `총 ${processedProblem}개의 문제를 처리했습니다.` });
         setImportStatus(null);
         setImportFile(null);
         // Reset file input
@@ -68,9 +69,10 @@ export const BulkProblemManager: React.FC = () => {
       } else if (status.status === 'error') {
         setIsImporting(false);
         setImportStatus(null);
-        setImportMessage({ error: status.message || `문제 등록 중 오류가 발생했습니다. 에러코드: ${status.error_code}` });
+        const errorDetail = status.error_message ? `\n상세 정보: ${status.error_message}` : `에러코드: ${status.error_code}`;
+        setImportMessage({ error: status.message || `문제 등록 중 오류가 발생했습니다. ${errorDetail}` });
       } else {
-        setImportStatus(`처리 중... (${status.imported_problem} / ${status.all_problem})`);
+        setImportStatus(`처리 중... (${processedProblem} / ${status.all_problem})`);
         setTimeout(() => pollImportStatus(pollingKey), 1000);
       }
     } catch (error) {
@@ -156,7 +158,7 @@ export const BulkProblemManager: React.FC = () => {
             </div>
 
             {importMessage.error && (
-              <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-600">{importMessage.error}</div>
+              <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-600 whitespace-pre-wrap"><span className="font-semibold block mb-1">에러 발생:</span>{importMessage.error}</div>
             )}
             {importMessage.success && (
               <div className="rounded-md bg-green-50 px-4 py-3 text-sm text-green-600">{importMessage.success}</div>

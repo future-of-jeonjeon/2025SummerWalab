@@ -16,6 +16,7 @@ class ProblemImportPollingStatus(BaseModel):
     left_problem:int
     all_problem:int
     error_code: Optional[str] = None
+    error_message: Optional[str] = None
     problem_id: Optional[int] = None
 
 class ProblemMetadata(BaseModel):

@@ -112,11 +112,13 @@ export type ImportProblemsResult = {
 
 export type ProblemImportPollingStatus = {
   status: string;
-  imported_problem: number;
+  processed_problem?: number;
+  imported_problem?: number;
   left_problem: number;
   all_problem: number;
   message?: string;
   error_code?: string | number;
+  error_message?: string;
   problem_id?: number | string;
 };
 
@@ -167,7 +169,7 @@ export const adminProblemBulkService = {
     }
 
     try {
-      const response = await apiClient.get(`${MS_API_BASE}/problem/import/polling`, {
+      const response = await apiClient.get(`${MS_API_BASE}/problem/polling`, {
         params: { key: pollingKey },
       });
       return response.data as ProblemImportPollingStatus;

@@ -45,7 +45,9 @@ async def import_problem(
         user_profile: UserProfile = Depends(get_userdata)):
     problem_num = await serv.count_problems_in_file(file)
     polling_key = await serv.setup_polling(problem_num)
-    asyncio.create_task(serv.import_problem_from_file(polling_key, file, user_profile, is_admin=False))
+    file_contents = await file.read()
+    filename = file.filename
+    asyncio.create_task(serv.import_problem_from_file(polling_key, file_contents, filename, user_profile, is_admin=False))
     return {"polling_key": polling_key}
 
 
