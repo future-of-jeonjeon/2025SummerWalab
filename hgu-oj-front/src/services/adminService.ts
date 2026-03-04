@@ -173,6 +173,13 @@ const buildOrganizationUrl = (path = '') => `${ORGANIZATION_API_BASE}${path}`;
 const MICRO_SERVICE_HEALTH_URL = buildWorkbookUrl('/');
 
 const getMsBaseUrl = () => MS_API_BASE.endsWith('/') ? MS_API_BASE.slice(0, -1) : MS_API_BASE;
+const wait = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+type ProblemPollingStatus = {
+  status: 'initialized' | 'processing' | 'done' | 'error';
+  problem_id?: number;
+  error_code?: string;
+};
 
 const unwrap = <T>(response: ApiResponse<T>): T => {
   if (!response.success) {
@@ -415,8 +422,46 @@ export const adminService = {
   },
 
   updateAdminProblem: async (payload: UpdateProblemPayload): Promise<AdminProblemDetail> => {
-    const response = await api.put<any>(`/problem/${payload.id}`, payload);
-    const data = unwrap(response);
+    const baseUrl = getMsBaseUrl();
+    const response = await apiClient.put<any>(`${baseUrl}/problem/${payload.id}`, payload);
+    const data = response.data;
+    const pollingKey =
+      typeof data?.polling_key === 'string'
+        ? data.polling_key
+        : typeof data?.data?.polling_key === 'string'
+          ? data.data.polling_key
+          : null;
+
+    if (pollingKey) {
+      for (let attempt = 0; attempt < 120; attempt += 1) {
+        const pollingResponse = await apiClient.get<ProblemPollingStatus>(`${baseUrl}/problem/polling`, {
+          params: { key: pollingKey },
+        });
+        const rawStatus = pollingResponse.data as any;
+        const status: ProblemPollingStatus =
+          rawStatus && typeof rawStatus === 'object' && rawStatus.data && typeof rawStatus.data === 'object'
+            ? rawStatus.data
+            : rawStatus;
+
+        if (status.status === 'done') {
+          const problemId = Number(status.problem_id ?? payload.id);
+          if (!Number.isFinite(problemId) || problemId <= 0) {
+            throw new Error('문제 수정은 완료되었지만 problem_id를 확인하지 못했습니다.');
+          }
+          const detail = await adminService.getAdminProblemDetail(problemId);
+          return detail;
+        }
+
+        if (status.status === 'error') {
+          throw new Error(`문제 수정 실패: ${status.error_code || '알 수 없는 오류'}`);
+        }
+
+        await wait(1000);
+      }
+
+      throw new Error('문제 수정 처리 시간이 초과되었습니다. 잠시 후 다시 시도해주세요.');
+    }
+
     return adaptAdminProblemDetail(data);
   },
 
