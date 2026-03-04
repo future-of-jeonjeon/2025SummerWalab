@@ -54,21 +54,6 @@ export interface CreateProblemPayload {
   solution_code?: string;
   solution_code_language?: string;
   test_case_id: string;
-  test_case_score?: any;
-  rule_type?: 'ACM' | 'OI';
-  io_mode?: {
-    io_mode: string;
-    input: string;
-    output: string;
-  };
-  spj?: boolean;
-  spj_language?: string | null;
-  spj_code?: string | null;
-  spj_compile_ok?: boolean;
-  visible?: boolean;
-  source?: string | null;
-  share_submission?: boolean;
-  _id?: string;
 }
 
 export interface UpdateProblemPayload extends CreateProblemPayload {
@@ -430,7 +415,7 @@ export const adminService = {
   },
 
   updateAdminProblem: async (payload: UpdateProblemPayload): Promise<AdminProblemDetail> => {
-    const response = await api.put<any>('/admin/problem', payload);
+    const response = await api.put<any>(`/problem/${payload.id}`, payload);
     const data = unwrap(response);
     return adaptAdminProblemDetail(data);
   },

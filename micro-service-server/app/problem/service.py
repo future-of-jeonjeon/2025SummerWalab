@@ -2,6 +2,7 @@ import io
 import os
 import uuid
 import zipfile
+from typing import Union
 from fastapi import UploadFile
 from sqlalchemy import asc, desc, case, cast, Float
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -29,13 +30,7 @@ async def create_problem(
     try:
         await _set_redis_polling_state(polling_key, "processing", 0, 1, 1)
         async for db in get_background_database():
-            test_case = utils.get_saved_test_case_by_id(request_data.test_case_id)
-            validation_cases = list(test_case)
-            for s in request_data.samples:
-                validation_cases.append(s.model_dump())
-            await _validate_solution_code(request_data.solution_code, request_data.solution_code_language,
-                                          validation_cases,
-                                          db)
+            await _validate_problem_request(request_data, db)
             info_json = utils.load_test_case_info(request_data.test_case_id)
             test_cases_info = info_json.get("test_cases", {})
             sorted_keys = sorted(test_cases_info.keys(), key=lambda x: int(x) if x.isdigit() else x)
@@ -45,8 +40,8 @@ async def create_problem(
             display_id = str(uuid.uuid4())
             problem = utils.create_problem_from_data(create_data, display_id, request_data.test_case_id, info_list)
             problem.created_by_id = user_profile.user_id
-            if create_data.tags:
-                problem.tags = await _process_tags(db, create_data.tags)
+            if request_data.tags:
+                problem.tags = await _process_tags(db, request_data.tags)
             await problem_repository.create_problem(db, problem)
         await _set_redis_polling_state(polling_key, "done", 1, 0, 1, problem_id=problem.id)
     except Exception as e:
@@ -54,6 +49,96 @@ async def create_problem(
         error_code = getattr(e, "detail", {}).get("code") if hasattr(e, "detail") else "unknown_error"
         utils.remove_test_case_directory([request_data.test_case_id])
         await _set_redis_polling_state(polling_key, "error", 0, 1, 1, error_code)
+
+
+async def update_problem(
+        polling_key: str,
+        problem_id: int,
+        request_data: ProblemUpdateRequest,
+        user_profile: UserProfile,
+        is_admin: bool):
+    try:
+        await _set_redis_polling_state(polling_key, "processing", 0, 1, 1)
+        async for db in get_background_database():
+            problem = await problem_repository.find_problem_with_tags_by_id(problem_id, db)
+            if not problem:
+                await _set_redis_polling_state(polling_key, "error", 0, 1, 1)
+                problem_exceptions.problem_not_found()
+            await _validate_problem_request(request_data, db, problem)
+            await _apply_problem_updates(problem, request_data, db)            
+        await _set_redis_polling_state(polling_key, "done", 1, 0, 1, problem_id=problem.id)
+    except Exception as e:
+        logger.error(f"Failed to update problem: {e}")
+        error_code = getattr(e, "detail", {}).get("code") if hasattr(e, "detail") else "unknown_error"
+        if request_data.test_case_id and problem and request_data.test_case_id != problem.test_case_id:
+            utils.remove_test_case_directory([request_data.test_case_id])
+        await _set_redis_polling_state(polling_key, "error", 0, 1, 1, error_code)
+
+
+async def _validate_problem_request(request_data: Union[ProblemCreateRequest, ProblemUpdateRequest], db: AsyncSession, problem: Optional[Problem] = None):
+    if not request_data.solution_code or not request_data.solution_code_language:
+        return
+
+    test_case_id = getattr(request_data, "test_case_id", None)
+    if not test_case_id and problem:
+        test_case_id = problem.test_case_id
+
+    if not test_case_id:
+        return
+
+    test_case = utils.get_saved_test_case_by_id(test_case_id)
+    validation_cases = list(test_case)
+
+    samples = getattr(request_data, "samples", None)
+    if samples is None and problem:
+        samples = problem.samples
+
+    if samples:
+        for s in samples:
+            if hasattr(s, "model_dump"):
+                validation_cases.append(s.model_dump())
+            else:
+                validation_cases.append(s)
+
+    await _validate_solution_code(
+        solution_code=request_data.solution_code, 
+        solution_code_language=request_data.solution_code_language, 
+        test_case=validation_cases, 
+        db=db
+    )
+
+
+async def _apply_problem_updates(problem: Problem, request_data: ProblemUpdateRequest, db: AsyncSession):
+    from datetime import datetime
+    
+    for field in ["title", "description", "input_description", "output_description", 
+                  "time_limit", "memory_limit", "template", "difficulty", "hint"]:
+        val = getattr(request_data, field)
+        if val is not None:
+            setattr(problem, field, val)
+    
+    if request_data.samples is not None:
+        problem.samples = [s.model_dump() for s in request_data.samples]
+        
+    if request_data.languages is not None:
+        problem.languages = utils.normalize_languages(request_data.languages)
+        
+    if request_data.tags is not None:
+        problem.tags = await _process_tags(db, request_data.tags)
+        
+    if request_data.test_case_id and request_data.test_case_id != problem.test_case_id:
+        problem.test_case_id = request_data.test_case_id
+        info_json = utils.load_test_case_info(request_data.test_case_id)
+        test_cases_info = info_json.get("test_cases", {})
+        sorted_keys = sorted(test_cases_info.keys(), key=lambda x: int(x) if x.isdigit() else x)
+        info_list = [test_cases_info[key] for key in sorted_keys]
+        
+        raw_test_case_scores = [{"input_name": item["input_name"], "output_name": item.get("output_name"), "score": 0} for item in info_list]
+        problem.test_case_score = utils.calculate_test_case_score(raw_test_case_scores)
+        if problem.rule_type == "OI":
+            problem.total_score = sum([item.get("score", 0) for item in problem.test_case_score])
+            
+    problem.last_update_time = datetime.now()
 
 
 async def _set_redis_polling_state(

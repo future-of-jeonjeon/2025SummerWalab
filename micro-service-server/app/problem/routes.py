@@ -13,11 +13,21 @@ router = APIRouter(prefix="/api/problem", tags=["Problem Management"])
 
 
 @router.post("")
-async def create_problem(
+async def create_problem_api(
         request_data: ProblemCreateRequest,
         user_profile: UserProfile = Depends(get_userdata)):
     polling_key = await serv.setup_polling(problem_num=1)
     asyncio.create_task(serv.create_problem(polling_key, request_data, user_profile, is_admin=False))
+    return {"polling_key": polling_key}
+
+
+@router.put("/{problem_id}")
+async def update_problem_api(
+        problem_id: int,
+        request_data: ProblemUpdateRequest,
+        user_profile: UserProfile = Depends(get_userdata)):
+    polling_key = await serv.setup_polling(problem_num=1)
+    asyncio.create_task(serv.update_problem(polling_key,problem_id, request_data, user_profile, is_admin=False))
     return {"polling_key": polling_key}
 
 

@@ -286,43 +286,23 @@ export const ProblemEditSection: React.FC = () => {
 
     const payload: UpdateProblemPayload = {
       id: selectedProblemDetail.id,
-      _id: formState.displayId.trim(),
       title: formState.title.trim(),
       description: formState.description,
       input_description: formState.inputDescription,
       output_description: formState.outputDescription,
       samples: effectiveSamples,
       test_case_id: selectedProblemDetail.testCaseId,
-      test_case_score: selectedProblemDetail.testCaseScore,
       time_limit: timeLimit,
       memory_limit: memoryLimit,
       languages: backendLanguages,
       template: selectedProblemDetail.template,
-      rule_type: selectedProblemDetail.ruleType,
-      io_mode: {
-        io_mode: selectedProblemDetail.ioMode.io_mode,
-        input: formState.ioInput,
-        output: formState.ioOutput,
-      },
-      spj: selectedProblemDetail.spj,
-      spj_language: selectedProblemDetail.spjLanguage,
-      spj_code: selectedProblemDetail.spjCode,
-      spj_compile_ok: selectedProblemDetail.spjCompileOk,
-      visible: formState.visible,
       difficulty: formState.difficulty,
       tags: tags.length > 0 ? tags : selectedProblemDetail.tags,
       hint: formState.hint,
-      source: formState.source,
-      share_submission: formState.shareSubmission,
     };
 
     if (!payload.title) {
       setMessage({ error: '문제 제목을 입력하세요.' });
-      return;
-    }
-
-    if (!payload._id) {
-      setMessage({ error: '표시 ID를 입력하세요.' });
       return;
     }
 
@@ -360,12 +340,12 @@ export const ProblemEditSection: React.FC = () => {
         prev.map((item) =>
           item.id === updated.id
             ? {
-                ...item,
-                title: updated.title,
-                displayId: updated.displayId,
-                difficulty: updated.difficulty,
-                visible: updated.visible,
-              }
+              ...item,
+              title: updated.title,
+              displayId: updated.displayId,
+              difficulty: updated.difficulty,
+              visible: updated.visible,
+            }
             : item,
         ),
       );
