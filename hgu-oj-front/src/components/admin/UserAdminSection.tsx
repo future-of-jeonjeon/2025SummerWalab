@@ -5,6 +5,7 @@ import { Button } from '../atoms/Button';
 import { adminService, UpdateUserPayload } from '../../services/adminService';
 import { DEPARTMENTS } from '../../services/userService';
 import { AdminUser } from '../../types';
+import CommonPagination from '../common/CommonPagination';
 
 const USER_PAGE_SIZE = 20;
 
@@ -120,20 +121,6 @@ export const UserAdminSection: React.FC = () => {
             userSearchTimerRef.current = null;
         }
         fetchUsers(1, userSearchKeywordRef.current);
-    };
-
-    const handleUserPageChange = (direction: 'prev' | 'next') => {
-        const totalPages = Math.max(1, Math.ceil(userTotal / USER_PAGE_SIZE));
-        let nextPage = userPage;
-        if (direction === 'prev' && userPage > 1) {
-            nextPage = userPage - 1;
-        }
-        if (direction === 'next' && userPage < totalPages) {
-            nextPage = userPage + 1;
-        }
-        if (nextPage !== userPage) {
-            fetchUsers(nextPage, userSearchKeywordRef.current);
-        }
     };
 
     const handleUserFormChange = <K extends keyof UpdateUserPayload>(field: K, value: UpdateUserPayload[K]) => {
@@ -259,14 +246,12 @@ export const UserAdminSection: React.FC = () => {
             <div className="space-y-6">
                 <div className="space-y-1">
                     <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 dark:text-slate-100">사용자 관리</h2>
-                    <p className="text-sm text-gray-500 dark:text-slate-400">검색으로 계정을 찾고, 아래에서 권한과 상태를 수정하세요.</p>
                 </div>
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
                     <div className="w-full sm:flex-1">
                         <Input
                             type="search"
-                            label="검색"
                             placeholder="아이디, 이름, 이메일"
                             value={userSearchKeyword}
                             onChange={(e) => handleUserSearchInputChange(e.target.value)}
@@ -278,12 +263,6 @@ export const UserAdminSection: React.FC = () => {
                             }}
                         />
                     </div>
-                    <Button
-                        onClick={handleUserSearchSubmit}
-                        className="w-full sm:w-auto bg-[#113F67] text-white hover:bg-[#34699A] dark:bg-[#34699A] dark:hover:bg-[#58A0C8] focus:ring-[#58A0C8]"
-                    >
-                        검색
-                    </Button>
                 </div>
 
                 <section className="space-y-4">
@@ -344,29 +323,14 @@ export const UserAdminSection: React.FC = () => {
 
                         <div className="border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 px-4 py-3 sm:px-6">
                             <div className="flex items-center justify-between">
-                                <div className="text-sm text-gray-700 dark:text-slate-300">
-                                    전체 <span className="font-medium">{userTotal}</span>명 · 현재 {userList.length}명 표시 중
-                                </div>
                                 <div className="flex gap-2">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => handleUserPageChange('prev')}
-                                        disabled={userPage === 1}
-                                    >
-                                        이전
-                                    </Button>
-                                    <span className="flex items-center px-2 text-sm text-gray-700 dark:text-slate-300">
-                                        {userPage} / {Math.max(1, Math.ceil(userTotal / USER_PAGE_SIZE))}
-                                    </span>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => handleUserPageChange('next')}
-                                        disabled={userPage >= Math.ceil(userTotal / USER_PAGE_SIZE)}
-                                    >
-                                        다음
-                                    </Button>
+                                    <CommonPagination
+                                        page={userPage}
+                                        pageSize={USER_PAGE_SIZE}
+                                        totalItems={userTotal}
+                                        onChangePage={(nextPage) => fetchUsers(nextPage, userSearchKeywordRef.current)}
+                                        unit="명"
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -483,14 +447,23 @@ export const UserAdminSection: React.FC = () => {
                                                 </div>
 
                                                 <div className="mt-8 flex justify-between pt-4 border-t">
-                                                    <Button
-                                                        variant="outline"
+                                                    <button
+                                                        type="button"
                                                         onClick={handleUserDelete}
                                                         disabled={userFormLoading || userDeleteLoading}
-                                                        className="text-red-600 border-red-600 hover:bg-red-50"
+                                                        className="inline-flex items-center gap-2 rounded-md border border-red-600 px-3 py-2 text-sm text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                                                     >
-                                                        {userDeleteLoading ? '삭제 중...' : '사용자 삭제'}
-                                                    </Button>
+                                                        {userDeleteLoading ? (
+                                                            '삭제 중...'
+                                                        ) : (
+                                                            <>
+                                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                </svg>
+                                                                <span>사용자 삭제</span>
+                                                            </>
+                                                        )}
+                                                    </button>
                                                     <div className="flex gap-3">
                                                         <Button
                                                             variant="outline"

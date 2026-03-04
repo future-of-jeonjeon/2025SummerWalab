@@ -1,6 +1,5 @@
 import { api, apiClient, MS_API_BASE } from './api';
 import { Problem, PaginatedResponse, ProblemFilter } from '../types';
-import { mapDifficulty } from '../lib/difficulty';
 const MICRO_PROBLEM_TAG_COUNTS_ENDPOINT = MS_API_BASE
   ? `${MS_API_BASE}/problem/tags/counts`
   : undefined;
@@ -124,7 +123,7 @@ const adaptProblem = (p: any): Problem => {
       id: 0,
       title: '',
       description: '',
-      difficulty: 'Low',
+      difficulty: 0,
       timeLimit: 0,
       memoryLimit: 0,
       createTime: '',
@@ -135,13 +134,18 @@ const adaptProblem = (p: any): Problem => {
   const rawDisplayId = p?._id ?? p?.display_id ?? p?.displayId ?? p?.id;
   const { visible, isPublic } = extractVisibility(p);
   if (isMicro) {
-    const mappedDifficulty = mapDifficulty(p.difficulty);
+    const rawDifficulty =
+      p?.lv ??
+      p?.level ??
+      p?.difficulty_level ??
+      p?.difficultyLevel ??
+      p?.difficulty;
     return {
       id: p.id,
       displayId: rawDisplayId ? String(rawDisplayId) : undefined,
       title: p.title,
       description: p.description || '',
-      difficulty: mappedDifficulty !== '-' ? mappedDifficulty as Problem['difficulty'] : (p.difficulty as any) ?? '중',
+      difficulty: (rawDifficulty as Problem['difficulty']) ?? 0,
       timeLimit: p.time_limit,
       memoryLimit: p.memory_limit,
       // best-effort extra stats mapping
@@ -172,11 +176,17 @@ const adaptProblem = (p: any): Problem => {
   const rawStatus = normalizeStatusValue(p.my_status ?? p.myStatus ?? (p as any).myStatus);
   const solved = rawStatus !== undefined ? isAcceptedStatus(rawStatus) : p.solved;
   const normalizedSamples = adaptSamples(p.samples ?? (p as any).Samples);
-  const mappedDifficulty = mapDifficulty((p as Problem).difficulty ?? (p as any).difficulty);
+  const rawDifficulty =
+    (p as any)?.lv ??
+    (p as any)?.level ??
+    (p as any)?.difficulty_level ??
+    (p as any)?.difficultyLevel ??
+    (p as Problem).difficulty ??
+    (p as any).difficulty;
   return {
     ...(p as Problem),
     displayId: rawDisplayId ? String(rawDisplayId) : (p as Problem).displayId,
-    difficulty: mappedDifficulty !== '-' ? mappedDifficulty as Problem['difficulty'] : ((p as Problem).difficulty ?? '중'),
+    difficulty: (rawDifficulty as Problem['difficulty']) ?? 0,
     myStatus: rawStatus,
     solved,
     samples: normalizedSamples ?? (p as Problem).samples,

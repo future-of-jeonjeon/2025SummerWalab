@@ -7,6 +7,8 @@ import { AdminContest, Problem } from '../../types';
 import { contestUserService } from '../../services/contestUserService';
 import { formatDateTime, toLocalDateTimeInput } from '../../lib/date';
 import { normalizeProblemKey } from '../../lib/problemKey';
+import { VisibilityBadge } from '../common/VisibilityBadge';
+import CommonPagination from '../common/CommonPagination';
 
 type ContestEditFormState = {
   title: string;
@@ -79,7 +81,6 @@ export const ContestEditSection: React.FC = () => {
   });
 
   const [contestProblemInput, setContestProblemInput] = useState('');
-  const [contestProblemDisplayId, setContestProblemDisplayId] = useState('');
   const [contestProblemSearch, setContestProblemSearch] = useState<{
     results: Problem[];
     loading: boolean;
@@ -89,6 +90,8 @@ export const ContestEditSection: React.FC = () => {
   const [contestProblemMessage, setContestProblemMessage] = useState<{ success?: string; error?: string }>({});
   const [contestProblemActionLoading, setContestProblemActionLoading] = useState(false);
   const [deletingContestProblemId, setDeletingContestProblemId] = useState<number | null>(null);
+  const dragItemRef = useRef<number | null>(null);
+  const dragOverItemRef = useRef<number | null>(null);
 
   const contestSearchKeywordRef = useRef('');
   const contestSearchTimerRef = useRef<number | null>(null);
@@ -130,7 +133,6 @@ export const ContestEditSection: React.FC = () => {
         setSelectedContest(detail);
         setContestEditForm(mapContestToForm(detail));
         setContestProblemInput('');
-        setContestProblemDisplayId('');
         setContestProblemSelected(null);
         setContestProblemSearch({ results: [], loading: false, error: null });
         if (contestProblemSearchTimerRef.current) {
@@ -223,19 +225,6 @@ export const ContestEditSection: React.FC = () => {
       contestSearchTimerRef.current = null;
     }
     fetchContests(1, contestSearchKeyword);
-  };
-
-  const handleContestPageChange = (direction: 'prev' | 'next') => {
-    const totalPages = Math.max(1, Math.ceil(contestTotal / PAGE_SIZE));
-    let nextPage = contestPage;
-    if (direction === 'prev' && contestPage > 1) {
-      nextPage = contestPage - 1;
-    } else if (direction === 'next' && contestPage < totalPages) {
-      nextPage = contestPage + 1;
-    }
-    if (nextPage !== contestPage) {
-      fetchContests(nextPage);
-    }
   };
 
   const handleSelectContest = (contest: AdminContest) => {
@@ -395,16 +384,10 @@ export const ContestEditSection: React.FC = () => {
     scheduleContestProblemSearch(value);
   };
 
-  const handleContestProblemDisplayIdChange = (value: string) => {
-    setContestProblemDisplayId(value);
-    setContestProblemMessage({});
-  };
-
   const handleSelectContestProblemSuggestion = (problem: Problem) => {
     setContestProblemSelected(problem);
     const label = problem.displayId ?? String(problem.id);
     setContestProblemInput(label);
-    setContestProblemDisplayId(label);
     setContestProblemSearch({ results: [], loading: false, error: null });
     setContestProblemMessage({});
     if (contestProblemSearchTimerRef.current) {
@@ -455,15 +438,7 @@ export const ContestEditSection: React.FC = () => {
       return;
     }
 
-    const normalizedDisplayId = (
-      contestProblemDisplayId.trim() ||
-      targetProblem.displayId ||
-      String(targetProblem.id)
-    ).trim();
-    if (!normalizedDisplayId) {
-      setContestProblemMessage({ error: '표시 ID를 입력하세요.' });
-      return;
-    }
+    const normalizedDisplayId = String((contestProblemsState.items?.length ?? 0) + 1);
 
     const normalizedKey = normalizedDisplayId.toLowerCase();
     const duplicate = contestProblemsState.items.some((item) => {
@@ -494,7 +469,6 @@ export const ContestEditSection: React.FC = () => {
       await adminService.addContestProblemFromPublic(selectedContest.id, problemId, normalizedDisplayId);
       await fetchContestProblems(selectedContest.id);
       setContestProblemInput('');
-      setContestProblemDisplayId('');
       setContestProblemSelected(null);
       setContestProblemSearch({ results: [], loading: false, error: null });
       setContestProblemMessage({ success: `문제 ${normalizedDisplayId}을(를) 추가했습니다.` });
@@ -538,9 +512,24 @@ export const ContestEditSection: React.FC = () => {
     }
   };
 
+  const handleSortContestProblems = () => {
+    if (dragItemRef.current === null || dragOverItemRef.current === null) {
+      return;
+    }
+    if (dragItemRef.current === dragOverItemRef.current) {
+      return;
+    }
+
+    const next = [...contestProblemsState.items];
+    const dragged = next[dragItemRef.current];
+    next.splice(dragItemRef.current, 1);
+    next.splice(dragOverItemRef.current, 0, dragged);
+    dragItemRef.current = null;
+    dragOverItemRef.current = null;
+    setContestProblemsState((prev) => ({ ...prev, items: next }));
+  };
+
   const totalPages = Math.max(1, Math.ceil(contestTotal / PAGE_SIZE));
-  const canPrev = contestPage > 1;
-  const canNext = contestPage < totalPages;
 
   return (
     <Card padding="lg">
@@ -568,7 +557,7 @@ export const ContestEditSection: React.FC = () => {
           </div>
           <Button
             onClick={handleContestSearchSubmit}
-            className="w-full sm:w-auto bg-[#113F67] text-white hover:bg-[#34699A] focus:ring-[#58A0C8]"
+            className="w-full sm:w-auto"
           >
             검색
           </Button>
@@ -613,7 +602,9 @@ export const ContestEditSection: React.FC = () => {
                       >
                         <td className="px-4 py-3 text-sm text-gray-900 dark:text-slate-100">{contest.title}</td>
                         <td className="px-4 py-3 text-xs text-gray-600 dark:text-slate-400">{duration}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-300">{contest.visible ? '공개' : '비공개'}</td>
+                        <td className="px-4 py-3 text-sm">
+                          <VisibilityBadge visible={Boolean(contest.visible)} />
+                        </td>
                         <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-300">{contest.status ?? '-'}</td>
                         <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-300">
                           <Button type="button" variant="ghost" onClick={() => handleSelectContest(contest)}>
@@ -630,17 +621,14 @@ export const ContestEditSection: React.FC = () => {
 
           <div className="flex flex-col gap-2 text-sm text-gray-600 dark:text-slate-400 sm:flex-row sm:items-center sm:justify-between">
             <span>전체 {contestTotal.toLocaleString()}개 · 현재 {contestList.length}개 표시 중</span>
-            <div className="flex items-center gap-3">
-              <Button variant="outline" size="sm" disabled={!canPrev} onClick={() => handleContestPageChange('prev')}>
-                이전
-              </Button>
-              <span className="text-sm text-gray-600 dark:text-slate-400">
-                {contestPage} / {totalPages}
-              </span>
-              <Button variant="outline" size="sm" disabled={!canNext} onClick={() => handleContestPageChange('next')}>
-                다음
-              </Button>
-            </div>
+            <CommonPagination
+              page={contestPage}
+              pageSize={PAGE_SIZE}
+              totalPages={totalPages}
+              totalItems={contestTotal}
+              onChangePage={(nextPage) => fetchContests(nextPage)}
+              className="w-full sm:w-auto"
+            />
           </div>
         </section>
 
@@ -806,28 +794,51 @@ export const ContestEditSection: React.FC = () => {
               아직 선택된 문제가 없습니다. 아래에서 검색해 추가할 수 있습니다.
             </div>
           ) : (
-            <div className="flex flex-wrap gap-2">
-              {contestProblemsState.items.map((item) => {
-                const problemId = Number(item.id);
-                const label = item.displayId ?? item.id;
-                const isDeleting = Number.isFinite(problemId) && deletingContestProblemId === problemId;
-                return (
-                  <span
-                    key={`contest-problem-chip-${problemId || item.id}`}
-                    className="inline-flex items-center gap-2 rounded-full bg-[#113F67]/10 px-3 py-1 text-sm text-[#113F67]"
-                  >
-                    <span>문제 {label}</span>
-                    <button
-                      type="button"
-                      className="text-xs text-red-600 hover:text-red-700"
-                      onClick={() => void handleRemoveContestProblem(problemId, String(label))}
-                      disabled={isDeleting}
-                    >
-                      {isDeleting ? '삭제중' : '×'}
-                    </button>
-                  </span>
-                );
-              })}
+            <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-slate-700">
+              <table className="min-w-full divide-y divide-gray-200 text-left">
+                <thead className="bg-gray-50 dark:bg-slate-800">
+                  <tr>
+                    <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">No.</th>
+                    <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">문제</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">관리</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 bg-white dark:divide-slate-700 dark:bg-slate-900">
+                  {contestProblemsState.items.map((item, index) => {
+                    const problemId = Number(item.id);
+                    const label = item.displayId ?? item.id;
+                    const isDeleting = Number.isFinite(problemId) && deletingContestProblemId === problemId;
+                    return (
+                      <tr
+                        key={`contest-problem-row-${problemId || item.id}`}
+                        className="cursor-move hover:bg-gray-50 dark:hover:bg-slate-800"
+                        draggable
+                        onDragStart={() => {
+                          dragItemRef.current = index;
+                        }}
+                        onDragEnter={() => {
+                          dragOverItemRef.current = index;
+                        }}
+                        onDragEnd={handleSortContestProblems}
+                        onDragOver={(event) => event.preventDefault()}
+                      >
+                        <td className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400">{index + 1}</td>
+                        <td className="px-4 py-2 text-sm text-gray-800 dark:text-slate-100">{label} · {item.title}</td>
+                        <td className="px-4 py-2 text-right">
+                          <button
+                            type="button"
+                            className="text-xs text-red-600 hover:text-red-700"
+                            onClick={() => void handleRemoveContestProblem(problemId, String(label))}
+                            disabled={isDeleting}
+                          >
+                            {isDeleting ? '삭제중' : '삭제'}
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
             </div>
           )}
 
@@ -838,7 +849,7 @@ export const ContestEditSection: React.FC = () => {
               void handleAddContestProblem();
             }}
           >
-            <div className="grid gap-3 md:grid-cols-[2fr,1fr]">
+            <div>
               <div>
                   <Input
                     label="문제 검색 또는 ID 입력"
@@ -883,18 +894,6 @@ export const ContestEditSection: React.FC = () => {
                   </ul>
                 )}
               </div>
-              <Input
-                label="표시 ID"
-                value={contestProblemDisplayId}
-                placeholder="예: A, B, P100"
-                onChange={(e) => handleContestProblemDisplayIdChange(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') {
-                    e.preventDefault();
-                    void handleAddContestProblem();
-                  }
-                }}
-              />
             </div>
             <div className="flex justify-end">
               <Button type="submit" variant="outline" loading={contestProblemActionLoading}>

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useProblems } from '../hooks/useProblems';
 import { Problem, ProblemFilter } from '../types';
@@ -8,6 +8,7 @@ import { useProblemStore } from '../stores/problemStore';
 import { useAuthStore } from '../stores/authStore';
 import { PROBLEM_STATUS_LABELS } from '../constants/problemStatus';
 import { problemService } from '../services/problemService';
+import CommonPagination from '../components/common/CommonPagination';
 import { normalizeDifficulty } from '../lib/difficulty';
 import { resolveProblemStatus } from '../utils/problemStatus';
 import { extractProblemTags } from '../utils/problemTags';
@@ -21,19 +22,8 @@ const normalizeTags = (tags: string[]): string[] => {
   return Array.from(unique).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 };
 
-const areTagArraysEqual = (a: string[], b: string[]): boolean => {
-  if (a.length !== b.length) return false;
-  return a.every((value, index) => value === b[index]);
-};
-
-const parseTagsFromQuery = (value: string | null): string[] => {
-  if (!value) return [];
-  return normalizeTags(value.split(','));
-};
-
 export const ProblemListPage: React.FC = () => {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
   const { filter, setFilter } = useProblemStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [showAllTags, setShowAllTags] = useState(false);
@@ -127,30 +117,12 @@ export const ProblemListPage: React.FC = () => {
     [filter.tags]
   );
 
-  const searchParamsString = searchParams.toString();
-  const selectedTagsRef = useRef<string[]>(selectedTags);
-
-  useEffect(() => {
-    selectedTagsRef.current = selectedTags;
-  }, [selectedTags]);
-
   useEffect(() => {
     setFilter({ tags: [], page: 1 });
-    const params = new URLSearchParams(searchParamsString);
-    if (params.has('tags')) {
-      params.delete('tags');
-      setSearchParams(params, { replace: true });
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      setFilter({ tags: [], page: 1 });
+    };
   }, []);
-
-  useEffect(() => {
-    const params = new URLSearchParams(searchParamsString);
-    const parsed = parseTagsFromQuery(params.get('tags'));
-    if (!areTagArraysEqual(parsed, selectedTagsRef.current)) {
-      setFilter({ tags: parsed, page: 1 });
-    }
-  }, [searchParamsString, setFilter]);
 
   const handleTagToggle = (tagName: string) => {
     const newTags = selectedTags.includes(tagName)
@@ -159,25 +131,10 @@ export const ProblemListPage: React.FC = () => {
     setFilter({ tags: newTags, page: 1 });
   };
 
-  useEffect(() => {
-    const normalized = normalizeTags(selectedTags);
-    const params = new URLSearchParams(searchParamsString);
-    const current = params.get('tags');
-
-    if (normalized.length === 0) {
-      if (current) {
-        params.delete('tags');
-        setSearchParams(params, { replace: true });
-      }
-      return;
-    }
-
-    const joined = normalized.join(',');
-    if (current !== joined) {
-      params.set('tags', joined);
-      setSearchParams(params, { replace: true });
-    }
-  }, [selectedTags, searchParamsString, setSearchParams]);
+  const handleProblemListTagClick = (tagName: string) => {
+    setFilter({ tags: [tagName], page: 1 });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const processedProblems = useMemo(() => {
     const items = microProblems;
@@ -307,6 +264,7 @@ export const ProblemListPage: React.FC = () => {
 
   const handlePageChange = (page: number) => {
     setFilter({ page });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const pageSize = filter.limit ?? 20;
@@ -446,7 +404,7 @@ export const ProblemListPage: React.FC = () => {
                     className="dual-range dual-range-max absolute inset-x-0 top-3 w-full h-2 bg-transparent appearance-none cursor-pointer accent-blue-600"
                   />
                 </div>
-                <div className="flex justify-between text-xs text-gray-500 dark:text-slate-400 mt-3 font-medium">
+                <div className="flex justify-between text-xs text-gray-500 dark:text-slate-300 mt-3 font-medium">
                   <span>Lv.0</span>
                   <span>Lv.1</span>
                   <span>Lv.2</span>
@@ -455,7 +413,7 @@ export const ProblemListPage: React.FC = () => {
                   <span>Lv.5</span>
                 </div>
                 <div className="mt-4 text-center">
-                  <span className="inline-block px-3 py-1 rounded-full text-sm font-bold bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+                  <span className="inline-block px-3 py-1 rounded-full text-sm font-bold bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-100 dark:ring-1 dark:ring-slate-500/60">
                     Lv.{minDifficultyLevel} ~ Lv.{maxDifficultyLevel}
                   </span>
                 </div>
@@ -512,16 +470,23 @@ export const ProblemListPage: React.FC = () => {
             <ProblemList
               problems={processedProblems}
               onProblemClick={handleProblemClick}
+              onTagClick={handleProblemListTagClick}
               isLoading={isLoading}
-              totalPages={data?.totalPages || 1}
-              currentPage={filter.page || 1}
-              onPageChange={handlePageChange}
               onSortChange={handleSortToggle}
               sortField={filter.sortField ?? 'title'}
               sortOrder={filter.sortOrder ?? 'asc'}
               showStatus={isAuthenticated}
               getRowNumber={resolveProblemRowNumber}
             />
+            <div className="mt-6">
+              <CommonPagination
+                page={filter.page || 1}
+                pageSize={pageSize}
+                totalPages={data?.totalPages || 1}
+                totalItems={data?.total}
+                onChangePage={handlePageChange}
+              />
+            </div>
           </div>
         </div>
       </div>

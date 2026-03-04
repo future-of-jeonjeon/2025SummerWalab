@@ -11,7 +11,7 @@ import {
   RankingTable,
   RankingTableColumn,
 } from '../components/ranking/RankingTable';
-import { RankingPagination } from '../components/ranking/RankingPagination';
+import CommonPagination from '../components/common/CommonPagination';
 
 
 const RankBadge = ({ rank }: { rank: number }) => {
@@ -209,22 +209,6 @@ export const RankingPage: React.FC = () => {
   const queryError = error instanceof Error ? error.message : undefined;
   const organizationErrorMessage = organizationError instanceof Error ? organizationError.message : undefined;
 
-  const handlePreviousPage = () => {
-    setPage((prev) => Math.max(1, prev - 1));
-  };
-
-  const handleNextPage = () => {
-    setPage((prev) => Math.min(totalPages, prev + 1));
-  };
-
-  const handleOrganizationPrevious = () => {
-    setOrganizationPage((prev) => Math.max(1, prev - 1));
-  };
-
-  const handleOrganizationNext = () => {
-    setOrganizationPage((prev) => Math.min(organizationTotalPages, prev + 1));
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
       <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 2xl:max-w-screen-2xl 2xl:px-10 flex flex-col md:flex-row gap-8">
@@ -275,43 +259,47 @@ export const RankingPage: React.FC = () => {
 
           <div className="space-y-8">
             {activeView === 'user' && (
-              <RankingSection title="">
-                <RankingTable
-                  columns={userColumns}
-                  data={userRankings}
-                  loading={isLoading}
-                  error={queryError}
-                  skeletonRowCount={10}
-                />
-                <RankingPagination
+              <div className="space-y-4">
+                <RankingSection title="">
+                  <RankingTable
+                    columns={userColumns}
+                    data={userRankings}
+                    loading={isLoading}
+                    error={queryError}
+                    skeletonRowCount={10}
+                  />
+                </RankingSection>
+                <CommonPagination
                   page={page}
+                  pageSize={USER_RANKING_PAGE_SIZE}
                   totalPages={totalPages}
                   totalItems={totalItems}
-                  pageSize={USER_RANKING_PAGE_SIZE}
-                  onPrevious={handlePreviousPage}
-                  onNext={handleNextPage}
+                  onChangePage={(nextPage) => setPage(nextPage)}
+                  unit="명"
                 />
-              </RankingSection>
+              </div>
             )}
 
             {activeView === 'organization' && (
-              <RankingSection title="">
-                <RankingTable
-                  columns={organizationColumns}
-                  data={organizationRankings}
-                  loading={isOrganizationLoading}
-                  error={organizationErrorMessage}
-                  skeletonRowCount={8}
-                />
-                <RankingPagination
+              <div className="space-y-4">
+                <RankingSection title="">
+                  <RankingTable
+                    columns={organizationColumns}
+                    data={organizationRankings}
+                    loading={isOrganizationLoading}
+                    error={organizationErrorMessage}
+                    skeletonRowCount={8}
+                  />
+                </RankingSection>
+                <CommonPagination
                   page={organizationPage}
+                  pageSize={ORGANIZATION_RANKING_PAGE_SIZE}
                   totalPages={organizationTotalPages}
                   totalItems={organizationTotalItems}
-                  pageSize={ORGANIZATION_RANKING_PAGE_SIZE}
-                  onPrevious={handleOrganizationPrevious}
-                  onNext={handleOrganizationNext}
+                  onChangePage={(nextPage) => setOrganizationPage(nextPage)}
+                  unit="명"
                 />
-              </RankingSection>
+              </div>
             )}
           </div>
         </div>

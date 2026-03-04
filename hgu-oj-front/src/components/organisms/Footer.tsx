@@ -4,6 +4,7 @@ import { useAuthStore } from '../../stores/authStore';
 
 export const Footer: React.FC = () => {
     const { isAuthenticated } = useAuthStore();
+    const scrollToTop = () => window.scrollTo({ top: 0, behavior: 'smooth' });
 
     return (
         <footer className="bg-white dark:bg-slate-900 border-t border-gray-100 dark:border-slate-800 mt-auto">
@@ -19,14 +20,14 @@ export const Footer: React.FC = () => {
                     {/* 플랫폼 */}
                     <div className="flex flex-col">
                         <ul className="space-y-3.5">
-                            <li><Link to="/problems" className="text-sm font-medium text-black hover:text-gray-600 dark:text-slate-100 dark:hover:text-slate-300 transition-colors">문제</Link></li>
-                            <li><Link to="/workbooks" className="text-sm font-medium text-black hover:text-gray-600 dark:text-slate-100 dark:hover:text-slate-300 transition-colors">문제집</Link></li>
-                            <li><Link to="/contests" className="text-sm font-medium text-black hover:text-gray-600 dark:text-slate-100 dark:hover:text-slate-300 transition-colors">대회</Link></li>
-                            <li><Link to="/organizations" className="text-sm font-medium text-black hover:text-gray-600 dark:text-slate-100 dark:hover:text-slate-300 transition-colors">단체</Link></li>
+                            <li><Link to="/problems" onClick={scrollToTop} className="text-sm font-medium text-black hover:text-gray-600 dark:text-slate-100 dark:hover:text-slate-300 transition-colors">문제</Link></li>
+                            <li><Link to="/workbooks" onClick={scrollToTop} className="text-sm font-medium text-black hover:text-gray-600 dark:text-slate-100 dark:hover:text-slate-300 transition-colors">문제집</Link></li>
+                            <li><Link to="/contests" onClick={scrollToTop} className="text-sm font-medium text-black hover:text-gray-600 dark:text-slate-100 dark:hover:text-slate-300 transition-colors">대회</Link></li>
+                            <li><Link to="/organizations" onClick={scrollToTop} className="text-sm font-medium text-black hover:text-gray-600 dark:text-slate-100 dark:hover:text-slate-300 transition-colors">단체</Link></li>
                             {isAuthenticated && (
-                                <li><Link to="/contribution" className="text-sm font-medium text-black hover:text-gray-600 dark:text-slate-100 dark:hover:text-slate-300 transition-colors">기여</Link></li>
+                                <li><Link to="/contribution" onClick={scrollToTop} className="text-sm font-medium text-black hover:text-gray-600 dark:text-slate-100 dark:hover:text-slate-300 transition-colors">기여</Link></li>
                             )}
-                            <li><Link to="/ranking" className="text-sm font-medium text-black hover:text-gray-600 dark:text-slate-100 dark:hover:text-slate-300 transition-colors">랭킹</Link></li>
+                            <li><Link to="/ranking" onClick={scrollToTop} className="text-sm font-medium text-black hover:text-gray-600 dark:text-slate-100 dark:hover:text-slate-300 transition-colors">랭킹</Link></li>
                         </ul>
                     </div>
                 </div>

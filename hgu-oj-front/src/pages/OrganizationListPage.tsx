@@ -6,6 +6,7 @@ import { useAuthStore } from '../stores/authStore';
 import { Button } from '../components/atoms/Button';
 import { OrganizationLogo } from '../components/atoms/OrganizationLogo';
 import { OrganizationApplyModal } from '../components/organisms/OrganizationApplyModal';
+import CommonPagination from '../components/common/CommonPagination';
 
 export const OrganizationListPage: React.FC = () => {
     const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -103,8 +104,22 @@ export const OrganizationListPage: React.FC = () => {
                 </div>
                 {/* Content Section */}
                 {loading ? (
-                    <div className="flex justify-center items-center h-64">
-                        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
+                    <div className="animate-pulse">
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                            {Array.from({ length: 8 }).map((_, idx) => (
+                                <div
+                                    key={`org-skeleton-${idx}`}
+                                    className="bg-white dark:bg-slate-900 rounded-xl border border-gray-100 dark:border-slate-800 overflow-hidden"
+                                >
+                                    <div className="h-32 bg-gray-200 dark:bg-slate-800" />
+                                    <div className="p-6 space-y-3">
+                                        <div className="h-5 w-2/3 rounded bg-gray-200 dark:bg-slate-700" />
+                                        <div className="h-4 w-full rounded bg-gray-200 dark:bg-slate-700" />
+                                        <div className="h-4 w-5/6 rounded bg-gray-200 dark:bg-slate-700" />
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 ) : (
                     <>
@@ -153,55 +168,16 @@ export const OrganizationListPage: React.FC = () => {
                         )}
 
                         {/* Pagination settings */}
-                        {totalPages > 1 && (
-                            <div className="flex justify-center mt-12 gap-2">
-                                <button
-                                    onClick={() => handlePageChange(page - 1)}
-                                    disabled={page === 1}
-                                    className="px-4 py-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg text-sm font-medium text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                >
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                                    </svg>
-                                </button>
-
-                                {[...Array(totalPages)].map((_, idx) => {
-                                    const pageNum = idx + 1;
-                                    const isCurrent = pageNum === page;
-                                    // Show roughly around current page
-                                    if (pageNum < page - 2 || pageNum > page + 2) {
-                                        if (pageNum === 1 || pageNum === totalPages) {
-                                            // Always show first and last
-                                        } else {
-                                            return null; // Hide others
-                                        }
-                                    }
-
-                                    return (
-                                        <button
-                                            key={pageNum}
-                                            onClick={() => handlePageChange(pageNum)}
-                                            className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${isCurrent
-                                                ? 'bg-blue-600 text-white shadow-md'
-                                                : 'bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800'
-                                                }`}
-                                        >
-                                            {pageNum}
-                                        </button>
-                                    );
-                                })}
-
-                                <button
-                                    onClick={() => handlePageChange(page + 1)}
-                                    disabled={page === totalPages}
-                                    className="px-4 py-2 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-lg text-sm font-medium text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                                >
-                                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                                    </svg>
-                                </button>
-                            </div>
-                        )}
+                        <div className="mt-12">
+                            <CommonPagination
+                                page={page}
+                                pageSize={size}
+                                totalPages={totalPages}
+                                totalItems={total}
+                                onChangePage={handlePageChange}
+                                unit="개"
+                            />
+                        </div>
                     </>
                 )}
             </div>

@@ -9,9 +9,6 @@ interface WorkbookListProps {
   searchQuery: string;
   onWorkbookClick: (workbookId: number) => void;
   onTagClick?: (tag: string) => void;
-  onPageChange: (page: number) => void;
-  currentPage: number;
-  totalPages: number;
 }
 
 export const WorkbookList: React.FC<WorkbookListProps> = ({
@@ -21,14 +18,26 @@ export const WorkbookList: React.FC<WorkbookListProps> = ({
   searchQuery,
   onWorkbookClick,
   onTagClick,
-  onPageChange,
-  currentPage,
-  totalPages,
 }) => {
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center h-64">
-        <div className="text-gray-600 dark:text-slate-400 text-lg">로딩 중...</div>
+      <div className="space-y-6 animate-pulse">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {Array.from({ length: 6 }).map((_, idx) => (
+            <div
+              key={`workbook-skeleton-${idx}`}
+              className="rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-5 space-y-4"
+            >
+              <div className="h-5 w-2/3 rounded bg-gray-200 dark:bg-slate-700" />
+              <div className="h-4 w-full rounded bg-gray-200 dark:bg-slate-700" />
+              <div className="h-4 w-5/6 rounded bg-gray-200 dark:bg-slate-700" />
+              <div className="flex gap-2 pt-2">
+                <div className="h-6 w-14 rounded bg-gray-200 dark:bg-slate-700" />
+                <div className="h-6 w-16 rounded bg-gray-200 dark:bg-slate-700" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
@@ -44,85 +53,28 @@ export const WorkbookList: React.FC<WorkbookListProps> = ({
     );
   }
 
-  if (workbooks.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <div className="text-gray-600 dark:text-slate-400 text-lg mb-4">
-          {searchQuery ? '검색 결과가 없습니다.' : '등록된 문제집이 없습니다.'}
-        </div>
-        {searchQuery && (
-          <p className="text-gray-500 dark:text-slate-400">다른 검색어를 시도해보세요.</p>
-        )}
-      </div>
-    );
-  }
-
   return (
     <div className="space-y-6">
       {/* 문제집 목록 */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {workbooks.map((workbook) => (
-          <WorkbookCard
-            key={workbook.id}
-            workbook={workbook}
-            onClick={onWorkbookClick}
-            onTagClick={onTagClick}
-          />
-        ))}
-      </div>
-
-      {/* 페이지네이션 */}
-      {totalPages > 1 && (
-        <div className="flex justify-center items-center space-x-1 mt-10">
-          <button
-            onClick={() => onPageChange(currentPage - 1)}
-            disabled={currentPage === 1}
-            className="px-3 py-2 rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-500 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
-            aria-label="Previous page"
-          >
-            이전
-          </button>
-
-          <div className="flex space-x-1">
-            {(() => {
-              // Simple sliding window logic
-              const maxVisible = 5;
-              let startPage = Math.max(1, currentPage - Math.floor(maxVisible / 2));
-              let endPage = startPage + maxVisible - 1;
-
-              if (endPage > totalPages) {
-                endPage = totalPages;
-                startPage = Math.max(1, endPage - maxVisible + 1);
-              }
-
-              const pages = [];
-              for (let i = startPage; i <= endPage; i++) {
-                pages.push(i);
-              }
-
-              return pages.map((page) => (
-                <button
-                  key={page}
-                  onClick={() => onPageChange(page)}
-                  className={`min-w-[40px] h-10 flex items-center justify-center text-sm font-medium rounded-md border transition-colors ${currentPage === page
-                    ? 'bg-blue-600 border-blue-600 text-white'
-                    : 'bg-white dark:bg-slate-900 border-gray-300 dark:border-slate-600 text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800'
-                    }`}
-                >
-                  {page}
-                </button>
-              ));
-            })()}
+      {workbooks.length === 0 ? (
+        <div className="text-center py-12">
+          <div className="text-gray-600 dark:text-slate-400 text-lg mb-4">
+            {searchQuery ? '검색 결과가 없습니다.' : '등록된 문제집이 없습니다.'}
           </div>
-
-          <button
-            onClick={() => onPageChange(currentPage + 1)}
-            disabled={currentPage === totalPages}
-            className="px-3 py-2 rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-500 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-colors text-sm font-medium"
-            aria-label="Next page"
-          >
-            다음
-          </button>
+          {searchQuery && (
+            <p className="text-gray-500 dark:text-slate-400">다른 검색어를 시도해보세요.</p>
+          )}
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {workbooks.map((workbook) => (
+            <WorkbookCard
+              key={workbook.id}
+              workbook={workbook}
+              onClick={onWorkbookClick}
+              onTagClick={onTagClick}
+            />
+          ))}
         </div>
       )}
     </div>

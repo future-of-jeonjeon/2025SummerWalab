@@ -19,7 +19,7 @@ type ProblemFormState = {
   description: string;
   inputDescription: string;
   outputDescription: string;
-  difficulty: 'High' | 'Mid' | 'Low';
+  difficulty: string;
   timeLimit: string;
   memoryLimit: string;
   ruleType: 'ACM' | 'OI';
@@ -38,7 +38,7 @@ const initialProblemForm: ProblemFormState = {
   description: '',
   inputDescription: '',
   outputDescription: '',
-  difficulty: 'Mid',
+  difficulty: '2',
   timeLimit: '1000',
   memoryLimit: '256',
   ruleType: 'ACM',
@@ -245,9 +245,9 @@ export const ProblemCreateSection: React.FC = () => {
               value={problemForm.difficulty}
               onChange={(e) => setProblemForm((prev) => ({ ...prev, difficulty: e.target.value as ProblemFormState['difficulty'] }))}
             >
-              <option value="Low">Level1</option>
-              <option value="Mid">Level2</option>
-              <option value="High">Level3</option>
+              <option value="1">Lv.1</option>
+              <option value="2">Lv.2</option>
+              <option value="3">Lv.3</option>
             </select>
           </div>
           <div>
@@ -415,4 +415,3 @@ export const ProblemCreateSection: React.FC = () => {
 };
 
 export default ProblemCreateSection;
-

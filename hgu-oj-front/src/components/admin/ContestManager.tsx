@@ -1,11 +1,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Card } from '../atoms/Card';
-import { Button } from '../atoms/Button';
 import { Input } from '../atoms/Input';
 import { adminService } from '../../services/adminService';
 import { AdminContest } from '../../types';
 import { formatDateTime } from '../../lib/date';
 import { CreateContestModal } from '../../features/organization/components/CreateContestModal';
+import { VisibilityBadge } from '../common/VisibilityBadge';
+import { ActionIconButtons } from '../../features/contribution/components/ActionIconButtons';
+import CommonPagination from '../common/CommonPagination';
 
 export const ContestManager: React.FC = () => {
     const [contestList, setContestList] = useState<AdminContest[]>([]);
@@ -26,7 +28,7 @@ export const ContestManager: React.FC = () => {
             setContestList(Array.isArray(response.results) ? response.results : []);
             setTotal(response.total);
             setPage(p);
-        } catch (err) {
+        } catch {
             setError('대회 목록을 불러오지 못했습니다.');
         } finally {
             setLoading(false);
@@ -74,11 +76,7 @@ export const ContestManager: React.FC = () => {
                 <div className="flex items-center justify-between">
                     <div className="space-y-1">
                         <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 dark:text-slate-100">대회 목록</h2>
-                        <p className="text-sm text-gray-500 dark:text-slate-400">등록된 대회를 관리합니다.</p>
                     </div>
-                    <Button onClick={() => openModal()} className="bg-[#113F67] text-white hover:bg-[#0d3354]">
-                        대회 생성
-                    </Button>
                 </div>
 
                 <div className="flex gap-2">
@@ -119,26 +117,29 @@ export const ContestManager: React.FC = () => {
                                             </div>
                                         </td>
                                         <td className="px-4 py-3 text-sm">
-                                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${contest.visible ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600 dark:text-slate-400'}`}>
-                                                {contest.visible ? '공개' : '비공개'}
-                                            </span>
+                                            <VisibilityBadge visible={Boolean(contest.visible)} />
                                         </td>
-                                        <td className="px-4 py-3 text-sm text-right space-x-2">
-                                            <Button size="sm" variant="outline" onClick={() => openModal(contest)}>수정</Button>
-                                            <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleDelete(contest.id, contest.title)}>삭제</Button>
+                                        <td className="px-4 py-3 text-sm">
+                                            <ActionIconButtons
+                                                onEdit={() => openModal(contest)}
+                                                onDelete={() => handleDelete(contest.id, contest.title)}
+                                                editTitle={`대회 ${contest.title} 수정`}
+                                                deleteTitle={`대회 ${contest.title} 삭제`}
+                                            />
                                         </td>
                                     </tr>
                                 ))
                             )}
                         </tbody>
                     </table>
-                    <div className="border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 px-4 py-3 flex justify-between items-center">
-                        <span className="text-sm text-gray-700 dark:text-slate-300">총 {total}개</span>
-                        <div className="flex gap-2">
-                            <Button size="sm" variant="outline" disabled={page === 1} onClick={() => fetchContests(page - 1, keyword)}>이전</Button>
-                            <Button size="sm" variant="outline" disabled={page >= Math.ceil(total / 20)} onClick={() => fetchContests(page + 1, keyword)}>다음</Button>
-                        </div>
-                    </div>
+                </div>
+                <div className="mt-4">
+                    <CommonPagination
+                        page={page}
+                        pageSize={20}
+                        totalItems={total}
+                        onChangePage={(nextPage) => fetchContests(nextPage, keyword)}
+                    />
                 </div>
             </div>
             <CreateContestModal

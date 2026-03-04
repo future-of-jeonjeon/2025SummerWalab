@@ -74,7 +74,6 @@ export const OrganizationApplyManager: React.FC = () => {
             <div className="space-y-6">
                 <div className="space-y-1">
                     <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 dark:text-slate-100">단체 신청 관리</h2>
-                    <p className="text-sm text-gray-500 dark:text-slate-400">단체 신청을 관리합니다.</p>
                 </div>
 
                 <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-slate-700 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm">
@@ -125,7 +124,6 @@ export const OrganizationApplyManager: React.FC = () => {
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                className="text-red-600 border-red-200 hover:bg-red-50"
                                                 onClick={() => handleAction(apply.id, apply.name, 'REJECTED')}
                                             >
                                                 반려
@@ -198,7 +196,6 @@ export const OrganizationApplyManager: React.FC = () => {
                             <div className="flex justify-end gap-3 pt-6 border-t font-semibold">
                                 <Button
                                     variant="outline"
-                                    className="text-red-600 border-red-200 hover:bg-red-50"
                                     onClick={() => handleAction(selectedApply.id, selectedApply.name, 'REJECTED')}
                                 >
                                     반려하기

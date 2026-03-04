@@ -15,7 +15,7 @@ export interface Problem {
   _id?: string | number;
   title: string;
   description: string;
-  difficulty: 'Low' | 'Mid' | 'High' | '상' | '중' | '하';
+  difficulty: string | number;
   timeLimit: number;
   memoryLimit: number;
   inputDescription?: string;
@@ -300,7 +300,7 @@ export interface LanguageOption {
 
 // 필터 관련 타입
 export interface ProblemFilter {
-  difficulty?: 'Low' | 'Mid' | 'High' | '상' | '중' | '하';
+  difficulty?: string | number;
   difficultyLevel?: number;
   search?: string;
   page?: number;

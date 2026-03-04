@@ -143,7 +143,6 @@ export const BulkProblemManager: React.FC = () => {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="space-y-1">
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 dark:text-slate-100">문제 등록</h2>
-                <p className="text-sm text-gray-500 dark:text-slate-400">새로운 문제를 개별적으로 등록합니다.</p>
               </div>
               <Button onClick={() => setIsProblemModalOpen(true)}>문제 등록</Button>
             </div>
@@ -154,7 +153,6 @@ export const BulkProblemManager: React.FC = () => {
           <form onSubmit={handleImportSubmit} className="space-y-6">
             <div className="space-y-1">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 dark:text-slate-100">문제 불러오기</h2>
-              <p className="text-sm text-gray-500 dark:text-slate-400">OJ 백엔드 JSON ZIP 포맷을 업로드하여 여러 문제를 한 번에 등록합니다.</p>
             </div>
 
             {importMessage.error && (
@@ -195,9 +193,6 @@ export const BulkProblemManager: React.FC = () => {
           <form onSubmit={handleExportSubmit} className="space-y-6">
             <div className="space-y-1">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 dark:text-slate-100">문제 내보내기</h2>
-              <p className="text-sm text-gray-500 dark:text-slate-400">
-                내보낼 문제의 내부 ID를 쉼표 또는 줄바꿈으로 구분해 입력하면 ZIP 파일로 다운로드됩니다.
-              </p>
             </div>
 
             {exportMessage.error && (

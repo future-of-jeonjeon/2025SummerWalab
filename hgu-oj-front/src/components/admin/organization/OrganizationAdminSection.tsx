@@ -5,6 +5,7 @@ import { Button } from '../../atoms/Button';
 import { Input } from '../../atoms/Input';
 import { OrganizationForm, OrganizationFormValues } from './OrganizationForm';
 import { OrganizationMemberManager } from './OrganizationMemberManager';
+import CommonPagination from '../../common/CommonPagination';
 import { organizationService } from '../../../services/organizationService';
 import { adminService } from '../../../services/adminService';
 import { Organization, OrganizationListResponse } from '../../../types';
@@ -152,9 +153,6 @@ export const OrganizationAdminSection: React.FC = () => {
     return pageSize > 0 ? Math.max(1, Math.ceil(total / pageSize)) : 1;
   }, [listData]);
 
-  const canGoPrev = page > 1;
-  const canGoNext = page < totalPages;
-
   const handleSelectOrganization = (organizationId: number) => {
     setSelectedId(organizationId);
     setFeedbackMessage(null);
@@ -257,24 +255,14 @@ export const OrganizationAdminSection: React.FC = () => {
               <span>
                 페이지 {page} / {totalPages} {isListFetching && <span className="ml-2 text-xs text-gray-400">(새로고침 중)</span>}
               </span>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!canGoPrev}
-                  onClick={() => canGoPrev && setPage((prev) => Math.max(1, prev - 1))}
-                >
-                  이전
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!canGoNext}
-                  onClick={() => canGoNext && setPage((prev) => prev + 1)}
-                >
-                  다음
-                </Button>
-              </div>
+              <CommonPagination
+                page={page}
+                pageSize={PAGE_SIZE}
+                totalPages={totalPages}
+                totalItems={listData?.total ?? 0}
+                onChangePage={(nextPage) => setPage(nextPage)}
+                className="w-full sm:w-auto"
+              />
             </div>
           </Card>
         </div>

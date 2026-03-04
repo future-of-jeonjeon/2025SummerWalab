@@ -3,6 +3,7 @@ import { Card } from '../atoms/Card';
 import { Input } from '../atoms/Input';
 import { Button } from '../atoms/Button';
 import { RichTextEditor } from '../molecules/RichTextEditor';
+import CommonPagination from '../common/CommonPagination';
 import {
   adminService,
   AdminProblemDetail,
@@ -358,8 +359,6 @@ export const ProblemEditSection: React.FC = () => {
   };
 
   const totalPages = Math.max(1, Math.ceil(total / PROBLEM_EDIT_PAGE_SIZE));
-  const canPrev = page > 1;
-  const canNext = page < totalPages;
 
   return (
     <Card padding="lg">
@@ -384,7 +383,7 @@ export const ProblemEditSection: React.FC = () => {
               }}
             />
           </div>
-          <Button onClick={handleSearchSubmit} className="w-full sm:w-auto bg-[#113F67] text-white hover:bg-[#34699A] dark:bg-[#34699A] dark:hover:bg-[#58A0C8] focus:ring-[#58A0C8]">
+          <Button onClick={handleSearchSubmit} className="w-full sm:w-auto">
             검색
           </Button>
         </div>
@@ -443,19 +442,13 @@ export const ProblemEditSection: React.FC = () => {
                 </div>
               )}
             </div>
-            <div className="flex items-center justify-between text-xs text-gray-500 dark:text-slate-400">
-              <div>
-                {page} / {totalPages}
-              </div>
-              <div className="flex items-center gap-2">
-                <Button type="button" variant="ghost" disabled={!canPrev} onClick={() => canPrev && fetchProblemList(page - 1)}>
-                  이전
-                </Button>
-                <Button type="button" variant="ghost" disabled={!canNext} onClick={() => canNext && fetchProblemList(page + 1)}>
-                  다음
-                </Button>
-              </div>
-            </div>
+            <CommonPagination
+              page={page}
+              pageSize={PROBLEM_EDIT_PAGE_SIZE}
+              totalPages={totalPages}
+              totalItems={total}
+              onChangePage={(nextPage) => fetchProblemList(nextPage)}
+            />
           </div>
 
           {detailLoading ? (
@@ -479,15 +472,12 @@ export const ProblemEditSection: React.FC = () => {
                 <Input label="태그" placeholder="쉼표로 구분하여 입력" value={formState.tags} onChange={(e) => handleFieldChange('tags', e.target.value)} />
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">난이도</label>
-                  <select
+                  <Input
                     className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
-                    value={formState.difficulty}
-                    onChange={(e) => handleFieldChange('difficulty', e.target.value as AdminProblemDetail['difficulty'])}
-                  >
-                    <option value="Low">Low</option>
-                    <option value="Mid">Mid</option>
-                    <option value="High">High</option>
-                  </select>
+                    value={String(formState.difficulty ?? '')}
+                    onChange={(e) => handleFieldChange('difficulty', e.target.value)}
+                    placeholder="lv 값을 입력하세요 (예: 1, 2, 3...)"
+                  />
                 </div>
                 <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-slate-300">
                   <input type="checkbox" className="h-4 w-4" checked={formState.visible} onChange={(e) => handleFieldChange('visible', e.target.checked)} />

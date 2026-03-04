@@ -594,6 +594,15 @@ export const ProblemDetailPage: React.FC = () => {
     return ['my-submissions', 'practice', submissionProblemKey] as const;
   }, [contestContextId, submissionProblemKey]);
 
+  const invalidateMyPageQueries = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['mypage'] });
+  }, [queryClient]);
+
+  const invalidateProblemStatusQueries = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['problem', 'status-map'] });
+    queryClient.invalidateQueries({ queryKey: ['problem-status-map'] });
+  }, [queryClient]);
+
   const startSubmissionPolling = useCallback((submissionId: number | string) => {
     if (!submissionId) return;
     if (typeof submissionId === 'number' && Number.isNaN(submissionId)) return;
@@ -627,6 +636,8 @@ export const ProblemDetailPage: React.FC = () => {
           if (submissionQueryKey) {
             queryClient.invalidateQueries({ queryKey: submissionQueryKey });
           }
+          invalidateProblemStatusQueries();
+          invalidateMyPageQueries();
           stopSubmissionPolling();
           return;
         }
@@ -637,6 +648,8 @@ export const ProblemDetailPage: React.FC = () => {
         if (submissionQueryKey) {
           queryClient.invalidateQueries({ queryKey: submissionQueryKey });
         }
+        invalidateProblemStatusQueries();
+        invalidateMyPageQueries();
         stopSubmissionPolling();
         return;
       }
@@ -644,7 +657,7 @@ export const ProblemDetailPage: React.FC = () => {
     };
 
     submissionPollTimerRef.current = setTimeout(poll, 1000);
-  }, [mapJudgeResult, problemIdentifier, queryClient, stopSubmissionPolling, submissionQueryKey]);
+  }, [invalidateMyPageQueries, invalidateProblemStatusQueries, mapJudgeResult, problemIdentifier, queryClient, stopSubmissionPolling, submissionQueryKey]);
 
   const handleExecute = async (code: string, language: string, input?: string) => {
     if (!requireAuthentication()) return;
@@ -725,8 +738,12 @@ export const ProblemDetailPage: React.FC = () => {
         if (submissionQueryKey) {
           queryClient.invalidateQueries({ queryKey: submissionQueryKey });
         }
+        invalidateProblemStatusQueries();
+        invalidateMyPageQueries();
       } else {
         setManualStatus('SUBMITTED');
+        invalidateProblemStatusQueries();
+        invalidateMyPageQueries();
       }
       setAlertModal({
         isOpen: true,

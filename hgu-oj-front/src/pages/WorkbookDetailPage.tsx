@@ -2,7 +2,7 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '../components/atoms/Button';
-import { WorkbookProblemList } from '../components/organisms/WorkbookProblemList';
+import { ProblemList } from '../components/organisms/ProblemList';
 import { useWorkbook, useWorkbookProblems } from '../hooks/useWorkbooks';
 import { useWorkbookStore } from '../stores/workbookStore';
 import { Problem } from '../types';
@@ -19,7 +19,6 @@ export const WorkbookDetailPage: React.FC = () => {
   const { data: problemsData, isLoading: problemsLoading, error: problemsError } = useWorkbookProblems(workbookId);
   const { setFilter } = useWorkbookStore();
   const [statusFilter, setStatusFilter] = useState<'all' | ProblemStatusKey>('all');
-  const [difficultyFilter, setDifficultyFilter] = useState<string>('all'); // Added for dropdown
 
   const getProblemExternalId = useCallback((problem: Problem | undefined): string | undefined => {
     if (!problem) return undefined;
@@ -50,8 +49,8 @@ export const WorkbookDetailPage: React.FC = () => {
   };
 
   const handleTagClick = (tag: string) => {
-    setFilter({ search: tag, page: 1 });
-    navigate('/workbooks');
+    setFilter({ tags: [tag], page: 1 });
+    navigate('/workbooks', { state: { presetTag: tag } });
   };
 
   const formatDateWithDots = (value?: string) => {
@@ -118,33 +117,12 @@ export const WorkbookDetailPage: React.FC = () => {
       return status === statusFilter;
     };
 
-    const matchesDifficultyFilter = (problem: Problem) => {
-      if (difficultyFilter === 'all') return true;
-      const rawDifficulty =
-        (problem as any).difficulty ??
-        (problem as any).level ??
-        (problem as any).difficulty_level ??
-        (problem as any).difficultyLevel ??
-        (problem as any).difficulty_name ??
-        (problem as any).difficultyName;
-      if (!rawDifficulty) return false;
-      const displayDifficulty = String(rawDifficulty).replace(/^Lv\.\s*/i, '');
-      const level = Number(displayDifficulty);
-      if (Number.isNaN(level)) return false;
-
-      if (difficultyFilter === 'easy') return level === 1;
-      if (difficultyFilter === 'medium') return level === 2 || level === 3;
-      if (difficultyFilter === 'hard') return level >= 4;
-      return true;
-    };
-
     const filtered = enrichedProblems
-      .filter(matchesStatusFilter)
-      .filter(matchesDifficultyFilter);
+      .filter(matchesStatusFilter);
 
     // Keep original ordering for now (which usually is problem order in the workbook)
     return filtered;
-  }, [enrichedProblems, statusFilter, difficultyFilter]);
+  }, [enrichedProblems, statusFilter]);
 
   const totalProblemCount = workbook?.problemCount ?? problems.length;
 
@@ -156,8 +134,30 @@ export const WorkbookDetailPage: React.FC = () => {
 
   if (workbookLoading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 animate-pulse">
+          <div className="h-4 w-56 rounded bg-gray-200 dark:bg-slate-700" />
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 p-8 sm:p-10 space-y-6">
+            <div className="flex gap-2">
+              <div className="h-6 w-16 rounded-full bg-gray-200 dark:bg-slate-700" />
+              <div className="h-6 w-20 rounded-full bg-gray-200 dark:bg-slate-700" />
+            </div>
+            <div className="h-10 w-2/3 rounded bg-gray-200 dark:bg-slate-700" />
+            <div className="h-4 w-full rounded bg-gray-200 dark:bg-slate-700" />
+            <div className="h-4 w-5/6 rounded bg-gray-200 dark:bg-slate-700" />
+            <div className="h-4 w-1/2 rounded bg-gray-200 dark:bg-slate-700" />
+          </div>
+          <div className="h-8 w-40 rounded bg-gray-200 dark:bg-slate-700" />
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 p-6 space-y-4">
+            {Array.from({ length: 5 }).map((_, idx) => (
+              <div key={`workbook-detail-skeleton-${idx}`} className="grid grid-cols-[minmax(0,1fr)_100px_100px] items-center gap-4">
+                <div className="h-4 w-2/3 rounded bg-gray-200 dark:bg-slate-700" />
+                <div className="h-6 w-14 rounded bg-gray-200 dark:bg-slate-700 justify-self-center" />
+                <div className="h-4 w-3/4 rounded bg-gray-200 dark:bg-slate-700 justify-self-end" />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -188,10 +188,6 @@ export const WorkbookDetailPage: React.FC = () => {
     } else if (isProblemStatusKey(value)) {
       setStatusFilter(value);
     }
-  };
-
-  const handleDifficultyFilterChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    setDifficultyFilter(event.target.value);
   };
 
   return (
@@ -284,17 +280,6 @@ export const WorkbookDetailPage: React.FC = () => {
 
           <div className="flex items-center gap-2.5">
             <select
-              value={difficultyFilter}
-              onChange={handleDifficultyFilterChange}
-              className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm font-medium text-gray-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer shadow-sm min-w-[120px]"
-            >
-              <option value="all">모든 난이도</option>
-              <option value="easy">Easy (Lv 1)</option>
-              <option value="medium">Medium (Lv 2-3)</option>
-              <option value="hard">Hard (Lv 4+)</option>
-            </select>
-
-            <select
               value={statusFilter}
               onChange={handleStatusFilterChange}
               className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm font-medium text-gray-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer shadow-sm min-w-[120px]"
@@ -309,8 +294,16 @@ export const WorkbookDetailPage: React.FC = () => {
 
         {/* 3. Problem List Component */}
         {problemsLoading || statusLoading ? (
-          <div className="flex h-32 items-center justify-center bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800">
-            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 p-6 animate-pulse">
+            <div className="space-y-4">
+              {Array.from({ length: 5 }).map((_, idx) => (
+                <div key={`problem-list-skeleton-${idx}`} className="grid grid-cols-[minmax(0,1fr)_100px_100px] items-center gap-4">
+                  <div className="h-4 w-2/3 rounded bg-gray-200 dark:bg-slate-700" />
+                  <div className="h-6 w-14 rounded bg-gray-200 dark:bg-slate-700 justify-self-center" />
+                  <div className="h-4 w-3/4 rounded bg-gray-200 dark:bg-slate-700 justify-self-end" />
+                </div>
+              ))}
+            </div>
           </div>
         ) : problemsError ? (
           <div className="text-center py-8 bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800">
@@ -318,7 +311,7 @@ export const WorkbookDetailPage: React.FC = () => {
             <p className="text-sm text-gray-500 dark:text-slate-400">{getErrorMessage(problemsError)}</p>
           </div>
         ) : (
-          <WorkbookProblemList
+          <ProblemList
             problems={processedProblems}
             onProblemClick={handleProblemClick}
           />

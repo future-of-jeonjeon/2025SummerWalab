@@ -3,6 +3,7 @@ import { Button } from '../atoms/Button';
 import { Input } from '../atoms/Input';
 import { adminService } from '../../services/adminService';
 import { Problem } from '../../types';
+import { ActionIconButtons } from '../../features/contribution/components/ActionIconButtons';
 
 type WorkbookModalProps = {
     isOpen: boolean;
@@ -22,6 +23,17 @@ const initialWorkbookForm: WorkbookFormState = {
     title: '',
     description: '',
     visible: true,
+};
+
+const getNextDisplayId = (problems: Problem[]) => {
+    const maxDisplayId = problems.reduce((max, item) => {
+        const parsed = Number(item.displayId);
+        if (Number.isFinite(parsed)) {
+            return Math.max(max, parsed);
+        }
+        return max;
+    }, 0);
+    return String(maxDisplayId + 1);
 };
 
 type WorkbookProblemsState = {
@@ -120,16 +132,28 @@ export const WorkbookModal: React.FC<WorkbookModalProps> = ({ isOpen, onClose, m
 
     const handleAddProblem = () => {
         if (!selectedProblem) return;
-        const displayId = problemDisplayId.trim() || selectedProblem.displayId || String(selectedProblem.id);
+        const normalizedDisplayId = (problemDisplayId.trim() || getNextDisplayId(workbookProblems.items)).trim();
+        if (!normalizedDisplayId) return;
 
+        const duplicated = workbookProblems.items.some((item) => {
+            if (item.id === selectedProblem.id) return true;
+            return String(item.displayId ?? '').trim().toLowerCase() === normalizedDisplayId.toLowerCase();
+        });
+        if (duplicated) {
+            setMessage({ error: `표시 ID ${normalizedDisplayId}는 이미 추가되어 있습니다.` });
+            return;
+        }
+
+        const newItems = [...workbookProblems.items, { ...selectedProblem, displayId: normalizedDisplayId }];
         setWorkbookProblems(prev => ({
             ...prev,
-            items: [...prev.items, { ...selectedProblem, displayId }]
+            items: newItems
         }));
         setProblemInput('');
-        setProblemDisplayId('');
+        setProblemDisplayId(getNextDisplayId(newItems));
         setSelectedProblem(null);
         setProblemSearch({ results: [], loading: false, error: null });
+        setMessage({});
     };
 
     const handleRemoveProblem = (problemId: number) => {
@@ -233,20 +257,26 @@ export const WorkbookModal: React.FC<WorkbookModalProps> = ({ isOpen, onClose, m
                             <div className="flex gap-2">
                                 <div className="relative flex-1">
                                     <Input
-                                        placeholder="문제 검색 (ID, 제목)"
+                                        placeholder="문제 검색 (제목)"
                                         value={problemInput}
                                         onChange={e => handleSearchProblem(e.target.value)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === 'Enter') {
+                                                e.preventDefault();
+                                                handleAddProblem();
+                                            }
+                                        }}
                                     />
                                     {problemSearch.results.length > 0 && (
                                         <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg">
                                             {problemSearch.results.map(p => (
-                                                <li key={p.id} className="cursor-pointer px-4 py-2 text-gray-900 dark:text-slate-100 hover:bg-gray-100 dark:hover:bg-slate-800" onClick={() => {
+                                                <li key={p.id} className="cursor-pointer px-4 py-2 text-sm text-gray-900 dark:text-slate-100 hover:bg-gray-100 dark:hover:bg-slate-800" onClick={() => {
                                                     setSelectedProblem(p);
-                                                    setProblemInput(`${p.id} - ${p.title}`);
-                                                    setProblemDisplayId(p.displayId ?? String(p.id));
+                                                    setProblemInput(p.title);
+                                                    setProblemDisplayId(problemDisplayId.trim() || getNextDisplayId(workbookProblems.items));
                                                     setProblemSearch({ results: [], loading: false, error: null });
                                                 }}>
-                                                    {p.id} - {p.title}
+                                                    {p.title}
                                                 </li>
                                             ))}
                                         </ul>
@@ -267,7 +297,6 @@ export const WorkbookModal: React.FC<WorkbookModalProps> = ({ isOpen, onClose, m
                                     <thead className="bg-gray-50 dark:bg-slate-800">
                                         <tr>
                                             <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400">ID</th>
-                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400">Display ID</th>
                                             <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400">Title</th>
                                             <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-slate-400">Action</th>
                                         </tr>
@@ -275,11 +304,10 @@ export const WorkbookModal: React.FC<WorkbookModalProps> = ({ isOpen, onClose, m
                                     <tbody className="divide-y divide-gray-200 dark:divide-slate-700 bg-white dark:bg-slate-900">
                                         {workbookProblems.items.map(p => (
                                             <tr key={p.id}>
-                                                <td className="px-4 py-2 text-sm text-gray-700 dark:text-slate-300">{p.id}</td>
-                                                <td className="px-4 py-2 text-sm text-gray-700 dark:text-slate-300">{p.displayId}</td>
+                                                <td className="px-4 py-2 text-sm text-gray-700 dark:text-slate-300">{p.displayId ?? p.id}</td>
                                                 <td className="px-4 py-2 text-sm text-gray-700 dark:text-slate-300">{p.title}</td>
                                                 <td className="px-4 py-2 text-right text-sm">
-                                                    <button className="text-red-600 dark:text-red-400 hover:text-red-800 dark:hover:text-red-300" onClick={() => handleRemoveProblem(p.id)}>삭제</button>
+                                                    <ActionIconButtons onDelete={() => handleRemoveProblem(p.id)} deleteTitle={`문제 ${p.id} 삭제`} />
                                                 </td>
                                             </tr>
                                         ))}

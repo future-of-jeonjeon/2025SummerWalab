@@ -48,12 +48,13 @@ export interface CreateProblemPayload {
   memory_limit: number;
   languages: string[];
   template: Record<string, string>;
-  difficulty: 'High' | 'Mid' | 'Low';
+  difficulty: string | number;
   tags: string[];
   hint?: string | null;
   solution_code?: string;
   solution_code_language?: string;
   test_case_id: string;
+  visible?: boolean;
 }
 
 export interface UpdateProblemPayload extends CreateProblemPayload {
@@ -94,7 +95,7 @@ export interface AdminProblemDetail {
   spjCode: string | null;
   spjCompileOk: boolean;
   visible: boolean;
-  difficulty: 'Low' | 'Mid' | 'High';
+  difficulty: string | number;
   tags: string[];
   hint?: string | null;
   source?: string | null;
@@ -230,8 +231,6 @@ export const adminService = {
     return mapAdminContest(response.data);
   },
 
-  // ...
-
   getContests: async ({ page = 1, limit = 20, keyword }: ContestListParams = {}): Promise<AdminContestListResponse> => {
     const params = {
       offset: (page - 1) * limit,
@@ -264,7 +263,6 @@ export const adminService = {
     return mapAdminContest(response.data);
   },
 
-  // ...
   deleteContest: async (id: number): Promise<void> => {
     const baseUrl = getMsBaseUrl();
     await apiClient.delete(`${baseUrl}/contest/${id}`);
@@ -294,47 +292,44 @@ export const adminService = {
     const params = {
       page,
       limit,
+      size: limit,
       keyword,
     };
-    const response = await apiClient.get<{ data: { results: Workbook[]; total: number } }>(buildWorkbookUrl('/'), { params });
-    // The backend might return different structures, adapting based on typical patterns
-    // Assuming backend returns { data: { results: [], total: ... } } or similar
-    // If it returns just array as before, we need to handle that.
-    // Previous implementation was: const response = await apiClient.get<Workbook[]>(buildWorkbookUrl('/all'));
-    // Let's assume we want to use the paginated endpoint if available, or fetch all and slice if not.
-    // Given the user wants pagination, let's try to use the standard /admin/workbook or similar if it exists,
-    // but here we are using WORKBOOK_API_BASE.
-    // Let's stick to the previous endpoint but wrap it to match the interface if the backend doesn't support pagination yet,
-    // OR better, assuming the backend supports pagination on GET /workbook/ (common REST pattern).
-    // If the previous code used /all, maybe / supports pagination.
-
-    // Let's try to be safe: if the response data is an array, wrap it. If it's an object with results, use it.
+    const response = await apiClient.get<any>(buildWorkbookUrl('/'), { params });
     const rawData: any = response.data;
+    const payload = rawData?.data ?? rawData;
 
     let results: Workbook[] = [];
     let total = 0;
 
-    if (Array.isArray(rawData)) {
-      results = rawData;
-      total = rawData.length;
-      // Manual pagination if backend doesn't support it
+    if (Array.isArray(payload)) {
+      results = payload;
+      total = payload.length;
       if (limit) {
         const start = (page - 1) * limit;
         results = results.slice(start, start + limit);
       }
-    } else if (rawData && Array.isArray(rawData.results)) {
-      results = rawData.results;
-      total = rawData.total || results.length;
-    } else if (rawData && Array.isArray(rawData.data)) {
-      results = rawData.data;
-      total = rawData.total || results.length;
+    } else if (payload && Array.isArray(payload.results)) {
+      results = payload.results;
+      total = payload.total || results.length;
+    } else if (payload && Array.isArray(payload.items)) {
+      results = payload.items;
+      total = payload.total || results.length;
+    } else if (payload && Array.isArray(payload.data)) {
+      results = payload.data;
+      total = payload.total || results.length;
     }
+
+    const resolvedLimit =
+      Number.isFinite(Number(payload?.size)) && Number(payload?.size) > 0
+        ? Number(payload.size)
+        : limit;
 
     return {
       results,
       total,
-      offset: (page - 1) * limit,
-      limit,
+      offset: (page - 1) * resolvedLimit,
+      limit: resolvedLimit,
     };
   },
 
@@ -399,12 +394,15 @@ export const adminService = {
 
   searchAdminProblems: async ({ keyword, limit = 20, offset = 0 }: AdminProblemListParams = {}): Promise<Problem[]> => {
     const page = Math.floor(offset / limit) + 1;
-    const response = await api.get<any>('/problem/contest/serach', {
-      page,
-      size: limit,
-      ...(keyword && keyword.trim().length > 0 ? { keyword: keyword.trim() } : {}),
+    const baseUrl = getMsBaseUrl();
+    const response = await apiClient.get<any>(`${baseUrl}/problem/contest/search`, {
+      params: {
+        page,
+        size: limit,
+        ...(keyword && keyword.trim().length > 0 ? { keyword: keyword.trim() } : {}),
+      }
     });
-    const data = unwrap(response);
+    const data = response.data;
     const results: any[] = Array.isArray(data)
       ? data
       : Array.isArray(data?.results)
@@ -605,8 +603,6 @@ export const adminService = {
     student_id: string;
     major_id: number;
   }> => {
-    // Use MS_API_BASE from env (or default) as requested by user
-    // This allows direct connection to MS server (e.g. http://localhost:9000/api) if configured
     const baseUrl = MS_API_BASE.endsWith('/') ? MS_API_BASE.slice(0, -1) : MS_API_BASE;
     const response = await axios.get<{
       user_id: number;
@@ -698,17 +694,13 @@ export const adminService = {
     const response = await apiClient.get<SystemMetrics>(`${MS_API_BASE}/monitor/judge-status`);
     const data = response.data;
 
-    // 최근 60분 데이터 채우기 (빈 시간은 0으로)
     const filledHistory: Array<{ time: string; count: number }> = [];
     const now = new Date();
-    // 백엔드(UTC) 시간을 로컬 시간으로 변환하여 Map 생성
     const historyMap = new Map(data.history.map((item) => {
-      // item.time은 "HH:mm" (UTC) 형식
       const [utcHours, utcMinutes] = item.time.split(':').map(Number);
       const date = new Date();
       date.setUTCHours(utcHours, utcMinutes, 0, 0);
 
-      // 로컬 시간 문자열로 변환 ("HH:mm")
       const localHours = String(date.getHours()).padStart(2, '0');
       const localMinutes = String(date.getMinutes()).padStart(2, '0');
       return [`${localHours}:${localMinutes}`, item.count];
@@ -744,10 +736,6 @@ export const adminService = {
     };
     const response = await apiClient.get<any>(buildOrganizationUrl(''), { params });
     const data = response.data;
-
-    // MS returns { items: [], total: ..., page: ..., size: ... } or similar
-    // Based on routes.py: return await organization_serv.list_organizations(page, size, db)
-    // Let's assume it returns { items: [...], total: ... } directly or wrapped
 
     const items = data?.items || data?.data?.items || [];
     const total = data?.total || data?.data?.total || items.length;
@@ -824,16 +812,21 @@ const adaptProblem = (raw: any): Problem => {
       id: 0,
       title: '알 수 없는 문제',
       description: '',
-      difficulty: 'Mid',
+      difficulty: 0,
       timeLimit: 0,
       memoryLimit: 0,
       createTime: '',
     };
   }
 
-  const difficulty = String(raw.difficulty ?? raw?.Difficulty ?? 'Mid');
-  const normalizedDifficulty =
-    difficulty === 'Low' || difficulty === 'High' ? difficulty : 'Mid';
+  const difficulty =
+    raw?.lv ??
+    raw?.level ??
+    raw?.difficulty_level ??
+    raw?.difficultyLevel ??
+    raw?.difficulty ??
+    raw?.Difficulty ??
+    0;
   const rawVisibilitySources: unknown[] = [
     raw?.visible,
     raw?.is_public,
@@ -849,7 +842,7 @@ const adaptProblem = (raw: any): Problem => {
     displayId: raw.displayId ?? raw.display_id ?? raw._id,
     title: raw.title ?? '제목 없음',
     description: raw.description ?? '',
-    difficulty: normalizedDifficulty as Problem['difficulty'],
+    difficulty: difficulty as Problem['difficulty'],
     timeLimit: Number(raw.time_limit ?? raw.timeLimit ?? 0) || 0,
     memoryLimit: Number(raw.memory_limit ?? raw.memoryLimit ?? 0) || 0,
     inputDescription: raw.input_description ?? raw.inputDescription,
@@ -869,9 +862,14 @@ const adaptProblem = (raw: any): Problem => {
 };
 
 const adaptAdminProblemDetail = (raw: any): AdminProblemDetail => {
-  const difficulty = String(raw?.difficulty ?? raw?.Difficulty ?? 'Mid');
-  const normalizedDifficulty =
-    difficulty === 'Low' || difficulty === 'High' ? difficulty : 'Mid';
+  const difficulty =
+    raw?.lv ??
+    raw?.level ??
+    raw?.difficulty_level ??
+    raw?.difficultyLevel ??
+    raw?.difficulty ??
+    raw?.Difficulty ??
+    0;
 
   const samples = Array.isArray(raw?.samples)
     ? raw.samples.map((item: any) => ({
@@ -929,7 +927,7 @@ const adaptAdminProblemDetail = (raw: any): AdminProblemDetail => {
     spjCode: raw?.spj_code ?? raw?.spjCode ?? null,
     spjCompileOk: Boolean(raw?.spj_compile_ok ?? raw?.spjCompileOk),
     visible: parseBoolean(rawVisible),
-    difficulty: normalizedDifficulty as AdminProblemDetail['difficulty'],
+    difficulty: difficulty as AdminProblemDetail['difficulty'],
     tags,
     hint: raw?.hint ?? null,
     source: raw?.source ?? null,

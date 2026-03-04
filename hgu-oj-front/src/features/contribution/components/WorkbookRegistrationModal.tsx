@@ -211,13 +211,13 @@ export const WorkbookRegistrationModal: React.FC<WorkbookRegistrationModalProps>
                             </h3>
                             <div className="flex space-x-1 bg-white dark:bg-slate-900 p-1 rounded-lg border border-gray-200 dark:border-slate-700">
                                 <button
-                                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${activeTab === 'basic' ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800'}`}
+                                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${activeTab === 'basic' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800'}`}
                                     onClick={() => setActiveTab('basic')}
                                 >
                                     기본 정보
                                 </button>
                                 <button
-                                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${activeTab === 'problems' ? 'bg-indigo-50 text-indigo-700 dark:bg-indigo-900/30 dark:text-indigo-300 shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800'}`}
+                                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${activeTab === 'problems' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800'}`}
                                     onClick={() => setActiveTab('problems')}
                                 >
                                     문제 관리
@@ -256,7 +256,7 @@ export const WorkbookRegistrationModal: React.FC<WorkbookRegistrationModalProps>
                                 <div>
                                     <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">설명</label>
                                     <textarea
-                                        className="block w-full border-gray-300 dark:border-slate-600 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm py-2.5 px-3 bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-700 transition-colors resize-none"
+                                        className="block w-full border-gray-300 dark:border-slate-600 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm py-2.5 px-3 bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-700 transition-colors resize-none"
                                         rows={8}
                                         value={formState.description}
                                         onChange={e => setFormState({ ...formState, description: e.target.value })}
@@ -268,7 +268,7 @@ export const WorkbookRegistrationModal: React.FC<WorkbookRegistrationModalProps>
                                         type="checkbox"
                                         checked={formState.visible}
                                         onChange={e => setFormState({ ...formState, visible: e.target.checked })}
-                                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded transition-colors"
+                                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded transition-colors"
                                     />
                                     <label htmlFor="visible" className="ml-2 block text-sm font-medium text-gray-900 dark:text-slate-100 cursor-pointer select-none">
                                         공개 설정
@@ -285,14 +285,14 @@ export const WorkbookRegistrationModal: React.FC<WorkbookRegistrationModalProps>
                                             placeholder="문제 검색 (제목)"
                                             value={problemInput}
                                             onChange={e => handleSearchProblem(e.target.value)}
-                                            className="bg-white dark:bg-slate-900 focus:ring-indigo-500"
+                                            className="bg-white dark:bg-slate-900 focus:ring-blue-500"
                                         />
                                         {problemSearch.results.length > 0 && (
                                             <ul className="absolute z-10 mt-2 w-full max-h-60 overflow-auto rounded-xl bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 bg-white shadow-xl ring-1 ring-black ring-opacity-5 focus:outline-none">
                                                 {problemSearch.results.map(p => (
                                                     <li
                                                         key={p.id}
-                                                        className="cursor-pointer select-none relative py-3 pl-4 pr-9 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 text-gray-900 dark:text-slate-100 transition-colors border-b border-gray-50 last:border-0"
+                                                        className="cursor-pointer select-none relative py-3 pl-4 pr-9 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-gray-900 dark:text-slate-100 transition-colors border-b border-gray-50 last:border-0"
                                                         onClick={() => handleAddProblem(p)}
                                                     >
                                                         <div className="flex items-center">
@@ -355,18 +355,10 @@ export const WorkbookRegistrationModal: React.FC<WorkbookRegistrationModalProps>
                         )}
                     </div>
                     <div className="bg-gray-50/80 dark:bg-slate-800 px-8 py-5 sm:flex sm:flex-row-reverse border-t border-gray-100 dark:border-slate-800">
-                        <Button
-                            onClick={handleSubmit}
-                            disabled={loading}
-                            className="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-5 py-2.5 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm transition-colors"
-                        >
+                        <Button onClick={handleSubmit} disabled={loading} className="w-full sm:ml-3 sm:w-auto">
                             {loading ? '저장 중...' : (initialData ? '수정하기' : '등록하기')}
                         </Button>
-                        <Button
-                            onClick={onClose}
-                            variant="outline"
-                            className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 dark:border-slate-600 shadow-sm px-5 py-2.5 bg-white dark:bg-slate-900 text-base font-medium text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition-colors"
-                        >
+                        <Button onClick={onClose} variant="outline" className="mt-3 w-full sm:mt-0 sm:ml-3 sm:w-auto">
                             취소
                         </Button>
                     </div>

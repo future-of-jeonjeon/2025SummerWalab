@@ -1,10 +1,11 @@
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { WorkbookList } from '../components/organisms/WorkbookList';
 import { useWorkbooks } from '../hooks/useWorkbooks';
 import { useWorkbookStore } from '../stores/workbookStore';
 import { problemService } from '../services/problemService';
+import CommonPagination from '../components/common/CommonPagination';
 
 const normalizeTags = (tags: string[]): string[] => {
   const unique = new Set(
@@ -15,19 +16,9 @@ const normalizeTags = (tags: string[]): string[] => {
   return Array.from(unique).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 };
 
-const areTagArraysEqual = (a: string[], b: string[]): boolean => {
-  if (a.length !== b.length) return false;
-  return a.every((value, index) => value === b[index]);
-};
-
-const parseTagsFromQuery = (value: string | null): string[] => {
-  if (!value) return [];
-  return normalizeTags(value.split(','));
-};
-
 export const WorkbookListPage: React.FC = () => {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
+  const location = useLocation();
   const { filter, setFilter } = useWorkbookStore();
   const [searchQuery, setSearchQuery] = useState(filter.search || '');
   const [showAllCategories, setShowAllCategories] = useState(false);
@@ -57,50 +48,19 @@ export const WorkbookListPage: React.FC = () => {
     [filter.tags]
   );
 
-  const searchParamsString = searchParams.toString();
-  const selectedTagsRef = useRef<string[]>(selectedTags);
-
   useEffect(() => {
-    selectedTagsRef.current = selectedTags;
-  }, [selectedTags]);
-
-  useEffect(() => {
-    setFilter({ tags: [], page: 1 });
-    const params = new URLSearchParams(searchParamsString);
-    if (params.has('tags')) {
-      params.delete('tags');
-      setSearchParams(params, { replace: true });
+    const presetTag = typeof (location.state as any)?.presetTag === 'string'
+      ? String((location.state as any).presetTag).trim()
+      : '';
+    if (presetTag) {
+      setFilter({ tags: [presetTag], page: 1 });
+    } else {
+      setFilter({ tags: [], page: 1 });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      setFilter({ tags: [], page: 1 });
+    };
   }, []);
-
-  useEffect(() => {
-    const params = new URLSearchParams(searchParamsString);
-    const parsed = parseTagsFromQuery(params.get('tags'));
-    if (!areTagArraysEqual(parsed, selectedTagsRef.current)) {
-      setFilter({ tags: parsed, page: 1 });
-    }
-  }, [searchParamsString, setFilter]);
-
-  useEffect(() => {
-    const normalized = normalizeTags(selectedTags);
-    const params = new URLSearchParams(searchParamsString);
-    const current = params.get('tags');
-
-    if (normalized.length === 0) {
-      if (current) {
-        params.delete('tags');
-        setSearchParams(params, { replace: true });
-      }
-      return;
-    }
-
-    const joined = normalized.join(',');
-    if (current !== joined) {
-      params.set('tags', joined);
-      setSearchParams(params, { replace: true });
-    }
-  }, [selectedTags, searchParamsString, setSearchParams]);
 
   const handleCategoryToggle = (tagName: string) => {
     const newTags = selectedTags.includes(tagName)
@@ -124,9 +84,7 @@ export const WorkbookListPage: React.FC = () => {
   };
 
   const handleTagClick = (tag: string) => {
-    const newQuery = searchQuery ? `${searchQuery} ${tag}` : tag;
-    setSearchQuery(newQuery);
-    setFilter({ search: newQuery, page: 1 });
+    setFilter({ tags: [tag], page: 1 });
   };
 
   const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -138,6 +96,7 @@ export const WorkbookListPage: React.FC = () => {
 
   const handlePageChange = (page: number) => {
     setFilter({ page });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleSortChange = (sortValue: string) => {
@@ -255,10 +214,16 @@ export const WorkbookListPage: React.FC = () => {
               searchQuery={searchQuery}
               onWorkbookClick={handleWorkbookClick}
               onTagClick={handleTagClick}
-              onPageChange={handlePageChange}
-              currentPage={currentPage}
-              totalPages={totalPages}
             />
+            <div className="mt-10">
+              <CommonPagination
+                page={currentPage}
+                pageSize={filter.limit ?? 10}
+                totalPages={totalPages}
+                totalItems={totalCount}
+                onChangePage={handlePageChange}
+              />
+            </div>
           </div>
 
         </div>

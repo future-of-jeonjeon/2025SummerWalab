@@ -134,7 +134,6 @@ export const OrganizationContestManager: React.FC = () => {
             <div className="flex justify-end gap-4">
                 <Button
                     onClick={handleCreateClick}
-                    className="inline-flex items-center justify-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
                 >
                     <svg className="w-5 h-5 mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -170,7 +169,7 @@ export const OrganizationContestManager: React.FC = () => {
                                 <tr>
                                     <td colSpan={5} className="px-6 py-12 text-center text-gray-500 dark:text-slate-400">
                                         <div className="flex flex-col items-center justify-center space-y-3">
-                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400"></div>
                                             <span className="text-sm">대회를 불러오는 중입니다...</span>
                                         </div>
                                     </td>
@@ -184,7 +183,7 @@ export const OrganizationContestManager: React.FC = () => {
                                         >
                                             <td className="px-6 py-5 whitespace-nowrap">
                                                 <div className="flex flex-col">
-                                                    <span className="text-sm font-semibold text-gray-900 dark:text-slate-100 group-hover:text-indigo-600 transition-colors">
+                                                    <span className="text-sm font-semibold text-gray-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-300 transition-colors">
                                                         {contest.title}
                                                     </span>
                                                     {contest.description && (
@@ -212,7 +211,7 @@ export const OrganizationContestManager: React.FC = () => {
                                                 <div className="flex justify-end items-center gap-2">
                                                     <button
                                                         onClick={() => handleEditClick(contest)}
-                                                        className="text-gray-400 dark:text-slate-500 hover:text-indigo-600 transition-colors p-2 rounded-full hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
+                                                        className="text-gray-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-300 transition-colors p-2 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/30"
                                                         title="대회 수정"
                                                     >
                                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -254,15 +253,14 @@ export const OrganizationContestManager: React.FC = () => {
                 </div>
             </div>
 
-            {!isLoading && totalPages > 0 && (
+            {!isLoading && (
                 <div className="flex justify-center mt-6">
                     <CommonPagination
                         page={page}
+                        pageSize={pageSize}
                         totalPages={totalPages}
                         totalItems={totalItems}
-                        pageSize={pageSize}
-                        onPrevious={() => setPage(Math.max(1, page - 1))}
-                        onNext={() => setPage(Math.min(totalPages, page + 1))}
+                        onChangePage={(nextPage) => setPage(nextPage)}
                         unit="개"
                     />
                 </div>

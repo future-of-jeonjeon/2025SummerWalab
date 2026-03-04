@@ -40,12 +40,6 @@ const getNextDisplayId = (problems: Problem[]) => {
     return String(maxDisplayId + 1);
 };
 
-const getDisplayOrder = (displayId?: string) => {
-    const parsed = Number(displayId);
-    if (Number.isFinite(parsed)) return parsed;
-    return Number.MAX_SAFE_INTEGER;
-};
-
 export const CreateContestModal: React.FC<CreateContestModalProps> = ({
     isOpen,
     onClose,
@@ -81,14 +75,14 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
 
     const [contestProblems, setContestProblems] = useState<Problem[]>([]);
     const [problemInput, setProblemInput] = useState('');
-    const [problemDisplayId, setProblemDisplayId] = useState('');
-    const [selectedProblem, setSelectedProblem] = useState<Problem | null>(null);
     const [problemSearch, setProblemSearch] = useState<{ results: Problem[]; loading: boolean; error: string | null }>({
         results: [],
         loading: false,
         error: null,
     });
     const problemSearchTimerRef = useRef<number | null>(null);
+    const dragItemRef = useRef<number | null>(null);
+    const dragOverItemRef = useRef<number | null>(null);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -135,8 +129,6 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
         setError('');
         setProblemMessage({});
         setProblemInput('');
-        setProblemDisplayId('');
-        setSelectedProblem(null);
         setProblemSearch({ results: [], loading: false, error: null });
         setActiveTab('basic');
     }, [initialData, isOpen]);
@@ -151,7 +143,6 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                 const problems = await adminService.getContestProblems(contestId);
                 const normalized = Array.isArray(problems) ? problems : [];
                 setContestProblems(normalized);
-                setProblemDisplayId(getNextDisplayId(normalized));
             } catch {
                 setProblemMessage({ error: '대회 문제를 불러오지 못했습니다.' });
             }
@@ -191,7 +182,6 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
 
         const trimmed = keyword.trim();
         if (!trimmed) {
-            setSelectedProblem(null);
             setProblemSearch({ results: [], loading: false, error: null });
             return;
         }
@@ -207,32 +197,47 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
         }, 300);
     };
 
-    const handleAddProblem = () => {
-        if (!selectedProblem) {
-            setProblemMessage({ error: '추가할 문제를 먼저 선택해주세요.' });
+    const normalizeContestProblemOrder = (items: Problem[]) => (
+        items.map((problem, index) => ({
+            ...problem,
+            displayId: String(index + 1),
+        }))
+    );
+
+    const handleAddProblem = (problem: Problem) => {
+        if (contestProblems.some((p) => p.id === problem.id)) {
+            setProblemMessage({ error: '이미 등록된 문제입니다.' });
             return;
         }
 
-        const displayId = (problemDisplayId.trim() || getNextDisplayId(contestProblems)).trim();
-
-        if (contestProblems.some((p) => p.id === selectedProblem.id || p.displayId === displayId)) {
-            setProblemMessage({ error: '이미 등록된 문제 또는 표시 ID 입니다.' });
-            return;
-        }
-
-        setContestProblems((prev) => [...prev, { ...selectedProblem, displayId }]);
+        setContestProblems((prev) => normalizeContestProblemOrder([...prev, problem]));
         setProblemInput('');
-        setProblemDisplayId(getNextDisplayId([...contestProblems, { ...selectedProblem, displayId }]));
-        setSelectedProblem(null);
         setProblemSearch({ results: [], loading: false, error: null });
         setProblemMessage({ success: '문제를 추가했습니다.' });
     };
 
     const handleDeleteProblem = (problemId: number) => {
         const updated = contestProblems.filter((p) => p.id !== problemId);
-        setContestProblems(updated);
-        setProblemDisplayId(getNextDisplayId(updated));
+        setContestProblems(normalizeContestProblemOrder(updated));
         setProblemMessage({ success: '문제를 삭제했습니다.' });
+    };
+
+    const handleSortProblems = () => {
+        if (dragItemRef.current === null || dragOverItemRef.current === null) {
+            return;
+        }
+        if (dragItemRef.current === dragOverItemRef.current) {
+            return;
+        }
+
+        const next = [...contestProblems];
+        const dragged = next[dragItemRef.current];
+        next.splice(dragItemRef.current, 1);
+        next.splice(dragOverItemRef.current, 0, dragged);
+
+        dragItemRef.current = null;
+        dragOverItemRef.current = null;
+        setContestProblems(normalizeContestProblemOrder(next));
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -275,9 +280,9 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                     requires_approval: formData.requires_approval,
                     is_organization_only: formData.is_organization_only,
                     languages: formData.languages,
-                    problems: contestProblems.map((p) => ({
+                    problems: contestProblems.map((p, index) => ({
                         problem_id: p.id,
-                        display_id: (p.displayId || getNextDisplayId([])).trim(),
+                        display_id: String(index + 1),
                     })),
                 };
 
@@ -301,9 +306,9 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                     is_organization_only: formData.is_organization_only,
                     languages: formData.languages,
                     organization_id: organizationId!,
-                    problems: contestProblems.map((p) => ({
+                    problems: contestProblems.map((p, index) => ({
                         problem_id: p.id,
-                        display_id: (p.displayId || getNextDisplayId([])).trim(),
+                        display_id: String(index + 1),
                     })),
                 };
 
@@ -344,7 +349,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                     <button
                                         type="button"
                                         className={`border-b-2 px-1 py-2 text-sm font-semibold ${activeTab === 'basic'
-                                            ? 'border-indigo-600 text-indigo-700 dark:text-indigo-400'
+                                            ? 'border-blue-600 text-blue-700 dark:text-blue-400'
                                             : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                                             }`}
                                         onClick={() => setActiveTab('basic')}
@@ -354,7 +359,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                     <button
                                         type="button"
                                         className={`border-b-2 px-1 py-2 text-sm font-semibold ${activeTab === 'problems'
-                                            ? 'border-indigo-600 text-indigo-700 dark:text-indigo-400'
+                                            ? 'border-blue-600 text-blue-700 dark:text-blue-400'
                                             : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
                                             }`}
                                         onClick={() => setActiveTab('problems')}
@@ -380,7 +385,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                                 <input
                                                     type="text"
                                                     required
-                                                    className="block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-800 px-3 py-2.5 text-sm text-gray-900 dark:text-slate-100 shadow-sm transition-colors focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-indigo-500"
+                                                    className="block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-800 px-3 py-2.5 text-sm text-gray-900 dark:text-slate-100 shadow-sm transition-colors focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-blue-500"
                                                     value={formData.title}
                                                     onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                                                 />
@@ -392,7 +397,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                                     <input
                                                         type="datetime-local"
                                                         required
-                                                        className="block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-800 px-3 py-2.5 text-sm text-gray-900 dark:text-slate-100 shadow-sm transition-colors focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-indigo-500"
+                                                        className="block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-800 px-3 py-2.5 text-sm text-gray-900 dark:text-slate-100 shadow-sm transition-colors focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-blue-500"
                                                         value={formData.start_time}
                                                         onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
                                                     />
@@ -402,7 +407,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                                     <input
                                                         type="datetime-local"
                                                         required
-                                                        className="block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-800 px-3 py-2.5 text-sm text-gray-900 dark:text-slate-100 shadow-sm transition-colors focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-indigo-500"
+                                                        className="block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-800 px-3 py-2.5 text-sm text-gray-900 dark:text-slate-100 shadow-sm transition-colors focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-blue-500"
                                                         value={formData.end_time}
                                                         onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
                                                     />
@@ -414,7 +419,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                                 <textarea
                                                     rows={4}
                                                     required
-                                                    className="block w-full resize-none rounded-lg border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-800 px-3 py-2.5 text-sm text-gray-900 dark:text-slate-100 shadow-sm transition-colors focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-indigo-500"
+                                                    className="block w-full resize-none rounded-lg border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-800 px-3 py-2.5 text-sm text-gray-900 dark:text-slate-100 shadow-sm transition-colors focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-blue-500"
                                                     value={formData.description}
                                                     onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                                 />
@@ -425,7 +430,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                                 <input
                                                     type="password"
                                                     autoComplete="new-password"
-                                                    className="block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-800 px-3 py-2.5 text-sm text-gray-900 dark:text-slate-100 shadow-sm transition-colors focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-indigo-500"
+                                                    className="block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-800 px-3 py-2.5 text-sm text-gray-900 dark:text-slate-100 shadow-sm transition-colors focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-blue-500"
                                                     value={formData.password}
                                                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                                                 />
@@ -436,7 +441,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                                     <input
                                                         id="is_organization_only"
                                                         type="checkbox"
-                                                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 transition-colors focus:ring-indigo-500"
+                                                        className="h-4 w-4 rounded border-gray-300 text-blue-600 transition-colors focus:ring-blue-500"
                                                         checked={formData.is_organization_only}
                                                         onChange={(e) => setFormData({ ...formData, is_organization_only: e.target.checked })}
                                                     />
@@ -448,7 +453,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                                     <input
                                                         id="requires_approval"
                                                         type="checkbox"
-                                                        className="h-4 w-4 rounded border-gray-300 text-indigo-600 transition-colors focus:ring-indigo-500"
+                                                        className="h-4 w-4 rounded border-gray-300 text-blue-600 transition-colors focus:ring-blue-500"
                                                         checked={formData.requires_approval}
                                                         onChange={(e) => setFormData({ ...formData, requires_approval: e.target.checked })}
                                                     />
@@ -464,7 +469,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                                 </label>
                                                 <input
                                                     type="text"
-                                                    className="block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-800 px-3 py-2.5 text-sm text-gray-900 dark:text-slate-100 shadow-sm transition-colors focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-indigo-500"
+                                                    className="block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-800 px-3 py-2.5 text-sm text-gray-900 dark:text-slate-100 shadow-sm transition-colors focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-blue-500"
                                                     placeholder="예: 192.168.1.1/24, 10.0.0.1"
                                                     value={formData.allowed_ip_ranges}
                                                     onChange={(e) => setFormData({ ...formData, allowed_ip_ranges: e.target.value })}
@@ -478,7 +483,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                                         <label
                                                             key={lang}
                                                             className={`inline-flex cursor-pointer items-center rounded-full border px-3 py-1.5 text-sm font-medium transition-all duration-200 ${formData.languages.includes(lang)
-                                                                ? 'border-indigo-200 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
+                                                                ? 'border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
                                                                 : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'
                                                                 }`}
                                                         >
@@ -520,7 +525,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                                     <div className="relative">
                                                         <input
                                                             type="text"
-                                                            className="block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-800 px-3 py-2.5 text-sm text-gray-900 dark:text-slate-100 shadow-sm transition-colors focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-indigo-500"
+                                                            className="block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-800 px-3 py-2.5 text-sm text-gray-900 dark:text-slate-100 shadow-sm transition-colors focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-blue-500"
                                                             placeholder="문제 검색 (ID, 표시 ID, 제목)"
                                                             value={problemInput}
                                                             onChange={(e) => handleSearchProblem(e.target.value)}
@@ -534,12 +539,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                                                         <button
                                                                             type="button"
                                                                             className="w-full px-3 py-2 text-left text-sm text-gray-900 dark:text-slate-100 hover:bg-gray-50 dark:hover:bg-slate-800"
-                                                                            onClick={() => {
-                                                                                setSelectedProblem(result);
-                                                                                setProblemInput(result.title);
-                                                                                setProblemDisplayId((prev) => prev.trim() || getNextDisplayId(contestProblems));
-                                                                                setProblemSearch({ results: [], loading: false, error: null });
-                                                                            }}
+                                                                            onClick={() => handleAddProblem(result)}
                                                                         >
                                                                             {result.title}
                                                                         </button>
@@ -548,22 +548,9 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                                             </ul>
                                                         )}
                                                     </div>
-                                                    <input
-                                                        type="text"
-                                                        className="block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-800 px-3 py-2.5 text-sm text-gray-900 dark:text-slate-100 shadow-sm transition-colors focus:border-indigo-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-indigo-500"
-                                                        placeholder="표시 ID"
-                                                        value={problemDisplayId}
-                                                        onChange={(e) => setProblemDisplayId(e.target.value)}
-                                                    />
-
-                                                    <Button
-                                                        type="button"
-                                                        onClick={handleAddProblem}
-                                                        disabled={!selectedProblem}
-                                                        className="rounded-lg bg-indigo-600 px-4 py-2.5 text-white hover:bg-indigo-700"
-                                                    >
-                                                        문제 추가
-                                                    </Button>
+                                                    <div className="text-xs text-gray-500 dark:text-slate-400 sm:col-span-2 sm:text-right">
+                                                        문제를 추가한 뒤 드래그해서 순서 배열 가능
+                                                    </div>
                                                 </div>
 
                                                 {contestProblems.length === 0 ? (
@@ -579,11 +566,21 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                                                 </tr>
                                                             </thead>
                                                             <tbody className="divide-y divide-gray-100 dark:divide-slate-700 bg-white dark:bg-slate-900">
-                                                                {[...contestProblems]
-                                                                    .sort((a, b) => getDisplayOrder(a.displayId) - getDisplayOrder(b.displayId))
-                                                                    .map((problem) => (
-                                                                        <tr key={`contest-problem-${problem.id}-${problem.displayId || ''}`}>
-                                                                            <td className="px-3 py-2 text-sm text-gray-700 dark:text-slate-300">{problem.displayId || problem.id}</td>
+                                                                {contestProblems.map((problem, index) => (
+                                                                        <tr
+                                                                            key={`contest-problem-${problem.id}-${problem.displayId || ''}`}
+                                                                            className="cursor-move hover:bg-gray-50 dark:hover:bg-slate-800"
+                                                                            draggable
+                                                                            onDragStart={() => {
+                                                                                dragItemRef.current = index;
+                                                                            }}
+                                                                            onDragEnter={() => {
+                                                                                dragOverItemRef.current = index;
+                                                                            }}
+                                                                            onDragEnd={handleSortProblems}
+                                                                            onDragOver={(event) => event.preventDefault()}
+                                                                        >
+                                                                            <td className="px-3 py-2 text-sm text-gray-700 dark:text-slate-300">{index + 1}</td>
                                                                             <td className="px-3 py-2 text-sm text-gray-800 dark:text-slate-100">{problem.title}</td>
                                                                             <td className="px-3 py-2 text-right">
                                                                                 <button
@@ -612,7 +609,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                 <Button
                                     onClick={onClose}
                                     variant="outline"
-                                    className="rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-5 py-2.5 text-base font-medium text-gray-700 dark:text-slate-200 shadow-sm transition-colors hover:bg-gray-50 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 sm:text-sm"
+                                    className="sm:text-sm"
                                 >
                                     취소
                                 </Button>
@@ -621,7 +618,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                         type="submit"
                                         form="contest-form"
                                         disabled={loading}
-                                        className="inline-flex justify-center rounded-lg border border-transparent bg-indigo-600 px-5 py-2.5 text-base font-medium text-white shadow-sm transition-colors hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:focus:ring-offset-slate-900 sm:text-sm"
+                                        className="sm:text-sm"
                                     >
                                         {loading ? (isEditMode ? '수정 중...' : '생성 중...') : (isEditMode ? '수정하기' : '생성하기')}
                                     </Button>
@@ -640,10 +637,11 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                         setProblemMessage({ success: '문제를 생성했습니다. 대회에 자동 추가 중입니다...' });
                         try {
                             const newProblemDetail = await adminService.getAdminProblemDetail(created.problemId);
-                            const nextId = (problemDisplayId.trim() || getNextDisplayId(contestProblems)).trim();
 
                             if (isEditMode && contestId) {
-                                await adminService.addContestProblemFromPublic(contestId, created.problemId, nextId);
+                                await adminService.addContestProblemFromPublic(contestId, created.problemId, getNextDisplayId(contestProblems));
+                                const refreshed = await adminService.getContestProblems(contestId);
+                                setContestProblems(normalizeContestProblemOrder(Array.isArray(refreshed) ? refreshed : []));
                             } else {
                                 const normalizedProblem: Problem = {
                                     id: newProblemDetail.id,
@@ -655,14 +653,11 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                     createTime: new Date().toISOString(),
                                     tags: newProblemDetail.tags,
                                     languages: newProblemDetail.languages,
-                                    displayId: nextId,
                                 };
                                 setContestProblems((prev) => {
                                     if (prev.some((p) => p.id === normalizedProblem.id)) return prev;
-                                    const newList = [...prev, normalizedProblem];
-                                    return newList;
+                                    return normalizeContestProblemOrder([...prev, normalizedProblem]);
                                 });
-                                setProblemDisplayId((prev) => (prev.trim() ? prev : getNextDisplayId(contestProblems)));
                             }
 
                             setProblemInput('');

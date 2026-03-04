@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useContests } from '../hooks/useContests';
+import CommonPagination from '../components/common/CommonPagination';
 export const ContestListPage: React.FC = () => {
   const navigate = useNavigate();
 
@@ -62,43 +63,51 @@ export const ContestListPage: React.FC = () => {
   const PageSkeleton = () => (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
       <div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 py-8">
-        <div className="animate-pulse">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between mb-8">
-            <div className="flex items-center gap-3 lg:ml-2">
-              <div className="h-4 bg-gray-200 dark:bg-slate-700 rounded w-24"></div>
-              <div className="h-8 bg-gray-200 dark:bg-slate-700 rounded w-12"></div>
-            </div>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end">
-              <div className="h-10 bg-gray-200 dark:bg-slate-700 rounded w-full sm:w-[320px]"></div>
-              <div className="h-10 bg-gray-200 dark:bg-slate-700 rounded w-full sm:w-40"></div>
+        <div className="animate-pulse space-y-12">
+          <div className="space-y-4">
+            <div className="h-6 w-40 rounded bg-gray-200 dark:bg-slate-700" />
+            <div className="space-y-4">
+              {Array.from({ length: 2 }).map((_, index) => (
+                <div key={`active-skeleton-${index}`} className="bg-white dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-700 p-6 flex flex-col sm:flex-row gap-6">
+                  <div className="w-16 h-16 rounded-lg bg-gray-200 dark:bg-slate-700 shrink-0" />
+                  <div className="flex-1 space-y-3">
+                    <div className="h-5 w-2/5 rounded bg-gray-200 dark:bg-slate-700" />
+                    <div className="h-4 w-1/3 rounded bg-gray-200 dark:bg-slate-700" />
+                    <div className="flex gap-2">
+                      <div className="h-6 w-14 rounded bg-gray-200 dark:bg-slate-700" />
+                      <div className="h-6 w-16 rounded bg-gray-200 dark:bg-slate-700" />
+                      <div className="h-6 w-20 rounded bg-gray-200 dark:bg-slate-700" />
+                    </div>
+                    <div className="h-4 w-3/4 rounded bg-gray-200 dark:bg-slate-700" />
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-5">
-            {[...Array(6)].map((_, i) => (
-              <div key={i} className="mx-auto w-full max-w-[420px] p-4 h-56 flex flex-col bg-white dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-700">
-                <div className="flex justify-between items-start mb-2 gap-2">
-                  <div className="h-6 bg-gray-200 dark:bg-slate-700 rounded w-3/4"></div>
-                  <div className="h-5 bg-gray-200 dark:bg-slate-700 rounded w-16"></div>
-                </div>
-                <div className="flex-1 mb-3 space-y-2">
-                  <div className="h-4 bg-gray-200 dark:bg-slate-700 rounded w-full"></div>
-                  <div className="h-4 bg-gray-200 dark:bg-slate-700 rounded w-5/6"></div>
-                  <div className="h-4 bg-gray-200 dark:bg-slate-700 rounded w-4/6"></div>
-                </div>
-                <div className="flex justify-between items-center mb-3">
-                  <div className="h-3 bg-gray-200 dark:bg-slate-700 rounded w-20"></div>
-                  <div className="h-3 bg-gray-200 dark:bg-slate-700 rounded w-32"></div>
-                </div>
-                <div className="h-9 bg-gray-200 dark:bg-slate-700 rounded w-full mt-auto"></div>
+
+          <div className="space-y-4">
+            <div className="h-6 w-32 rounded bg-gray-200 dark:bg-slate-700" />
+            <div className="bg-white dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-700 overflow-hidden">
+              <div className="h-12 bg-gray-100 dark:bg-slate-800 border-b border-gray-200 dark:border-slate-700" />
+              <div className="divide-y divide-gray-200 dark:divide-slate-700">
+                {Array.from({ length: 6 }).map((_, index) => (
+                  <div key={`ended-skeleton-${index}`} className="px-6 py-4 grid grid-cols-[minmax(0,1fr)_220px_120px] gap-4">
+                    <div className="h-4 w-3/4 rounded bg-gray-200 dark:bg-slate-700" />
+                    <div className="h-4 w-4/5 rounded bg-gray-200 dark:bg-slate-700 justify-self-center" />
+                    <div className="h-4 w-1/2 rounded bg-gray-200 dark:bg-slate-700 justify-self-center" />
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
           </div>
         </div>
       </div>
     </div>
   );
 
-  if (isLoading) return <PageSkeleton />;
+  if (isLoading) {
+    return <PageSkeleton />;
+  }
 
   if (error) {
     return (
@@ -284,73 +293,15 @@ export const ContestListPage: React.FC = () => {
           </div>
 
           {/* Pagination */}
-          {endedTotalPages > 1 && (
-            <div className="flex justify-center mt-6">
-              <nav className="flex items-center gap-2">
-                <button
-                  onClick={() => setEndedPage(p => Math.max(1, p - 1))}
-                  disabled={endedPage === 1}
-                  className="px-3 py-1 rounded border border-gray-300 dark:border-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-slate-800 text-sm font-medium text-gray-700 dark:text-slate-200 bg-white dark:bg-slate-900"
-                >
-                  이전
-                </button>
-                <div className="flex gap-1">
-                  {(() => {
-                    const maxVisible = 5;
-                    let start = Math.max(1, endedPage - Math.floor(maxVisible / 2));
-                    let end = start + maxVisible - 1;
-
-                    if (end > endedTotalPages) {
-                      end = endedTotalPages;
-                      start = Math.max(1, end - maxVisible + 1);
-                    }
-
-                    const renderPage = (page: number) => (
-                      <button
-                        key={page}
-                        onClick={() => setEndedPage(page)}
-                        className={`px-3 py-1 rounded text-sm font-medium ${endedPage === page
-                          ? 'bg-blue-600 text-white border border-blue-600'
-                          : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-200 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-800'
-                          }`}
-                      >
-                        {page}
-                      </button>
-                    );
-
-                    const items: React.ReactNode[] = [];
-
-                    if (start > 1) {
-                      items.push(renderPage(1));
-                      if (start > 2) {
-                        items.push(<span key="start-dots" className="px-2 py-1 text-gray-500 dark:text-slate-400">...</span>);
-                      }
-                    }
-
-                    for (let i = start; i <= end; i += 1) {
-                      items.push(renderPage(i));
-                    }
-
-                    if (end < endedTotalPages) {
-                      if (end < endedTotalPages - 1) {
-                        items.push(<span key="end-dots" className="px-2 py-1 text-gray-500 dark:text-slate-400">...</span>);
-                      }
-                      items.push(renderPage(endedTotalPages));
-                    }
-
-                    return items;
-                  })()}
-                </div>
-                <button
-                  onClick={() => setEndedPage(p => Math.min(endedTotalPages, p + 1))}
-                  disabled={endedPage === endedTotalPages}
-                  className="px-3 py-1 rounded border border-gray-300 dark:border-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-slate-800 text-sm font-medium text-gray-700 dark:text-slate-200 bg-white dark:bg-slate-900"
-                >
-                  다음
-                </button>
-              </nav>
-            </div>
-          )}
+          <div className="mt-6">
+            <CommonPagination
+              page={endedPage}
+              pageSize={endedLimit}
+              totalPages={endedTotalPages}
+              totalItems={endedData?.total}
+              onChangePage={(nextPage) => setEndedPage(nextPage)}
+            />
+          </div>
         </div>
       </div>
     </div>

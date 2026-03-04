@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, Navigate } from 'react-router-dom';
 import { Card } from '../components/atoms/Card';
 import { ProblemProgressCard } from '../components/molecules/ProblemProgressCard';
@@ -23,6 +23,7 @@ import { todoService, GoalRecommendation } from '../services/todoService';
 
 export const MyPage: React.FC = () => {
   const { isAuthenticated } = useAuthStore();
+  const queryClient = useQueryClient();
 
 
   const {
@@ -90,6 +91,13 @@ export const MyPage: React.FC = () => {
   } = useProblemCount();
 
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
+
+  const handleUserUpdateSuccess = async () => {
+    await Promise.all([
+      refetchUserData(),
+      queryClient.invalidateQueries({ queryKey: ['mypage', 'profile'] }),
+    ]);
+  };
 
   const { data: myTodo } = useQuery({
     queryKey: ['todo', 'my'],
@@ -361,7 +369,7 @@ export const MyPage: React.FC = () => {
           onClose={() => setIsGoalModalOpen(false)}
           currentTodo={myTodo || null}
           initialUserData={userData || null}
-          onUserUpdateSuccess={refetchUserData}
+          onUserUpdateSuccess={handleUserUpdateSuccess}
         />
 
         <section aria-labelledby="mypage-contests">

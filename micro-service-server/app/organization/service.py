@@ -48,7 +48,7 @@ async def update_organization(
         organization_id: int,
         user_profile: UserProfile,
         data: OrganizationUpdateRequest, db: AsyncSession):
-    await _check_organization_admin(organization_id, user_profile, db)
+    await check_organization_admin(organization_id, user_profile, db)
     organization = await _get_organization_by_id(organization_id, db)
     organization.name = data.name
     organization.description = data.description
@@ -60,7 +60,7 @@ async def delete_organization(
         organization_id: int, 
         user_profile: UserProfile,
         db: AsyncSession):
-    await _check_organization_admin(organization_id, user_profile, db)
+    await check_organization_admin(organization_id, user_profile, db)
     await _get_organization_by_id(organization_id, db)
     await organization_repo.delete_by_id(organization_id, db)
     return

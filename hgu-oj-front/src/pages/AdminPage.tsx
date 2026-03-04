@@ -5,11 +5,11 @@ import { Button } from '../components/atoms/Button';
 import { useAuthStore } from '../stores/authStore';
 import { OrganizationManager } from '../components/admin/OrganizationManager';
 import { OrganizationApplyManager } from '../components/admin/OrganizationApplyManager';
-import { ProblemManager } from '../components/admin/ProblemManager';
 import { ContestManager } from '../components/admin/ContestManager';
-import { WorkbookManager } from '../components/admin/WorkbookManager';
 import { ServerAdminSection } from '../components/admin/ServerAdminSection';
 import { UserAdminSection } from '../components/admin/UserAdminSection';
+import { ProblemManager } from '../components/admin/ProblemManager';
+import { WorkbookManager } from '../components/admin/WorkbookManager';
 import { BulkProblemManager } from '../components/admin/BulkProblemManager';
 
 type AdminSection =
@@ -82,22 +82,6 @@ export const AdminPage: React.FC = () => {
         return <UserAdminSection />;
       default:
         return <ProblemManager />;
-    }
-  };
-
-  const getSectionTitle = (section: AdminSection) => {
-    switch (section) {
-      case 'server': return '서버 관리';
-      case 'problem-list': return '문제 목록';
-      case 'bulk': return '문제 등록 / 내보내기';
-      case 'contest': return '대회 관리';
-      case 'contest-edit': return '대회 수정';
-      case 'workbook': return '문제집 관리';
-      case 'workbook-manage': return '문제집 관리';
-      case 'user': return '사용자 관리';
-      case 'organization-apply': return '단체 신청 목록';
-      case 'organization': return '단체 목록';
-      default: return '관리자 도구';
     }
   };
 
@@ -329,9 +313,6 @@ export const AdminPage: React.FC = () => {
               <span className="mx-2">/</span>
               <span className="font-medium text-gray-900 dark:text-slate-100">{getSectionBreadcrumb(activeSection)}</span>
             </nav>
-            <h1 className="text-3xl font-extrabold text-gray-900 dark:text-slate-100">
-              {getSectionTitle(activeSection)}
-            </h1>
           </div>
           {renderActiveSection()}
         </main>

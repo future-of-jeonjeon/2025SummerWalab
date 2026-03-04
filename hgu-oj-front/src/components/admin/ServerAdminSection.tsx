@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Card } from '../atoms/Card';
 import { Button } from '../atoms/Button';
+import { ActionIconButtons } from '../../features/contribution/components/ActionIconButtons';
 import { adminService } from '../../services/adminService';
 import { JudgeServer, ServiceHealthStatus } from '../../types';
 
@@ -16,7 +17,6 @@ const formatLatency = (value?: number) => {
 
 export const ServerAdminSection: React.FC = () => {
   const [judgeServers, setJudgeServers] = useState<JudgeServer[]>([]);
-  const [judgeServerToken, setJudgeServerToken] = useState('');
   const [judgeServerLoading, setJudgeServerLoading] = useState(false);
   const [judgeServerError, setJudgeServerError] = useState<string | null>(null);
   const [backendStatus, setBackendStatus] = useState<ServiceHealthStatus>({
@@ -36,9 +36,8 @@ export const ServerAdminSection: React.FC = () => {
     setJudgeServerLoading(true);
     const started = performance.now();
     try {
-      const { token, servers } = await adminService.getJudgeServers();
+      const { servers } = await adminService.getJudgeServers();
       const latency = performance.now() - started;
-      setJudgeServerToken(token ?? '');
       setJudgeServers(Array.isArray(servers) ? servers : []);
       setBackendStatus({
         name: 'OJ Backend',
@@ -51,7 +50,6 @@ export const ServerAdminSection: React.FC = () => {
       const message = error instanceof Error ? error.message : '채점 서버 목록을 불러오지 못했습니다.';
       setJudgeServerError(message);
       setJudgeServers([]);
-      setJudgeServerToken('');
       setBackendStatus({
         name: 'OJ Backend',
         status: 'offline',
@@ -146,16 +144,6 @@ export const ServerAdminSection: React.FC = () => {
   return (
     <Card padding="lg">
       <div className="space-y-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 dark:text-slate-100">서버 관리</h2>
-            <p className="text-sm text-gray-500 dark:text-slate-400">채점 서버와 마이크로 서비스 상태를 확인하고 관리할 수 있습니다.</p>
-          </div>
-          <Button variant="outline" onClick={() => void handleRefresh()} loading={judgeServerLoading}>
-            새로고침
-          </Button>
-        </div>
-
         {/* 통합 대시보드 레이아웃 */}
         <div className="space-y-6">
           {/* 상단: 시스템 핵심 지표 (모니터링 + 서버 상태 요약) */}
@@ -168,6 +156,21 @@ export const ServerAdminSection: React.FC = () => {
                 </span>
                 실시간 시스템 현황
               </h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void handleRefresh()}
+                loading={judgeServerLoading}
+                className="flex items-center gap-1.5"
+                title="새로고침"
+              >
+                {!judgeServerLoading && (
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                )}
+                <span className="hidden sm:inline">새로고침</span>
+              </Button>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
@@ -234,10 +237,7 @@ export const ServerAdminSection: React.FC = () => {
 
         <section className="space-y-3">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">Judge Server 토큰</h3>
-            <div className="mt-2 rounded-md border border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 px-3 py-2 font-mono text-sm text-gray-700 dark:text-slate-300">
-              {judgeServerToken || '토큰 정보가 없습니다.'}
-            </div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">채점서버 현황</h3>
           </div>
 
           <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-slate-700">
@@ -326,16 +326,14 @@ export const ServerAdminSection: React.FC = () => {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-300">
-
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                            onClick={() => handleDeleteJudgeServer(server.hostname)}
-                            loading={deletingJudgeServerHostname === server.hostname}
-                          >
-                            삭제
-                          </Button>
+                          {deletingJudgeServerHostname === server.hostname ? (
+                            <span className="text-xs text-gray-500 dark:text-slate-400">삭제 중...</span>
+                          ) : (
+                            <ActionIconButtons
+                              onDelete={() => handleDeleteJudgeServer(server.hostname)}
+                              deleteTitle={`${server.hostname} 서버 삭제`}
+                            />
+                          )}
                         </td>
                       </tr>
                     );

@@ -3,8 +3,10 @@ import { Card } from '../atoms/Card';
 import { Button } from '../atoms/Button';
 import { Input } from '../atoms/Input';
 import { WorkbookModal } from './WorkbookModal';
+import { WorkbookListTable } from '../../features/contribution/components/WorkbookListTable';
 import { adminService } from '../../services/adminService';
 import { AdminWorkbook } from '../../types';
+import CommonPagination from '../common/CommonPagination';
 
 export const WorkbookManager: React.FC = () => {
     const [workbookList, setWorkbookList] = useState<AdminWorkbook[]>([]);
@@ -25,12 +27,13 @@ export const WorkbookManager: React.FC = () => {
             const response = await adminService.getWorkbooks({ page: p, limit: 20, keyword: k });
             const mappedResults: AdminWorkbook[] = response.results.map(w => ({
                 ...w,
-                visible: w.is_public
+                visible: w.is_public,
+                problemCount: (w as any).problemCount ?? (w as any).problem_count ?? 0,
             }));
             setWorkbookList(mappedResults);
             setTotal(response.total);
             setPage(p);
-        } catch (err) {
+        } catch {
             setError('문제집 목록을 불러오지 못했습니다.');
         } finally {
             setLoading(false);
@@ -70,9 +73,15 @@ export const WorkbookManager: React.FC = () => {
                 <div className="flex items-center justify-between">
                     <div className="space-y-1">
                         <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 dark:text-slate-100">문제집 목록</h2>
-                        <p className="text-sm text-gray-500 dark:text-slate-400">등록된 문제집을 관리합니다.</p>
                     </div>
-                    <Button onClick={() => openModal('create')}>문제집 등록</Button>
+                    <Button
+                        onClick={() => openModal('create')}
+                    >
+                        <svg className="w-5 h-5 mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        문제집 등록
+                    </Button>
                 </div>
 
                 <div className="flex gap-2">
@@ -84,48 +93,33 @@ export const WorkbookManager: React.FC = () => {
                 </div>
 
                 <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-slate-700 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50 dark:bg-slate-800">
-                            <tr>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">ID</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">제목</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">상태</th>
-                                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">관리</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200 dark:divide-slate-700 bg-white dark:bg-slate-900">
-                            {loading ? (
-                                <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-slate-400">로딩 중...</td></tr>
-                            ) : error ? (
-                                <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-red-600">{error}</td></tr>
-                            ) : workbookList.length === 0 ? (
-                                <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-slate-400">문제집이 없습니다.</td></tr>
-                            ) : (
-                                workbookList.map((workbook) => (
-                                    <tr key={workbook.id} className="hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800">
-                                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-slate-100">{workbook.id}</td>
-                                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-slate-100 font-medium">{workbook.title}</td>
-                                        <td className="px-4 py-3 text-sm">
-                                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${workbook.visible ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600 dark:text-slate-400'}`}>
-                                                {workbook.visible ? '공개' : '비공개'}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-right space-x-2">
-                                            <Button size="sm" variant="outline" onClick={() => openModal('edit', workbook.id)}>수정</Button>
-                                            <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleDelete(workbook.id, workbook.title)}>삭제</Button>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                    <div className="border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 px-4 py-3 flex justify-between items-center">
-                        <span className="text-sm text-gray-700 dark:text-slate-300">총 {total}개</span>
-                        <div className="flex gap-2">
-                            <Button size="sm" variant="outline" disabled={page === 1} onClick={() => fetchWorkbooks(page - 1, keyword)}>이전</Button>
-                            <Button size="sm" variant="outline" disabled={page >= Math.ceil(total / 20)} onClick={() => fetchWorkbooks(page + 1, keyword)}>다음</Button>
-                        </div>
-                    </div>
+                    {loading ? (
+                        <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-slate-400">로딩 중...</div>
+                    ) : error ? (
+                        <div className="px-4 py-8 text-center text-sm text-red-600">{error}</div>
+                    ) : (
+                        <>
+                            <WorkbookListTable
+                                showHeader={false}
+                                workbooks={workbookList}
+                                onEdit={(workbook) => openModal('edit', workbook.id)}
+                                onDelete={(workbookId) => {
+                                    const target = workbookList.find((workbook) => workbook.id === workbookId);
+                                    if (target) {
+                                        void handleDelete(workbookId, target.title);
+                                    }
+                                }}
+                            />
+                            <div className="px-4 py-4 border-t border-gray-200 dark:border-slate-700">
+                                <CommonPagination
+                                    page={page}
+                                    pageSize={20}
+                                    totalItems={total}
+                                    onChangePage={(nextPage) => fetchWorkbooks(nextPage, keyword)}
+                                />
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
             <WorkbookModal
