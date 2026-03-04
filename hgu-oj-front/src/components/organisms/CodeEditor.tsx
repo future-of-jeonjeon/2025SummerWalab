@@ -31,6 +31,7 @@ const languageOptions: LanguageOption[] = [
   { value: 'java', label: 'Java', extension: 'java', monacoLanguage: 'java' },
   { value: 'cpp', label: 'C++', extension: 'cpp', monacoLanguage: 'cpp' },
   { value: 'c', label: 'C', extension: 'c', monacoLanguage: 'c' },
+  { value: 'go', label: 'Golang', extension: 'go', monacoLanguage: 'go' },
 ];
 const EDITOR_LANGUAGE_ORDER_KEY = 'oj:editorLanguageOrder';
 
@@ -209,6 +210,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       java: ['java'],
       cpp: ['cpp', 'c++'],
       c: ['c'],
+      go: ['go', 'golang'],
     };
     const filtered = ordered.filter((opt) => {
       const candidates = matchMap[opt.value] ?? [opt.value];
@@ -739,18 +741,6 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           )}
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className={outlineButtonClass}
-            onClick={() => {
-              if (confirm('현재 언어의 기본 템플릿으로 초기화할까요?')) {
-                const def = defaultCode[language] || '';
-                codeRef.current = def;
-                setCode(def);
-              }
-            }}
-          >초기화</Button>
           <Button
             variant="outline"
             size="sm"

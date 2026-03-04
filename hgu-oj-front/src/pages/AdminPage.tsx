@@ -135,7 +135,7 @@ export const AdminPage: React.FC = () => {
                     setExpandedCategory(null);
                   }}
                   className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeSection === 'server'
-                    ? 'bg-blue-50 text-blue-700'
+                    ? 'bg-blue-50 text-blue-700 dark:bg-sky-900/30 dark:text-sky-300'
                     : 'text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800'
                     }`}
                 >
@@ -152,8 +152,8 @@ export const AdminPage: React.FC = () => {
                     const isExpanded = expandedCategory === 'problem';
                     setExpandedCategory(isExpanded ? null : 'problem');
                   }}
-                  className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-colors ${['problem-list', 'bulk'].includes(activeSection) || expandedCategory === 'problem'
-                    ? 'bg-blue-50 text-blue-700'
+                  className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-colors ${['problem-list', 'bulk'].includes(activeSection)
+                    ? 'bg-blue-50 text-blue-700 dark:bg-sky-900/30 dark:text-sky-300'
                     : 'text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800'
                     }`}
                 >
@@ -173,13 +173,13 @@ export const AdminPage: React.FC = () => {
                   <div className="pl-6 pr-2 py-1 space-y-1">
                     <button
                       onClick={() => setActiveSection('problem-list')}
-                      className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${activeSection === 'problem-list' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800'}`}
+                      className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${activeSection === 'problem-list' ? 'bg-blue-50 text-blue-700 font-medium dark:bg-sky-900/30 dark:text-sky-300' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800'}`}
                     >
                       문제 목록
                     </button>
                     <button
                       onClick={() => setActiveSection('bulk')}
-                      className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${activeSection === 'bulk' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800'}`}
+                      className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${activeSection === 'bulk' ? 'bg-blue-50 text-blue-700 font-medium dark:bg-sky-900/30 dark:text-sky-300' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800'}`}
                     >
                       문제 등록 / 내보내기
                     </button>
@@ -194,8 +194,8 @@ export const AdminPage: React.FC = () => {
                     const isExpanded = expandedCategory === 'contest';
                     setExpandedCategory(isExpanded ? null : 'contest');
                   }}
-                  className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-colors ${['contest', 'contest-edit'].includes(activeSection) || expandedCategory === 'contest'
-                    ? 'bg-blue-50 text-blue-700'
+                  className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-colors ${['contest', 'contest-edit'].includes(activeSection)
+                    ? 'bg-blue-50 text-blue-700 dark:bg-sky-900/30 dark:text-sky-300'
                     : 'text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800'
                     }`}
                 >
@@ -215,7 +215,7 @@ export const AdminPage: React.FC = () => {
                   <div className="pl-6 pr-2 py-1 space-y-1">
                     <button
                       onClick={() => setActiveSection('contest')}
-                      className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${activeSection === 'contest' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800'}`}
+                      className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${activeSection === 'contest' ? 'bg-blue-50 text-blue-700 font-medium dark:bg-sky-900/30 dark:text-sky-300' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800'}`}
                     >
                       대회 관리
                     </button>
@@ -230,8 +230,8 @@ export const AdminPage: React.FC = () => {
                     const isExpanded = expandedCategory === 'workbook';
                     setExpandedCategory(isExpanded ? null : 'workbook');
                   }}
-                  className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-colors ${['workbook', 'workbook-manage'].includes(activeSection) || expandedCategory === 'workbook'
-                    ? 'bg-blue-50 text-blue-700'
+                  className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-colors ${['workbook', 'workbook-manage'].includes(activeSection)
+                    ? 'bg-blue-50 text-blue-700 dark:bg-sky-900/30 dark:text-sky-300'
                     : 'text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800'
                     }`}
                 >
@@ -251,7 +251,7 @@ export const AdminPage: React.FC = () => {
                   <div className="pl-6 pr-2 py-1 space-y-1">
                     <button
                       onClick={() => setActiveSection('workbook')}
-                      className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${activeSection === 'workbook' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800'}`}
+                      className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${activeSection === 'workbook' ? 'bg-blue-50 text-blue-700 font-medium dark:bg-sky-900/30 dark:text-sky-300' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800'}`}
                     >
                       문제집 관리
                     </button>
@@ -267,7 +267,7 @@ export const AdminPage: React.FC = () => {
                     setExpandedCategory(null);
                   }}
                   className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeSection === 'user'
-                    ? 'bg-blue-50 text-blue-700'
+                    ? 'bg-blue-50 text-blue-700 dark:bg-sky-900/30 dark:text-sky-300'
                     : 'text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800'
                     }`}
                 >
@@ -284,8 +284,8 @@ export const AdminPage: React.FC = () => {
                     const isExpanded = expandedCategory === 'organization';
                     setExpandedCategory(isExpanded ? null : 'organization');
                   }}
-                  className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-colors ${['organization', 'organization-apply'].includes(activeSection) || expandedCategory === 'organization'
-                    ? 'bg-blue-50 text-blue-700'
+                  className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-colors ${['organization', 'organization-apply'].includes(activeSection)
+                    ? 'bg-blue-50 text-blue-700 dark:bg-sky-900/30 dark:text-sky-300'
                     : 'text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800'
                     }`}
                 >
@@ -305,13 +305,13 @@ export const AdminPage: React.FC = () => {
                   <div className="pl-6 pr-2 py-1 space-y-1">
                     <button
                       onClick={() => setActiveSection('organization-apply')}
-                      className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${activeSection === 'organization-apply' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800'}`}
+                      className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${activeSection === 'organization-apply' ? 'bg-blue-50 text-blue-700 font-medium dark:bg-sky-900/30 dark:text-sky-300' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800'}`}
                     >
                       단체 신청 목록
                     </button>
                     <button
                       onClick={() => setActiveSection('organization')}
-                      className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${activeSection === 'organization' ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800'}`}
+                      className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${activeSection === 'organization' ? 'bg-blue-50 text-blue-700 font-medium dark:bg-sky-900/30 dark:text-sky-300' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800'}`}
                     >
                       단체 목록
                     </button>

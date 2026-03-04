@@ -178,7 +178,7 @@ export const OrganizationManagePage: React.FC = () => {
                             <button
                                 onClick={() => setActiveTab('general')}
                                 className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'general'
-                                    ? 'bg-blue-50 text-blue-700'
+                                    ? 'bg-blue-50 text-blue-700 dark:bg-sky-900/30 dark:text-sky-300'
                                     : 'text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800'
                                     }`}
                             >
@@ -192,7 +192,7 @@ export const OrganizationManagePage: React.FC = () => {
                                 <button
                                     onClick={() => setActiveTab('members')}
                                     className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'members'
-                                        ? 'bg-blue-50 text-blue-700'
+                                        ? 'bg-blue-50 text-blue-700 dark:bg-sky-900/30 dark:text-sky-300'
                                         : 'text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800'
                                         }`}
                                 >
@@ -206,7 +206,7 @@ export const OrganizationManagePage: React.FC = () => {
                                 <button
                                     onClick={() => setActiveTab('contests')}
                                     className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'contests'
-                                        ? 'bg-blue-50 text-blue-700'
+                                        ? 'bg-blue-50 text-blue-700 dark:bg-sky-900/30 dark:text-sky-300'
                                         : 'text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800'
                                         }`}
                                 >

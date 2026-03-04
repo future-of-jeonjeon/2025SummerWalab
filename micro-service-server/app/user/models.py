@@ -12,7 +12,7 @@ from app.common.base_entity import BaseEntity
 if TYPE_CHECKING:
     from app.problem.models import Problem
 
-DEFAULT_LANGUAGE_PREFERENCES = ["c", "cpp", "python", "java", "javascript"]
+DEFAULT_LANGUAGE_PREFERENCES = ["c", "cpp", "python", "java", "javascript", "go"]
 
 
 class User(Base):

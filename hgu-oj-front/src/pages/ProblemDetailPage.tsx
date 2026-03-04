@@ -1116,7 +1116,9 @@ export const ProblemDetailPage: React.FC = () => {
     if (value == null || Number.isNaN(value)) return undefined;
     if (value === 0) return 0;
     const absValue = Math.abs(value);
-    const kb = absValue / 1024;
+    // Some APIs return bytes, others already return KB.
+    // Treat large values as bytes and smaller values as KB to avoid double conversion.
+    const kb = absValue >= 1024 * 1024 ? absValue / 1024 : absValue;
     if (!Number.isFinite(kb)) return undefined;
     const rounded = Math.max(1, Math.round(kb));
     return value < 0 ? -rounded : rounded;
@@ -1272,17 +1274,11 @@ export const ProblemDetailPage: React.FC = () => {
     if (!total) return null;
     return { passed, total };
   }, [modalSubmissionCombined]);
-  const modalProblemIdentifier = modalSubmissionCombined?.problem
-    ?? (modalSubmissionCombined as any)?.problem_id
-    ?? (modalSubmissionCombined as any)?.problemId
-    ?? '-';
-  const modalSubmissionIdDisplay = modalSubmissionCombined
-    ? resolveSubmissionId(modalSubmissionCombined)
-    : selectedSubmissionId;
   const modalCode = selectedSubmissionDetail?.code ?? (modalSubmissionCombined as any)?.code ?? null;
   const modalCodeDisplay = typeof modalCode === 'string' && modalCode.trim().length > 0
     ? modalCode
     : '코드를 불러올 수 없습니다.';
+  const problemAuthorName = problem?.createdBy?.username;
 
   useEffect(() => {
     if (!manualStatus) return;
@@ -1473,6 +1469,7 @@ export const ProblemDetailPage: React.FC = () => {
                     </h1>
                     <div className={`flex flex-wrap items-center gap-3 text-xs ${subtleTextClass}`}>
                       <span>시간 {problem.timeLimit}ms · 메모리 {problem.memoryLimit}MB</span>
+                      {problemAuthorName && <span>작성자 {problemAuthorName}</span>}
                     </div>
                   </div>
                 </div>
@@ -1625,7 +1622,7 @@ export const ProblemDetailPage: React.FC = () => {
                               onClick={() => !isCurrentProblem && openProblemFromList(item)}
                               className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition ${isCurrentProblem
                                 ? isDarkTheme
-                                  ? 'border-blue-500 bg-blue-900/40 text-blue-100'
+                                  ? 'border-sky-700 bg-sky-950/45 text-sky-100'
                                   : 'border-blue-500 bg-blue-50 text-blue-700'
                                 : isDarkTheme
                                   ? 'border-slate-700 bg-slate-900/70 hover:bg-slate-800'
@@ -1639,7 +1636,7 @@ export const ProblemDetailPage: React.FC = () => {
                                   </div>
                                 </div>
                                 {isCurrentProblem ? (
-                                  <span className={`text-xs font-semibold ${isDarkTheme ? 'text-blue-200' : 'text-blue-600'}`}>
+                                  <span className={`text-xs font-semibold ${isDarkTheme ? 'text-sky-300' : 'text-blue-600'}`}>
                                     현재 문제
                                   </span>
                                 ) : (
@@ -1718,9 +1715,7 @@ export const ProblemDetailPage: React.FC = () => {
               onClick={(event) => event.stopPropagation()}
             >
               <div className={`flex items-center justify-between border-b px-5 py-3 ${isDarkTheme ? 'border-slate-700' : 'border-gray-200'}`}>
-                <h3 className="text-lg font-semibold">
-                  {modalSubmissionIdDisplay ? `제출 ${modalSubmissionIdDisplay}` : '제출 상세'}
-                </h3>
+                <h3 className="text-lg font-semibold">제출 상세</h3>
                 <button
                   type="button"
                   onClick={closeSubmissionModal}
@@ -1754,8 +1749,6 @@ export const ProblemDetailPage: React.FC = () => {
                       </div>
                     </div>
                     <div className={`grid gap-3 text-sm ${isDarkTheme ? 'text-slate-200' : 'text-gray-700'} sm:grid-cols-2`}>
-                      <div><span className="font-semibold">제출 ID:</span> {modalSubmissionIdDisplay ?? '-'}</div>
-                      <div><span className="font-semibold">문제 ID:</span> {modalProblemIdentifier ?? '-'}</div>
                       <div><span className="font-semibold">언어:</span> {modalLanguage ?? '-'}</div>
                       <div><span className="font-semibold">제출 시각:</span> {modalSubmittedAt ? formatDateTime(modalSubmittedAt) : '-'}</div>
                       <div><span className="font-semibold">실행 시간:</span> {formatExecutionTimeValue(modalExecutionTime)}</div>

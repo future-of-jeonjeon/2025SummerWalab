@@ -32,6 +32,7 @@ const EDITOR_LANGUAGES = [
   { value: 'java', label: 'Java' },
   { value: 'cpp', label: 'C++' },
   { value: 'c', label: 'C' },
+  { value: 'go', label: 'Golang' },
 ];
 
 const DEFAULT_EDITOR_LANGUAGE_ORDER = EDITOR_LANGUAGES.map((lang) => lang.value);
@@ -294,7 +295,7 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
       case 'info':
         return (
           <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 14a4 4 0 10-8 0M12 12a3 3 0 100-6 3 3 0 000 6zm8 8H4a2 2 0 01-2-2 8 8 0 0116 0 2 2 0 012 2z" />
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
           </svg>
         );
       case 'language':
@@ -357,19 +358,9 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
   const modalContent = (
     <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/30 backdrop-blur-sm p-4 h-screen w-screen overflow-hidden">
       <div className="bg-white dark:bg-slate-800 rounded-[28px] w-full max-w-5xl shadow-2xl overflow-hidden flex h-[680px] relative border border-gray-100 dark:border-slate-700" onClick={(e) => e.stopPropagation()}>
-        <button
-          onClick={onClose}
-          className="absolute top-5 right-5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-all z-[100] p-2 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-full"
-          title="닫기"
-        >
-          <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-          </svg>
-        </button>
-
         <div className="w-64 bg-gray-50/50 dark:bg-slate-900 border-r border-gray-100 dark:border-slate-700 flex flex-col pt-8">
           <div className="px-6 mb-6">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">마이페이지 설정</h3>
+            <h3 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">유저 정보 수정</h3>
           </div>
 
           <div className="mx-4 mb-2 px-3 py-2 text-[13px] font-bold tracking-wide text-gray-500 dark:text-slate-400">
@@ -385,11 +376,10 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
                     setActiveGroup('user');
                     setActiveUserTab(tab);
                   }}
-                  className={`w-full flex items-center gap-3 text-left rounded-xl px-4 py-2 text-sm ${
-                    isCurrent
-                      ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 font-semibold'
-                      : 'text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800'
-                  }`}
+                  className={`w-full flex items-center gap-3 text-left rounded-xl px-4 py-2 text-sm ${isCurrent
+                    ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 font-semibold'
+                    : 'text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800'
+                    }`}
                 >
                   <span className={isCurrent ? 'text-blue-600' : 'text-gray-400'}>{renderUserTabIcon(tab)}</span>
                   <span>
@@ -406,47 +396,46 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
             목표 설정
           </div>
           <nav className="space-y-1 px-4">
-              {(['daily', 'weekly', 'monthly', 'custom'] as TabType[]).map((tab) => {
-                const isCurrent = activeGroup === 'goal' && activeTab === tab;
-                const state = getState(tab);
+            {(['daily', 'weekly', 'monthly', 'custom'] as TabType[]).map((tab) => {
+              const isCurrent = activeGroup === 'goal' && activeTab === tab;
+              const state = getState(tab);
 
-                return (
-                  <div
-                    key={tab}
-                    className={`group flex items-center justify-between px-4 py-2 rounded-xl transition-all duration-200 ${
-                      isCurrent
-                        ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                        : 'text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800'
+              return (
+                <div
+                  key={tab}
+                  className={`group flex items-center justify-between px-4 py-2 rounded-xl transition-all duration-200 ${isCurrent
+                    ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
+                    : 'text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800'
                     }`}
+                >
+                  <button
+                    onClick={() => {
+                      setActiveGroup('goal');
+                      setActiveTab(tab);
+                    }}
+                    className="flex-1 flex items-center gap-3"
                   >
-                    <button
-                      onClick={() => {
-                        setActiveGroup('goal');
-                        setActiveTab(tab);
-                      }}
-                      className="flex-1 flex items-center gap-3"
-                    >
-                      <div className={isCurrent ? 'text-blue-600' : 'text-gray-400'}>{renderTabIcon(tab)}</div>
-                      <span className={`text-sm ${isCurrent ? 'font-bold' : 'font-medium'}`}>
-                        {tab === 'daily' && '일간'}
-                        {tab === 'weekly' && '주간'}
-                        {tab === 'monthly' && '월간'}
-                        {tab === 'custom' && '사용자 정의'}
-                      </span>
-                    </button>
+                    <div className={isCurrent ? 'text-blue-600' : 'text-gray-400'}>{renderTabIcon(tab)}</div>
+                    <span className={`text-sm ${isCurrent ? 'font-bold' : 'font-medium'}`}>
+                      {tab === 'daily' && '일간'}
+                      {tab === 'weekly' && '주간'}
+                      {tab === 'monthly' && '월간'}
+                      {tab === 'custom' && '사용자 정의'}
+                    </span>
+                  </button>
 
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        updateState(tab, { isActive: !state.isActive });
-                      }}
-                      className={`w-11 h-6 rounded-full transition-all relative shrink-0 ml-2 ${state.isActive ? 'bg-[#31C48D]' : 'bg-gray-200 dark:bg-slate-700'}`}
-                    >
-                      <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${state.isActive ? 'left-6' : 'left-1'}`} />
-                    </button>
-                  </div>
-                );
-              })}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      updateState(tab, { isActive: !state.isActive });
+                    }}
+                    className={`w-11 h-6 rounded-full transition-all relative shrink-0 ml-2 ${state.isActive ? 'bg-[#31C48D]' : 'bg-gray-200 dark:bg-slate-700'}`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${state.isActive ? 'left-6' : 'left-1'}`} />
+                  </button>
+                </div>
+              );
+            })}
           </nav>
         </div>
 
@@ -485,11 +474,10 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
                               setUserForm((prev) => ({ ...prev, studentId: e.target.value }));
                             }
                           }}
-                          className={`w-full px-3 py-2 mt-1 border rounded-lg ${
-                            initialUserData
-                              ? 'text-gray-500 bg-gray-100 border-gray-200 cursor-not-allowed'
-                              : 'text-gray-900 dark:text-white bg-gray-50 dark:bg-slate-700 border-gray-200 dark:border-slate-600'
-                          }`}
+                          className={`w-full px-3 py-2 mt-1 border rounded-lg ${initialUserData
+                            ? 'text-gray-500 bg-gray-100 border-gray-200 cursor-not-allowed'
+                            : 'text-gray-900 dark:text-white bg-gray-50 dark:bg-slate-700 border-gray-200 dark:border-slate-600'
+                            }`}
                         />
                       </div>
                       <div>
@@ -558,9 +546,8 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
                             setDraggingLanguage(null);
                             setDragOverLanguage(null);
                           }}
-                          className={`flex items-center justify-between rounded-xl border bg-white dark:bg-slate-700 px-4 py-2 cursor-grab active:cursor-grabbing ${
-                            dragOverLanguage === language ? 'border-blue-400 dark:border-blue-400' : 'border-gray-200 dark:border-slate-600'
-                          } ${draggingLanguage === language ? 'opacity-60' : ''}`}
+                          className={`flex items-center justify-between rounded-xl border bg-white dark:bg-slate-700 px-4 py-2 cursor-grab active:cursor-grabbing ${dragOverLanguage === language ? 'border-blue-400 dark:border-blue-400' : 'border-gray-200 dark:border-slate-600'
+                            } ${draggingLanguage === language ? 'opacity-60' : ''}`}
                         >
                           <div className="flex items-center gap-3">
                             <span className="text-gray-400 text-xs select-none">⋮⋮</span>
@@ -706,11 +693,10 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
                                 label: goal.label,
                               });
                             }}
-                            className={`flex items-center justify-between p-4 px-6 rounded-2xl border-2 transition-all duration-200 ${
-                              currentState.target === goal.target && currentState.category === goal.type && currentState.label === goal.label
-                                ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/20 shadow-sm'
-                                : 'border-gray-50 dark:border-slate-800 hover:border-gray-100 dark:hover:border-slate-700'
-                            }`}
+                            className={`flex items-center justify-between p-4 px-6 rounded-2xl border-2 transition-all duration-200 ${currentState.target === goal.target && currentState.category === goal.type && currentState.label === goal.label
+                              ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/20 shadow-sm'
+                              : 'border-gray-50 dark:border-slate-800 hover:border-gray-100 dark:hover:border-slate-700'
+                              }`}
                           >
                             <div className="text-left">
                               <p className="text-[14px] font-bold text-gray-900 dark:text-white">{goal.label}</p>
@@ -727,7 +713,7 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
 
           <div className="p-8 pb-10 flex justify-end items-center gap-6 border-t border-gray-50 dark:border-slate-700 bg-white dark:bg-slate-800">
             <button onClick={onClose} className="text-[15px] font-bold text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 transition-colors">
-              취소
+              닫기
             </button>
             {activeGroup === 'goal' && (
               <Button

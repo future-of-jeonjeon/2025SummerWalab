@@ -5,11 +5,9 @@ import { useProblems } from '../hooks/useProblems';
 import { Problem, ProblemFilter } from '../types';
 import { ProblemList } from '../components/organisms/ProblemList';
 import { useProblemStore } from '../stores/problemStore';
-import { resolveProblemStatus } from '../utils/problemStatus';
 import { useAuthStore } from '../stores/authStore';
 import { PROBLEM_STATUS_LABELS } from '../constants/problemStatus';
 import { problemService } from '../services/problemService';
-import { extractProblemTags } from '../utils/problemTags';
 
 const normalizeTags = (tags: string[]): string[] => {
   const unique = new Set(
@@ -170,54 +168,15 @@ export const ProblemListPage: React.FC = () => {
 
   const processedProblems = useMemo(() => {
     const items = microProblems;
-    const query = searchQuery.trim().toLowerCase();
-    const searchField = filter.searchField ?? 'title';
-    const sortField = filter.sortField ?? 'title';
-    const sortOrder = filter.sortOrder ?? 'asc';
-    const statusFilter = isAuthenticated ? (filter.statusFilter ?? 'all') : 'all';
-    const requiredTags = selectedTags.map((tag) => tag.toLowerCase());
-
-    const matchesQuery = (problem: any) => {
-      if (!query) return true;
-      if (searchField === 'tag') {
-        const tags = [
-          ...(Array.isArray(problem.tags) ? problem.tags : []),
-          ...(Array.isArray(problem.tagNames) ? problem.tagNames : []),
-          ...(Array.isArray(problem.tag_list) ? problem.tag_list : []),
-        ];
-        return tags.some((tag: unknown) =>
-          typeof tag === 'string' && tag.trim().toLowerCase().includes(query)
-        );
-      }
-      if (searchField === 'number') {
-        const identifier = (problem.displayId ?? problem._id ?? problem.id ?? '').toString().toLowerCase();
-        return identifier.includes(query);
-      }
-      return (problem.title ?? '').toLowerCase().includes(query);
-    };
-
-    const matchesSelectedTags = (problem: Problem) => {
-      if (requiredTags.length === 0) {
-        return true;
-      }
-      const normalizedTags = extractProblemTags(problem)
-        .map((tag) => tag.toLowerCase());
-      if (normalizedTags.length === 0) {
-        return false;
-      }
-      // OR 조건: 선택된 태그 중 하나라도 포함되면 통과
-      return requiredTags.some((tag) => normalizedTags.includes(tag));
-    };
-
     const hydratedItems = items.map((problem) => {
-      if (!isAuthenticated) {
-        return problem;
-      }
+      if (!isAuthenticated) return problem;
+
       const candidates = [problem.displayId, problem._id, (problem as any)._id, problem.id];
       for (const candidate of candidates) {
         if (candidate === undefined || candidate === null) continue;
         const key = String(candidate).trim().toLowerCase();
         if (!key) continue;
+
         const statusSource = normalizedStatusMap[key];
         if (statusSource) {
           return {
@@ -230,105 +189,11 @@ export const ProblemListPage: React.FC = () => {
       return problem;
     });
 
-    const filterResult = hydratedItems
-      .filter(matchesSelectedTags)
-      .filter(matchesQuery)
-      .filter((problem) => {
-        if (!isAuthenticated) return true;
-        const status = resolveProblemStatus(problem);
-        if (statusFilter === 'all') return true;
-        return status === statusFilter;
-      })
-      .filter((problem) => {
-        const rawDifficulty =
-          (problem as any).difficulty ??
-          (problem as any).level ??
-          (problem as any).difficulty_level ??
-          (problem as any).difficultyLevel ??
-          (problem as any).difficulty_name ??
-          (problem as any).difficultyName;
-        if (!rawDifficulty) return false;
-        const displayDifficulty = Number(String(rawDifficulty).replace(/^Lv\.\s*/i, ''));
-        if (Number.isNaN(displayDifficulty)) return false;
-        return displayDifficulty >= minDifficultyLevel && displayDifficulty <= maxDifficultyLevel;
-      });
-
-    const extractIdentifier = (problem: any) => (problem.displayId ?? problem._id ?? problem.id ?? '').toString();
-
-    const getNumericOrder = (problem: any) => {
-      const identifier = extractIdentifier(problem);
-      const numericOnly = identifier.replace(/[^0-9]/g, '');
-      if (!numericOnly) return null;
-      const numeric = Number(numericOnly);
-      return Number.isNaN(numeric) ? null : numeric;
-    };
-
-    const getAccuracy = (problem: any) => {
-      const submissions = Number(problem.submissionNumber ?? 0);
-      const accepted = Number(problem.acceptedNumber ?? 0);
-      if (!submissions) return 0;
-      return accepted / submissions;
-    };
-
-    const namePriority = (value: string) => {
-      if (/^[0-9]/.test(value)) return 0;
-      if (/^[A-Za-z]/.test(value)) return 1;
-      if (/^[가-힣]/.test(value)) return 2;
-      return 3;
-    };
-
-    const compareText = (aText: string, bText: string) => {
-      const prA = namePriority(aText);
-      const prB = namePriority(bText);
-      if (prA !== prB) return prA - prB;
-      return aText.localeCompare(bText, 'ko', { numeric: true, sensitivity: 'base' });
-    };
-
-    const sorted = [...filterResult].sort((a, b) => {
-      let result = 0;
-      if (sortField === 'submission') {
-        result = (a.submissionNumber ?? 0) - (b.submissionNumber ?? 0);
-      } else if (sortField === 'accuracy') {
-        result = getAccuracy(a) - getAccuracy(b);
-      } else if (sortField === 'number') {
-        const aNum = getNumericOrder(a);
-        const bNum = getNumericOrder(b);
-        if (typeof aNum === 'number' && typeof bNum === 'number') {
-          result = aNum - bNum;
-        } else if (typeof aNum === 'number') {
-          result = -1;
-        } else if (typeof bNum === 'number') {
-          result = 1;
-        } else {
-          const idA = extractIdentifier(a);
-          const idB = extractIdentifier(b);
-          result = compareText(idA, idB);
-        }
-      } else {
-        const titleA = (a.title ?? '').trim();
-        const titleB = (b.title ?? '').trim();
-        result = compareText(titleA, titleB);
-        if (result === 0) {
-          const idA = extractIdentifier(a);
-          const idB = extractIdentifier(b);
-          result = compareText(idA, idB);
-        }
-      }
-      return sortOrder === 'desc' ? -result : result;
-    });
-
-    return sorted;
+    return hydratedItems;
   }, [
     microProblems,
     searchQuery,
-    filter.searchField,
-    filter.sortField,
-    filter.sortOrder,
-    filter.statusFilter,
-    minDifficultyLevel,
-    maxDifficultyLevel,
     isAuthenticated,
-    selectedTags,
     normalizedStatusMap,
   ]);
 
@@ -522,7 +387,7 @@ export const ProblemListPage: React.FC = () => {
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between mb-4">
               <div className="text-sm text-gray-500 dark:text-slate-400">
-                총 <span className="font-bold text-gray-900 dark:text-slate-100">{data?.total ?? processedProblems.length}</span>개의 문제 중 <span className="font-bold text-gray-900 dark:text-slate-100">{processedProblems.length > 0 ? rowNumberBase + 1 : 0}-{Math.min(rowNumberBase + pageSize, data?.total ?? processedProblems.length)}</span> 표시
+                총 <span className="font-bold text-gray-900 dark:text-slate-100">{data?.total ?? processedProblems.length}</span>개의 문제
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-gray-500 dark:text-slate-400">정렬:</span>
@@ -534,13 +399,13 @@ export const ProblemListPage: React.FC = () => {
                     const field = value.replace('-desc', '').replace('-asc', '') as any;
                     setFilter({ sortField: field, sortOrder: isDesc ? 'desc' : 'asc', page: 1 });
                   }}
-                  value={`${filter.sortField ?? 'title'}-${filter.sortOrder ?? 'asc'}`}
+                  value={`${filter.sortField ?? 'number'}-${filter.sortOrder ?? 'desc'}`}
                 >
                   <option value="title-asc">제목순</option>
                   <option value="submission-desc">제출 많은순</option>
                   <option value="accuracy-desc">정답률 높은순</option>
                   <option value="number-asc">번호순</option>
-                  <option value="title-desc">최신순</option>
+                  <option value="number-desc">최신순</option>
                 </select>
               </div>
             </div>

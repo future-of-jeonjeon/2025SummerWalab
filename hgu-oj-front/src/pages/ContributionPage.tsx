@@ -109,7 +109,7 @@ export const ContributionPage: React.FC = () => {
                             <button
                                 onClick={() => setActiveTab('problems')}
                                 className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'problems'
-                                    ? 'bg-blue-50 text-blue-700'
+                                    ? 'bg-blue-50 text-blue-700 dark:bg-sky-900/30 dark:text-sky-300'
                                     : 'text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800'
                                     }`}
                             >
@@ -121,7 +121,7 @@ export const ContributionPage: React.FC = () => {
                             <button
                                 onClick={() => setActiveTab('workbooks')}
                                 className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'workbooks'
-                                    ? 'bg-blue-50 text-blue-700'
+                                    ? 'bg-blue-50 text-blue-700 dark:bg-sky-900/30 dark:text-sky-300'
                                     : 'text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800'
                                     }`}
                             >
