@@ -133,18 +133,10 @@ export const useAuthStore = create<AuthState & AuthActions>()(
             set({ error: loginResponse.message || '로그인에 실패했습니다.', isLoading: false });
             return false;
           }
-
-          // 2. SSO 토큰 발급
           const ssoToken = await authService.getSSOToken();
-
-          // 3. Micro-service 로그인
           await authService.loginToMicroService(ssoToken);
-
-          // 4. 사용자 프로필 조회
           const user = await authService.getProfile();
-
           await applyUserSettings();
-
           set({
             user,
             isAuthenticated: true,
