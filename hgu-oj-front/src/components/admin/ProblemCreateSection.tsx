@@ -156,14 +156,12 @@ export const ProblemCreateSection: React.FC = () => {
     const backendLanguages = toBackendLanguageList(problemLanguages);
 
     const payload: CreateProblemPayload = {
-      _id: problemForm.displayId.trim(),
       title: problemForm.title.trim(),
       description: problemForm.description,
       input_description: problemForm.inputDescription,
       output_description: problemForm.outputDescription,
       samples: cleanedSamples,
       test_case_id: testCaseId,
-      test_case_score: [] as Array<{ input_name: string; output_name: string; score: number }>,
       time_limit: Number(problemForm.timeLimit) || 1000,
       memory_limit: Number(problemForm.memoryLimit) || 256,
       languages: backendLanguages,
@@ -172,22 +170,9 @@ export const ProblemCreateSection: React.FC = () => {
         acc[backendKey] = templateMap[lang] || '';
         return acc;
       }, {}),
-      rule_type: problemForm.ruleType,
-      io_mode: {
-        io_mode: 'Standard IO',
-        input: problemForm.ioInput.trim() || 'input.txt',
-        output: problemForm.ioOutput.trim() || 'output.txt',
-      },
-      spj: false,
-      spj_language: null,
-      spj_code: null,
-      spj_compile_ok: false,
-      visible: problemForm.visible,
       difficulty: problemForm.difficulty,
       tags: tagList,
       hint: problemForm.hint.trim() || null,
-      source: problemForm.source.trim() || null,
-      share_submission: problemForm.shareSubmission,
     };
 
     try {
