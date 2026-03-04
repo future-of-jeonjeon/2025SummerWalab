@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_database
 from app.export_result.service import generate_contest_result_workbook
 from app.api.deps import get_userdata
-from app.user.schemas import UserData
+from app.user.schemas import UserProfile
 from app.core.auth.guards import require_role
 
 router = APIRouter(prefix="/api/export", tags=["export"])
@@ -15,7 +15,7 @@ router = APIRouter(prefix="/api/export", tags=["export"])
 @router.get("/contest/{contest_id}/result")
 async def export_contest_result(
         contest_id: int,
-        userdata: UserData = Depends(get_userdata),
+        user_profile: UserProfile = Depends(get_userdata),
         db: AsyncSession = Depends(get_database),
         format: str = Query("xlsx", pattern="^(xlsx)$", description="Currently only xlsx is supported"),
 ):

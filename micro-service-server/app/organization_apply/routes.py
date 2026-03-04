@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_database, get_userdata
 from app.core.auth.guards import require_role
-from app.user.schemas import UserData
+from app.user.schemas import UserProfile
 from app.organization_apply import service
 from app.organization_apply.schemas import (
     OrganizationApplyCreate, 
@@ -17,17 +17,17 @@ router = APIRouter(prefix="/api/organization/apply", tags=["Organization Apply"]
 @router.post("")
 async def create_organization_application(
     payload: OrganizationApplyCreate,
-    userdata: UserData = Depends(get_userdata)
+    user_profile: UserProfile = Depends(get_userdata)
 ):
     """일반 유저가 단체 신청서를 작성하여 Redis에 저장합니다."""
-    apply_id = await service.create_apply(payload, userdata.user_id, userdata.username)
+    apply_id = await service.create_apply(payload, user_profile.user_id, user_profile.username)
     return {"apply_id": apply_id, "message": "단체 신청이 접수되었습니다. 관리자 승인 후 생성됩니다."}
 
 
 @router.get("/list", response_model=List[OrganizationApplyResponse])
 @require_role("Admin")
 async def get_organization_applications(
-    userdata: UserData = Depends(get_userdata)
+    user_profile: UserProfile = Depends(get_userdata)
 ):
     """관리자가 Redis에 저장된 단체 신청 목록을 조회합니다."""
     # Note: Redis implementation here doesn't support easy offset pagination yet, 
@@ -40,7 +40,7 @@ async def get_organization_applications(
 async def handle_organization_application(
     apply_id: str,
     payload: OrganizationApplyHandleRequest,
-    userdata: UserData = Depends(get_userdata),
+    user_profile: UserProfile = Depends(get_userdata),
     db: AsyncSession = Depends(get_database)
 ):
     """관리자가 단체 신청을 승인하거나 거절합니다."""

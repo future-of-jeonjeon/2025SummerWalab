@@ -1,7 +1,7 @@
 import enum
 from typing import Optional
 from pydantic import BaseModel
-from app.user.schemas import UserData
+from app.user.schemas import UserProfile
 
 
 class OrganizationApplyStatus(str, enum.Enum):

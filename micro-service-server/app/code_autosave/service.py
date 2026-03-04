@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.code_autosave.models import ProblemCode
 from app.core.redis import get_redis_code_save
-from app.user.schemas import UserData
+from app.user.schemas import UserProfile
 import app.code_autosave.repository as autosave_repo
 from app.core.settings import settings
 
@@ -18,8 +18,8 @@ async def get_code(problem_id, language, user_id: int, db: AsyncSession):
     return record.code
 
 
-async def save_code(problem_id: int, language, code, userdata: UserData):
-    await _save_code_to_redis(problem_id, language, code, userdata.user_id)
+async def save_code(problem_id: int, language, code, user_profile: UserProfile):
+    await _save_code_to_redis(problem_id, language, code, user_profile.user_id)
     return
 
 

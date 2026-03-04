@@ -2,7 +2,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, Query
 from app.workbook import exceptions
 from app.api.deps import get_userdata
-from app.user.schemas import UserData
+from app.user.schemas import UserProfile
 from app.core.auth.guards import require_role
 from app.workbook.schemas import WorkbookCreate, WorkbookResponse, WorkbookProblem
 from app.api.deps import get_database
@@ -16,9 +16,9 @@ router = APIRouter(prefix="/api/workbook", tags=["workbook"])
 @router.post("/", response_model=WorkbookResponse)
 async def create_workbook(
         workbook: WorkbookCreate,
-        userdata: UserData = Depends(get_userdata),
+        user_profile: UserProfile = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)):
-    return await serv.create_workbook(workbook, userdata, db)
+    return await serv.create_workbook(workbook, user_profile, db)
 
 
 @router.get("/", response_model=Page[WorkbookResponse])
@@ -44,7 +44,7 @@ async def get_workbooks(
         sort_order: Optional[str] = "desc",
         category: Optional[str] = None,
         tags: Optional[str] = None,
-        userdata: UserData = Depends(get_userdata),  # 보안검사용
+        user_profile: UserProfile = Depends(get_userdata),  # 보안검사용
         db: AsyncSession = Depends(get_database)):
     return await serv.get_workbooks(db, page, size, search, sort_by, sort_order, category, tags)
 
@@ -52,9 +52,9 @@ async def get_workbooks(
 @router.get("/{workbook_id}", response_model=WorkbookResponse)
 async def get_workbook(
         workbook_id: int,
-        userdata: UserData = Depends(get_userdata),
+        user_profile: UserProfile = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)):
-    return await serv.get_workbook(workbook_id, userdata, db)
+    return await serv.get_workbook(workbook_id, user_profile, db)
 
 
 @router.put("/{workbook_id}", response_model=WorkbookResponse)
@@ -62,7 +62,7 @@ async def get_workbook(
 async def update_workbook(
         workbook_id: int,
         workbook: WorkbookCreate,
-        userdata: UserData = Depends(get_userdata),
+        user_profile: UserProfile = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)):
     updated_workbook = await serv.update_workbook(workbook_id, workbook, db)
     if not updated_workbook:
@@ -80,9 +80,9 @@ async def delete_workbook(
 @router.get("/{workbook_id}/problems", response_model=list[WorkbookProblem])
 async def get_workbook_problems(
         workbook_id: int,
-        userdata: UserData = Depends(get_userdata),
+        user_profile: UserProfile = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)):
-    return await serv.get_workbook_problems(workbook_id, userdata, db)
+    return await serv.get_workbook_problems(workbook_id, user_profile, db)
 
 
 @router.put("/{workbook_id}/problems")
@@ -90,6 +90,6 @@ async def get_workbook_problems(
 async def update_workbook_problems(
         workbook_id: int,
         problems_data: dict,
-        userdata: UserData = Depends(get_userdata),
+        user_profile: UserProfile = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)):
     return await serv.update_workbook_problems(workbook_id, problems_data.get("problems", []), db)

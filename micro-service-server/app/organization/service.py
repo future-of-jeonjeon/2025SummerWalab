@@ -7,7 +7,7 @@ from app.organization.models import Organization, OrganizationRole, Organization
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.organization.schemas import OrganizationCreateRequest, OrganizationUpdateRequest, \
     OrganizationMemberUpdateRequest, OrganizationResponse, OrganizationMemberResponse, OrganizationListResponse
-from app.user.schemas import UserData
+from app.user.schemas import UserProfile
 from app.common.page import Page
 
 import app.organization.repository as organization_repo
@@ -46,9 +46,9 @@ async def list_organizations(
 
 async def update_organization(
         organization_id: int,
-        request_user: UserData,
+        user_profile: UserProfile,
         data: OrganizationUpdateRequest, db: AsyncSession):
-    await _check_organization_admin(organization_id, request_user, db)
+    await _check_organization_admin(organization_id, user_profile, db)
     organization = await _get_organization_by_id(organization_id, db)
     organization.name = data.name
     organization.description = data.description
@@ -58,9 +58,9 @@ async def update_organization(
 
 async def delete_organization(
         organization_id: int, 
-        request_user: UserData,
+        user_profile: UserProfile,
         db: AsyncSession):
-    await _check_organization_admin(organization_id, request_user, db)
+    await _check_organization_admin(organization_id, user_profile, db)
     await _get_organization_by_id(organization_id, db)
     await organization_repo.delete_by_id(organization_id, db)
     return
@@ -68,11 +68,11 @@ async def delete_organization(
 
 async def organization_join_code(
         organization_id: int,
-        request_user: UserData,
+        user_profile: UserProfile,
         db: AsyncSession):
-    await check_organization_admin(organization_id, request_user, db)
+    await check_organization_admin(organization_id, user_profile, db)
     organization = await _get_organization_by_id(organization_id, db)
-    user = await user_repo.find_user_by_id(request_user.user_id, db)
+    user = await user_repo.find_user_by_id(user_profile.user_id, db)
     if not user:
         user_exceptions.user_not_found()
     redis = await get_redis_manage_code()
@@ -82,21 +82,21 @@ async def organization_join_code(
 
 async def join_organization(
         organization_id: int,
-        request_user: UserData,
+        user_profile: UserProfile,
         join_code: str,
         db: AsyncSession):
     organization = await _get_organization_by_id(organization_id, db)
-    user = await user_repo.find_user_by_id(request_user.user_id, db)
+    user = await user_repo.find_user_by_id(user_profile.user_id, db)
     if not user:
         user_exceptions.user_not_found()
-    user_data = await user_repo.find_sub_userdata_by_user_id(request_user.user_id, db)
+    user_profile = await user_repo.find_sub_userdata_by_user_id(user_profile.user_id, db)
     redis = await get_redis_manage_code()
     organization_id, issue_user_id = await _verify_and_consume_join_code(join_code, organization.id, redis)
     member = (await organization_repo
-              .get_member_by_organization_id_and_user_id(organization_id, request_user.user_id, db))
+              .get_member_by_organization_id_and_user_id(organization_id, user_profile.user_id, db))
     if member:
         exceptions.user_already_exist()
-    new_organization_member = OrganizationMember(organization=organization, user=user_data)
+    new_organization_member = OrganizationMember(organization=organization, user=user_profile)
     await organization_repo.save_organization_member(new_organization_member, db)
     await redis.delete(join_code)
     return OrganizationMemberResponse.from_orm(new_organization_member)
@@ -113,10 +113,10 @@ async def list_organization_user(
 
 async def edit_organization_user(
         organization_id: int,
-        request_user: UserData,
+        user_profile: UserProfile,
         user_update_data: OrganizationMemberUpdateRequest,
         db: AsyncSession) -> OrganizationMemberResponse:
-    await check_organization_admin(organization_id, request_user, db)
+    await check_organization_admin(organization_id, user_profile, db)
 
     await _get_organization_by_id(organization_id, db)
     member_data = await (organization_repo
@@ -130,10 +130,10 @@ async def edit_organization_user(
 
 async def delete_organization_user(
         organization_id: int,
-        request_user_data: UserData,
+        user_profile: UserProfile,
         member_id: int,
         db: AsyncSession):
-    await check_organization_admin(organization_id, request_user_data, db)
+    await check_organization_admin(organization_id, user_profile, db)
     await _get_organization_by_id(organization_id, db)
 
     member_data = await organization_repo.get_member_by_id_and_organization_id(member_id, organization_id, db)
@@ -154,10 +154,10 @@ async def _get_organization_by_id(
     return organization
 
 
-async def is_organization_admin(organization_id: int, user_data: UserData, db: AsyncSession) -> bool:
-    if user_data.admin_type in ["Admin", "Super Admin"]:
+async def is_organization_admin(organization_id: int, user_profile: UserProfile, db: AsyncSession) -> bool:
+    if user_profile.admin_type in ["Admin", "Super Admin"]:
         return True
-    member = await organization_repo.get_member_by_organization_id_and_user_id(organization_id, user_data.user_id, db)
+    member = await organization_repo.get_member_by_organization_id_and_user_id(organization_id, user_profile.user_id, db)
     if member and member.role in {OrganizationRole.ORG_ADMIN, OrganizationRole.ORG_SUPER_ADMIN}:
         return True
     return False
@@ -165,9 +165,9 @@ async def is_organization_admin(organization_id: int, user_data: UserData, db: A
 
 async def check_organization_admin(
         organization_id: int,
-        request_user: UserData,
+        user_profile: UserProfile,
         db: AsyncSession) -> bool:
-    if not await is_organization_admin(organization_id, request_user, db):
+    if not await is_organization_admin(organization_id, user_profile, db):
         exceptions.forbidden()
     return True
 

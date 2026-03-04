@@ -7,7 +7,7 @@ import app.problem.service as serv
 from app.api.deps import get_database, get_userdata
 from app.problem.schemas import *
 from app.core.auth.guards import require_role
-from app.user.schemas import UserData
+from app.user.schemas import UserProfile
 
 router = APIRouter(prefix="/api/problem", tags=["Problem Management"])
 
@@ -15,9 +15,9 @@ router = APIRouter(prefix="/api/problem", tags=["Problem Management"])
 @router.post("")
 async def create_problem(
         request_data: ProblemCreateRequest,
-        user_data: UserData = Depends(get_userdata)):
+        user_profile: UserProfile = Depends(get_userdata)):
     polling_key = await serv.setup_polling(problem_num=1)
-    asyncio.create_task(serv.create_problem(polling_key, request_data, user_data, is_admin=False))
+    asyncio.create_task(serv.create_problem(polling_key, request_data, user_profile, is_admin=False))
     return {"polling_key": polling_key}
 
 
@@ -25,17 +25,17 @@ async def create_problem(
 async def upload_test_case(
         file: UploadFile = File(...),
         spj: bool = Query(False),
-        user_data: UserData = Depends(get_userdata)):
+        user_profile: UserProfile = Depends(get_userdata)):
     return await serv.process_test_case_upload(file, spj)
 
 
 @router.post("/import")
 async def import_problem(
         file: UploadFile = File(...),
-        user_data: UserData = Depends(get_userdata)):
+        user_profile: UserProfile = Depends(get_userdata)):
     problem_num = await serv.count_problems_in_file(file)
     polling_key = await serv.setup_polling(problem_num)
-    asyncio.create_task(serv.import_problem_from_file(polling_key, file, user_data, is_admin=False))
+    asyncio.create_task(serv.import_problem_from_file(polling_key, file, user_profile, is_admin=False))
     return {"polling_key": polling_key}
 
 
@@ -43,9 +43,9 @@ async def import_problem(
 @router.post("/admin/create")
 async def create_problem_admin(
         request_data: ProblemCreateRequest,
-        user_data: UserData = Depends(get_userdata)):
+        user_profile: UserProfile = Depends(get_userdata)):
     polling_key = await serv.setup_polling(problem_num=1)
-    asyncio.create_task(serv.create_problem(polling_key, request_data, user_data, is_admin=True))
+    asyncio.create_task(serv.create_problem(polling_key, request_data, user_profile, is_admin=True))
     return {"polling_key": polling_key}
 
 
@@ -53,10 +53,10 @@ async def create_problem_admin(
 @router.post("/admin/import")
 async def import_problem_admin(
         file: UploadFile = File(...),
-        user_data: UserData = Depends(get_userdata)):
+        user_profile: UserProfile = Depends(get_userdata)):
     problem_num = await serv.count_problems_in_file(file)
     polling_key = await serv.setup_polling(problem_num)
-    asyncio.create_task(serv.import_problem_from_file(polling_key, file, user_data, is_admin=True))
+    asyncio.create_task(serv.import_problem_from_file(polling_key, file, user_profile, is_admin=True))
     return {"polling_key": polling_key}
 
 
@@ -110,10 +110,10 @@ async def get_available_problems(
         keyword: Optional[str] = Query(None),
         page: int = Query(1, ge=1),
         size: int = Query(20, ge=1, le=250),
-        user_data: UserData = Depends(get_userdata),
+        user_profile: UserProfile = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)
 ):
-    return await serv.get_available_contest_problem(page, size, keyword, user_data, db)
+    return await serv.get_available_contest_problem(page, size, keyword, user_profile, db)
 
 
 @router.get("/contest/search", response_model=ProblemListResponse)
@@ -122,10 +122,10 @@ async def get_available_contest_problem(
         page: int = Query(1, ge=1),
         size: int = Query(20, ge=1, le=250),
         keyword: Optional[str] = Query(None),
-        request_user: UserData = Depends(get_userdata),
+        user_profile: UserProfile = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)):
     return await serv.get_available_contest_problem(page=page,
                                                     size=size,
                                                     keyword=keyword,
-                                                    request_user=request_user,
+                                                    user_profile=user_profile,
                                                     db=db)

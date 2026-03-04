@@ -15,7 +15,7 @@ from app.execution.schemas import RunCodeRequest
 from app.problem import repository as problem_repository
 from app.problem.models import Problem
 from app.problem.schemas import *
-from app.user.schemas import UserData
+from app.user.schemas import UserProfile
 from app.problem import utils
 
 POLLING_SESSION_TIME = 3600
@@ -24,7 +24,7 @@ POLLING_SESSION_TIME = 3600
 async def create_problem(
         polling_key: str,
         request_data: ProblemCreateRequest,
-        user_data: UserData,
+        user_profile: UserProfile,
         is_admin: bool):
     try:
         await _set_redis_polling_state(polling_key, "processing", 0, 1, 1)
@@ -44,7 +44,7 @@ async def create_problem(
             create_data.spj = info_json.get("spj", False)
             display_id = str(uuid.uuid4())
             problem = utils.create_problem_from_data(create_data, display_id, request_data.test_case_id, info_list)
-            problem.created_by_id = user_data.user_id
+            problem.created_by_id = user_profile.user_id
             if create_data.tags:
                 problem.tags = await _process_tags(db, create_data.tags)
             await problem_repository.create_problem(db, problem)
@@ -101,7 +101,7 @@ async def setup_polling(
 async def import_problem_from_file(
         polling_key: str,
         zip_file: UploadFile,
-        user_data: UserData,
+        user_profile: UserProfile,
         is_admin: bool) -> str | None:
     problems = []
     testcase_list = []
@@ -115,7 +115,7 @@ async def import_problem_from_file(
             if not zip_file:
                 logger.error("No zip file provided")
                 problem_exceptions.bad_zip_file()
-            logger.info(f"Starting import. user: {user_data.user_id}, file: {zip_file.filename}")
+            logger.info(f"Starting import. user: {user_profile.user_id}, file: {zip_file.filename}")
             contents = await zip_file.read()
             try:
                 zip_ref = utils.open_zip_bytes(contents)
@@ -126,7 +126,7 @@ async def import_problem_from_file(
                 md_paths = utils.filter_problem_md_paths(file_list)
                 logger.info(f"Found {len(md_paths)} problems in zip")
                 for i, path in enumerate(md_paths):
-                    problem = await _process_single_problem(zip_ref, file_list, path, user_data.user_id, db)
+                    problem = await _process_single_problem(zip_ref, file_list, path, user_profile.user_id, db)
                     problems.append(problem)
                     testcase_list.append(problem.test_case_id)
                     status.status = "processing"
@@ -352,8 +352,8 @@ async def count_problems_in_file(file: UploadFile) -> int:
     return count
 
 
-async def get_contributed_problem(user_data: UserData, page: int, size: int, db: AsyncSession):
-    problems = await problem_repository.find_problems_by_creator_id(user_data.user_id, page, size, db)
+async def get_contributed_problem(user_profile: UserProfile, page: int, size: int, db: AsyncSession):
+    problems = await problem_repository.find_problems_by_creator_id(user_profile.user_id, page, size, db)
     return problems.map(ProblemSchema.model_validate)
 
 
@@ -361,13 +361,13 @@ async def get_available_contest_problem(
         page: int,
         size: int,
         keyword: Optional[str],
-        request_user: UserData,
+        user_profile: UserProfile,
         db: AsyncSession
 ) -> ProblemListResponse:
     page_data = await problem_repository.find_available_problems_by_creator_id_and_keyword(
         page=page,
         page_size=size,
-        user_id=request_user.user_id,
+        user_id=user_profile.user_id,
         keyword=keyword,
         db=db)
 

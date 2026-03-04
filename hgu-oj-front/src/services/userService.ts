@@ -10,16 +10,18 @@ export const DEPARTMENTS = [
     '기계제어공학부',
     '콘텐츠융합디자인학부',
     '생명과학부',
-    '전산전자공학부',
+    'AI컴퓨터전자공학부',
     '상담심리사회복지학부',
     'AI융합학부',
 ];
 
 export interface UserDetail {
-    user_id: number;
+    user_id?: number;
     name: string;
     student_id: string;
     major_id: number;
+    dark_mode_enabled?: boolean;
+    language_preferences?: string[];
 }
 
 export const userService = {

@@ -4,6 +4,24 @@ import { UserProfile } from '../types';
 import { authService } from '../services/authService';
 import { queryClient } from '../hooks/useQueryClient';
 import { useProblemStore } from './problemStore';
+import { userService } from '../services/userService';
+
+const applyUserSettings = async () => {
+  try {
+    const userDetail = await userService.getUserData();
+    if (userDetail) {
+      const theme = userDetail.dark_mode_enabled ? 'dark' : 'light';
+      localStorage.setItem('theme', theme);
+      document.documentElement.classList.toggle('dark', theme === 'dark');
+
+      if (userDetail.language_preferences && userDetail.language_preferences.length > 0) {
+        localStorage.setItem('oj:editorLanguageOrder', JSON.stringify(userDetail.language_preferences));
+      }
+    }
+  } catch (err) {
+    console.error('Failed to load user settings:', err);
+  }
+};
 
 const invalidateUserScopedQueries = () => {
   const userScopedKeys = new Set<string>([
@@ -125,6 +143,8 @@ export const useAuthStore = create<AuthState & AuthActions>()(
           // 4. 사용자 프로필 조회
           const user = await authService.getProfile();
 
+          await applyUserSettings();
+
           set({
             user,
             isAuthenticated: true,
@@ -162,6 +182,8 @@ export const useAuthStore = create<AuthState & AuthActions>()(
           // 4. 사용자 프로필 조회
           const user = await authService.getProfile();
 
+          await applyUserSettings();
+
           set({
             user,
             isAuthenticated: true,
@@ -187,6 +209,11 @@ export const useAuthStore = create<AuthState & AuthActions>()(
           console.error('로그아웃 중 오류:', error);
         } finally {
           clearOjStorage();
+
+          // Reset theme to default on logout
+          localStorage.removeItem('theme');
+          document.documentElement.classList.remove('dark');
+
           invalidateUserScopedQueries();
           queryClient.clear();
           const problemStore = useProblemStore.getState();
@@ -224,6 +251,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
           const isStillAuthenticated = await authService.checkAuth();
           if (isStillAuthenticated) {
             const user = await authService.getProfile();
+            await applyUserSettings();
             set({ user, isAuthenticated: true, isLoading: false });
           } else {
             set({ user: null, isAuthenticated: false, isLoading: false });

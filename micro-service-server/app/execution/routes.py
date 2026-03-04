@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_database, get_userdata
 import app.execution.service as execution_service
 from app.execution.schemas import *
-from app.user.schemas import UserData
+from app.user.schemas import UserProfile
 
 router = APIRouter(prefix="/api/execution", tags=["execution"])
 
@@ -17,7 +17,7 @@ MAX_MEMORY_MB = 128
 async def run_code(
         req: RunRequest,
         session: AsyncSession = Depends(get_database),
-        user_data: UserData = Depends(get_userdata)
+        user_profile: UserProfile = Depends(get_userdata)
 ):
     result = await execution_service.run_code_service(
         session=session,

@@ -7,7 +7,7 @@ from app.api.deps import get_database
 from app.api.deps import get_userdata
 from app.submission import service as submission_service
 from app.submission.schemas import ContestProblemStatList, ContestScoreBoard, SubmissionDailyCount
-from app.user.schemas import UserData
+from app.user.schemas import UserProfile
 
 router = APIRouter(prefix="/api/submission", tags=["submission"])
 
@@ -33,6 +33,6 @@ async def get_contest_user_scores(
 
 @router.get("/contribution", response_model=List[SubmissionDailyCount])
 async def get_contribution_data(
-        user_data: UserData = Depends(get_userdata),
+        user_profile: UserProfile = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)):
-    return await submission_service.get_contribution_data(user_data, db)
+    return await submission_service.get_contribution_data(user_profile, db)

@@ -1,6 +1,6 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.common.page import Page
-from app.user.schemas import UserData
+from app.user.schemas import UserProfile
 from app.workbook.models import Workbook, WorkbookProblem
 from app.workbook.schemas import WorkbookCreate, WorkbookUpdate, WorkbookResponse as WorkbookSchema, WorkbookResponse
 from typing import List, Optional
@@ -12,11 +12,11 @@ import app.workbook.repository as workbook_repo
 
 async def create_workbook(
         workbook_data: WorkbookCreate,
-        userdata: UserData,
+        user_profile: UserProfile,
         db: AsyncSession,
         problems_data: Optional[list[int]] = None,
 ) -> Workbook:
-    user = await user_repo.find_user_by_username(db, userdata.username)
+    user = await user_repo.find_user_by_username(db, user_profile.username)
     if not user:
         user_exceptions.user_not_found()
     workbook = _create_workbook_by_data(workbook_data, user.id)
@@ -32,11 +32,11 @@ async def create_workbook(
     return saved_workbook
 
 
-async def get_workbook(workbook_id: int, userdata: UserData, db: AsyncSession) -> Workbook:
+async def get_workbook(workbook_id: int, user_profile: UserProfile, db: AsyncSession) -> Workbook:
     workbook = await workbook_repo.find_by_id(workbook_id, db)
     if not workbook:
         exceptions.workbook_not_found()
-    if not workbook.is_public and not userdata.admin_type.__contains__("Admin"):
+    if not workbook.is_public and not user_profile.admin_type.__contains__("Admin"):
         exceptions.workbook_forbidden()
     user = await user_repo.find_user_by_id(workbook.created_by_id, db)
     if not user:
@@ -96,11 +96,11 @@ async def delete_workbook(workbook_id: int, db: AsyncSession):
         exceptions.workbook_not_found()
     await workbook_repo.delete(workbook, db)
 
-async def get_workbook_problems(workbook_id: int, userdata: UserData, db: AsyncSession) -> List[WorkbookProblem]:
+async def get_workbook_problems(workbook_id: int, user_profile: UserProfile, db: AsyncSession) -> List[WorkbookProblem]:
     workbook = await workbook_repo.find_by_id(workbook_id, db)
     if not workbook:
         exceptions.workbook_not_found()
-    if not workbook.is_public and not userdata.admin_type.__contains__("Admin"):
+    if not workbook.is_public and not user_profile.admin_type.__contains__("Admin"):
         exceptions.workbook_forbidden()
     return workbook.problems
 
@@ -142,8 +142,8 @@ async def _enrich_workbook(workbook: Workbook, username: str):
     return workbook
 
 
-async def get_contributed_workbooks(user_data: UserData, page: int, size: int, db: AsyncSession) -> Page[WorkbookSchema]:
-    workbooks_page = await workbook_repo.find_workbooks_by_creator_id(user_data.user_id, page, size, db)
+async def get_contributed_workbooks(user_profile: UserProfile, page: int, size: int, db: AsyncSession) -> Page[WorkbookSchema]:
+    workbooks_page = await workbook_repo.find_workbooks_by_creator_id(user_profile.user_id, page, size, db)
     for workbook in workbooks_page.items:
         user = await user_repo.find_user_by_id(workbook.created_by_id, db)
         if not user:
