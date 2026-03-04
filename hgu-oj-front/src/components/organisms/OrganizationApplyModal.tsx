@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useMutation } from '@tanstack/react-query';
 import { organizationService } from '../../services/organizationService';
+import { uploadService } from '../../services/uploadService';
 import { Button } from '../atoms/Button';
 import { OrganizationApplicationPayload } from '../../types';
 
@@ -17,6 +18,7 @@ export const OrganizationApplyModal: React.FC<OrganizationApplyModalProps> = ({ 
         img_url: '',
     });
     const [error, setError] = useState<string | null>(null);
+    const [uploadingLogo, setUploadingLogo] = useState(false);
 
     const mutation = useMutation({
         mutationFn: organizationService.createApply,
@@ -47,6 +49,29 @@ export const OrganizationApplyModal: React.FC<OrganizationApplyModalProps> = ({ 
         }
 
         mutation.mutate(formData);
+    };
+
+    const handleLogoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        if (file.size > 2 * 1024 * 1024) {
+            setError('로고 이미지는 2MB 이하여야 합니다.');
+            e.target.value = '';
+            return;
+        }
+
+        setUploadingLogo(true);
+        setError(null);
+        try {
+            const url = await uploadService.uploadImage(file);
+            setFormData(prev => ({ ...prev, img_url: url }));
+        } catch (err: any) {
+            setError(err.message || '이미지 업로드에 실패했습니다.');
+        } finally {
+            setUploadingLogo(false);
+            e.target.value = '';
+        }
     };
 
     const modalContent = (
@@ -104,14 +129,45 @@ export const OrganizationApplyModal: React.FC<OrganizationApplyModalProps> = ({ 
                         </div>
 
                         <div>
-                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1.5 ml-1">로고 이미지 URL (선택)</label>
-                            <input
-                                type="text"
-                                value={formData.img_url || ''}
-                                onChange={(e) => setFormData({ ...formData, img_url: e.target.value })}
-                                className="w-full bg-gray-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-3.5 text-[15px] focus:ring-2 focus:ring-blue-500 outline-none transition-all placeholder:text-gray-400 dark:placeholder:text-gray-600"
-                                placeholder="https://example.com/logo.png"
-                            />
+                            <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1.5 ml-1">로고 이미지 (선택)</label>
+
+                            {formData.img_url ? (
+                                <div className="relative group w-32 h-32 rounded-2xl overflow-hidden border border-gray-200 dark:border-slate-700">
+                                    <img src={formData.img_url} alt="Logo preview" className="w-full h-full object-cover bg-white" />
+                                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                                        <button
+                                            type="button"
+                                            onClick={() => setFormData({ ...formData, img_url: '' })}
+                                            className="text-white text-xs font-bold px-3 py-1.5 bg-red-500/80 rounded-lg hover:bg-red-500 transition"
+                                        >
+                                            삭제
+                                        </button>
+                                    </div>
+                                </div>
+                            ) : (
+                                <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 dark:border-slate-600 rounded-2xl bg-gray-50 dark:bg-slate-900 hover:bg-gray-100 dark:hover:bg-slate-800 transition cursor-pointer">
+                                    {uploadingLogo ? (
+                                        <div className="flex flex-col items-center gap-2">
+                                            <div className="w-6 h-6 border-4 border-blue-200 border-t-blue-500 rounded-full animate-spin"></div>
+                                            <span className="text-sm font-medium text-blue-500">업로드 중...</span>
+                                        </div>
+                                    ) : (
+                                        <>
+                                            <svg className="w-8 h-8 text-gray-400 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2-2v12a2 2 0 002 2z" />
+                                            </svg>
+                                            <span className="text-sm font-medium text-gray-500 dark:text-gray-400">클릭하여 이미지 업로드 (최대 2MB)</span>
+                                        </>
+                                    )}
+                                    <input
+                                        type="file"
+                                        className="hidden"
+                                        accept="image/png, image/jpeg, image/jpg, image/gif"
+                                        onChange={handleLogoSelect}
+                                        disabled={uploadingLogo}
+                                    />
+                                </label>
+                            )}
                         </div>
                     </div>
 

@@ -50,4 +50,15 @@ export const userService = {
         const response = await apiClient.put(`${MS_API_BASE}/user/data`, data);
         return response.data;
     },
+
+    uploadAvatar: async (file: File) => {
+        const formData = new FormData();
+        formData.append('image', file);
+        const response = await apiClient.post('/upload_avatar', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+        return response.data;
+    },
 };
