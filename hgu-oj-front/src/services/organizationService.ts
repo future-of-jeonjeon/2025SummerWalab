@@ -285,12 +285,12 @@ export const organizationService = {
 
   getApplies: async (): Promise<OrganizationApplication[]> => {
     const url = ensureBase('/organization/apply/list');
-    const response = await apiClient.get<OrganizationApplication[]>(url);
+    const response = await apiClient.get<OrganizationApplication[]>(url, { skipAuthRedirect: true } as any);
     return response.data;
   },
 
   handleApply: async (applyId: string, payload: OrganizationApplicationApprovePayload): Promise<void> => {
     const url = ensureBase(`/organization/apply/${applyId}/handle`);
-    await apiClient.post(url, payload);
+    await apiClient.post(url, payload, { skipAuthRedirect: true } as any);
   },
 };

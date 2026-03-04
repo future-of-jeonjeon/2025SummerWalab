@@ -8,6 +8,9 @@ import { useProblemStore } from '../stores/problemStore';
 import { useAuthStore } from '../stores/authStore';
 import { PROBLEM_STATUS_LABELS } from '../constants/problemStatus';
 import { problemService } from '../services/problemService';
+import { normalizeDifficulty } from '../lib/difficulty';
+import { resolveProblemStatus } from '../utils/problemStatus';
+import { extractProblemTags } from '../utils/problemTags';
 
 const normalizeTags = (tags: string[]): string[] => {
   const unique = new Set(
@@ -34,7 +37,7 @@ export const ProblemListPage: React.FC = () => {
   const { filter, setFilter } = useProblemStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [showAllTags, setShowAllTags] = useState(false);
-  const [minDifficultyLevel, setMinDifficultyLevel] = useState(1);
+  const [minDifficultyLevel, setMinDifficultyLevel] = useState(0);
   const [maxDifficultyLevel, setMaxDifficultyLevel] = useState(5);
   const { isAuthenticated } = useAuthStore();
 
@@ -132,6 +135,16 @@ export const ProblemListPage: React.FC = () => {
   }, [selectedTags]);
 
   useEffect(() => {
+    setFilter({ tags: [], page: 1 });
+    const params = new URLSearchParams(searchParamsString);
+    if (params.has('tags')) {
+      params.delete('tags');
+      setSearchParams(params, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     const params = new URLSearchParams(searchParamsString);
     const parsed = parseTagsFromQuery(params.get('tags'));
     if (!areTagArraysEqual(parsed, selectedTagsRef.current)) {
@@ -168,6 +181,57 @@ export const ProblemListPage: React.FC = () => {
 
   const processedProblems = useMemo(() => {
     const items = microProblems;
+    const query = searchQuery.trim().toLowerCase();
+    const searchField = filter.searchField ?? 'title';
+    const sortField = filter.sortField ?? 'title';
+    const sortOrder = filter.sortOrder ?? 'asc';
+    const statusFilter = isAuthenticated ? (filter.statusFilter ?? 'all') : 'all';
+    const requiredTags = selectedTags.map((tag) => tag.toLowerCase());
+
+    const matchesQuery = (problem: Problem) => {
+      if (!query) return true;
+      if (searchField === 'tag') {
+        const tags = [
+          ...(Array.isArray((problem as any).tags) ? (problem as any).tags : []),
+          ...(Array.isArray((problem as any).tagNames) ? (problem as any).tagNames : []),
+          ...(Array.isArray((problem as any).tag_list) ? (problem as any).tag_list : []),
+        ];
+        return tags.some((tag: unknown) => typeof tag === 'string' && tag.trim().toLowerCase().includes(query));
+      }
+      if (searchField === 'number') {
+        const identifier = String(problem.displayId ?? problem._id ?? problem.id ?? '').toLowerCase();
+        return identifier.includes(query);
+      }
+      return String(problem.title ?? '').toLowerCase().includes(query);
+    };
+
+    const matchesSelectedTags = (problem: Problem) => {
+      if (requiredTags.length === 0) return true;
+      const normalizedTags = extractProblemTags(problem).map((tag) => tag.toLowerCase());
+      if (normalizedTags.length === 0) return false;
+      return requiredTags.some((tag) => normalizedTags.includes(tag));
+    };
+
+    const getDifficultyLevel = (problem: Problem) => {
+      const rawDifficulty =
+        (problem as any).difficulty ??
+        (problem as any).level ??
+        (problem as any).difficulty_level ??
+        (problem as any).difficultyLevel ??
+        (problem as any).difficulty_name ??
+        (problem as any).difficultyName;
+      return normalizeDifficulty(rawDifficulty);
+    };
+
+    const getNumericOrder = (problem: Problem) => {
+      const identifier = String(problem.displayId ?? problem._id ?? problem.id ?? '');
+      const numericOnly = identifier.replace(/[^0-9]/g, '');
+      return numericOnly ? Number(numericOnly) : Number.MAX_SAFE_INTEGER;
+    };
+
+    const compareStrings = (a: string, b: string) =>
+      a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+
     const hydratedItems = items.map((problem) => {
       if (!isAuthenticated) return problem;
 
@@ -189,12 +253,47 @@ export const ProblemListPage: React.FC = () => {
       return problem;
     });
 
-    return hydratedItems;
+    const filtered = hydratedItems
+      .filter(matchesSelectedTags)
+      .filter(matchesQuery)
+      .filter((problem) => {
+        if (!isAuthenticated) return true;
+        const status = resolveProblemStatus(problem);
+        if (statusFilter === 'all') return true;
+        return status === statusFilter;
+      })
+      .filter((problem) => {
+        const difficultyLevel = getDifficultyLevel(problem);
+        if (difficultyLevel === null) return false;
+        return difficultyLevel >= minDifficultyLevel && difficultyLevel <= maxDifficultyLevel;
+      });
+
+    const sorted = [...filtered].sort((a, b) => {
+      if (sortField === 'number') {
+        return getNumericOrder(a) - getNumericOrder(b);
+      }
+      if (sortField === 'title') {
+        return compareStrings(String(a.title ?? ''), String(b.title ?? ''));
+      }
+      if (sortField === 'submission') {
+        return (a.submissionNumber ?? 0) - (b.submissionNumber ?? 0);
+      }
+      return (a.acceptedNumber ?? 0) - (b.acceptedNumber ?? 0);
+    });
+
+    return sortOrder === 'desc' ? sorted.reverse() : sorted;
   }, [
     microProblems,
+    filter.searchField,
+    filter.sortField,
+    filter.sortOrder,
+    filter.statusFilter,
     searchQuery,
     isAuthenticated,
     normalizedStatusMap,
+    selectedTags,
+    minDifficultyLevel,
+    maxDifficultyLevel,
   ]);
 
   const tagStats = useMemo(() => {
@@ -320,7 +419,7 @@ export const ProblemListPage: React.FC = () => {
                   <div className="absolute inset-x-0 top-3 h-2 rounded-lg bg-gray-200 dark:bg-slate-700" />
                   <input
                     type="range"
-                    min="1"
+                    min="0"
                     max="5"
                     step="1"
                     value={minDifficultyLevel}
@@ -334,7 +433,7 @@ export const ProblemListPage: React.FC = () => {
                   />
                   <input
                     type="range"
-                    min="1"
+                    min="0"
                     max="5"
                     step="1"
                     value={maxDifficultyLevel}
@@ -348,6 +447,7 @@ export const ProblemListPage: React.FC = () => {
                   />
                 </div>
                 <div className="flex justify-between text-xs text-gray-500 dark:text-slate-400 mt-3 font-medium">
+                  <span>Lv.0</span>
                   <span>Lv.1</span>
                   <span>Lv.2</span>
                   <span>Lv.3</span>
@@ -399,12 +499,11 @@ export const ProblemListPage: React.FC = () => {
                     const field = value.replace('-desc', '').replace('-asc', '') as any;
                     setFilter({ sortField: field, sortOrder: isDesc ? 'desc' : 'asc', page: 1 });
                   }}
-                  value={`${filter.sortField ?? 'number'}-${filter.sortOrder ?? 'desc'}`}
+                  value={`${filter.sortField ?? 'title'}-${filter.sortOrder ?? 'asc'}`}
                 >
                   <option value="title-asc">제목순</option>
                   <option value="submission-desc">제출 많은순</option>
                   <option value="accuracy-desc">정답률 높은순</option>
-                  <option value="number-asc">번호순</option>
                   <option value="number-desc">최신순</option>
                 </select>
               </div>

@@ -57,6 +57,18 @@ export const uploadService = {
       normalizedPath = `/${normalizedPath}`;
     }
 
+    if (normalizedPath.startsWith('/public')) {
+      if (typeof window !== 'undefined') {
+        return `${window.location.protocol}//${window.location.host}${normalizedPath}`;
+      }
+      try {
+        const url = new URL(API_BASE_URL);
+        return `${url.origin}${normalizedPath}`;
+      } catch {
+        return normalizedPath;
+      }
+    }
+
     if (API_FILE_ORIGIN) {
       return `${API_FILE_ORIGIN}${normalizedPath}`;
     }

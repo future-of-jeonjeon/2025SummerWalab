@@ -122,6 +122,7 @@ export const ContestListPage: React.FC = () => {
   );
 
   const endedContests = endedData?.data || [];
+  const endedTotalPages = endedData?.totalPages || 1;
 
   const ContestCard = ({ contest }: { contest: any }) => {
     const statusInfo = getContestStatus(contest);
@@ -283,7 +284,7 @@ export const ContestListPage: React.FC = () => {
           </div>
 
           {/* Pagination */}
-          {(endedData?.totalPages ?? 0) > 1 && (
+          {endedTotalPages > 1 && (
             <div className="flex justify-center mt-6">
               <nav className="flex items-center gap-2">
                 <button
@@ -294,22 +295,55 @@ export const ContestListPage: React.FC = () => {
                   이전
                 </button>
                 <div className="flex gap-1">
-                  {[...Array(endedData?.totalPages || 0)].map((_, i) => (
-                    <button
-                      key={i + 1}
-                      onClick={() => setEndedPage(i + 1)}
-                      className={`px-3 py-1 rounded text-sm font-medium ${endedPage === i + 1
-                        ? 'bg-blue-600 text-white border border-blue-600'
-                        : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-200 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-800'
-                        }`}
-                    >
-                      {i + 1}
-                    </button>
-                  ))}
+                  {(() => {
+                    const maxVisible = 5;
+                    let start = Math.max(1, endedPage - Math.floor(maxVisible / 2));
+                    let end = start + maxVisible - 1;
+
+                    if (end > endedTotalPages) {
+                      end = endedTotalPages;
+                      start = Math.max(1, end - maxVisible + 1);
+                    }
+
+                    const renderPage = (page: number) => (
+                      <button
+                        key={page}
+                        onClick={() => setEndedPage(page)}
+                        className={`px-3 py-1 rounded text-sm font-medium ${endedPage === page
+                          ? 'bg-blue-600 text-white border border-blue-600'
+                          : 'bg-white dark:bg-slate-900 text-gray-700 dark:text-slate-200 border border-gray-300 dark:border-slate-600 hover:bg-gray-50 dark:hover:bg-slate-800'
+                          }`}
+                      >
+                        {page}
+                      </button>
+                    );
+
+                    const items: React.ReactNode[] = [];
+
+                    if (start > 1) {
+                      items.push(renderPage(1));
+                      if (start > 2) {
+                        items.push(<span key="start-dots" className="px-2 py-1 text-gray-500 dark:text-slate-400">...</span>);
+                      }
+                    }
+
+                    for (let i = start; i <= end; i += 1) {
+                      items.push(renderPage(i));
+                    }
+
+                    if (end < endedTotalPages) {
+                      if (end < endedTotalPages - 1) {
+                        items.push(<span key="end-dots" className="px-2 py-1 text-gray-500 dark:text-slate-400">...</span>);
+                      }
+                      items.push(renderPage(endedTotalPages));
+                    }
+
+                    return items;
+                  })()}
                 </div>
                 <button
-                  onClick={() => setEndedPage(p => Math.min(endedData?.totalPages || 1, p + 1))}
-                  disabled={endedPage === (endedData?.totalPages || 1)}
+                  onClick={() => setEndedPage(p => Math.min(endedTotalPages, p + 1))}
+                  disabled={endedPage === endedTotalPages}
                   className="px-3 py-1 rounded border border-gray-300 dark:border-slate-600 disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50 dark:hover:bg-slate-800 text-sm font-medium text-gray-700 dark:text-slate-200 bg-white dark:bg-slate-900"
                 >
                   다음

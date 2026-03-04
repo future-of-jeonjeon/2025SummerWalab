@@ -65,6 +65,16 @@ export const WorkbookListPage: React.FC = () => {
   }, [selectedTags]);
 
   useEffect(() => {
+    setFilter({ tags: [], page: 1 });
+    const params = new URLSearchParams(searchParamsString);
+    if (params.has('tags')) {
+      params.delete('tags');
+      setSearchParams(params, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
     const params = new URLSearchParams(searchParamsString);
     const parsed = parseTagsFromQuery(params.get('tags'));
     if (!areTagArraysEqual(parsed, selectedTagsRef.current)) {

@@ -51,6 +51,10 @@ apiClient.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
+      const skipAuthRedirect = Boolean((error.config as any)?.skipAuthRedirect);
+      if (skipAuthRedirect) {
+        return Promise.reject(error);
+      }
       // OAuth 콜백 페이지에서는 401 에러를 직접 처리하도록 리다이렉트 방지
       if (window.location.pathname.startsWith('/oauth/callback')) {
         return Promise.reject(error);

@@ -218,86 +218,86 @@ export const ProblemList: React.FC<ProblemListProps> = ({
             );
           })}
         </div>
-
-        {/* 페이지네이션 */}
-        {totalPages > 0 && onPageChange && (
-          <div className="flex items-center justify-between p-4 bg-white dark:bg-slate-900 border-t border-gray-200 dark:border-slate-700">
-            <Button
-              onClick={() => onPageChange(currentPage - 1)}
-              disabled={currentPage <= 1}
-              className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm font-medium text-gray-700 dark:text-slate-200 bg-white dark:bg-slate-900 hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              이전
-            </Button>
-
-            <div className="flex hidden sm:flex space-x-1 sm:space-x-2">
-              {(() => {
-                // 화면 중앙에 보여줄 페이지 번호 개수 (ex: 5개)
-                const maxVisible = 5;
-                let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
-                let end = start + maxVisible - 1;
-
-                if (end > totalPages) {
-                  end = totalPages;
-                  start = Math.max(1, end - maxVisible + 1);
-                }
-
-                const renderPage = (page: number) => (
-                  <Button
-                    key={page}
-                    onClick={() => onPageChange(page)}
-                    className={`min-w-[36px] px-3 py-2 rounded-lg text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${currentPage === page
-                      ? 'bg-blue-600 text-white border border-blue-600 hover:bg-blue-700'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800'
-                      }`}
-                  >
-                    {page}
-                  </Button>
-                );
-
-                const items = [];
-
-                if (start > 1) {
-                  items.push(renderPage(1));
-                  if (start > 2) {
-                    items.push(<span key="start-dots" className="px-2 py-2 text-gray-500 dark:text-slate-400">...</span>);
-                  }
-                }
-
-                for (let i = start; i <= end; i++) {
-                  items.push(renderPage(i));
-                }
-
-                if (end < totalPages) {
-                  if (end < totalPages - 1) {
-                    items.push(<span key="end-dots" className="px-2 py-2 text-gray-500 dark:text-slate-400">...</span>);
-                  }
-                  items.push(renderPage(totalPages));
-                }
-
-                if (items.length === 0 && totalPages > 0) {
-                  items.push(renderPage(1));
-                }
-
-                return items;
-              })()}
-            </div>
-
-            {/* 모바일 환경에서는 페이지 번호를 줄여서 보여줌 */}
-            <div className="sm:hidden text-sm text-gray-600 dark:text-slate-300 font-medium">
-              {currentPage} / {totalPages}
-            </div>
-
-            <Button
-              onClick={() => onPageChange(currentPage + 1)}
-              disabled={currentPage >= totalPages}
-              className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm font-medium text-gray-700 dark:text-slate-200 bg-white dark:bg-slate-900 hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              다음
-            </Button>
-          </div>
-        )}
       </div>
+
+      {/* 페이지네이션 */}
+      {totalPages > 0 && onPageChange && (
+        <div className="flex items-center justify-between px-1">
+          <Button
+            onClick={() => onPageChange(currentPage - 1)}
+            disabled={currentPage <= 1}
+            className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm font-medium text-gray-700 dark:text-slate-200 bg-white dark:bg-slate-900 hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            이전
+          </Button>
+
+          <div className="flex hidden sm:flex space-x-1 sm:space-x-2">
+            {(() => {
+              // 화면 중앙에 보여줄 페이지 번호 개수 (ex: 5개)
+              const maxVisible = 5;
+              let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
+              let end = start + maxVisible - 1;
+
+              if (end > totalPages) {
+                end = totalPages;
+                start = Math.max(1, end - maxVisible + 1);
+              }
+
+              const renderPage = (page: number) => (
+                <Button
+                  key={page}
+                  onClick={() => onPageChange(page)}
+                  className={`min-w-[36px] px-3 py-2 rounded-lg text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${currentPage === page
+                    ? 'bg-blue-600 text-white border border-blue-600 hover:bg-blue-700'
+                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 dark:hover:bg-slate-800'
+                    }`}
+                >
+                  {page}
+                </Button>
+              );
+
+              const items = [];
+
+              if (start > 1) {
+                items.push(renderPage(1));
+                if (start > 2) {
+                  items.push(<span key="start-dots" className="px-2 py-2 text-gray-500 dark:text-slate-400">...</span>);
+                }
+              }
+
+              for (let i = start; i <= end; i++) {
+                items.push(renderPage(i));
+              }
+
+              if (end < totalPages) {
+                if (end < totalPages - 1) {
+                  items.push(<span key="end-dots" className="px-2 py-2 text-gray-500 dark:text-slate-400">...</span>);
+                }
+                items.push(renderPage(totalPages));
+              }
+
+              if (items.length === 0 && totalPages > 0) {
+                items.push(renderPage(1));
+              }
+
+              return items;
+            })()}
+          </div>
+
+          {/* 모바일 환경에서는 페이지 번호를 줄여서 보여줌 */}
+          <div className="sm:hidden text-sm text-gray-600 dark:text-slate-300 font-medium">
+            {currentPage} / {totalPages}
+          </div>
+
+          <Button
+            onClick={() => onPageChange(currentPage + 1)}
+            disabled={currentPage >= totalPages}
+            className="px-4 py-2 border border-gray-300 dark:border-slate-600 rounded-lg text-sm font-medium text-gray-700 dark:text-slate-200 bg-white dark:bg-slate-900 hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            다음
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
