@@ -47,7 +47,7 @@ def upgrade() -> None:
     for tbl in [
         'micro_userdata', 'micro_organization', 'micro_organization_member',
         'micro_contest_language', 'micro_organization_contest', 'micro_problem_code',
-        'micro_todo',
+        'micro_todo', 'micro_workbook', 'micro_notification', 'micro_contest_user',
     ]:
         if inspector.has_table(tbl, schema='public'):
             _ensure_base_entity_columns(tbl)
