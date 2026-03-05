@@ -36,19 +36,19 @@ export const TagChip: React.FC<TagChipProps> = ({
   const style = (
     active
       ? {
-          backgroundColor: scheme.activeBackground,
-          color: scheme.activeText ?? '#FFFFFF',
-          borderColor: scheme.activeBorder ?? scheme.activeBackground,
-          borderWidth: '2px',
-          borderStyle: 'solid',
-        }
+        backgroundColor: scheme.activeBackground,
+        color: scheme.activeText ?? '#FFFFFF',
+        borderColor: scheme.activeBorder ?? scheme.activeBackground,
+        borderWidth: '2px',
+        borderStyle: 'solid',
+      }
       : {
-          backgroundColor: scheme.background,
-          color: scheme.text,
-          borderColor: scheme.border,
-          borderWidth: '1.5px',
-          borderStyle: 'solid',
-        }
+        backgroundColor: scheme.background,
+        color: scheme.text,
+        borderColor: scheme.border,
+        borderWidth: '1px',
+        borderStyle: 'solid',
+      }
   ) as React.CSSProperties;
 
   const hoverClass = active ? 'hover:brightness-[0.93]' : 'hover:brightness-95';
@@ -63,6 +63,9 @@ export const TagChip: React.FC<TagChipProps> = ({
         className={`${baseClass} ${hoverClass} active:brightness-90 ${className}`.trim()}
       >
         {label}
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 ml-1 opacity-70 hover:opacity-100">
+          <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
+        </svg>
       </button>
     );
   }

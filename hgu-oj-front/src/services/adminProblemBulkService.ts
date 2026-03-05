@@ -107,7 +107,19 @@ const serializeParams = (params: Record<string, unknown>): string => {
 };
 
 export type ImportProblemsResult = {
-  import_count: number;
+  polling_key: string;
+};
+
+export type ProblemImportPollingStatus = {
+  status: string;
+  processed_problem?: number;
+  imported_problem?: number;
+  left_problem: number;
+  all_problem: number;
+  message?: string;
+  error_code?: string | number;
+  error_message?: string;
+  problem_id?: number | string;
 };
 
 export type ExportProblemsResult = {
@@ -127,34 +139,42 @@ export const adminProblemBulkService = {
     }
 
     try {
-      // Microservice endpoint: POST /problem
-      // Use full URL to override apiClient's baseURL
-      const response = await apiClient.post(`${MS_API_BASE}/problem`, formData, {
+      const response = await apiClient.post(`${MS_API_BASE}/problem/import`, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
 
-      // Adapt response to match expected interface
       const data = response.data;
-      // If the response is wrapped (legacy style), unwrap it. 
-      // But the new service returns the list directly (or wrapped depending on global interceptors).
-      // Assuming standard FastAPI response which is the list directly.
-      // However, if apiClient has interceptors that expect wrapped response, we might need to be careful.
-      // Let's assume response.data is the list of problems.
-
-      if (Array.isArray(data)) {
-        return { import_count: data.length };
+      if (data && typeof data.polling_key === 'string') {
+        return { polling_key: data.polling_key };
       }
 
-      // Fallback if it's wrapped or different structure
+      // Fallback for types not matching directly (should not happen with correct backend)
       const unwrapped = unwrapResponse<any>(data);
-      if (Array.isArray(unwrapped)) {
-        return { import_count: unwrapped.length };
+      if (unwrapped && typeof unwrapped.polling_key === 'string') {
+        return { polling_key: unwrapped.polling_key };
       }
 
-      return { import_count: 0 };
+      throw new Error('Polling key not received from server.');
 
     } catch (error) {
-      const message = extractErrorMessage(error, '문제 대량 등록에 실패했습니다.');
+      const message = extractErrorMessage(error, '문제 대량 등록 요청에 실패했습니다.');
+      throw new Error(message);
+    }
+  },
+
+  getImportPollingStatus: async (pollingKey: string): Promise<ProblemImportPollingStatus> => {
+    const MS_API_BASE = ((import.meta.env.VITE_MS_API_BASE as string | undefined) || '').replace(/\/$/, '');
+    if (!MS_API_BASE) {
+      throw new Error('Microservice API base URL is not configured.');
+    }
+
+    try {
+      const response = await apiClient.get(`${MS_API_BASE}/problem/polling`, {
+        params: { key: pollingKey },
+      });
+      return response.data as ProblemImportPollingStatus;
+    } catch (error) {
+      const message = extractErrorMessage(error, '상태 조회에 실패했습니다.');
       throw new Error(message);
     }
   },

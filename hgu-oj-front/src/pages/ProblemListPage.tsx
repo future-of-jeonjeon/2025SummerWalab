@@ -1,16 +1,16 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useProblems } from '../hooks/useProblems';
 import { Problem, ProblemFilter } from '../types';
 import { ProblemList } from '../components/organisms/ProblemList';
 import { useProblemStore } from '../stores/problemStore';
-import { resolveProblemStatus } from '../utils/problemStatus';
 import { useAuthStore } from '../stores/authStore';
 import { PROBLEM_STATUS_LABELS } from '../constants/problemStatus';
-import { TagFilterBar } from '../components/problems/TagFilterBar';
-import { getTagColor } from '../utils/tagColor';
 import { problemService } from '../services/problemService';
+import CommonPagination from '../components/common/CommonPagination';
+import { normalizeDifficulty } from '../lib/difficulty';
+import { resolveProblemStatus } from '../utils/problemStatus';
 import { extractProblemTags } from '../utils/problemTags';
 
 const normalizeTags = (tags: string[]): string[] => {
@@ -22,21 +22,13 @@ const normalizeTags = (tags: string[]): string[] => {
   return Array.from(unique).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 };
 
-const areTagArraysEqual = (a: string[], b: string[]): boolean => {
-  if (a.length !== b.length) return false;
-  return a.every((value, index) => value === b[index]);
-};
-
-const parseTagsFromQuery = (value: string | null): string[] => {
-  if (!value) return [];
-  return normalizeTags(value.split(','));
-};
-
 export const ProblemListPage: React.FC = () => {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
   const { filter, setFilter } = useProblemStore();
   const [searchQuery, setSearchQuery] = useState('');
+  const [showAllTags, setShowAllTags] = useState(false);
+  const [minDifficultyLevel, setMinDifficultyLevel] = useState(0);
+  const [maxDifficultyLevel, setMaxDifficultyLevel] = useState(5);
   const { isAuthenticated } = useAuthStore();
 
   const { data, isLoading, error } = useProblems(filter);
@@ -44,7 +36,6 @@ export const ProblemListPage: React.FC = () => {
   const {
     data: tagCountsData,
     isLoading: isTagCountsLoading,
-    error: tagCountsError,
   } = useQuery({
     queryKey: ['problem', 'tag-counts'],
     queryFn: ({ signal }) => problemService.getTagCounts({ signal }),
@@ -121,64 +112,28 @@ export const ProblemListPage: React.FC = () => {
     setFilter({ statusFilter, page: 1 });
   };
 
-  const handleResetFilters = () => {
-    setSearchQuery('');
-    setFilter({
-      search: '',
-      searchField: 'title',
-      sortField: 'title',
-      sortOrder: 'asc',
-      statusFilter: 'all',
-      page: 1,
-      tags: [],
-    });
-  };
-
   const selectedTags = useMemo(
     () => normalizeTags(filter.tags ?? []),
     [filter.tags]
   );
 
-  const searchParamsString = searchParams.toString();
-  const selectedTagsRef = useRef<string[]>(selectedTags);
-
   useEffect(() => {
-    selectedTagsRef.current = selectedTags;
-  }, [selectedTags]);
+    setFilter({ tags: [], page: 1 });
+    return () => {
+      setFilter({ tags: [], page: 1 });
+    };
+  }, []);
 
-  useEffect(() => {
-    const params = new URLSearchParams(searchParamsString);
-    const parsed = parseTagsFromQuery(params.get('tags'));
-    if (!areTagArraysEqual(parsed, selectedTagsRef.current)) {
-      setFilter({ tags: parsed, page: 1 });
-    }
-  }, [searchParamsString, setFilter]);
+  const handleTagToggle = (tagName: string) => {
+    const newTags = selectedTags.includes(tagName)
+      ? selectedTags.filter((t) => t !== tagName)
+      : [...selectedTags, tagName];
+    setFilter({ tags: newTags, page: 1 });
+  };
 
-  useEffect(() => {
-    const normalized = normalizeTags(selectedTags);
-    const params = new URLSearchParams(searchParamsString);
-    const current = params.get('tags');
-
-    if (normalized.length === 0) {
-      if (current) {
-        params.delete('tags');
-        setSearchParams(params, { replace: true });
-      }
-      return;
-    }
-
-    const joined = normalized.join(',');
-    if (current !== joined) {
-      params.set('tags', joined);
-      setSearchParams(params, { replace: true });
-    }
-  }, [selectedTags, searchParamsString, setSearchParams]);
-
-  const handleTagToggle = (tag: string) => {
-    const current = normalizeTags(selectedTags);
-    const exists = current.includes(tag);
-    const next = exists ? current.filter((item) => item !== tag) : normalizeTags([...current, tag]);
-    setFilter({ tags: next, page: 1 });
+  const handleProblemListTagClick = (tagName: string) => {
+    setFilter({ tags: [tagName], page: 1 });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const processedProblems = useMemo(() => {
@@ -190,47 +145,59 @@ export const ProblemListPage: React.FC = () => {
     const statusFilter = isAuthenticated ? (filter.statusFilter ?? 'all') : 'all';
     const requiredTags = selectedTags.map((tag) => tag.toLowerCase());
 
-    const matchesQuery = (problem: any) => {
+    const matchesQuery = (problem: Problem) => {
       if (!query) return true;
       if (searchField === 'tag') {
         const tags = [
-          ...(Array.isArray(problem.tags) ? problem.tags : []),
-          ...(Array.isArray(problem.tagNames) ? problem.tagNames : []),
-          ...(Array.isArray(problem.tag_list) ? problem.tag_list : []),
+          ...(Array.isArray((problem as any).tags) ? (problem as any).tags : []),
+          ...(Array.isArray((problem as any).tagNames) ? (problem as any).tagNames : []),
+          ...(Array.isArray((problem as any).tag_list) ? (problem as any).tag_list : []),
         ];
-        return tags.some((tag: unknown) =>
-          typeof tag === 'string' && tag.trim().toLowerCase().includes(query)
-        );
+        return tags.some((tag: unknown) => typeof tag === 'string' && tag.trim().toLowerCase().includes(query));
       }
       if (searchField === 'number') {
-        const identifier = (problem.displayId ?? problem._id ?? problem.id ?? '').toString().toLowerCase();
+        const identifier = String(problem.displayId ?? problem._id ?? problem.id ?? '').toLowerCase();
         return identifier.includes(query);
       }
-      return (problem.title ?? '').toLowerCase().includes(query);
+      return String(problem.title ?? '').toLowerCase().includes(query);
     };
 
     const matchesSelectedTags = (problem: Problem) => {
-      if (requiredTags.length === 0) {
-        return true;
-      }
-      const normalizedTags = extractProblemTags(problem)
-        .map((tag) => tag.toLowerCase());
-      if (normalizedTags.length === 0) {
-        return false;
-      }
-      // OR 조건: 선택된 태그 중 하나라도 포함되면 통과
+      if (requiredTags.length === 0) return true;
+      const normalizedTags = extractProblemTags(problem).map((tag) => tag.toLowerCase());
+      if (normalizedTags.length === 0) return false;
       return requiredTags.some((tag) => normalizedTags.includes(tag));
     };
 
+    const getDifficultyLevel = (problem: Problem) => {
+      const rawDifficulty =
+        (problem as any).difficulty ??
+        (problem as any).level ??
+        (problem as any).difficulty_level ??
+        (problem as any).difficultyLevel ??
+        (problem as any).difficulty_name ??
+        (problem as any).difficultyName;
+      return normalizeDifficulty(rawDifficulty);
+    };
+
+    const getNumericOrder = (problem: Problem) => {
+      const identifier = String(problem.displayId ?? problem._id ?? problem.id ?? '');
+      const numericOnly = identifier.replace(/[^0-9]/g, '');
+      return numericOnly ? Number(numericOnly) : Number.MAX_SAFE_INTEGER;
+    };
+
+    const compareStrings = (a: string, b: string) =>
+      a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+
     const hydratedItems = items.map((problem) => {
-      if (!isAuthenticated) {
-        return problem;
-      }
+      if (!isAuthenticated) return problem;
+
       const candidates = [problem.displayId, problem._id, (problem as any)._id, problem.id];
       for (const candidate of candidates) {
         if (candidate === undefined || candidate === null) continue;
         const key = String(candidate).trim().toLowerCase();
         if (!key) continue;
+
         const statusSource = normalizedStatusMap[key];
         if (statusSource) {
           return {
@@ -243,7 +210,7 @@ export const ProblemListPage: React.FC = () => {
       return problem;
     });
 
-    const filterResult = hydratedItems
+    const filtered = hydratedItems
       .filter(matchesSelectedTags)
       .filter(matchesQuery)
       .filter((problem) => {
@@ -251,83 +218,39 @@ export const ProblemListPage: React.FC = () => {
         const status = resolveProblemStatus(problem);
         if (statusFilter === 'all') return true;
         return status === statusFilter;
+      })
+      .filter((problem) => {
+        const difficultyLevel = getDifficultyLevel(problem);
+        if (difficultyLevel === null) return false;
+        return difficultyLevel >= minDifficultyLevel && difficultyLevel <= maxDifficultyLevel;
       });
 
-    const extractIdentifier = (problem: any) => (problem.displayId ?? problem._id ?? problem.id ?? '').toString();
-
-    const getNumericOrder = (problem: any) => {
-      const identifier = extractIdentifier(problem);
-      const numericOnly = identifier.replace(/[^0-9]/g, '');
-      if (!numericOnly) return null;
-      const numeric = Number(numericOnly);
-      return Number.isNaN(numeric) ? null : numeric;
-    };
-
-    const getAccuracy = (problem: any) => {
-      const submissions = Number(problem.submissionNumber ?? 0);
-      const accepted = Number(problem.acceptedNumber ?? 0);
-      if (!submissions) return 0;
-      return accepted / submissions;
-    };
-
-    const namePriority = (value: string) => {
-      if (/^[0-9]/.test(value)) return 0;
-      if (/^[A-Za-z]/.test(value)) return 1;
-      if (/^[가-힣]/.test(value)) return 2;
-      return 3;
-    };
-
-    const compareText = (aText: string, bText: string) => {
-      const prA = namePriority(aText);
-      const prB = namePriority(bText);
-      if (prA !== prB) return prA - prB;
-      return aText.localeCompare(bText, 'ko', { numeric: true, sensitivity: 'base' });
-    };
-
-    const sorted = [...filterResult].sort((a, b) => {
-      let result = 0;
-      if (sortField === 'submission') {
-        result = (a.submissionNumber ?? 0) - (b.submissionNumber ?? 0);
-      } else if (sortField === 'accuracy') {
-        result = getAccuracy(a) - getAccuracy(b);
-      } else if (sortField === 'number') {
-        const aNum = getNumericOrder(a);
-        const bNum = getNumericOrder(b);
-        if (typeof aNum === 'number' && typeof bNum === 'number') {
-          result = aNum - bNum;
-        } else if (typeof aNum === 'number') {
-          result = -1;
-        } else if (typeof bNum === 'number') {
-          result = 1;
-        } else {
-          const idA = extractIdentifier(a);
-          const idB = extractIdentifier(b);
-          result = compareText(idA, idB);
-        }
-      } else {
-        const titleA = (a.title ?? '').trim();
-        const titleB = (b.title ?? '').trim();
-        result = compareText(titleA, titleB);
-        if (result === 0) {
-          const idA = extractIdentifier(a);
-          const idB = extractIdentifier(b);
-          result = compareText(idA, idB);
-        }
+    const sorted = [...filtered].sort((a, b) => {
+      if (sortField === 'number') {
+        return getNumericOrder(a) - getNumericOrder(b);
       }
-      return sortOrder === 'desc' ? -result : result;
+      if (sortField === 'title') {
+        return compareStrings(String(a.title ?? ''), String(b.title ?? ''));
+      }
+      if (sortField === 'submission') {
+        return (a.submissionNumber ?? 0) - (b.submissionNumber ?? 0);
+      }
+      return (a.acceptedNumber ?? 0) - (b.acceptedNumber ?? 0);
     });
 
-    return sorted;
+    return sortOrder === 'desc' ? sorted.reverse() : sorted;
   }, [
     microProblems,
-    searchQuery,
     filter.searchField,
     filter.sortField,
     filter.sortOrder,
     filter.statusFilter,
+    searchQuery,
     isAuthenticated,
-    selectedTags,
     normalizedStatusMap,
+    selectedTags,
+    minDifficultyLevel,
+    maxDifficultyLevel,
   ]);
 
   const tagStats = useMemo(() => {
@@ -335,25 +258,13 @@ export const ProblemListPage: React.FC = () => {
       .map(({ tag, count }) => ({
         name: tag,
         count,
-        colorScheme: getTagColor(tag),
       }))
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
   }, [tagCountsData]);
 
-  const tagCountsErrorMessage = useMemo(() => {
-    if (!tagCountsError) return null;
-    if (tagCountsError instanceof Error) return tagCountsError.message;
-    return typeof tagCountsError === 'string' ? tagCountsError : '태그 정보를 불러오지 못했습니다.';
-  }, [tagCountsError]);
-
-  useEffect(() => {
-    if (!isAuthenticated && (filter.statusFilter && filter.statusFilter !== 'all')) {
-      setFilter({ statusFilter: 'all' });
-    }
-  }, [isAuthenticated, filter.statusFilter, setFilter]);
-
   const handlePageChange = (page: number) => {
     setFilter({ page });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const pageSize = filter.limit ?? 20;
@@ -379,88 +290,205 @@ export const ProblemListPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 py-8">
-        {/* Header */}
-      <div className="mb-6">
-        <div className="flex flex-col gap-6 xl:flex-row xl:items-start xl:justify-between">
-          {(isTagCountsLoading || tagCountsErrorMessage || tagStats.length > 0) && (
-            <div className="flex flex-1 flex-col gap-3">
-              {isTagCountsLoading && (
-                <div className="text-sm text-gray-500">태그를 불러오는 중입니다...</div>
-              )}
-              {!isTagCountsLoading && tagCountsErrorMessage && (
-                <div className="text-sm text-red-600">{tagCountsErrorMessage}</div>
-              )}
-              {!isTagCountsLoading && !tagCountsErrorMessage && tagStats.length > 0 && (
-                <TagFilterBar
-                  tags={tagStats}
-                  selectedTags={selectedTags}
-                  onToggle={handleTagToggle}
-                  collapsible
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <div className="flex flex-col lg:flex-row gap-6">
+          {/* Sidebar */}
+          <div className="w-full lg:w-64 shrink-0 space-y-6">
+
+            {/* Search */}
+            <div>
+              <form onSubmit={handleSearchSubmit} className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="h-5 w-5 text-gray-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                    <path fillRule="evenodd" d="M8 4a4 4 0 100 8 4 4 0 000-8zM2 8a6 6 0 1110.89 3.476l4.817 4.817a1 1 0 01-1.414 1.414l-4.816-4.816A6 6 0 012 8z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                <input
+                  id="search-input"
+                  type="search"
+                  value={searchQuery}
+                  onChange={(event) => handleSearchChange(event.target.value)}
+                  placeholder="제목, 내용 검색"
+                  className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 shadow-sm"
                 />
-              )}
+              </form>
             </div>
-          )}
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-end sm:gap-3 xl:w-auto">
-            <form onSubmit={handleSearchSubmit} className="flex w-full sm:w-auto sm:min-w-[360px]">
-              <label htmlFor="problem-search" className="sr-only">문제 검색</label>
-              <input
-                id="problem-search"
-                type="search"
-                value={searchQuery}
-                onChange={(event) => handleSearchChange(event.target.value)}
-                placeholder="제목을 입력하세요"
-                className="w-full rounded-l-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <button
-                type="submit"
-                className="min-w-[60px] rounded-r-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white text-center shadow-sm transition hover:bg-blue-700"
-              >
-                검색
-              </button>
-            </form>
+
+            {/* Categories */}
+            <div className="bg-white dark:bg-slate-900 p-5 border border-gray-200 dark:border-slate-800 rounded-xl shadow-sm">
+              <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+                <svg className="w-5 h-5 text-gray-500 dark:text-slate-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"></path></svg>
+                카테고리
+              </h3>
+              {isTagCountsLoading && (
+                <div className="text-sm text-gray-500 dark:text-slate-400 mb-3">태그를 불러오는 중입니다...</div>
+              )}
+              <div className="space-y-3">
+                <label className="flex items-center justify-between cursor-pointer group">
+                  <div className="flex items-center">
+                    <input
+                      type="checkbox"
+                      name="category-all"
+                      checked={selectedTags.length === 0}
+                      onChange={() => setFilter({ tags: [], page: 1 })}
+                      className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                    />
+                    <span className="ml-3 text-sm font-medium text-gray-700 dark:text-slate-300 group-hover:text-gray-900 dark:group-hover:text-slate-100">전체 보기</span>
+                  </div>
+                  <span className="text-xs font-medium bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 py-1 px-2.5 rounded-full">{data?.total || microProblems.length}</span>
+                </label>
+                {(tagStats || []).slice(0, showAllTags ? undefined : 8).map((tag) => (
+                  <label key={tag.name} className="flex items-center justify-between cursor-pointer group">
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        name={`category-${tag.name}`}
+                        checked={selectedTags.includes(tag.name)}
+                        onChange={() => handleTagToggle(tag.name)}
+                        className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
+                      />
+                      <span className="ml-3 text-sm font-medium text-gray-700 dark:text-slate-300 group-hover:text-gray-900 dark:group-hover:text-slate-100">{tag.name}</span>
+                    </div>
+                    <span className="text-xs font-medium bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 py-1 px-2.5 rounded-full">{tag.count}</span>
+                  </label>
+                ))}
+                {(tagStats || []).length > 8 && (
+                  <button
+                    type="button"
+                    onClick={() => setShowAllTags(!showAllTags)}
+                    className="w-full text-left text-sm font-medium text-blue-600 hover:text-blue-700 mt-2"
+                  >
+                    {showAllTags ? '간략히 보기' : '+ 더보기'}
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Difficulty */}
+            <div className="bg-white dark:bg-slate-900 p-5 border border-gray-200 dark:border-slate-800 rounded-xl shadow-sm">
+              <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+                <svg className="w-5 h-5 text-gray-500 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                난이도
+              </h3>
+              <div className="px-2">
+                <div className="relative h-8">
+                  <div className="absolute inset-x-0 top-3 h-2 rounded-lg bg-gray-200 dark:bg-slate-700" />
+                  <input
+                    type="range"
+                    min="0"
+                    max="5"
+                    step="1"
+                    value={minDifficultyLevel}
+                    onChange={(e) => {
+                      const next = parseInt(e.target.value, 10);
+                      setMinDifficultyLevel(next);
+                      if (next > maxDifficultyLevel) setMaxDifficultyLevel(next);
+                      setFilter({ page: 1 });
+                    }}
+                    className="dual-range dual-range-min absolute inset-x-0 top-3 w-full h-2 bg-transparent appearance-none cursor-pointer accent-blue-600"
+                  />
+                  <input
+                    type="range"
+                    min="0"
+                    max="5"
+                    step="1"
+                    value={maxDifficultyLevel}
+                    onChange={(e) => {
+                      const next = parseInt(e.target.value, 10);
+                      setMaxDifficultyLevel(next);
+                      if (next < minDifficultyLevel) setMinDifficultyLevel(next);
+                      setFilter({ page: 1 });
+                    }}
+                    className="dual-range dual-range-max absolute inset-x-0 top-3 w-full h-2 bg-transparent appearance-none cursor-pointer accent-blue-600"
+                  />
+                </div>
+                <div className="flex justify-between text-xs text-gray-500 dark:text-slate-300 mt-3 font-medium">
+                  <span>Lv.0</span>
+                  <span>Lv.1</span>
+                  <span>Lv.2</span>
+                  <span>Lv.3</span>
+                  <span>Lv.4</span>
+                  <span>Lv.5</span>
+                </div>
+                <div className="mt-4 text-center">
+                  <span className="inline-block px-3 py-1 rounded-full text-sm font-bold bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-100 dark:ring-1 dark:ring-slate-500/60">
+                    Lv.{minDifficultyLevel} ~ Lv.{maxDifficultyLevel}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Status */}
             {isAuthenticated && (
-              <div className="flex w-full sm:w-auto sm:min-w-[220px]">
-                <label htmlFor="problem-status-filter" className="sr-only">문제 상태 필터</label>
+              <div className="bg-white dark:bg-slate-900 p-5 border border-gray-200 dark:border-slate-800 rounded-xl shadow-sm">
+                <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+                  <svg className="w-5 h-5 text-gray-500 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                  상태
+                </h3>
                 <select
-                  id="problem-status-filter"
                   value={filter.statusFilter ?? 'all'}
-                  onChange={(event) => handleStatusFilterChange(event.target.value)}
-                  className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-28"
+                  onChange={(e) => handleStatusFilterChange(e.target.value)}
+                  className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5"
                 >
-                  <option value="all">전체</option>
+                  <option value="all">모든 문제</option>
                   <option value="untouched">{PROBLEM_STATUS_LABELS.untouched}</option>
                   <option value="solved">{PROBLEM_STATUS_LABELS.solved}</option>
                   <option value="wrong">{PROBLEM_STATUS_LABELS.wrong}</option>
                 </select>
-                <button
-                  type="button"
-                  onClick={handleResetFilters}
-                  className="ml-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 text-center shadow-sm transition hover:border-blue-400 hover:text-blue-600"
-                >
-                  초기화
-                </button>
               </div>
             )}
           </div>
-        </div>
-      </div>
 
-        <ProblemList
-          problems={processedProblems}
-          onProblemClick={handleProblemClick}
-          isLoading={isLoading}
-          totalPages={data?.totalPages || 1}
-          currentPage={filter.page || 1}
-          onPageChange={handlePageChange}
-          onSortChange={handleSortToggle}
-          sortField={filter.sortField ?? 'title'}
-          sortOrder={filter.sortOrder ?? 'asc'}
-          primarySortField="title"
-          showStatus={isAuthenticated}
-          getRowNumber={resolveProblemRowNumber}
-        />
+          {/* Main Content */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center justify-between mb-4">
+              <div className="text-sm text-gray-500 dark:text-slate-400">
+                총 <span className="font-bold text-gray-900 dark:text-slate-100">{data?.total ?? processedProblems.length}</span>개의 문제
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-500 dark:text-slate-400">정렬:</span>
+                <select
+                  className="bg-transparent text-sm font-bold text-gray-900 dark:text-slate-100 border-none focus:ring-0 cursor-pointer p-0 pr-6"
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    const isDesc = value.endsWith('-desc');
+                    const field = value.replace('-desc', '').replace('-asc', '') as any;
+                    setFilter({ sortField: field, sortOrder: isDesc ? 'desc' : 'asc', page: 1 });
+                  }}
+                  value={`${filter.sortField ?? 'title'}-${filter.sortOrder ?? 'asc'}`}
+                >
+                  <option value="title-asc">제목순</option>
+                  <option value="submission-desc">제출 많은순</option>
+                  <option value="accuracy-desc">정답률 높은순</option>
+                  <option value="number-desc">최신순</option>
+                </select>
+              </div>
+            </div>
+
+            <ProblemList
+              problems={processedProblems}
+              onProblemClick={handleProblemClick}
+              onTagClick={handleProblemListTagClick}
+              isLoading={isLoading}
+              onSortChange={handleSortToggle}
+              sortField={filter.sortField ?? 'title'}
+              sortOrder={filter.sortOrder ?? 'asc'}
+              showStatus={isAuthenticated}
+              getRowNumber={resolveProblemRowNumber}
+            />
+            <div className="mt-6">
+              <CommonPagination
+                page={filter.page || 1}
+                pageSize={pageSize}
+                totalPages={data?.totalPages || 1}
+                totalItems={data?.total}
+                onChangePage={handlePageChange}
+              />
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

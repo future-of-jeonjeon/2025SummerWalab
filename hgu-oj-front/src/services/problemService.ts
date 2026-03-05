@@ -1,6 +1,5 @@
 import { api, apiClient, MS_API_BASE } from './api';
 import { Problem, PaginatedResponse, ProblemFilter } from '../types';
-import { mapDifficulty } from '../lib/difficulty';
 const MICRO_PROBLEM_TAG_COUNTS_ENDPOINT = MS_API_BASE
   ? `${MS_API_BASE}/problem/tags/counts`
   : undefined;
@@ -124,7 +123,7 @@ const adaptProblem = (p: any): Problem => {
       id: 0,
       title: '',
       description: '',
-      difficulty: 'Low',
+      difficulty: 0,
       timeLimit: 0,
       memoryLimit: 0,
       createTime: '',
@@ -135,13 +134,18 @@ const adaptProblem = (p: any): Problem => {
   const rawDisplayId = p?._id ?? p?.display_id ?? p?.displayId ?? p?.id;
   const { visible, isPublic } = extractVisibility(p);
   if (isMicro) {
-    const mappedDifficulty = mapDifficulty(p.difficulty);
+    const rawDifficulty =
+      p?.lv ??
+      p?.level ??
+      p?.difficulty_level ??
+      p?.difficultyLevel ??
+      p?.difficulty;
     return {
       id: p.id,
       displayId: rawDisplayId ? String(rawDisplayId) : undefined,
       title: p.title,
       description: p.description || '',
-      difficulty: mappedDifficulty !== '-' ? mappedDifficulty as Problem['difficulty'] : (p.difficulty as any) ?? '중',
+      difficulty: (rawDifficulty as Problem['difficulty']) ?? 0,
       timeLimit: p.time_limit,
       memoryLimit: p.memory_limit,
       // best-effort extra stats mapping
@@ -172,11 +176,17 @@ const adaptProblem = (p: any): Problem => {
   const rawStatus = normalizeStatusValue(p.my_status ?? p.myStatus ?? (p as any).myStatus);
   const solved = rawStatus !== undefined ? isAcceptedStatus(rawStatus) : p.solved;
   const normalizedSamples = adaptSamples(p.samples ?? (p as any).Samples);
-  const mappedDifficulty = mapDifficulty((p as Problem).difficulty ?? (p as any).difficulty);
+  const rawDifficulty =
+    (p as any)?.lv ??
+    (p as any)?.level ??
+    (p as any)?.difficulty_level ??
+    (p as any)?.difficultyLevel ??
+    (p as Problem).difficulty ??
+    (p as any).difficulty;
   return {
     ...(p as Problem),
     displayId: rawDisplayId ? String(rawDisplayId) : (p as Problem).displayId,
-    difficulty: mappedDifficulty !== '-' ? mappedDifficulty as Problem['difficulty'] : ((p as Problem).difficulty ?? '중'),
+    difficulty: (rawDifficulty as Problem['difficulty']) ?? 0,
     myStatus: rawStatus,
     solved,
     samples: normalizedSamples ?? (p as Problem).samples,
@@ -304,7 +314,7 @@ const buildMicroProblemListParams = (filter: ProblemFilter) => {
   const order = (filter.sortOrder ?? 'asc').toLowerCase() === 'desc' ? 'desc' : 'asc';
 
   params.set('page', String(page));
-  params.set('page_size', String(Math.min(Math.max(limit, 1), 250)));
+  params.set('size', String(Math.min(Math.max(limit, 1), 250)));
   params.set('sort_option', sortOption);
   params.set('order', order);
 
@@ -316,6 +326,14 @@ const buildMicroProblemListParams = (filter: ProblemFilter) => {
     ),
   );
   tags.forEach((tag) => params.append('tags', tag));
+
+  if (filter.search && filter.search.trim().length > 0) {
+    params.set('keyword', filter.search.trim());
+  }
+
+  if (filter.difficultyLevel && filter.difficultyLevel > 0) {
+    params.set('difficulty', String(filter.difficultyLevel));
+  }
 
   return params;
 };
@@ -334,11 +352,11 @@ const fetchMicroProblemList = async (
       signal: options?.signal,
     });
     const payload = response.data;
-    const rawProblems = Array.isArray(payload?.problems) ? payload.problems : [];
+    const rawProblems = Array.isArray(payload?.items) ? payload.items : Array.isArray(payload?.problems) ? payload.problems : [];
     const adapted = rawProblems.map((problem: any) => adaptProblem(problem));
     const total = Number(payload?.total ?? rawProblems.length) || 0;
     const page = Number(payload?.page ?? filter.page ?? 1) || 1;
-    const limit = Number(payload?.page_size ?? filter.limit ?? DEFAULT_PAGE_LIMIT) || DEFAULT_PAGE_LIMIT;
+    const limit = Number(payload?.size ?? payload?.page_size ?? filter.limit ?? DEFAULT_PAGE_LIMIT) || DEFAULT_PAGE_LIMIT;
     const totalPages = limit > 0 ? Math.max(1, Math.ceil(total / limit)) : 1;
     const publicProblems = filterPublicProblems(adapted);
     const { total: adjustedTotal, totalPages: adjustedTotalPages } = deriveVisibleTotals(

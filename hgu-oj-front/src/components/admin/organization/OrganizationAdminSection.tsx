@@ -5,6 +5,7 @@ import { Button } from '../../atoms/Button';
 import { Input } from '../../atoms/Input';
 import { OrganizationForm, OrganizationFormValues } from './OrganizationForm';
 import { OrganizationMemberManager } from './OrganizationMemberManager';
+import CommonPagination from '../../common/CommonPagination';
 import { organizationService } from '../../../services/organizationService';
 import { adminService } from '../../../services/adminService';
 import { Organization, OrganizationListResponse } from '../../../types';
@@ -108,19 +109,6 @@ export const OrganizationAdminSection: React.FC = () => {
     },
   });
 
-  const addMemberMutation = useMutation<Organization, Error, number>({
-    mutationFn: (userId: number) => organizationService.addMember(selectedId!, userId),
-    onSuccess: (organization: Organization) => {
-      setFeedbackMessage('구성원이 추가되었습니다.');
-      queryClient.setQueryData<Organization>(['admin', 'organizations', 'detail', organization.id], organization);
-      queryClient.invalidateQueries({ queryKey: ['admin', 'organizations'] });
-    },
-    onError: (error) => {
-      const message = error instanceof Error ? error.message : '구성원 추가에 실패했습니다.';
-      setFeedbackMessage(message);
-    },
-  });
-
   const removeMemberMutation = useMutation<Organization, Error, number>({
     mutationFn: (userId: number) => organizationService.removeMember(selectedId!, userId),
     onSuccess: (organization: Organization) => {
@@ -164,9 +152,6 @@ export const OrganizationAdminSection: React.FC = () => {
     const total = typeof listData.total === 'number' ? listData.total : listData.items?.length ?? 0;
     return pageSize > 0 ? Math.max(1, Math.ceil(total / pageSize)) : 1;
   }, [listData]);
-
-  const canGoPrev = page > 1;
-  const canGoNext = page < totalPages;
 
   const handleSelectOrganization = (organizationId: number) => {
     setSelectedId(organizationId);
@@ -249,9 +234,8 @@ export const OrganizationAdminSection: React.FC = () => {
                         <button
                           type="button"
                           onClick={() => handleSelectOrganization(organization.id)}
-                          className={`w-full px-4 py-4 text-left transition-colors ${
-                            isActive ? 'bg-blue-100 border-l-4 border-blue-500' : 'hover:bg-blue-50'
-                          }`}
+                          className={`w-full px-4 py-4 text-left transition-colors ${isActive ? 'bg-blue-100 border-l-4 border-blue-500' : 'hover:bg-blue-50'
+                            }`}
                         >
                           <div className="text-sm font-semibold text-gray-900">{organization.name}</div>
                           <div className="mt-1 text-xs text-gray-500 line-clamp-2">
@@ -271,24 +255,14 @@ export const OrganizationAdminSection: React.FC = () => {
               <span>
                 페이지 {page} / {totalPages} {isListFetching && <span className="ml-2 text-xs text-gray-400">(새로고침 중)</span>}
               </span>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!canGoPrev}
-                  onClick={() => canGoPrev && setPage((prev) => Math.max(1, prev - 1))}
-                >
-                  이전
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={!canGoNext}
-                  onClick={() => canGoNext && setPage((prev) => prev + 1)}
-                >
-                  다음
-                </Button>
-              </div>
+              <CommonPagination
+                page={page}
+                pageSize={PAGE_SIZE}
+                totalPages={totalPages}
+                totalItems={listData?.total ?? 0}
+                onChangePage={(nextPage) => setPage(nextPage)}
+                className="w-full sm:w-auto"
+              />
             </div>
           </Card>
         </div>
@@ -351,8 +325,8 @@ export const OrganizationAdminSection: React.FC = () => {
                 <OrganizationMemberManager
                   members={selectedOrganization.members}
                   onSearchUsers={handleUserSearch}
-                  onAddMember={async (userId) => {
-                    await addMemberMutation.mutateAsync(userId);
+                  onAddMember={async () => {
+                    alert('새 멤버 추가는 초대 링크를 통해 진행해주세요.');
                   }}
                   onRemoveMember={async (userId) => {
                     await removeMemberMutation.mutateAsync(userId);

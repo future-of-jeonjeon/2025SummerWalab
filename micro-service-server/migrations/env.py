@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 sys.path.insert(0, os.path.realpath(os.path.join(os.path.dirname(__file__), '..')))
 
 # Import your models here to ensure they are registered with Base.metadata
-from app.config.database import Base, DATABASE_URL
+from app.core.database import Base, DATABASE_URL
 # import app.auth.models
 import app.user.models
 import app.problem.models
@@ -21,7 +21,10 @@ import app.workbook.models
 import app.code_autosave.models
 import app.organization.models
 import app.contest.models
-import app.contest_user.models
+import app.submission.models
+import app.execution.models
+import app.todo.models
+import app.notification.models
 
 
 def _sync_database_url() -> str:
@@ -43,7 +46,9 @@ target_metadata = Base.metadata
 
 def _include_object(object_, name, type_, reflected, compare_to):
     if type_ == "table":
-        return name.startswith("micro_")
+        # Table name might be prefixed with schema (e.g., 'public.micro_table')
+        actual_name = name.split('.')[-1]
+        return actual_name.startswith("micro_")
     return True
 
 

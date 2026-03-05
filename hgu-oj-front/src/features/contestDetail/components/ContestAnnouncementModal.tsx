@@ -1,6 +1,7 @@
 import React from 'react';
 import { Button } from '../../../components/atoms/Button';
 import { Input } from '../../../components/atoms/Input';
+import { RichTextEditor } from '../../../components/molecules/RichTextEditor';
 import type { AnnouncementManager } from '../types';
 
 interface ContestAnnouncementModalProps {
@@ -47,17 +48,13 @@ export const ContestAnnouncementModal: React.FC<ContestAnnouncementModalProps> =
                             disabled={isSaving}
                             required
                         />
-                        <div>
-                            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-gray-300">내용</label>
-                            <textarea
-                                value={formState.content}
-                                onChange={(e) => updateFormField('content', e.target.value)}
-                                className="min-h-[120px] w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:border-gray-600 dark:bg-slate-700 dark:text-white"
-                                placeholder="공지 내용을 입력하세요"
-                                disabled={isSaving}
-                                required
-                            />
-                        </div>
+                        <RichTextEditor
+                            label="내용"
+                            value={formState.content}
+                            onChange={(value) => updateFormField('content', value)}
+                            placeholder="공지 내용을 입력하세요"
+                            className={isSaving ? 'pointer-events-none opacity-70' : undefined}
+                        />
                         <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300">
                             <input
                                 type="checkbox"

@@ -20,7 +20,7 @@ export const Card: React.FC<CardProps> = ({
 }) => {
   const baseColorClasses = appearance === 'inverted'
     ? 'bg-slate-900 border border-slate-700 text-slate-100'
-    : 'bg-white border border-gray-200 text-gray-900';
+    : 'bg-white border border-gray-200 text-gray-900 dark:bg-slate-900 dark:border-slate-800 dark:text-slate-100';
   const baseClasses = `rounded-lg ${baseColorClasses}`;
 
   const paddingClasses = {

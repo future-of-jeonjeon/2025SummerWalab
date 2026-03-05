@@ -4,8 +4,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.submission import repository as submission_repo
 from app.submission.schemas import ContestProblemStat, ContestUserScore, SubmissionDailyCount
-from app.user.schemas import UserData
-from app.utils.logging import logger
+from app.user.schemas import UserProfile
+from app.core.logger import logger
 
 
 async def get_contest_problem_stats(
@@ -34,8 +34,8 @@ async def get_contest_user_scores(
     return [ContestUserScore(**item) for item in scores]
 
 
-async def get_contribution_data(user_data: UserData, db: AsyncSession) -> List[SubmissionDailyCount]:
-    rows = await submission_repo.get_user_submissions_by_year(user_data.user_id, db)
+async def get_contribution_data(user_profile: UserProfile, db: AsyncSession) -> List[SubmissionDailyCount]:
+    rows = await submission_repo.get_user_submissions_by_year(user_profile.user_id, db)
     return [
         SubmissionDailyCount(date=row.date, count=row.count)
         for row in rows

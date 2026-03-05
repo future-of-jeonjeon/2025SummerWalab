@@ -13,34 +13,49 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import OAuthCallbackPage from './pages/OAuthCallbackPage';
 import { NavBar } from './components/organisms/NavBar';
+import { Footer } from './components/organisms/Footer';
 import { AdminPage } from './pages/AdminPage';
 import MyPage from './pages/MyPage';
 import { RankingPage } from './pages/RankingPage';
 import UserInfoPage from './pages/UserInfoPage';
+import { OrganizationListPage } from './pages/OrganizationListPage';
+import { OrganizationDetailPage } from './pages/OrganizationDetailPage';
+import { OrganizationManagePage } from './pages/OrganizationManagePage';
+import { OrganizationJoinPage } from './pages/OrganizationJoinPage';
+import { ContributionPage } from './pages/ContributionPage';
 
 const AppShell: React.FC = () => {
   const location = useLocation();
-  const hideNavOnProblemDetail = /^\/problems\/(?:[^/]+)$/.test(location.pathname);
+  const hideOnProblemDetail = /^\/problems\/(?:[^/]+)$/.test(location.pathname);
   return (
-    <div className="min-h-screen bg-gray-50">
-      {!hideNavOnProblemDetail && <NavBar />}
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
-        <Route path="/problems" element={<ProblemListPage />} />
-        <Route path="/problems/:id" element={<ProblemDetailPage />} />
-        <Route path="/workbooks" element={<WorkbookListPage />} />
-        <Route path="/workbooks/:id" element={<WorkbookDetailPage />} />
-        <Route path="/contests" element={<ContestListPage />} />
-        <Route path="/contests/:id" element={<ContestDetailPage />} />
-        <Route path="/ranking" element={<RankingPage />} />
-        <Route path="/admin" element={<AdminPage />} />
-        <Route path="/mypage" element={<MyPage />} />
-        <Route path="/user-info" element={<UserInfoPage />} />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+    <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-slate-950 dark:text-slate-100 flex flex-col">
+      {!hideOnProblemDetail && <NavBar />}
+      <div className="flex-1 flex flex-col">
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/oauth/callback" element={<OAuthCallbackPage />} />
+          <Route path="/problems" element={<ProblemListPage />} />
+          <Route path="/problems/:id" element={<ProblemDetailPage />} />
+          <Route path="/workbooks" element={<WorkbookListPage />} />
+          <Route path="/workbooks/:id" element={<WorkbookDetailPage />} />
+          <Route path="/contests" element={<ContestListPage />} />
+          <Route path="/contests/:id" element={<ContestDetailPage />} />
+          <Route path="/ranking" element={<RankingPage />} />
+          <Route path="/admin" element={<AdminPage />} />
+          <Route path="/mypage" element={<MyPage />} />
+          <Route path="/user-info" element={<UserInfoPage />} />
+          <Route path="/organizations" element={<OrganizationListPage />} />
+          <Route path="/organizations/new" element={<OrganizationManagePage />} />
+          <Route path="/organizations/:id" element={<OrganizationDetailPage />} />
+          <Route path="/organizations/:id/manage" element={<OrganizationManagePage />} />
+          <Route path="/organizations/:id/join" element={<OrganizationJoinPage />} />
+          <Route path="/contribution" element={<ContributionPage />} />
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </div>
+      {!hideOnProblemDetail && <Footer />}
     </div>
   );
 };

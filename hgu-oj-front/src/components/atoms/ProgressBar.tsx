@@ -31,7 +31,7 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
 
   return (
     <div
-      className={`overflow-hidden rounded-full bg-gray-200 ${className ?? ''}`.trim()}
+      className={`overflow-hidden rounded-full bg-gray-200 dark:bg-slate-700 ${className ?? ''}`.trim()}
       role="progressbar"
       aria-valuenow={ariaValueNow}
       aria-valuemin={0}

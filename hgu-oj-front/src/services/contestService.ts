@@ -1,5 +1,5 @@
 import { api, apiClient, MS_API_BASE } from './api';
-import { Contest, ContestAnnouncement, ContestAccess, ContestRankEntry, PaginatedResponse, Problem } from '../types';
+import { Contest, ContestAnnouncement, ContestAccess, ContestRankEntry, PaginatedResponse, Problem, ContestDataDTO, CreateContestRequest } from '../types';
 import { SubmissionListItem } from './submissionService';
 import { mapProblem } from '../utils/problemMapper';
 
@@ -128,9 +128,36 @@ const mapContest = (raw: any): Contest => ({
   })(),
   languages: raw.languages ?? [],
   participants: raw.participants ?? 0,
+  isOrganizationOnly: raw.is_organization_only ?? raw.isOrganizationOnly,
+  organization_id: raw.organization_id,
+  organization_name: raw.organization_name,
 });
 
+
+
 export const contestService = {
+  create: async (data: CreateContestRequest): Promise<ContestDataDTO> => {
+    if (!MICRO_API_BASE) {
+      throw new Error('MS_API_BASE not defined');
+    }
+    const response = await apiClient.post<ContestDataDTO>(`${MICRO_API_BASE}/contest`, data);
+    return response.data;
+  },
+
+  update: async (contestId: number, data: Partial<CreateContestRequest>): Promise<ContestDataDTO> => {
+    if (!MICRO_API_BASE) {
+      throw new Error('MS_API_BASE not defined');
+    }
+    const response = await apiClient.put<ContestDataDTO>(`${MICRO_API_BASE}/contest`, { ...data, id: contestId });
+    return response.data;
+  },
+
+  delete: async (contestId: number): Promise<void> => {
+    if (!MICRO_API_BASE) {
+      throw new Error('MS_API_BASE not defined');
+    }
+    await apiClient.delete(`${MICRO_API_BASE}/contest/${contestId}`);
+  },
   // 대회 목록 조회
   getContests: async (params?: {
     page?: number;
@@ -141,32 +168,67 @@ export const contestService = {
   }): Promise<PaginatedResponse<Contest>> => {
     const queryParams: any = {
       page: params?.page || 1,
-      limit: params?.limit || 20,
+      size: params?.limit || 20,
     };
     if (params?.keyword) queryParams.keyword = params.keyword;
     if (params?.ruleType) queryParams.rule_type = params.ruleType;
     if (params?.status) queryParams.status = params.status;
 
     if (!MICRO_API_BASE) {
-      // Fallback or error if MS_API_BASE not set? Or use api (Django) as fallback?
-      // Assuming MS_API_BASE is set as we are migrating.
-      // If fallback needed, keep old code. But user wants MS features (languages).
       throw new Error('MS_API_BASE not defined');
     }
 
-    const response = await apiClient.get<{ results: any[], total: number }>(`${MICRO_API_BASE}/contest`, { params: queryParams });
+    const response = await apiClient.get<any>(`${MICRO_API_BASE}/contest`, { params: queryParams });
+    const payload = response.data;
+    const items = payload.items ?? payload.results ?? [];
+    const total = payload.total ?? items.length;
+    const page = payload.page ?? params?.page ?? 1;
+    const size = payload.size ?? params?.limit ?? 20;
+
     return {
-      data: response.data.results.map(mapContest),
-      total: response.data.total,
+      data: items.map(mapContest),
+      total,
+      page,
+      limit: size,
+      totalPages: Math.ceil(total / size)
+    };
+  },
+
+  getOrganizationContests: async (organizationId: number, params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<PaginatedResponse<Contest>> => {
+    const queryParams: any = {
       page: params?.page || 1,
-      limit: params?.limit || 20,
-      totalPages: Math.ceil(response.data.total / (params?.limit || 20))
+      size: params?.limit || 10,
+    };
+
+    if (!MICRO_API_BASE) {
+      throw new Error('MS_API_BASE not defined');
+    }
+
+    const response = await apiClient.get<any>(`${MICRO_API_BASE}/contest/organization/${organizationId}`, { params: queryParams });
+    const payload = response.data;
+    const items = payload.items ?? payload.results ?? [];
+    const total = payload.total ?? items.length;
+    const page = payload.page ?? params?.page ?? 1;
+    const size = payload.size ?? params?.limit ?? 10;
+
+    return {
+      data: items.map(mapContest),
+      total,
+      page,
+      limit: size,
+      totalPages: Math.ceil(total / size)
     };
   },
 
   // 대회 상세 조회
   getContest: async (id: number): Promise<Contest> => {
-    const response = await api.get<any>('/contest/', { id });
+    if (!MICRO_API_BASE) {
+      throw new Error('MS_API_BASE not defined');
+    }
+    const response = await apiClient.get<any>(`${MICRO_API_BASE}/contest/${id}`);
     const contest = mapContest(response.data);
     if (contest.problemCount == null) {
       const microCount = await fetchContestProblemCount(id);
@@ -190,13 +252,7 @@ export const contestService = {
       content: raw.content,
       visible: raw.visible,
       createdAt: raw.create_time ?? raw.created_at ?? raw.createdAt,
-      createdBy: raw.created_by
-        ? {
-          id: raw.created_by.id,
-          username: raw.created_by.username,
-          realName: raw.created_by.real_name ?? raw.created_by.realName,
-        }
-        : raw.createdBy,
+      createdBy: raw.created_by ?? raw.createdBy,
     }));
   },
 
@@ -325,17 +381,15 @@ export const contestService = {
   },
   getContestRank: async (
     contestId: number,
-    params?: { limit?: number; offset?: number; isAdmin?: boolean },
+    _params?: { limit?: number; offset?: number; isAdmin?: boolean },
   ): Promise<{ results: ContestRankEntry[]; total: number }> => {
     if (!MICRO_API_BASE) {
       throw new Error('Microservice API base URL is not configured.');
     }
 
-    const endpoint = params?.isAdmin ? '/contest/rank/all' : '/contest/rank';
+    const endpoint = `/rank/contest/${contestId}`;
     try {
-      const response = await apiClient.get<ContestRankEntry[]>(`${MICRO_API_BASE}${endpoint}`, {
-        params: { contest_id: contestId },
-      });
+      const response = await apiClient.get<ContestRankEntry[]>(`${MICRO_API_BASE}${endpoint}`);
 
       const data = response.data || [];
 
@@ -343,16 +397,17 @@ export const contestService = {
       // Note: The MS currently returns the full list, pagination might be handled on the client side or added to MS later.
       // For now, we return the full list as 'results' and length as 'total'.
 
-      const entries = data.map((raw: any) => ({
-        id: raw.user.id, // Using user ID as the entry ID for now, or generate one if needed
+      const entries = data.map((raw: any, index: number) => ({
+        id: raw.user_id ?? raw.id,
         user: {
-          id: raw.user?.id,
-          username: raw.user?.username,
-          realName: raw.user?.real_name ?? raw.user?.realName,
-          studentId: raw.user?.student_id ?? raw.user?.studentId,
+          id: raw.user_id ?? raw.user?.id,
+          username: raw.username ?? raw.user?.username,
+          realName: raw.real_name ?? raw.user?.real_name ?? raw.user?.realName,
+          studentId: raw.student_id ?? raw.user?.student_id ?? raw.user?.studentId,
         },
+        rank: index + 1,
         acceptedNumber: raw.accepted_number ?? raw.acceptedNumber,
-        submissionNumber: raw.submission_number ?? raw.submissionNumber, // MS DTO doesn't have submission_number yet, might need to add it or default to 0
+        submissionNumber: raw.submission_number ?? raw.submissionNumber ?? 0,
         totalTime: raw.total_time ?? raw.totalTime,
         totalScore: raw.total_score ?? raw.totalScore,
         submissionInfo: raw.submission_info ?? raw.submissionInfo,

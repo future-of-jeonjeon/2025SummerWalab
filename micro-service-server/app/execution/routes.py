@@ -1,36 +1,32 @@
 from __future__ import annotations
-from pydantic import BaseModel, Field
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.config.database import get_session
-from app.execution.service import ExecutionService
-from app.security.deps import get_userdata
-from app.user.schemas import UserData
-from app.utils.security import authorize_roles
+from app.api.deps import get_database, get_userdata
+import app.execution.service as execution_service
+from app.execution.schemas import *
+from app.user.schemas import UserProfile
 
 router = APIRouter(prefix="/api/execution", tags=["execution"])
 
-MAX_CPU_TIME = 5000
-MAX_MEMORY_MB = 512
-
-
-class RunRequest(BaseModel):
-    language: str = Field(..., description="Language name : Python3, C, C++, JavaScript, Golang")
-    code: str = Field(..., description="Source code to execute")
-    input: str = Field("", description="Stdin for the program")
+MAX_CPU_TIME = 3000
+MAX_MEMORY_MB = 128
 
 
 @router.post("/run")
+# @required_login() # 현재 guard 에서 에러 발생중
 async def run_code(
         req: RunRequest,
-        user_date: UserData = Depends(get_userdata), # need to login
-        session: AsyncSession = Depends(get_session)):
-    svc = ExecutionService(session)
-    result = await svc.run_code(
-        language=req.language,
-        src=req.code,
-        stdin=req.input,
-        max_cpu_time=MAX_CPU_TIME,
-        max_memory_mb=MAX_MEMORY_MB,
+        session: AsyncSession = Depends(get_database),
+        user_profile: UserProfile = Depends(get_userdata)
+):
+    result = await execution_service.run_code_service(
+        session=session,
+        req=RunCodeRequest(
+            language=req.language,
+            src=req.code,
+            stdin=req.input,
+            max_cpu_time=MAX_CPU_TIME,
+            max_memory_mb=MAX_MEMORY_MB
+        )
     )
     return result

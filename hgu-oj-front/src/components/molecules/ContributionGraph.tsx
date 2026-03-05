@@ -98,11 +98,11 @@ export const ContributionGraph: React.FC<ContributionGraphProps> = ({
     }, [weeks, visibleWeeks]);
 
     const getColor = (count: number) => {
-        if (count === 0) return 'bg-gray-100';
-        if (count <= 2) return 'bg-green-200';
-        if (count <= 5) return 'bg-green-400';
-        if (count <= 9) return 'bg-green-600';
-        return 'bg-green-800';
+        if (count === 0) return 'bg-gray-100 dark:bg-slate-700';
+        if (count <= 2) return 'bg-green-200 dark:bg-green-900/50';
+        if (count <= 5) return 'bg-green-400 dark:bg-green-700';
+        if (count <= 9) return 'bg-green-600 dark:bg-green-500';
+        return 'bg-green-800 dark:bg-green-400';
     };
 
     const getTooltip = (date: string, count: number) => {
@@ -129,14 +129,14 @@ export const ContributionGraph: React.FC<ContributionGraphProps> = ({
                     </div>
                 ))}
             </div>
-            <div className="w-full flex items-center justify-end gap-2 mt-2 text-xs text-gray-500 pr-1">
+            <div className="w-full flex items-center justify-end gap-2 mt-2 text-xs text-gray-500 dark:text-slate-400 pr-1">
                 <span>Less</span>
                 <div className="flex gap-1">
-                    <div className="w-3 h-3 rounded-sm bg-gray-100" />
-                    <div className="w-3 h-3 rounded-sm bg-green-200" />
-                    <div className="w-3 h-3 rounded-sm bg-green-400" />
-                    <div className="w-3 h-3 rounded-sm bg-green-600" />
-                    <div className="w-3 h-3 rounded-sm bg-green-800" />
+                    <div className="w-3 h-3 rounded-sm bg-gray-100 dark:bg-slate-700" />
+                    <div className="w-3 h-3 rounded-sm bg-green-200 dark:bg-green-900/50" />
+                    <div className="w-3 h-3 rounded-sm bg-green-400 dark:bg-green-700" />
+                    <div className="w-3 h-3 rounded-sm bg-green-600 dark:bg-green-500" />
+                    <div className="w-3 h-3 rounded-sm bg-green-800 dark:bg-green-400" />
                 </div>
                 <span>More</span>
             </div>

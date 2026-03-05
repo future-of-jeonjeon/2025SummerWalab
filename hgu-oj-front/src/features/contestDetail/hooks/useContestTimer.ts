@@ -47,18 +47,21 @@ export const useContestTimer = (contest?: Contest) => {
         return;
       }
 
-      const diff = endTimeMs - nowWithOffset;
-      if (diff <= 0) {
+      let diff = 0;
+      if (!Number.isNaN(startTimeMs) && nowWithOffset < startTimeMs) {
+        diff = startTimeMs - nowWithOffset;
+      } else if (nowWithOffset <= endTimeMs) {
+        diff = endTimeMs - nowWithOffset;
+      } else {
         setTimeLeft('대회가 종료되었습니다.');
         return;
       }
 
       const totalSeconds = Math.floor(diff / 1000);
-      const days = Math.floor(totalSeconds / 86400);
-      const hours = Math.floor((totalSeconds % 86400) / 3600);
+      const hours = Math.floor(totalSeconds / 3600);
       const minutes = Math.floor((totalSeconds % 3600) / 60);
       const seconds = totalSeconds % 60;
-      const formatted = `${days ? `${days}일 ` : ''}${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+      const formatted = `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
       setTimeLeft(formatted);
     };
 

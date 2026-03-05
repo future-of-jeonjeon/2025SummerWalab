@@ -45,17 +45,17 @@ export const ContestCreateSection: React.FC = () => {
   const [contestForm, setContestForm] = useState<ContestFormState>(initialContestForm);
   const [contestLoading, setContestLoading] = useState(false);
   const [contestMessage, setContestMessage] = useState<{ success?: string; error?: string }>({});
-  const [contestFormProblems, setContestFormProblems] = useState<Array<{ problem: Problem; displayId: string }>>([]);
+  const [contestFormProblems, setContestFormProblems] = useState<Problem[]>([]);
   const [contestFormProblemInput, setContestFormProblemInput] = useState('');
-  const [contestFormProblemDisplayId, setContestFormProblemDisplayId] = useState('');
   const [contestFormProblemSearch, setContestFormProblemSearch] = useState<{
     results: Problem[];
     loading: boolean;
     error: string | null;
   }>({ results: [], loading: false, error: null });
   const contestFormProblemSearchTimerRef = useRef<number | null>(null);
-  const [contestFormProblemSelected, setContestFormProblemSelected] = useState<Problem | null>(null);
   const [contestFormProblemMessage, setContestFormProblemMessage] = useState<{ success?: string; error?: string }>({});
+  const dragItemRef = useRef<number | null>(null);
+  const dragOverItemRef = useRef<number | null>(null);
   const [contestFormAnnouncements, setContestFormAnnouncements] = useState<ContestAnnouncementDraft[]>([]);
   const [contestFormAnnouncementDraft, setContestFormAnnouncementDraft] = useState<ContestAnnouncementDraft>({
     title: '',
@@ -90,21 +90,12 @@ export const ContestCreateSection: React.FC = () => {
         setContestFormProblemSearch({ results: [], loading: true, error: null });
         try {
           const results = await adminService.searchAdminProblems({ keyword: trimmed, limit: 20, offset: 0 });
-          const usedDisplayIds = new Set(
-            contestFormProblems
-              .map((item) => item.displayId.trim().toLowerCase())
-              .filter((value) => value.length > 0),
-          );
-          const usedIds = new Set(contestFormProblems.map((item) => item.problem.id));
+          const usedIds = new Set(contestFormProblems.map((item) => item.id));
           const filtered = results.filter((problem) => {
             if (typeof problem.id === 'number' && usedIds.has(problem.id)) {
               return false;
             }
-            const displayId = problem.displayId ? problem.displayId.toLowerCase() : '';
-            if (!displayId) {
-              return true;
-            }
-            return !usedDisplayIds.has(displayId);
+            return true;
           });
           setContestFormProblemSearch({ results: filtered, loading: false, error: null });
         } catch (error) {
@@ -123,14 +114,8 @@ export const ContestCreateSection: React.FC = () => {
 
   const handleContestFormProblemInputChange = (value: string) => {
     setContestFormProblemInput(value);
-    setContestFormProblemSelected(null);
     setContestFormProblemMessage({});
     scheduleContestFormProblemSearch(value);
-  };
-
-  const handleContestFormProblemDisplayIdChange = (value: string) => {
-    setContestFormProblemDisplayId(value);
-    setContestFormProblemMessage({});
   };
 
   const handleContestAnnouncementDraftChange = (updates: Partial<ContestAnnouncementDraft>) => {
@@ -139,95 +124,38 @@ export const ContestCreateSection: React.FC = () => {
   };
 
   const handleSelectContestFormProblemSuggestion = (problem: Problem) => {
-    setContestFormProblemSelected(problem);
-    const label = problem.displayId ?? String(problem.id);
-    setContestFormProblemInput(label);
-    setContestFormProblemDisplayId(label);
+    if (contestFormProblems.some((item) => item.id === problem.id)) {
+      setContestFormProblemMessage({ error: '이미 추가된 문제입니다.' });
+      return;
+    }
+    setContestFormProblems((prev) => [...prev, problem]);
+    setContestFormProblemInput('');
     setContestFormProblemSearch({ results: [], loading: false, error: null });
-    setContestFormProblemMessage({});
+    setContestFormProblemMessage({ success: '문제를 추가했습니다.' });
     if (contestFormProblemSearchTimerRef.current) {
       window.clearTimeout(contestFormProblemSearchTimerRef.current);
       contestFormProblemSearchTimerRef.current = null;
     }
   };
 
-  const tryAddContestFormProblem = async (): Promise<boolean> => {
-    const trimmedQuery = contestFormProblemInput.trim();
-    let targetProblem = contestFormProblemSelected;
-
-    if (!targetProblem) {
-      if (!trimmedQuery) {
-        setContestFormProblemMessage({ error: '추가할 문제를 검색해 선택하세요.' });
-        return false;
-      }
-
-      const lowered = trimmedQuery.toLowerCase();
-      const inMemory = contestFormProblemSearch.results.find((problem) => {
-        if (typeof problem.id === 'number' && String(problem.id) === trimmedQuery) {
-          return true;
-        }
-        return normalizeProblemKey(problem) === lowered;
-      });
-
-      if (inMemory) {
-        targetProblem = inMemory;
-      } else {
-        try {
-          const fetched = await adminService.searchAdminProblems({ keyword: trimmedQuery, limit: 1, offset: 0 });
-          targetProblem = fetched[0];
-        } catch (error) {
-          const message = error instanceof Error ? error.message : '문제를 검색하지 못했습니다.';
-          setContestFormProblemMessage({ error: message });
-          return false;
-        }
-      }
-    }
-
-    if (!targetProblem) {
-      setContestFormProblemMessage({ error: '해당 문제를 찾지 못했습니다.' });
-      return false;
-    }
-
-    const resolvedProblem = targetProblem;
-
-    if (!contestFormProblemSelected) {
-      setContestFormProblemSelected(resolvedProblem);
-    }
-
-    const normalizedDisplayId = (contestFormProblemDisplayId.trim() || resolvedProblem.displayId || String(resolvedProblem.id)).trim();
-    if (!normalizedDisplayId) {
-      setContestFormProblemMessage({ error: '표시 ID를 입력하세요.' });
-      return false;
-    }
-
-    const normalizedKey = normalizedDisplayId.toLowerCase();
-    const duplicate = contestFormProblems.some((item) => {
-      if (item.problem.id === resolvedProblem.id) {
-        return true;
-      }
-      return item.displayId.trim().toLowerCase() === normalizedKey;
-    });
-
-    if (duplicate) {
-      setContestFormProblemMessage({ error: `표시 ID ${normalizedDisplayId}는 이미 추가되어 있습니다.` });
-      return false;
-    }
-
-    setContestFormProblems((prev) => [...prev, { problem: resolvedProblem, displayId: normalizedDisplayId }]);
-    setContestFormProblemInput('');
-    setContestFormProblemDisplayId('');
-    setContestFormProblemSelected(null);
-    setContestFormProblemSearch({ results: [], loading: false, error: null });
-    setContestFormProblemMessage({ success: `문제 ${normalizedDisplayId}을(를) 추가했습니다.` });
-    return true;
-  };
-
-  const handleAddContestFormProblem = async () => {
-    await tryAddContestFormProblem();
-  };
-
   const handleRemoveContestFormProblem = (problemId: number) => {
-    setContestFormProblems((prev) => prev.filter((item) => item.problem.id !== problemId));
+    setContestFormProblems((prev) => prev.filter((item) => item.id !== problemId));
+  };
+
+  const handleSortContestFormProblems = () => {
+    if (dragItemRef.current === null || dragOverItemRef.current === null) {
+      return;
+    }
+    if (dragItemRef.current === dragOverItemRef.current) {
+      return;
+    }
+    const next = [...contestFormProblems];
+    const dragged = next[dragItemRef.current];
+    next.splice(dragItemRef.current, 1);
+    next.splice(dragOverItemRef.current, 0, dragged);
+    dragItemRef.current = null;
+    dragOverItemRef.current = null;
+    setContestFormProblems(next);
   };
 
   const handleAddContestAnnouncement = () => {
@@ -300,12 +228,12 @@ export const ContestCreateSection: React.FC = () => {
       let announcementError: string | undefined;
       if (created?.id && contestFormProblems.length > 0) {
         const failures: string[] = [];
-        for (const item of contestFormProblems) {
+        for (const [index, item] of contestFormProblems.entries()) {
           try {
-            await adminService.addContestProblemFromPublic(created.id, item.problem.id, item.displayId);
+            await adminService.addContestProblemFromPublic(created.id, item.id, String(index + 1));
           } catch (error) {
             const message = error instanceof Error ? error.message : '문제를 추가하지 못했습니다.';
-            failures.push(`${item.displayId}: ${message}`);
+            failures.push(`${index + 1}: ${message}`);
           }
         }
         if (failures.length > 0) {
@@ -349,8 +277,6 @@ export const ContestCreateSection: React.FC = () => {
       setContestFormAnnouncementDraft({ title: '', content: '', visible: true });
       setContestFormAnnouncementMessage({});
       setContestFormProblemInput('');
-      setContestFormProblemDisplayId('');
-      setContestFormProblemSelected(null);
       setContestFormProblemSearch({ results: [], loading: false, error: null });
       setContestFormProblemMessage({});
     } catch (error) {
@@ -365,8 +291,8 @@ export const ContestCreateSection: React.FC = () => {
     <Card padding="lg">
       <form onSubmit={handleContestSubmit} className="space-y-6">
         <div className="space-y-1">
-          <h2 className="text-xl font-semibold text-gray-900">대회 등록</h2>
-          <p className="text-sm text-gray-500">대회 기본 정보를 입력한 뒤 등록할 수 있습니다.</p>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 dark:text-slate-100">대회 등록</h2>
+          <p className="text-sm text-gray-500 dark:text-slate-400">대회 기본 정보를 입력한 뒤 등록할 수 있습니다.</p>
         </div>
 
         {contestMessage.error && <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-600 whitespace-pre-line">{contestMessage.error}</div>}
@@ -385,7 +311,7 @@ export const ContestCreateSection: React.FC = () => {
             onChange={(event) => setContestForm((prev) => ({ ...prev, password: event.target.value }))}
           />
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">시작 시간</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">시작 시간</label>
             <input
               type="datetime-local"
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
@@ -394,7 +320,7 @@ export const ContestCreateSection: React.FC = () => {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">종료 시간</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">종료 시간</label>
             <input
               type="datetime-local"
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
@@ -403,7 +329,7 @@ export const ContestCreateSection: React.FC = () => {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">룰 타입</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">룰 타입</label>
             <select
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
               value={contestForm.ruleType}
@@ -414,9 +340,9 @@ export const ContestCreateSection: React.FC = () => {
             </select>
           </div>
           <div className="md:col-span-2">
-            <label className="mb-1 block text-sm font-medium text-gray-700">표시 설정</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">표시 설정</label>
             <div className="flex flex-wrap items-center gap-4">
-              <label className="inline-flex items-center space-x-2 text-sm text-gray-700">
+              <label className="inline-flex items-center space-x-2 text-sm text-gray-700 dark:text-slate-300">
                 <input
                   type="checkbox"
                   checked={contestForm.visible}
@@ -424,7 +350,7 @@ export const ContestCreateSection: React.FC = () => {
                 />
                 <span>공개</span>
               </label>
-              <label className="inline-flex items-center space-x-2 text-sm text-gray-700">
+              <label className="inline-flex items-center space-x-2 text-sm text-gray-700 dark:text-slate-300">
                 <input
                   type="checkbox"
                   checked={contestForm.realTimeRank}
@@ -432,7 +358,7 @@ export const ContestCreateSection: React.FC = () => {
                 />
                 <span>실시간 랭크</span>
               </label>
-              <label className="inline-flex items-center space-x-2 text-sm text-gray-700">
+              <label className="inline-flex items-center space-x-2 text-sm text-gray-700 dark:text-slate-300">
                 <input
                   type="checkbox"
                   checked={contestForm.requiresApproval}
@@ -445,7 +371,7 @@ export const ContestCreateSection: React.FC = () => {
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">대회 설명</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">대회 설명</label>
           <textarea
             className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
             rows={4}
@@ -454,10 +380,10 @@ export const ContestCreateSection: React.FC = () => {
           />
         </div>
 
-        <div className="rounded-lg border border-gray-200 p-4">
+        <div className="rounded-lg border border-gray-200 dark:border-slate-700 p-4">
           <div className="mb-3">
-            <h3 className="text-lg font-semibold text-gray-900">대회 공지 추가</h3>
-            <p className="text-sm text-gray-500">대회 생성 시 함께 등록할 공지를 작성해 임시 목록에 추가하세요.</p>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">대회 공지 추가</h3>
+            <p className="text-sm text-gray-500 dark:text-slate-400">대회 생성 시 함께 등록할 공지를 작성해 임시 목록에 추가하세요.</p>
           </div>
           {contestFormAnnouncementMessage.error && (
             <div className="mb-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-600">{contestFormAnnouncementMessage.error}</div>
@@ -473,7 +399,7 @@ export const ContestCreateSection: React.FC = () => {
               onChange={(event) => handleContestAnnouncementDraftChange({ title: event.target.value })}
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
             />
-            <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+            <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-slate-300">
               <input
                 type="checkbox"
                 checked={contestFormAnnouncementDraft.visible}
@@ -494,7 +420,7 @@ export const ContestCreateSection: React.FC = () => {
               공지 추가
             </Button>
             {contestFormAnnouncements.length > 0 && (
-              <span className="text-sm text-gray-600">임시 공지 {contestFormAnnouncements.length}건</span>
+              <span className="text-sm text-gray-600 dark:text-slate-400">임시 공지 {contestFormAnnouncements.length}건</span>
             )}
           </div>
 
@@ -504,11 +430,11 @@ export const ContestCreateSection: React.FC = () => {
                 <div key={`contest-announcement-${index}`} className="rounded-md border border-gray-200 px-3 py-2">
                   <div className="flex items-center justify-between gap-2">
                     <div>
-                      <p className="text-sm font-semibold text-gray-900">
+                      <p className="text-sm font-semibold text-gray-900 dark:text-slate-100">
                         {announcement.title}
-                        {!announcement.visible && <span className="ml-2 text-xs text-gray-500">(비공개)</span>}
+                        {!announcement.visible && <span className="ml-2 text-xs text-gray-500 dark:text-slate-400">(비공개)</span>}
                       </p>
-                      <p className="text-xs text-gray-500 line-clamp-2">{announcement.content}</p>
+                      <p className="text-xs text-gray-500 dark:text-slate-400 line-clamp-2">{announcement.content}</p>
                     </div>
                     <button
                       type="button"
@@ -525,7 +451,7 @@ export const ContestCreateSection: React.FC = () => {
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">허용 IP CIDR (쉼표 또는 줄바꿈 구분)</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">허용 IP CIDR (쉼표 또는 줄바꿈 구분)</label>
           <textarea
             className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
             rows={2}
@@ -537,31 +463,59 @@ export const ContestCreateSection: React.FC = () => {
 
         <div className="space-y-3">
           <div>
-            <label className="block text-sm font-medium text-gray-700">대회 문제 구성</label>
-            <p className="mt-1 text-xs text-gray-500">등록 전에 포함할 문제를 검색해 선택하세요. 대회 생성 후 자동으로 추가됩니다.</p>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">대회 문제 구성</label>
+            <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">등록 전에 포함할 문제를 검색해 선택하세요. 대회 생성 후 자동으로 추가됩니다.</p>
           </div>
 
           {contestFormProblemMessage.error && <div className="rounded-md bg-red-50 px-4 py-2 text-sm text-red-600">{contestFormProblemMessage.error}</div>}
           {contestFormProblemMessage.success && <div className="rounded-md bg-green-50 px-4 py-2 text-sm text-green-600">{contestFormProblemMessage.success}</div>}
 
           {contestFormProblems.length === 0 ? (
-            <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+            <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500 dark:text-slate-400">
               아직 선택한 문제가 없습니다. 아래에서 검색해 추가하세요.
             </div>
           ) : (
-            <div className="flex flex-wrap gap-2">
-              {contestFormProblems.map((item) => (
-                <span key={`contest-form-problem-${item.problem.id}`} className="inline-flex items-center gap-2 rounded-full bg-[#113F67]/10 px-3 py-1 text-sm text-[#113F67]">
-                  <span className="font-medium">문제 {item.displayId}</span>
-                  <button
-                    type="button"
-                    className="text-xs text-red-600 hover:text-red-700"
-                    onClick={() => handleRemoveContestFormProblem(item.problem.id)}
-                  >
-                    삭제
-                  </button>
-                </span>
-              ))}
+            <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-slate-700">
+              <table className="min-w-full divide-y divide-gray-200 text-left">
+                <thead className="bg-gray-50 dark:bg-slate-800">
+                  <tr>
+                    <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">No.</th>
+                    <th className="px-4 py-2 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">문제</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">관리</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100 bg-white dark:divide-slate-700 dark:bg-slate-900">
+                  {contestFormProblems.map((item, index) => (
+                    <tr
+                      key={`contest-form-problem-${item.id}`}
+                      className="cursor-move hover:bg-gray-50 dark:hover:bg-slate-800"
+                      draggable
+                      onDragStart={() => {
+                        dragItemRef.current = index;
+                      }}
+                      onDragEnter={() => {
+                        dragOverItemRef.current = index;
+                      }}
+                      onDragEnd={handleSortContestFormProblems}
+                      onDragOver={(event) => event.preventDefault()}
+                    >
+                      <td className="px-4 py-2 text-sm text-gray-600 dark:text-slate-400">{index + 1}</td>
+                      <td className="px-4 py-2 text-sm text-gray-800 dark:text-slate-100">
+                        {item.displayId ?? item.id} · {item.title}
+                      </td>
+                      <td className="px-4 py-2 text-right">
+                        <button
+                          type="button"
+                          className="text-xs text-red-600 hover:text-red-700"
+                          onClick={() => handleRemoveContestFormProblem(item.id)}
+                        >
+                          삭제
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
 
@@ -574,38 +528,31 @@ export const ContestCreateSection: React.FC = () => {
               onKeyDown={(event) => {
                 if (event.key === 'Enter') {
                   event.preventDefault();
-                  void handleAddContestFormProblem();
+                  const matched = contestFormProblemSearch.results.find(
+                    (problem) => normalizeProblemKey(problem) === contestFormProblemInput.trim().toLowerCase() || String(problem.id) === contestFormProblemInput.trim(),
+                  );
+                  if (matched) {
+                    handleSelectContestFormProblemSuggestion(matched);
+                  }
                 }
               }}
             />
-            <Input
-              label="표시 ID"
-              value={contestFormProblemDisplayId}
-              placeholder="예: A, B, P100"
-              onChange={(event) => handleContestFormProblemDisplayIdChange(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter') {
-                  event.preventDefault();
-                  void handleAddContestFormProblem();
-                }
-              }}
-            />
-            {contestFormProblemSearch.loading && <p className="text-xs text-gray-500">문제를 검색 중입니다...</p>}
+            {contestFormProblemSearch.loading && <p className="text-xs text-gray-500 dark:text-slate-400">문제를 검색 중입니다...</p>}
             {contestFormProblemSearch.error && <p className="text-xs text-red-600">{contestFormProblemSearch.error}</p>}
             {!contestFormProblemSearch.loading && contestFormProblemSearch.results.length > 0 && (
-              <ul className="max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white">
+              <ul className="max-h-48 overflow-y-auto rounded-lg border border-gray-200 dark:border-slate-700 bg-white">
                 {contestFormProblemSearch.results.map((result) => (
                   <li key={`contest-form-suggestion-${result.id}`}>
                     <button
                       type="button"
-                      className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-gray-50"
+                      className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800"
                       onClick={() => handleSelectContestFormProblemSuggestion(result)}
                     >
                       <div>
                         <p className="font-medium text-gray-800">
                           {result.displayId ?? result.id} · {result.title}
                         </p>
-                        <p className="text-xs text-gray-500">난이도: {result.difficulty}</p>
+                        <p className="text-xs text-gray-500 dark:text-slate-400">난이도: {result.difficulty}</p>
                       </div>
                       <span className="text-xs text-[#113F67]">선택</span>
                     </button>
@@ -613,12 +560,6 @@ export const ContestCreateSection: React.FC = () => {
                 ))}
               </ul>
             )}
-          </div>
-
-          <div className="flex justify-end">
-            <Button type="button" variant="outline" onClick={() => void handleAddContestFormProblem()}>
-              문제 추가
-            </Button>
           </div>
         </div>
 

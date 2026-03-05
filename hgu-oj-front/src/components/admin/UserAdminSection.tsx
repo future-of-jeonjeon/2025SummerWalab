@@ -5,6 +5,7 @@ import { Button } from '../atoms/Button';
 import { adminService, UpdateUserPayload } from '../../services/adminService';
 import { DEPARTMENTS } from '../../services/userService';
 import { AdminUser } from '../../types';
+import CommonPagination from '../common/CommonPagination';
 
 const USER_PAGE_SIZE = 20;
 
@@ -120,20 +121,6 @@ export const UserAdminSection: React.FC = () => {
             userSearchTimerRef.current = null;
         }
         fetchUsers(1, userSearchKeywordRef.current);
-    };
-
-    const handleUserPageChange = (direction: 'prev' | 'next') => {
-        const totalPages = Math.max(1, Math.ceil(userTotal / USER_PAGE_SIZE));
-        let nextPage = userPage;
-        if (direction === 'prev' && userPage > 1) {
-            nextPage = userPage - 1;
-        }
-        if (direction === 'next' && userPage < totalPages) {
-            nextPage = userPage + 1;
-        }
-        if (nextPage !== userPage) {
-            fetchUsers(nextPage, userSearchKeywordRef.current);
-        }
     };
 
     const handleUserFormChange = <K extends keyof UpdateUserPayload>(field: K, value: UpdateUserPayload[K]) => {
@@ -258,15 +245,13 @@ export const UserAdminSection: React.FC = () => {
         <Card padding="lg">
             <div className="space-y-6">
                 <div className="space-y-1">
-                    <h2 className="text-xl font-semibold text-gray-900">사용자 관리</h2>
-                    <p className="text-sm text-gray-500">검색으로 계정을 찾고, 아래에서 권한과 상태를 수정하세요.</p>
+                    <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 dark:text-slate-100">사용자 관리</h2>
                 </div>
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
                     <div className="w-full sm:flex-1">
                         <Input
                             type="search"
-                            label="검색"
                             placeholder="아이디, 이름, 이메일"
                             value={userSearchKeyword}
                             onChange={(e) => handleUserSearchInputChange(e.target.value)}
@@ -278,31 +263,25 @@ export const UserAdminSection: React.FC = () => {
                             }}
                         />
                     </div>
-                    <Button
-                        onClick={handleUserSearchSubmit}
-                        className="w-full sm:w-auto bg-[#113F67] text-white hover:bg-[#34699A] focus:ring-[#58A0C8]"
-                    >
-                        검색
-                    </Button>
                 </div>
 
                 <section className="space-y-4">
-                    <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+                    <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-slate-700 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm">
                         <div className="overflow-x-auto">
                             <table className="min-w-full divide-y divide-gray-200">
-                                <thead className="bg-gray-50">
+                                <thead className="bg-gray-50 dark:bg-slate-800">
                                     <tr>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">아이디</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">이름</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">이메일</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">유형</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">상태</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">아이디</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">이름</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">이메일</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">유형</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">상태</th>
                                     </tr>
                                 </thead>
-                                <tbody className="divide-y divide-gray-200 bg-white">
+                                <tbody className="divide-y divide-gray-200 dark:divide-slate-700 bg-white dark:bg-slate-900">
                                     {userListLoading ? (
                                         <tr>
-                                            <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500">
+                                            <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-slate-400">
                                                 사용자 목록을 불러오는 중입니다...
                                             </td>
                                         </tr>
@@ -314,14 +293,14 @@ export const UserAdminSection: React.FC = () => {
                                         <tr
                                             key={item.id}
                                             onClick={() => handleSelectUser(item)}
-                                            className={`cursor-pointer transition-colors hover:bg-gray-50 ${selectedUser?.id === item.id ? 'bg-blue-50' : ''
+                                            className={`cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800 ${selectedUser?.id === item.id ? 'bg-blue-50' : ''
                                                 }`}
                                         >
-                                            <td className="px-4 py-3 text-sm font-medium text-gray-900">{item.username}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-500">{item.real_name || '-'}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-500">{item.email}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-500">{item.admin_type}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-700">
+                                            <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-slate-100">{item.username}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-500 dark:text-slate-400">{item.real_name || '-'}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-500 dark:text-slate-400">{item.email}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-500 dark:text-slate-400">{item.admin_type}</td>
+                                            <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-300">
                                                 <span
                                                     className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${item.is_disabled ? 'bg-red-100 text-red-600' : 'bg-green-100 text-green-600'
                                                         }`}
@@ -333,7 +312,7 @@ export const UserAdminSection: React.FC = () => {
                                     ))}
                                     {userList.length === 0 && !userListLoading && !userListError && (
                                         <tr>
-                                            <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500">
+                                            <td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-slate-400">
                                                 사용자가 없습니다.
                                             </td>
                                         </tr>
@@ -342,31 +321,16 @@ export const UserAdminSection: React.FC = () => {
                             </table>
                         </div>
 
-                        <div className="border-t border-gray-200 bg-gray-50 px-4 py-3 sm:px-6">
+                        <div className="border-t border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 px-4 py-3 sm:px-6">
                             <div className="flex items-center justify-between">
-                                <div className="text-sm text-gray-700">
-                                    전체 <span className="font-medium">{userTotal}</span>명 · 현재 {userList.length}명 표시 중
-                                </div>
                                 <div className="flex gap-2">
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => handleUserPageChange('prev')}
-                                        disabled={userPage === 1}
-                                    >
-                                        이전
-                                    </Button>
-                                    <span className="flex items-center px-2 text-sm text-gray-700">
-                                        {userPage} / {Math.max(1, Math.ceil(userTotal / USER_PAGE_SIZE))}
-                                    </span>
-                                    <Button
-                                        variant="outline"
-                                        size="sm"
-                                        onClick={() => handleUserPageChange('next')}
-                                        disabled={userPage >= Math.ceil(userTotal / USER_PAGE_SIZE)}
-                                    >
-                                        다음
-                                    </Button>
+                                    <CommonPagination
+                                        page={userPage}
+                                        pageSize={USER_PAGE_SIZE}
+                                        totalItems={userTotal}
+                                        onChangePage={(nextPage) => fetchUsers(nextPage, userSearchKeywordRef.current)}
+                                        unit="명"
+                                    />
                                 </div>
                             </div>
                         </div>
@@ -383,7 +347,7 @@ export const UserAdminSection: React.FC = () => {
                                     <div className="px-4 pt-5 pb-4 bg-white sm:p-8">
                                         <div className="sm:flex sm:items-start">
                                             <div className="w-full mt-3 text-center sm:mt-0 sm:text-left">
-                                                <h3 className="text-2xl font-bold leading-6 text-gray-900 mb-6" id="modal-title">
+                                                <h3 className="text-2xl font-bold leading-6 text-gray-900 dark:text-slate-100 mb-6" id="modal-title">
                                                     계정 상세 정보
                                                 </h3>
 
@@ -400,50 +364,50 @@ export const UserAdminSection: React.FC = () => {
 
                                                 <div className="grid gap-6 sm:grid-cols-2">
                                                     <div className="space-y-4">
-                                                        <h4 className="font-semibold text-gray-900 border-b pb-2">기본 정보</h4>
+                                                        <h4 className="font-semibold text-gray-900 dark:text-slate-100 border-b pb-2">기본 정보</h4>
 
                                                         <div>
-                                                            <label className="block text-sm font-medium text-gray-700 mb-1">아이디</label>
-                                                            <div className="text-sm font-bold text-gray-900 px-3 py-2 bg-gray-50 rounded-md border border-gray-200">
+                                                            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">아이디</label>
+                                                            <div className="text-sm font-bold text-gray-900 dark:text-slate-100 px-3 py-2 bg-gray-50 rounded-md border border-gray-200">
                                                                 {selectedUser.username}
                                                             </div>
                                                         </div>
 
                                                         <div>
-                                                            <label className="block text-sm font-medium text-gray-700 mb-1">이메일</label>
-                                                            <div className="text-sm text-gray-900 px-3 py-2 bg-gray-50 rounded-md border border-gray-200">
+                                                            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">이메일</label>
+                                                            <div className="text-sm text-gray-900 dark:text-slate-100 px-3 py-2 bg-gray-50 rounded-md border border-gray-200">
                                                                 {selectedUser.email}
                                                             </div>
                                                         </div>
 
                                                         <div>
-                                                            <label className="block text-sm font-medium text-gray-700 mb-1">마지막 로그인</label>
-                                                            <div className="text-sm text-gray-500 px-3 py-2 bg-gray-50 rounded-md border border-gray-200">
+                                                            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">마지막 로그인</label>
+                                                            <div className="text-sm text-gray-500 dark:text-slate-400 px-3 py-2 bg-gray-50 rounded-md border border-gray-200">
                                                                 {selectedUser.last_login ? new Date(selectedUser.last_login).toLocaleString() : '-'}
                                                             </div>
                                                         </div>
                                                     </div>
 
                                                     <div className="space-y-4">
-                                                        <h4 className="font-semibold text-gray-900 border-b pb-2">상세 정보 (MS)</h4>
+                                                        <h4 className="font-semibold text-gray-900 dark:text-slate-100 border-b pb-2">상세 정보 (MS)</h4>
 
                                                         <div>
-                                                            <label className="block text-sm font-medium text-gray-700 mb-1">이름</label>
-                                                            <div className="text-sm text-gray-900 px-3 py-2 bg-gray-50 rounded-md border border-gray-200">
+                                                            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">이름</label>
+                                                            <div className="text-sm text-gray-900 dark:text-slate-100 px-3 py-2 bg-gray-50 rounded-md border border-gray-200">
                                                                 {msUserInfo?.name || '-'}
                                                             </div>
                                                         </div>
 
                                                         <div>
-                                                            <label className="block text-sm font-medium text-gray-700 mb-1">학번</label>
-                                                            <div className="text-sm text-gray-900 px-3 py-2 bg-gray-50 rounded-md border border-gray-200">
+                                                            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">학번</label>
+                                                            <div className="text-sm text-gray-900 dark:text-slate-100 px-3 py-2 bg-gray-50 rounded-md border border-gray-200">
                                                                 {msUserInfo?.student_id || '-'}
                                                             </div>
                                                         </div>
 
                                                         <div>
-                                                            <label className="block text-sm font-medium text-gray-700 mb-1">학부 (전공)</label>
-                                                            <div className="text-sm text-gray-900 px-3 py-2 bg-gray-50 rounded-md border border-gray-200">
+                                                            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">학부 (전공)</label>
+                                                            <div className="text-sm text-gray-900 dark:text-slate-100 px-3 py-2 bg-gray-50 rounded-md border border-gray-200">
                                                                 {msUserInfo?.major_id !== undefined ? DEPARTMENTS[msUserInfo.major_id] : '-'}
                                                             </div>
                                                         </div>
@@ -451,11 +415,11 @@ export const UserAdminSection: React.FC = () => {
                                                 </div>
 
                                                 <div className="mt-8 space-y-4">
-                                                    <h4 className="font-semibold text-gray-900 border-b pb-2">권한 및 설정</h4>
+                                                    <h4 className="font-semibold text-gray-900 dark:text-slate-100 border-b pb-2">권한 및 설정</h4>
 
                                                     <div className="grid gap-4 sm:grid-cols-2">
                                                         <div>
-                                                            <label className="mb-1 block text-sm font-medium text-gray-700">사용자 유형</label>
+                                                            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">사용자 유형</label>
                                                             <select
                                                                 className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
                                                                 value={userForm.admin_type}
@@ -476,21 +440,30 @@ export const UserAdminSection: React.FC = () => {
                                                             onChange={(e) => handleUserFormChange('is_disabled', e.target.checked)}
                                                             className="h-4 w-4 rounded border-gray-300 text-[#58A0C8] focus:ring-[#58A0C8]"
                                                         />
-                                                        <label htmlFor="isDisabled" className="text-sm text-gray-700">
+                                                        <label htmlFor="isDisabled" className="text-sm text-gray-700 dark:text-slate-300">
                                                             계정 비활성화
                                                         </label>
                                                     </div>
                                                 </div>
 
                                                 <div className="mt-8 flex justify-between pt-4 border-t">
-                                                    <Button
-                                                        variant="outline"
+                                                    <button
+                                                        type="button"
                                                         onClick={handleUserDelete}
                                                         disabled={userFormLoading || userDeleteLoading}
-                                                        className="text-red-600 border-red-600 hover:bg-red-50"
+                                                        className="inline-flex items-center gap-2 rounded-md border border-red-600 px-3 py-2 text-sm text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
                                                     >
-                                                        {userDeleteLoading ? '삭제 중...' : '사용자 삭제'}
-                                                    </Button>
+                                                        {userDeleteLoading ? (
+                                                            '삭제 중...'
+                                                        ) : (
+                                                            <>
+                                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                </svg>
+                                                                <span>사용자 삭제</span>
+                                                            </>
+                                                        )}
+                                                    </button>
                                                     <div className="flex gap-3">
                                                         <Button
                                                             variant="outline"

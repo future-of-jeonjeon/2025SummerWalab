@@ -98,8 +98,8 @@ export const WorkbookCreateSection: React.FC = () => {
     <Card padding="lg">
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="space-y-1">
-          <h2 className="text-xl font-semibold text-gray-900">문제집 등록</h2>
-          <p className="text-sm text-gray-500">문제집 메타데이터를 입력하면 즉시 저장됩니다.</p>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 dark:text-slate-100">문제집 등록</h2>
+          <p className="text-sm text-gray-500 dark:text-slate-400">문제집 메타데이터를 입력하면 즉시 저장됩니다.</p>
         </div>
 
         {message.error && <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-600">{message.error}</div>}
@@ -118,7 +118,7 @@ export const WorkbookCreateSection: React.FC = () => {
             onChange={(event) => setFormState((prev) => ({ ...prev, category: event.target.value }))}
           />
           <div className="md:col-span-2">
-            <label className="inline-flex items-center space-x-2 text-sm text-gray-700">
+            <label className="inline-flex items-center space-x-2 text-sm text-gray-700 dark:text-slate-300">
               <input
                 type="checkbox"
                 checked={formState.isPublic}
@@ -131,8 +131,8 @@ export const WorkbookCreateSection: React.FC = () => {
 
         <div className="space-y-3">
           <div>
-            <h3 className="text-sm font-medium text-gray-700">문제 목록</h3>
-            <p className="mt-1 text-xs text-gray-500">문제집 생성 시 함께 등록할 문제를 검색해 선택하거나 직접 ID를 입력하세요.</p>
+            <h3 className="text-sm font-medium text-gray-700 dark:text-slate-300">문제 목록</h3>
+            <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">문제집 생성 시 함께 등록할 문제를 검색해 선택하거나 직접 ID를 입력하세요.</p>
           </div>
           <ProblemSelectionSection
             selectedProblems={selectedProblems}
@@ -148,7 +148,7 @@ export const WorkbookCreateSection: React.FC = () => {
         </div>
 
         <div>
-          <label className="mb-1 block text-sm font-medium text-gray-700">설명</label>
+          <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">설명</label>
           <textarea
             className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
             rows={4}

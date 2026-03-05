@@ -1,21 +1,13 @@
-from __future__ import annotations
-
-import hashlib
-from http.client import HTTPException
-from typing import Any, Dict, Optional
-import copy
-import os
-import uuid
-import json
-
-import httpx
+import hashlib, copy, os, uuid, json, httpx
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.execution.models import SysOption
+from app.execution.schemas import *
 from app.execution.scheduler import ChooseJudgeServerAsync
-from app.utils.logging import logger
-
+from app.execution import exceptions
+from app.core.logger import logger
+from app.core.settings import settings
 
 async def _get_sys_option(session: AsyncSession, key: str) -> Optional[Any]:
     stmt = select(SysOption.value).where(SysOption.key == key)
@@ -23,191 +15,85 @@ async def _get_sys_option(session: AsyncSession, key: str) -> Optional[Any]:
     row = res.first()
     return row[0] if row else None
 
+async def _get_judge_config(session: AsyncSession, language: str):
+    token = settings.JUDGE_SERVER_TOKEN or await _get_sys_option(session, "judge_server_token")
+    if not token:
+        logger.critical("Missing JUDGE_SERVER_TOKEN")
+        exceptions.internal_server_error()
 
-async def get_judge_server_token(session: AsyncSession) -> Optional[str]:
-    # Prefer env override; fallback to DB SysOptions
-    token = os.getenv("JUDGE_SERVER_TOKEN")
-    if token:
-        return token
-    opt = await _get_sys_option(session, "judge_server_token")
-    if isinstance(opt, str):
-        return opt
-    return None
+    langs = await _get_sys_option(session, "languages") or []
+    config = next((item["config"] for item in langs if item["name"] == language), None)
 
+    if not config:
+        logger.error(f"Language not found: {language}")
+        exceptions.language_not_found()
 
-async def get_languages(session: AsyncSession) -> list[dict]:
-    langs = await _get_sys_option(session, "languages")
-    return langs or []
+    norm_config = copy.deepcopy(config)
+    if isinstance(norm_config.get("run", {}).get("seccomp_rule"), dict):
+        norm_config["run"]["seccomp_rule"] = "c_cpp"
 
-
-async def find_language_config(session: AsyncSession, language_name: str) -> Optional[Dict[str, Any]]:
-    for item in await get_languages(session):
-        if item.get("name") == language_name:
-            return item.get("config")
-    return None
+    return norm_config, hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
-class ExecutionService:
-    def __init__(self, session: AsyncSession):
-        self.session = session
+def _prepare_temp_testcase(stdin: str) -> str:
+    case_id = uuid.uuid4().hex
+    case_dir = os.path.join(settings.TEST_CASE_DATA_PATH, case_id)
+    os.makedirs(case_dir, exist_ok=True)
+    with open(os.path.join(case_dir, "1.in"), "w", encoding="utf-8") as f:
+        f.write(stdin)
+    open(os.path.join(case_dir, "1.out"), "w").close()
 
-    async def run_code(
-            self,
-            *,
-            language: str,
-            src: str,
-            stdin: str = "",
-            max_cpu_time: int,
-            max_memory_mb: int) -> Dict[str, Any]:
+    empty_hash = hashlib.md5(b"").hexdigest()
+    info = {
+        "spj": False,
+        "test_cases": {"1": {"input_name": "1.in", "output_name": "1.out",
+                             "output_md5": empty_hash, "stripped_output_md5": empty_hash}}
+    }
+    with open(os.path.join(case_dir, "info"), "w", encoding="utf-8") as f:
+        json.dump(info, f)
 
-        logger.info(f"Run code request: lang={language}, cpu={max_cpu_time}, mem={max_memory_mb}")
+    return case_id
 
-        # Resolve language config from SysOptions
-        language_config = await find_language_config(self.session, language)
-        if not language_config:
-            logger.error(f"Wrong Language option: {language}")
-            raise HTTPException(status_code=400, detail="Wrong Language option")
-
-        token = await get_judge_server_token(self.session)
-        if not token:
-            logger.critical("Missing JUDGE_SERVER_TOKEN")
-            raise HTTPException(status_code=500, detail="Internal Server Error")
-            # return {"err": True, "data": "Missing JUDGE_SERVER_TOKEN (env or SysOptions)"}
-
-        hashed_token = hashlib.sha256(token.encode("utf-8")).hexdigest()
-
-        # Normalize language config for /run endpoint (ensure seccomp_rule is a string)
-        norm_config = copy.deepcopy(language_config)
-        run_cfg = norm_config.get("run", {})
-        sec_rule = run_cfg.get("seccomp_rule")
-        if isinstance(sec_rule, dict):
-            # Default to standard rule for C/C++ when mapping provided
-            # Known common rule names in QDUOJ judger: c_cpp, c_cpp_file_io, general, golang, node
-            run_cfg["seccomp_rule"] = "c_cpp"
-            norm_config["run"] = run_cfg
-
-        async with ChooseJudgeServerAsync() as server:
-            if not server or not server.service_url:
-                logger.error("No available judge server found")
-                return {"err": True, "data": "No available judge server"}
-
-            # Build payload for a single-run with custom stdin
-            # Build primary payload for /run
-            data = {
-                "language_config": norm_config,
-                "src": src,
-                "max_cpu_time": max_cpu_time,
-                "max_real_time": max(1, int(max_cpu_time) * 3),
-                "max_memory": max(1, int(max_memory_mb)) * 1024 * 1024,
-                "input": stdin or "",
-                "stdin": stdin or "",
-                "output": True,
+async def run_code_service(
+        session: AsyncSession,
+        req: RunCodeRequest) -> Dict[str, Any]:
+    config, hashed_token = await _get_judge_config(session, req.language)
+    headers = {"X-Judge-Server-Token": hashed_token}
+    mem_bytes = max(1, req.max_memory_mb) * 1024 * 1024
+    async with ChooseJudgeServerAsync() as server:
+        if not server or not server.service_url:
+            return {"err": True, "data": "No available judge server"}
+        url_run = f"{server.service_url.rstrip('/')}/run"
+        url_judge = f"{server.service_url.rstrip('/')}/judge"
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            run_payload = {
+                "language_config": config,
+                "src": req.src,
+                "max_cpu_time": req.max_cpu_time,
+                "max_real_time": req.max_cpu_time * 3,
+                "max_memory": mem_bytes,
+                "stdin": req.stdin,
+                "output": True
             }
 
-            headers = {"X-Judge-Server-Token": hashed_token}
+            try:
+                resp = await client.post(url_run, headers=headers, json=run_payload)
+                result = resp.json()
+                if isinstance(result, dict) and result.get("err") == "InvalidRequest":
+                    case_id = _prepare_temp_testcase(req.stdin)
+                    judge_payload = {
+                        "language_config": config,
+                        "src": req.src,
+                        "max_cpu_time": req.max_cpu_time,
+                        "max_memory": mem_bytes,
+                        "test_case_id": case_id,
+                        "output": True
+                    }
+                    resp = await client.post(url_judge, headers=headers, json=judge_payload)
+                    return resp.json()
+                return result
 
-            # Prefer a `/run` endpoint if available (commonly supported by judge servers)
-            url = server.service_url.rstrip("/") + "/run"
-
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                try:
-                    resp = await client.post(url, headers=headers, json=data)
-                    resp.raise_for_status()
-                    result = resp.json()
-                    # Fallback: if InvalidRequest, retry with minimal payload
-                    if isinstance(result, dict) and result.get("err") == "InvalidRequest":
-                        minimal = {
-                            "language_config": norm_config,
-                            "src": src,
-                            "max_cpu_time": max_cpu_time,
-                            "max_real_time": max(1, int(max_cpu_time) * 3),
-                            "max_memory": max(1, int(max_memory_mb)) * 1024 * 1024,
-                            "stdin": stdin or "",
-                            "output": True,
-                        }
-                        resp2 = await client.post(url, headers=headers, json=minimal)
-                        resp2.raise_for_status()
-                        result2 = resp2.json()
-                        if isinstance(result2, dict) and result2.get("err") == "InvalidRequest":
-                            # Second fallback: emulate a single test case and call /judge
-                            return await self._run_via_judge(
-                                client=client,
-                                headers=headers,
-                                server_url=server.service_url,
-                                language_config=norm_config,
-                                src=src,
-                                stdin=stdin or "",
-                                max_cpu_time=max_cpu_time,
-                                max_memory_bytes=max(1, int(max_memory_mb)) * 1024 * 1024,
-                            )
-                        return result2
-                    return result
-                except Exception as e:
-                    logger.error(f"Judge server error: {e}")
-                    return {"err": True, "data": f"Judge server error: {e}"}
-
-    async def _run_via_judge(
-            self,
-            *,
-            client: httpx.AsyncClient,
-            headers: Dict[str, str],
-            server_url: str,
-            language_config: Dict[str, Any],
-            src: str,
-            stdin: str,
-            max_cpu_time: int,
-            max_memory_bytes: int,
-    ) -> Dict[str, Any]:
-        base = os.getenv("TEST_CASE_DATA_PATH", "/test_case")
-        case_id = uuid.uuid4().hex
-        case_dir = os.path.join(base, case_id)
-        os.makedirs(case_dir, exist_ok=True)
-        # Prepare a minimal test case with only input
-        in_name = "1.in"
-        out_name = "1.out"
-        with open(os.path.join(case_dir, in_name), "w", encoding="utf-8") as f:
-            f.write(stdin)
-        # Create empty expected output file to satisfy schema (won't be used if output=True)
-        out_path = os.path.join(case_dir, out_name)
-        open(out_path, "w").close()
-        # Compute md5 fields expected by judge server
-        import hashlib
-        with open(out_path, "rb") as f:
-            out_bytes = f.read()
-        output_md5 = hashlib.md5(out_bytes).hexdigest()
-        # stripped: simulate by stripping trailing spaces per-line and final newlines
-        try:
-            stripped_text = b"\n".join([line.rstrip() for line in out_bytes.splitlines()])
-        except Exception:
-            stripped_text = out_bytes
-        stripped_output_md5 = hashlib.md5(stripped_text).hexdigest()
-        info = {
-            "spj": False,
-            "test_cases": {
-                "1": {
-                    "input_name": in_name,
-                    "output_name": out_name,
-                    "output_md5": output_md5,
-                    "stripped_output_md5": stripped_output_md5,
-                }
-            },
-        }
-        with open(os.path.join(case_dir, "info"), "w", encoding="utf-8") as f:
-            json.dump(info, f)
-
-        data = {
-            "language_config": language_config,
-            "src": src,
-            "max_cpu_time": max_cpu_time,
-            "max_memory": max_memory_bytes,
-            "test_case_id": case_id,
-            "output": True,
-            # no spj
-        }
-        url = server_url.rstrip("/") + "/judge"
-        try:
-            resp = await client.post(url, headers=headers, json=data)
-            resp.raise_for_status()
-            return resp.json()
-        except Exception as e:
-            return {"err": True, "data": f"Judge server /judge error: {e}"}
+            except Exception as e:
+                logger.error(f"Judge connection failed: {e}")
+                exceptions.internal_server_error()
+                return {"err": True, "data": str(e)}

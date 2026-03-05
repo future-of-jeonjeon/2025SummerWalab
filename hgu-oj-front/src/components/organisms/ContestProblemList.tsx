@@ -83,13 +83,13 @@ export const ContestProblemList: React.FC<ContestProblemListProps> = ({
   if (!problems.length) {
     return (
       <div className="text-center py-8">
-        <div className="text-gray-600 text-lg">표시할 문제가 없습니다.</div>
+        <div className="text-gray-600 dark:text-slate-400 text-lg">표시할 문제가 없습니다.</div>
       </div>
     );
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+    <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm overflow-hidden">
       <div className="px-5 py-3 border-b border-gray-200 bg-slate-100 dark:bg-slate-800/70">
         <div className="grid grid-cols-[120px_minmax(0,1fr)_160px_120px_120px] items-center gap-3 text-xs font-medium uppercase tracking-wider text-gray-600 dark:text-slate-200">
           <div className="flex justify-center">
@@ -105,7 +105,7 @@ export const ContestProblemList: React.FC<ContestProblemListProps> = ({
           </div>
         </div>
       </div>
-      <div className="divide-y divide-gray-200">
+      <div className="divide-y divide-gray-200 dark:divide-slate-700">
         {problems.map((problem) => {
           const submissions = problem.contestSubmissionNumber ?? problem.submissionNumber ?? 0;
           const solvedUsers = problem.contestSolvedUserNumber ?? problem.acceptedNumber ?? 0;
@@ -125,7 +125,7 @@ export const ContestProblemList: React.FC<ContestProblemListProps> = ({
           return (
             <div
               key={problem.id}
-              className={`px-5 py-3 transition-colors ${disabled ? 'cursor-not-allowed opacity-70' : 'cursor-pointer hover:bg-gray-50'}`}
+              className={`px-5 py-3 transition-colors ${disabled ? 'cursor-not-allowed opacity-70' : 'cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/80'}`}
               onClick={() => {
                 if (!disabled) {
                   onProblemClick?.(problem);
@@ -141,12 +141,12 @@ export const ContestProblemList: React.FC<ContestProblemListProps> = ({
               }}
             >
               <div className="grid grid-cols-[120px_minmax(0,1fr)_160px_120px_120px] items-center gap-3">
-                <div className="text-sm font-medium text-gray-900 text-center">
+                <div className="text-sm font-medium text-gray-900 dark:text-slate-100 text-center">
                   {problem.displayId ?? problem.id}
                 </div>
                 <div>
-                  <div className="text-sm font-medium text-gray-900">{problem.title}</div>
-                  <p className="text-xs text-gray-500 line-clamp-2 mt-1">
+                  <div className="text-sm font-medium text-gray-900 dark:text-slate-100">{problem.title}</div>
+                  <p className="text-xs text-gray-500 dark:text-slate-400 line-clamp-2 mt-1">
                     {problem.description?.replace(/<[^>]*>/g, '') || '설명이 없습니다.'}
                   </p>
                 </div>
@@ -157,10 +157,10 @@ export const ContestProblemList: React.FC<ContestProblemListProps> = ({
                     </span>
                   )}
                 </div>
-                <div className="text-sm text-gray-500 text-center">
+                <div className="text-sm text-gray-500 dark:text-slate-400 text-center">
                   {submissions}회
                 </div>
-                <div className="text-sm text-gray-500 text-center">
+                <div className="text-sm text-gray-500 dark:text-slate-400 text-center">
                   {ratio}
                 </div>
               </div>

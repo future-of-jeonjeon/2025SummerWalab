@@ -15,7 +15,7 @@ export interface Problem {
   _id?: string | number;
   title: string;
   description: string;
-  difficulty: 'Low' | 'Mid' | 'High' | '상' | '중' | '하';
+  difficulty: string | number;
   timeLimit: number;
   memoryLimit: number;
   inputDescription?: string;
@@ -87,6 +87,33 @@ export interface Contest {
   requiresApproval?: boolean;
   participants: number;
   languages?: string[];
+  isOrganizationOnly?: boolean;
+  organization_id?: number | null;
+  organization_name?: string | null;
+}
+
+export interface ContestDataDTO {
+  id: number;
+  title: string;
+  description: string;
+  startTime: string;
+  endTime: string;
+  createTime: string;
+  ruleType: string;
+  visible: boolean;
+  real_time_rank: boolean;
+  allowed_ip_ranges: string[];
+  password?: string | null;
+  status: string;
+  createdBy: {
+    id: number;
+    username: string;
+    realName?: string;
+  };
+  participants: number;
+  languages: string[];
+  organization_id?: number | null;
+  organization_name?: string | null;
 }
 
 export interface ContestAnnouncement {
@@ -96,15 +123,33 @@ export interface ContestAnnouncement {
   content: string;
   visible: boolean;
   createdAt: string;
-  createdBy: {
-    id: number;
-    username: string;
-    realName?: string;
-  };
+  createdBy: string;
 }
 
 export interface ContestAccess {
   access: boolean;
+}
+
+export interface ContestProblemInputDTO {
+  problem_id: number;
+  display_id: string;
+}
+
+export interface CreateContestRequest {
+  title: string;
+  description: string;
+  start_time: string; // ISO string
+  end_time: string;   // ISO string
+  rule_type: string;
+  password?: string | null;
+  visible: boolean;
+  real_time_rank: boolean;
+  allowed_ip_ranges: string[];
+  requires_approval?: boolean;
+  is_organization_only?: boolean;
+  languages: string[];
+  organization_id: number;
+  problems?: ContestProblemInputDTO[];
 }
 
 export interface ContestRankEntry {
@@ -115,6 +160,7 @@ export interface ContestRankEntry {
     realName?: string;
     studentId?: string;
   };
+  rank?: number;
   acceptedNumber?: number;
   submissionNumber?: number;
   totalTime?: number;
@@ -159,6 +205,8 @@ export interface Workbook {
   updated_at: string;
   is_public: boolean;
   problemCount?: number;
+  tags?: string[];
+  writer?: string;
 }
 
 export interface WorkbookProblem {
@@ -175,6 +223,12 @@ export interface WorkbookDetail extends Workbook {
 
 export interface AdminWorkbook extends Workbook {
   visible: boolean;
+}
+
+export interface TestCaseUploadResponse {
+  id: string;
+  info: unknown;
+  spj: boolean;
 }
 
 // API 응답 타입
@@ -246,7 +300,8 @@ export interface LanguageOption {
 
 // 필터 관련 타입
 export interface ProblemFilter {
-  difficulty?: 'Low' | 'Mid' | 'High' | '상' | '중' | '하';
+  difficulty?: string | number;
+  difficultyLevel?: number;
   search?: string;
   page?: number;
   limit?: number;
@@ -409,12 +464,17 @@ export interface OrganizationMember {
   username: string;
   realName?: string;
   email?: string;
+  avatar?: string;
   adminType?: string;
+  role?: 'MEMBER' | 'ORG_ADMIN' | 'ORG_SUPER_ADMIN';
 }
+
+export type OrganizationRole = 'MEMBER' | 'ORG_ADMIN' | 'ORG_SUPER_ADMIN';
 
 export interface Organization {
   id: number;
   name: string;
+  img_url?: string | null;
   description?: string | null;
   createdAt?: string;
   updatedAt?: string;
@@ -434,4 +494,35 @@ export interface SystemMetrics {
   submission_rate: number;
   history: Array<{ time: string; count: number }>;
   timestamp: string;
+}
+
+export interface OrganizationPayload {
+  name: string;
+  description?: string | null;
+  img_url?: string | null;
+}
+
+export type OrganizationApplicationStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
+
+export interface OrganizationApplication {
+  id: string; // Redis UUID
+  name: string;
+  description: string;
+  img_url?: string | null;
+  applicant_id: number;
+  applicant_name: string;
+  status: OrganizationApplicationStatus;
+  admin_comment?: string | null;
+  created_at: string;
+}
+
+export interface OrganizationApplicationPayload {
+  name: string;
+  description: string;
+  img_url?: string | null;
+}
+
+export interface OrganizationApplicationApprovePayload {
+  status: OrganizationApplicationStatus;
+  admin_comment?: string | null;
 }

@@ -1,114 +1,15 @@
 import React, { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link, useNavigate } from 'react-router-dom';
-import { Card } from '../components/atoms/Card';
-import { problemService } from '../services/problemService';
-import { submissionService, SubmissionListItem } from '../services/submissionService';
-import { contestService } from '../services/contestService';
+
+// removing problemService, submissionService, contestService
+
 import { rankingService } from '../services/rankingService';
 import { useAuthStore } from '../stores/authStore';
 import { userService } from '../services/userService';
-
-type RecentProblem = {
-  id: number;
-  displayId?: string | number | null;
-  title: string;
-  createdAt?: string;
-};
-
-type RecentSolved = {
-  submissionId: string;
-  problemId: number; // DB PK if known; 0 when unknown
-  displayId?: string | number | null;
-  username?: string | null;
-  solvedAt?: string;
-};
-
-type ContestHighlight = {
-  id: number;
-  title: string;
-  startTime?: string;
-  endTime?: string;
-};
-
-type HighlightPanelProps<Item> = {
-  title: string;
-  items: Item[];
-  emptyMessage: string;
-  loading?: boolean;
-  onItemClick: (item: Item) => void;
-  renderPrimary: (item: Item) => React.ReactNode;
-  renderSecondary?: (item: Item) => React.ReactNode;
-};
-
-const formatDateTime = (value?: string | null) => {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleString('ko-KR', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  });
-};
-
-const HighlightPanel = <Item,>({
-  title,
-  items,
-  emptyMessage,
-  loading,
-  onItemClick,
-  renderPrimary,
-  renderSecondary,
-}: HighlightPanelProps<Item>) => {
-  if (loading && items.length === 0) {
-    return (
-      <Card className="h-full rounded-3xl border-0 bg-white/90 shadow-lg dark:bg-slate-900/80" padding="md" shadow="lg">
-        <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{title}</h3>
-        <div className="mt-4 space-y-3">
-          {Array.from({ length: 3 }).map((_, index) => (
-            <div key={index} className="animate-pulse rounded-xl bg-slate-100/80 px-4 py-3 dark:bg-slate-800/60">
-              <div className="h-4 w-3/4 rounded bg-slate-200 dark:bg-slate-700" />
-              <div className="mt-2 h-3 w-1/2 rounded bg-slate-200 dark:bg-slate-700" />
-            </div>
-          ))}
-        </div>
-      </Card>
-    );
-  }
-
-  return (
-    <Card className="h-full rounded-3xl border-0 bg-white/90 shadow-lg dark:bg-slate-900/80" padding="md" shadow="lg">
-      <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{title}</h3>
-      {items.length === 0 ? (
-        <div className="mt-6 text-sm text-slate-500 dark:text-slate-400">{emptyMessage}</div>
-      ) : (
-        <div className="mt-4 divide-y divide-slate-100 dark:divide-slate-800">
-          {items.map((item, index) => (
-            <button
-              key={index}
-              type="button"
-              onClick={() => onItemClick(item)}
-              className="flex w-full flex-col items-start gap-1 px-2 py-2 text-left transition hover:bg-slate-50 dark:hover:bg-slate-800/60"
-            >
-              <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                {renderPrimary(item)}
-              </span>
-              {renderSecondary && (
-                <span className="text-xs text-slate-500 dark:text-slate-400">
-                  {renderSecondary(item)}
-                </span>
-              )}
-            </button>
-          ))}
-        </div>
-      )}
-    </Card>
-  );
-};
+import { problemService } from '../services/problemService';
+import { getDifficultyMeta } from '../lib/difficulty';
+import { ProblemList } from '../components/organisms/ProblemList';
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -133,161 +34,31 @@ export const HomePage: React.FC = () => {
     checkUserInfo();
   }, [isAuthenticated, navigate]);
 
-  const {
-    data: recentProblemsData,
-    isLoading: recentProblemsLoading,
-  } = useQuery({
-    queryKey: ['home', 'recent-problems'],
-    queryFn: () => problemService.getMicroProblemList({ page: 1, limit: 5, sortField: 'number', sortOrder: 'desc' }),
-    staleTime: 60 * 1000,
-    enabled: isUserVerified,
-  });
-
-  const {
-    data: recentSolvedData,
-    isLoading: recentSolvedLoading,
-  } = useQuery({
-    queryKey: ['home', 'recent-solved'],
-    queryFn: () => submissionService.getRecentSubmissions({ limit: 5 }),
-    staleTime: 30 * 1000,
-    enabled: isUserVerified,
-  });
-
-  const {
-    data: runningContestsData,
-    isLoading: runningContestsLoading,
-  } = useQuery({
-    queryKey: ['home', 'running-contests'],
-    queryFn: () => contestService.getContests({ page: 1, limit: 5, status: '0' }),
-    staleTime: 60 * 1000,
-    enabled: isUserVerified,
-  });
-
-  const {
-    data: upcomingContestsData,
-    isLoading: upcomingContestsLoading,
-  } = useQuery({
-    queryKey: ['home', 'upcoming-contests'],
-    queryFn: () => contestService.getContests({ page: 1, limit: 5, status: '1' }),
-    staleTime: 60 * 1000,
-    enabled: isUserVerified,
-  });
-
-  const recentProblems = useMemo<RecentProblem[]>(() => {
-    return (recentProblemsData?.data ?? []).map((problem) => ({
-      id: problem.id,
-      displayId: problem.displayId ?? problem._id ?? problem.id,
-      title: problem.title,
-      createdAt: problem.createTime ?? problem.lastUpdateTime,
-    }));
-  }, [recentProblemsData?.data]);
-
-  const recentSolved = useMemo<RecentSolved[]>(() => {
-    const items = recentSolvedData?.items ?? [];
-    return items.map((item: SubmissionListItem) => ({
-      submissionId: String(item.id ?? item.submissionId ?? ''),
-      problemId: (() => {
-        const raw = item.problem_id ?? item.problemId ?? item.problem;
-        const num = Number(raw);
-        return Number.isFinite(num) && num > 0 ? num : 0;
-      })(),
-      displayId: item.problem ?? item.problem_id ?? item.problemId,
-      username: item.username,
-      solvedAt: item.create_time ?? item.createTime,
-    }));
-  }, [recentSolvedData?.items]);
-
-  const parseTime = (value: any): number => {
-    if (!value) return NaN;
-    const t = new Date(value).getTime();
-    return Number.isNaN(t) ? NaN : t;
-  };
-
-  const mergedContests = useMemo(() => {
-    const map = new Map<number, ContestHighlight & { status?: string }>();
-    (runningContestsData?.data ?? []).forEach((c) => map.set(c.id, c as any));
-    (upcomingContestsData?.data ?? []).forEach((c) => {
-      if (!map.has(c.id)) {
-        map.set(c.id, c as any);
-      }
-    });
-    return Array.from(map.values());
-  }, [runningContestsData?.data, upcomingContestsData?.data]);
-
-  const getStatusCode = (contest: any): number | null => {
-    const raw = contest.status ?? (contest as any).contest_status;
-    if (typeof raw === 'number') return raw;
-    if (typeof raw === 'string' && raw.trim().length > 0) {
-      const n = Number(raw);
-      if (!Number.isNaN(n)) return n;
-      const upper = raw.trim().toUpperCase();
-      if (upper === 'RUNNING') return 0;
-      if (upper === 'PENDING' || upper === 'SCHEDULED' || upper === 'NOT_STARTED') return 1;
-      if (upper === 'ENDED' || upper === 'FINISHED') return 2;
-    }
-    return null;
-  };
-
-  const runningContests = useMemo<ContestHighlight[]>(() => {
-    const now = Date.now();
-    return mergedContests
-      .map((contest) => {
-        const startTime = contest.startTime ?? (contest as any).start_time;
-        const endTime = contest.endTime ?? (contest as any).end_time;
-        const start = parseTime(startTime);
-        const end = parseTime(endTime);
-        const statusCode = getStatusCode(contest);
-        const isRunningByStatus = statusCode === 0;
-        const isRunningByTime = Number.isFinite(start) && Number.isFinite(end) && start <= now && now < end;
-        return { id: contest.id, title: contest.title, startTime, endTime, start, end, isRunning: isRunningByStatus || isRunningByTime };
-      })
-      .filter((c) => c.isRunning)
-      .sort((a, b) => a.start - b.start);
-  }, [mergedContests]);
-
-  const upcomingContests = useMemo<ContestHighlight[]>(() => {
-    const now = Date.now();
-    return mergedContests
-      .map((contest) => {
-        const startTime = contest.startTime ?? (contest as any).start_time;
-        const endTime = contest.endTime ?? (contest as any).end_time;
-        const start = parseTime(startTime);
-        const statusCode = getStatusCode(contest);
-        const isUpcomingByStatus = statusCode === 1;
-        const isUpcomingByTime = Number.isFinite(start) && start > now;
-        return { id: contest.id, title: contest.title, startTime, endTime, start, isUpcoming: isUpcomingByStatus || isUpcomingByTime };
-      })
-      .filter((c) => c.isUpcoming)
-      .sort((a, b) => a.start - b.start);
-  }, [mergedContests]);
 
   const {
     data: topUserRankings,
     isLoading: userRankingLoading,
   } = useQuery({
     queryKey: ['home', 'user-rankings'],
-    queryFn: () => rankingService.getUserRankings({ page: 1, limit: 5 }),
+    queryFn: () => rankingService.getUserRankings({ page: 1, limit: 3 }),
     staleTime: 60 * 1000,
     enabled: isUserVerified,
   });
 
   const {
-    data: topOrganizationRankings,
-    isLoading: organizationRankingLoading,
+    data: recentProblemsData,
+    isLoading: recentProblemsLoading,
   } = useQuery({
-    queryKey: ['home', 'organization-rankings'],
-    queryFn: () => rankingService.getOrganizationRankings({ page: 1, limit: 5 }),
+    queryKey: ['home', 'recent-problems'],
+    queryFn: () => problemService.getProblems({ page: 1, limit: 5 }),
     staleTime: 60 * 1000,
-    enabled: isUserVerified,
   });
 
-  const organizationRanking = useMemo(
-    () => ({
-      items: topOrganizationRankings?.data ?? [],
-      loading: organizationRankingLoading,
-    }),
-    [topOrganizationRankings?.data, organizationRankingLoading],
+  const recentProblems = useMemo(
+    () => recentProblemsData?.data ?? [],
+    [recentProblemsData?.data]
   );
+
 
   const userRanking = useMemo(
     () => ({
@@ -297,196 +68,153 @@ export const HomePage: React.FC = () => {
     [topUserRankings?.data, userRankingLoading],
   );
 
-  const handleProblemNavigate = async (problem: RecentProblem | RecentSolved) => {
-    // 최근 풀이 문제: PK로만 이동. 없으면 displayId로 조회 후 PK 확보.
-    if ('problemId' in problem) {
-      const pk = Number(problem.problemId);
-      if (Number.isFinite(pk) && pk > 0) {
-        navigate(`/problems/${encodeURIComponent(String(pk))}`);
-        return;
-      }
-      const display = problem.displayId;
-      if (display) {
-        try {
-          const detail = await problemService.getProblem(display);
-          if (detail?.id) {
-            navigate(`/problems/${encodeURIComponent(String(detail.id))}`);
-          }
-        } catch {
-          // 조회 실패 시 이동하지 않음
-        }
-      }
-      return;
-    }
 
-    // 최근 추가된 문제: id가 PK
-    const pk = Number((problem as RecentProblem).id);
-    if (Number.isFinite(pk) && pk > 0) {
-      navigate(`/problems/${encodeURIComponent(String(pk))}`);
-    }
-  };
-
-  const handleContestNavigate = (contest: ContestHighlight) => {
-    if (!contest?.id) return;
-    navigate(`/contests/${contest.id}`);
-  };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100">
-      <div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 py-12 space-y-12">
-        <section className="grid gap-6 lg:grid-cols-[1.8fr,1fr] items-stretch">
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 via-sky-500 to-cyan-400 text-white shadow-xl">
-            <div className="absolute inset-0 bg-gradient-to-br from-blue-600/70 via-sky-500/70 to-cyan-400/70" />
-            <div className="relative flex h-full flex-col justify-between p-10 space-y-10">
-              <div>
-                <span className="inline-flex items-center rounded-full bg-white/20 px-3 py-1 text-sm font-medium uppercase tracking-wide">
-                  Why Not Change The World?
-                </span>
-                <h1 className="mt-6 text-4xl font-bold tracking-tight sm:text-5xl">
-                  한동인을 위한 온라인 저지 플랫폼
-                </h1>
-                <p className="mt-4 max-w-2xl text-base sm:text-lg text-white/90">
-                  매일 새로운 문제를 풀고, 팀과 함께 문제집을 구성하며, 실전과 같은 대회에 참가해 보세요.
-                </p>
+    <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 pb-12">
+      {/* Full-width Dark Hero Section */}
+      <section className="relative w-full overflow-hidden bg-[#0A101F] text-white py-24 sm:py-32">
+        {/* Abstract Background Floating Elements */}
+        {/* Top Right Element */}
+        <div className="absolute top-10 right-32 opacity-20 transform rotate-12 pointer-events-none hidden lg:block">
+          <svg width="180" height="120" viewBox="0 0 180 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect x="2" y="2" width="176" height="116" rx="8" stroke="#4B5563" strokeWidth="4" />
+            <line x1="20" y1="30" x2="100" y2="30" stroke="#4B5563" strokeWidth="6" strokeLinecap="round" />
+            <line x1="20" y1="60" x2="150" y2="60" stroke="#4B5563" strokeWidth="6" strokeLinecap="round" />
+            <line x1="20" y1="90" x2="120" y2="90" stroke="#4B5563" strokeWidth="6" strokeLinecap="round" />
+          </svg>
+        </div>
+        {/* Bottom Right Braces */}
+        <div className="absolute bottom-10 right-1/4 opacity-10 transform -rotate-12 pointer-events-none hidden lg:block">
+          <div className="text-9xl font-mono font-bold text-slate-400">{"{ }"}</div>
+        </div>
+        {/* Left Side Large Text */}
+        <div className="absolute top-1/2 left-0 opacity-[0.02] text-[15rem] font-bold tracking-tighter pointer-events-none leading-none -translate-y-1/2 select-none hidden 2xl:block overflow-hidden whitespace-nowrap">
+          CODE ROUND
+        </div>
+        {/* Subtle Glow */}
+        <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-600/20 rounded-full blur-[120px] pointer-events-none"></div>
+
+        <div className="relative mx-auto max-w-7xl 2xl:max-w-screen-2xl px-4 sm:px-6 lg:px-8 2xl:px-10">
+          <div className="max-w-3xl">
+            <h1 className="mt-8 text-5xl font-extrabold tracking-tight sm:text-6xl lg:text-7xl" style={{ fontFamily: '"Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif' }}>
+              H Code Round
+            </h1>
+            <h2 className="mt-2 text-5xl font-extrabold tracking-tight sm:text-6xl lg:text-7xl" style={{ fontFamily: '"Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif' }}>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-500">
+                당신의 한계를 넘어서는
+                <br />
+                코딩 테스트
+              </span>
+            </h2>
+
+
+
+            {/* Empty space for where buttons and stats would be */}
+            <div className="mt-16 h-32 w-full"></div>
+          </div>
+        </div>
+      </section>
+
+      {/* Main Content Area */}
+      <div className="mx-auto max-w-7xl 2xl:max-w-screen-2xl px-4 sm:px-6 lg:px-8 2xl:px-10 py-12">
+        <div className="flex flex-col lg:flex-row gap-8">
+          {/* Left Area: Recommended Problems */}
+          <div className="flex-1">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">최근 문제</h2>
+              <Link to="/problems" className="text-sm font-medium text-blue-600 hover:text-blue-400">
+                전체 보기 &gt;
+              </Link>
+            </div>
+            <ProblemList
+              problems={recentProblems}
+              isLoading={recentProblemsLoading}
+              onProblemClick={(problemKey) => navigate(`/problems/${encodeURIComponent(problemKey)}`)}
+            />
+          </div>
+
+          {/* Right Sidebar */}
+          <div className="w-full lg:w-[22rem] xl:w-96 shrink-0 flex flex-col gap-6">
+            {/* 오늘의 도전 과제 */}
+            <div className="relative overflow-hidden rounded-2xl bg-[#1A1F36] text-white shadow-xl">
+              <div className="absolute top-4 right-4 opacity-10 pointer-events-none">
+                <svg width="120" height="120" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M18 4V2H6v2H2v3c0 2.62 1.91 4.78 4.41 4.97A6.02 6.02 0 0011 15.92V19H8v2h8v-2h-3v-3.08a6.02 6.02 0 004.59-3.95C20.09 11.78 22 9.62 22 7V4h-4zm-2 2v3a4 4 0 11-8 0V6h8zM4 7V6h2v3.53A2.99 2.99 0 014 7zm16 0a2.99 2.99 0 01-2 2.83V6h2v1z" />
+                </svg>
+              </div>
+              <div className="relative p-6">
+                <p className="text-xs font-semibold text-slate-400 mb-2">오늘의 도전 과제</p>
+                <h3 className="text-xl font-bold leading-tight mb-2">
+                  이진 트리 레벨 순회<br />
+                  (Binary Tree Level Order)
+                </h3>
+                <div className="flex items-center gap-2 mb-8">
+                  {(() => {
+                    const meta = getDifficultyMeta(2);
+                    return meta ? <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${meta.className}`}>
+                      {meta.label}
+                    </span> : null;
+                  })()}
+                </div>
+
+                <div className="flex items-center justify-between text-sm mb-4">
+                  <span className="flex items-center gap-1.5 text-emerald-400 font-medium">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                    12k 해결됨
+                  </span>
+                </div>
+
+                <button
+                  className="w-full py-3 mt-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-semibold transition-colors shadow-sm"
+                  onClick={() => navigate('/problems/102')}
+                >
+                  문제 풀기
+                </button>
+              </div>
+            </div>
+
+            {/* TOP Ranker */}
+            <div className="rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 p-6 dark:bg-slate-900/60 dark:ring-slate-800">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-base font-bold text-slate-900 dark:text-slate-100">TOP Ranker</h3>
+              </div>
+
+              <div className="space-y-5">
+                {userRanking.loading ? (
+                  <div className="animate-pulse space-y-4">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 shrink-0" />
+                        <div className="flex-1 space-y-2">
+                          <div className="h-3 w-24 rounded bg-slate-200 dark:bg-slate-700" />
+                          <div className="h-2.5 w-16 rounded bg-slate-100 dark:bg-slate-800" />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : userRanking.items.length > 0 ? (
+                  userRanking.items.slice(0, 3).map((user, idx) => (
+                    <div key={user.rank ?? idx} className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden shrink-0">
+                        {user.avatarUrl ? (
+                          <img
+                            src={user.avatarUrl}
+                            alt={`${user.username} avatar`}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : null}
+                      </div>
+                      <p className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">{user.username}</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-sm text-slate-500 text-center py-4">랭커 정보가 없습니다.</div>
+                )}
               </div>
             </div>
           </div>
-
-          <Card className="rounded-3xl h-full bg-white/80 shadow-lg dark:bg-slate-900/80" padding="lg" shadow="lg">
-            <h2 className="text-lg font-semibold text-slate-800 dark:text-slate-100">플랫폼 한눈에 보기</h2>
-            <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
-              실시간으로 변화하는 상위 랭킹을 확인해 보세요.
-            </p>
-            <div className="mt-6 grid gap-6 md:grid-cols-2">
-              <div>
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">조직 랭킹 TOP 5</h3>
-                  <Link to="/ranking" className="text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-300">
-                    전체 보기
-                  </Link>
-                </div>
-                <div className="mt-3 space-y-2">
-                  {organizationRanking.items.length === 0 && !organizationRanking.loading && (
-                    <div className="rounded-lg bg-slate-100/70 px-3 py-2 text-xs text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
-                      랭킹 데이터가 없습니다.
-                    </div>
-                  )}
-                  {organizationRanking.loading &&
-                    Array.from({ length: 5 }).map((_, index) => (
-                      <div
-                        key={`org-skeleton-${index}`}
-                        className="animate-pulse rounded-lg bg-slate-100/80 px-3 py-2 dark:bg-slate-800/60"
-                      >
-                        <div className="h-3 w-1/2 rounded bg-slate-200 dark:bg-slate-700" />
-                      </div>
-                    ))}
-                  {organizationRanking.items.map((entry) => (
-                    <div
-                      key={entry.rank}
-                      className="flex items-center justify-between rounded-lg bg-slate-100/70 px-3 py-2 text-sm text-slate-800 dark:bg-slate-800/60 dark:text-slate-100"
-                    >
-                      <span>
-                        <span className="mr-2 font-bold text-blue-600 dark:text-blue-300">{entry.rank}</span>
-                        {entry.name}
-                      </span>
-                      {entry.totalSolved != null && (
-                        <span className="text-xs text-slate-500 dark:text-slate-400">
-                          {entry.totalSolved} solved
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <div>
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-200">유저 랭킹 TOP 5</h3>
-                  <Link to="/ranking" className="text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-300">
-                    전체 보기
-                  </Link>
-                </div>
-                <div className="mt-3 space-y-2">
-                  {userRanking.items.length === 0 && !userRanking.loading && (
-                    <div className="rounded-lg bg-slate-100/70 px-3 py-2 text-xs text-slate-500 dark:bg-slate-800/60 dark:text-slate-400">
-                      랭킹 데이터가 없습니다.
-                    </div>
-                  )}
-                  {userRanking.loading &&
-                    Array.from({ length: 5 }).map((_, index) => (
-                      <div
-                        key={`user-skeleton-${index}`}
-                        className="animate-pulse rounded-lg bg-slate-100/80 px-3 py-2 dark:bg-slate-800/60"
-                      >
-                        <div className="h-3 w-1/2 rounded bg-slate-200 dark:bg-slate-700" />
-                      </div>
-                    ))}
-                  {userRanking.items.map((entry) => (
-                    <div
-                      key={entry.rank}
-                      className="flex items-center justify-between rounded-lg bg-slate-100/70 px-3 py-2 text-sm text-slate-800 dark:bg-slate-800/60 dark:text-slate-100"
-                    >
-                      <span>
-                        <span className="mr-2 font-bold text-blue-600 dark:text-blue-300">{entry.rank}</span>
-                        {entry.username}
-                      </span>
-                      {entry.solvedCount != null && (
-                        <span className="text-xs text-slate-500 dark:text-slate-400">
-                          {entry.solvedCount} solved
-                        </span>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </Card>
-        </section>
-
-        <section className="grid gap-6 lg:grid-cols-4">
-          <HighlightPanel<RecentProblem>
-            title="최근 추가된 문제"
-            items={recentProblems}
-            emptyMessage="새로 추가된 문제가 없습니다."
-            loading={recentProblemsLoading}
-            onItemClick={handleProblemNavigate}
-            renderPrimary={(item) => `${item.displayId ?? item.id}. ${item.title}`}
-            renderSecondary={(item) => formatDateTime(item.createdAt)}
-          />
-          <HighlightPanel<RecentSolved>
-            title="최근 풀린 문제"
-            items={recentSolved}
-            emptyMessage="최근 풀이 내역이 없습니다."
-            loading={recentSolvedLoading}
-            onItemClick={handleProblemNavigate}
-            renderPrimary={(item) => `${item.displayId ?? item.problemId}`}
-            renderSecondary={(item) =>
-              item.username ? `${item.username} · ${formatDateTime(item.solvedAt)}` : formatDateTime(item.solvedAt)
-            }
-          />
-          <HighlightPanel<ContestHighlight>
-            title="진행 중인 대회"
-            items={runningContests}
-            emptyMessage="진행 중인 대회가 없습니다."
-            loading={runningContestsLoading}
-            onItemClick={handleContestNavigate}
-            renderPrimary={(item) => item.title}
-            renderSecondary={(item) => {
-              const start = formatDateTime(item.startTime);
-              const end = formatDateTime(item.endTime);
-              if (!start && !end) return '';
-              return `${start || ''}${start && end ? ' ~ ' : ''}${end || ''}`;
-            }}
-          />
-          <HighlightPanel<ContestHighlight>
-            title="예정된 대회"
-            items={upcomingContests}
-            emptyMessage="예정된 대회가 없습니다."
-            loading={upcomingContestsLoading}
-            onItemClick={handleContestNavigate}
-            renderPrimary={(item) => item.title}
-            renderSecondary={(item) => formatDateTime(item.startTime)}
-          />
-        </section>
+        </div>
       </div>
     </div>
   );

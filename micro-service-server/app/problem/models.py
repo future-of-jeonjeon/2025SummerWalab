@@ -1,13 +1,13 @@
 from datetime import datetime
+from typing import TYPE_CHECKING, List, Optional, Any, Union
 
-from sqlalchemy import Column, Integer, Text, Boolean, DateTime, ForeignKey, Table
+from sqlalchemy import Column, Integer, Text, Boolean, DateTime, ForeignKey, Table, func
 from sqlalchemy.dialects.postgresql import JSONB  # PostgreSQL의 JSONB 타입 사용
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import relationship, Mapped, mapped_column
+from app.core.database import Base
 
-# Base는 app.config.database.py에서 정의된 것을 사용합니다.
-from app.config.database import Base
-
-# User 모델은 app.user.models.py에서 임포트합니다.
+if TYPE_CHECKING:
+    from app.user.models import User
 
 # Many-to-Many 관계를 위한 중간 테이블 정의
 # 'public' 스키마를 명시하여 정확한 테이블 참조
@@ -23,54 +23,56 @@ problem_tags_association_table = Table(
 class ProblemTag(Base):
     __tablename__ = 'problem_tag'
     __table_args__ = {'schema': 'public'}  # problem_tag 테이블도 public 스키마에 있다고 가정
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(Text, unique=True, index=True, nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(Text, unique=True, index=True, nullable=False)
+
+
 
 
 class Problem(Base):
     __tablename__ = 'problem'
     __table_args__ = {'schema': 'public'}  # problem 테이블도 public 스키마에 있다고 가정
 
-    id = Column(Integer, primary_key=True, index=True)
-    _id = Column(Text, unique=True, index=True, nullable=False)
-    title = Column(Text, nullable=False)
-    description = Column(Text, nullable=False)
-    input_description = Column(Text, nullable=False)
-    output_description = Column(Text, nullable=False)
-    samples = Column(JSONB, nullable=False)  # JSONB 사용
-    test_case_id = Column(Text, nullable=False)
-    test_case_score = Column(JSONB)  # JSONB 사용
-    hint = Column(Text)
-    languages = Column(JSONB, nullable=False)  # JSONB 사용
-    template = Column(JSONB, nullable=False)  # JSONB 사용
-    create_time = Column(DateTime, nullable=False, default=datetime.now)
-    last_update_time = Column(DateTime, default=datetime.now, onupdate=datetime.now)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
 
+    _id: Mapped[str] = mapped_column(Text, unique=True, index=True, nullable=False)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    description: Mapped[str] = mapped_column(Text, nullable=False)
+    input_description: Mapped[str] = mapped_column(Text, nullable=False)
+    output_description: Mapped[str] = mapped_column(Text, nullable=False)
+    samples: Mapped[list] = mapped_column(JSONB, nullable=False)
+    test_case_id: Mapped[str] = mapped_column(Text, nullable=False)
+    test_case_score: Mapped[Optional[Union[dict, list, Any]]] = mapped_column(JSONB)
+    hint: Mapped[Optional[str]] = mapped_column(Text)
+    languages: Mapped[list] = mapped_column(JSONB, nullable=False)
+    template: Mapped[dict] = mapped_column(JSONB, nullable=False)
     # created_by_id가 User 테이블의 id를 참조하도록 설정
-    created_by_id = Column(Integer, ForeignKey('public.user.id'), nullable=False)  # 'public.user.id'로 정확히 참조
-    created_by = relationship("User", back_populates="created_problems")  # 양방향 관계 설정
-    contest_id = Column(Integer, ForeignKey('public.contest.id'), nullable=True)
+    created_by_id: Mapped[int] = mapped_column(Integer, ForeignKey('public.user.id'), nullable=False)
+    created_by: Mapped["User"] = relationship("User", back_populates="created_problems")
+    contest_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey('public.contest.id'), nullable=True)
 
-    time_limit = Column(Integer, nullable=False)
-    memory_limit = Column(Integer, nullable=False)
-    io_mode = Column(JSONB, nullable=False)  # JSONB 사용
+    time_limit: Mapped[int] = mapped_column(Integer, nullable=False)
+    memory_limit: Mapped[int] = mapped_column(Integer, nullable=False)
+    io_mode: Mapped[dict] = mapped_column(JSONB, nullable=False)
 
-    spj = Column(Boolean, nullable=False)
-    spj_language = Column(Text)
-    spj_code = Column(Text)
-    spj_version = Column(Text)
-    spj_compile_ok = Column(Boolean, nullable=False)
-    rule_type = Column(Text, nullable=False)
-    visible = Column(Boolean, nullable=False, default=True)
-    difficulty = Column(Text)
-    source = Column(Text)
-    total_score = Column(Integer, nullable=False, default=0)
-    submission_number = Column(Integer, nullable=False, default=0)
-    accepted_number = Column(Integer, nullable=False, default=0)
-    statistic_info = Column(JSONB, nullable=False, default={})  # JSONB 사용
-    share_submission = Column(Boolean, nullable=False, default=False)
+    spj: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    spj_language: Mapped[Optional[str]] = mapped_column(Text)
+    spj_code: Mapped[Optional[str]] = mapped_column(Text)
+    spj_version: Mapped[Optional[str]] = mapped_column(Text)
+    spj_compile_ok: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    rule_type: Mapped[str] = mapped_column(Text, nullable=False)
+    visible: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    create_time: Mapped[datetime] = mapped_column(DateTime(timezone=False), server_default=func.now())
+    last_update_time: Mapped[datetime] = mapped_column(DateTime(timezone=False), onupdate=func.now())
+    difficulty: Mapped[Optional[str]] = mapped_column(Text)
+    source: Mapped[Optional[str]] = mapped_column(Text)
+    total_score: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    submission_number: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    accepted_number: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    statistic_info: Mapped[dict] = mapped_column(JSONB, nullable=False, default={})
+    share_submission: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # is_public 컬럼에 server_default='FALSE'를 추가합니다.
-    is_public = Column(Boolean, nullable=False, default=True, server_default='FALSE')
+    is_public: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default='FALSE')
 
-    tags = relationship("ProblemTag", secondary=problem_tags_association_table, backref="problems")
+    tags: Mapped[List["ProblemTag"]] = relationship("ProblemTag", secondary=problem_tags_association_table, backref="problems")

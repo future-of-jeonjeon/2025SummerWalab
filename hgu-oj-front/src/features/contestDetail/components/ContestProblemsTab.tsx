@@ -50,36 +50,36 @@ export const ContestProblemsTab: React.FC<ContestProblemsTabProps> = ({
     if (lockState.reason === 'verifying') {
       return (
         <div className="space-y-4 animate-pulse">
-          <div className="flex flex-col items-center justify-center gap-2 py-16 text-sm text-gray-600">
-            <div className="h-4 bg-gray-200 rounded w-48 mb-2"></div>
-            <div className="h-4 bg-gray-200 rounded w-32"></div>
+          <div className="flex flex-col items-center justify-center gap-2 py-16 text-sm text-gray-600 dark:text-slate-400">
+            <div className="h-4 bg-gray-200 dark:bg-slate-700 rounded w-48 mb-2"></div>
+            <div className="h-4 bg-gray-200 dark:bg-slate-700 rounded w-32"></div>
           </div>
         </div>
       );
     }
-    return <div className="text-sm text-gray-600">{lockState.message}</div>;
+    return <div className="text-sm text-gray-600 dark:text-slate-400">{lockState.message}</div>;
   }
 
   if (!hasAccess && !hasContestAdminOverride) {
-    return <div className="text-sm text-gray-600">비밀번호 인증 후 문제를 확인할 수 있습니다.</div>;
+    return <div className="text-sm text-gray-600 dark:text-slate-400">비밀번호 인증 후 문제를 확인할 수 있습니다.</div>;
   }
 
   if (problemsLoading) {
     return (
       <div className="space-y-4 animate-pulse">
         {[...Array(5)].map((_, i) => (
-          <div key={i} className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200">
+          <div key={i} className="flex items-center justify-between p-4 bg-white dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-700">
             <div className="flex items-center gap-4 flex-1">
-              <div className="h-6 w-6 bg-gray-200 rounded-full"></div>
+              <div className="h-6 w-6 bg-gray-200 dark:bg-slate-700 rounded-full"></div>
               <div className="space-y-2 flex-1">
-                <div className="h-5 bg-gray-200 rounded w-1/3"></div>
+                <div className="h-5 bg-gray-200 dark:bg-slate-700 rounded w-1/3"></div>
                 <div className="flex gap-2">
-                  <div className="h-4 bg-gray-200 rounded w-16"></div>
-                  <div className="h-4 bg-gray-200 rounded w-16"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-slate-700 rounded w-16"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-slate-700 rounded w-16"></div>
                 </div>
               </div>
             </div>
-            <div className="h-8 bg-gray-200 rounded w-20"></div>
+            <div className="h-8 bg-gray-200 dark:bg-slate-700 rounded w-20"></div>
           </div>
         ))}
       </div>
@@ -91,7 +91,7 @@ export const ContestProblemsTab: React.FC<ContestProblemsTabProps> = ({
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full">
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-end">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-3 sm:self-end lg:ml-auto lg:justify-end">
           <form onSubmit={handlers.handleSearchSubmit} className="flex w-full sm:w-auto sm:min-w-[360px]">
@@ -104,12 +104,12 @@ export const ContestProblemsTab: React.FC<ContestProblemsTabProps> = ({
               value={searchState.query}
               onChange={(event) => handlers.handleSearchChange(event.target.value)}
               placeholder="문제 검색..."
-              className="w-full rounded-l-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-l-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2 text-sm text-gray-900 dark:text-slate-100 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
             <select
               value={searchState.field}
               onChange={(event) => handlers.handleSearchFieldChange(event.target.value)}
-              className="w-28 border-y border-r border-gray-300 bg-white px-2 text-sm font-medium text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-28 border-y border-r border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-2 text-sm font-medium text-gray-900 dark:text-slate-100 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="title">제목</option>
               <option value="tag">태그</option>
@@ -127,7 +127,7 @@ export const ContestProblemsTab: React.FC<ContestProblemsTabProps> = ({
               id="contest-problem-status-filter"
               value={statusFilter}
               onChange={(event) => handlers.handleStatusFilterChange(event.target.value as 'all' | ProblemStatusKey)}
-              className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-28"
+              className="w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2 text-sm font-medium text-gray-900 dark:text-slate-100 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 sm:w-28"
             >
               <option value="all">전체</option>
               <option value="untouched">{PROBLEM_STATUS_LABELS.untouched}</option>
@@ -137,7 +137,7 @@ export const ContestProblemsTab: React.FC<ContestProblemsTabProps> = ({
             <button
               type="button"
               onClick={handlers.handleResetFilters}
-              className="ml-2 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-medium text-gray-900 text-center shadow-sm transition hover:border-blue-400 hover:text-blue-600"
+              className="ml-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2 text-sm font-medium text-gray-900 dark:text-slate-100 text-center shadow-sm transition hover:border-blue-400 hover:text-blue-600 dark:hover:bg-slate-800"
             >
               초기화
             </button>

@@ -19,13 +19,13 @@ export const Button: React.FC<ButtonProps> = ({
   className = '',
   ...rest
 }) => {
-  const baseClasses = 'inline-flex items-center justify-center font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-slate-950 disabled:opacity-50 disabled:cursor-not-allowed';
+  const baseClasses = 'inline-flex items-center justify-center font-medium rounded-md transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-slate-950 disabled:opacity-50 disabled:cursor-not-allowed';
 
   const variantClasses = {
-    primary: 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-300 dark:bg-blue-500 dark:hover:bg-blue-400 dark:focus:ring-blue-400',
-    secondary: 'bg-sky-100 text-blue-700 hover:bg-sky-200 focus:ring-sky-200 dark:bg-sky-900/40 dark:text-sky-200 dark:hover:bg-sky-900 dark:focus:ring-sky-700',
-    outline: 'border border-blue-600 text-blue-600 hover:bg-blue-50 focus:ring-blue-300 dark:border-blue-400 dark:text-blue-300 dark:hover:bg-blue-950/60 dark:hover:text-blue-200',
-    ghost: 'text-blue-600 hover:bg-blue-50 focus:ring-blue-200 dark:text-blue-300 dark:hover:bg-slate-800',
+    primary: 'bg-blue-600 text-white hover:bg-blue-700 focus-visible:ring-blue-300 dark:bg-blue-700 dark:hover:bg-blue-600 dark:text-slate-100 dark:focus-visible:ring-blue-500',
+    secondary: 'bg-sky-100 text-blue-700 hover:bg-sky-200 focus-visible:ring-sky-200 dark:bg-slate-800 dark:text-blue-300 dark:hover:bg-slate-700 dark:focus-visible:ring-blue-500',
+    outline: 'border border-blue-600 text-blue-600 hover:bg-blue-50 focus-visible:ring-blue-300 dark:border-blue-500 dark:text-blue-300 dark:hover:bg-blue-900/30 dark:hover:text-blue-200',
+    ghost: 'text-blue-600 hover:bg-blue-50 focus-visible:ring-blue-200 dark:text-blue-300 dark:hover:bg-blue-900/20',
   };
 
   const sizeClasses = {

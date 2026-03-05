@@ -4,49 +4,48 @@ import app.user.service as serv
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.user.schemas import UserData, SubUserData
-from app.config.database import get_session
-from app.security.deps import get_userdata
-from app.utils.security import authorize_roles
+from app.user.schemas import UserProfile, UserProfileResponse, UpdateUserProfileRequest
+from app.api.deps import get_userdata, get_database
+from app.core.auth.guards import require_role
 
 router = APIRouter(prefix="/api/user", tags=["User"])
 
 
 @router.post("/check", status_code=status.HTTP_200_OK)
 async def check_user_data(
-        user_date: UserData = Depends(get_userdata),
-        db: AsyncSession = Depends(get_session)):
-    await serv.check_user_data(user_date, db)
+        user_profile: UserProfile = Depends(get_userdata),
+        db: AsyncSession = Depends(get_database)):
+    await serv.check_user_data(user_profile, db)
     return
 
 
-@router.post("/data", response_model=SubUserData)
+@router.post("/data", response_model=UserProfileResponse)
 async def save_user_data(
-        sub_user_data: SubUserData,
-        user_date: UserData = Depends(get_userdata),
-        db: AsyncSession = Depends(get_session)) -> SubUserData:
-    return await serv.save_user_data(sub_user_data, user_date, db)
+        user_profile_payload: UpdateUserProfileRequest,
+        user_profile: UserProfile = Depends(get_userdata),
+        db: AsyncSession = Depends(get_database)) -> UserProfileResponse:
+    return await serv.save_user_data(user_profile_payload, user_profile, db)
 
 
-@router.get("/data", response_model=SubUserData)
+@router.get("/data", response_model=UserProfileResponse)
 async def get_user_data(
-        user_date: UserData = Depends(get_userdata),
-        db: AsyncSession = Depends(get_session)) -> SubUserData:
-    return await serv.get_user_data(user_date, db)
+        user_profile: UserProfile = Depends(get_userdata),
+        db: AsyncSession = Depends(get_database)) -> UserProfileResponse:
+    return await serv.get_user_data(user_profile, db)
 
 
-@authorize_roles("Admin")
-@router.get("/data/{user_id}", response_model=SubUserData)
-async def get_user_data(
-        user_id:int,
-        user_date: UserData = Depends(get_userdata),
-        db: AsyncSession = Depends(get_session)) -> SubUserData:
+@require_role("Admin")
+@router.get("/data/{user_id}", response_model=UserProfileResponse)
+async def get_user_data_by_id(
+        user_id: int,
+        user_profile: UserProfile = Depends(get_userdata),
+        db: AsyncSession = Depends(get_database)) -> UserProfileResponse:
     return await serv.get_user_data_by_id(user_id, db)
 
 
-@router.put("/data", response_model=SubUserData)
+@router.put("/data", response_model=UserProfileResponse)
 async def update_user_data(
-        sub_user_data: SubUserData,
-        user_date: UserData = Depends(get_userdata),
-        db: AsyncSession = Depends(get_session)) -> SubUserData:
-    return await serv.update_user_data(sub_user_data, user_date, db)
+        user_profile_payload: UpdateUserProfileRequest,
+        user_profile: UserProfile = Depends(get_userdata),
+        db: AsyncSession = Depends(get_database)) -> UserProfileResponse:
+    return await serv.update_user_data(user_profile_payload, user_profile, db)

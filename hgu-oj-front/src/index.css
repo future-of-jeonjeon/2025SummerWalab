@@ -21,6 +21,12 @@ body {
   color: #111827;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+html.dark body {
+  background-color: #020617;
+  color: #e2e8f0;
 }
 
 #root {
@@ -46,16 +52,33 @@ body {
   background: #94a3b8;
 }
 
+html.dark ::-webkit-scrollbar-track {
+  background: #0f172a;
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: #334155;
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: #475569;
+}
+
 /* 선택 텍스트 스타일 */
 ::selection {
   background-color: #a855f7;
   color: white;
 }
 
-/* 포커스 스타일 */
-:focus {
+/* 포커스 스타일 (키보드 네비게이션 시에만 보이도록) */
+:focus-visible {
   outline: 2px solid #a855f7;
   outline-offset: 2px;
+}
+
+/* 마우스 클릭 시의 기본 아웃라인 제거 */
+:focus:not(:focus-visible) {
+  outline: none;
 }
 
 /* 버튼 기본 스타일 리셋 */
@@ -73,40 +96,52 @@ a {
 }
 
 /* 입력 필드 기본 스타일 */
-input, textarea, select {
+input,
+textarea,
+select {
   font-family: inherit;
   font-size: inherit;
 }
 
 /* Hide scrollbar helper */
 .no-scrollbar {
-  -ms-overflow-style: none; /* IE and Edge */
-  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none;
+  /* IE and Edge */
+  scrollbar-width: none;
+  /* Firefox */
 }
+
 .no-scrollbar::-webkit-scrollbar {
-  display: none; /* Chrome, Safari, Opera */
+  display: none;
+  /* Chrome, Safari, Opera */
 }
 
 /* Minimal vertical resizer: thin hairline with wide hit-area */
 .oj-resizer-v {
   position: relative;
-  width: 12px; /* comfortable hit area */
+  width: 12px;
+  /* comfortable hit area */
   cursor: col-resize;
   background: transparent;
 }
+
 .oj-resizer-v::before {
   content: '';
   position: absolute;
   left: 50%;
   top: 0;
   transform: translateX(-50%);
-  width: 1px; /* visual hairline */
+  width: 1px;
+  /* visual hairline */
   height: 100%;
-  background: #e5e7eb; /* gray-200 to blend with cards */
+  background: #e5e7eb;
+  /* gray-200 to blend with cards */
   transition: background 0.15s ease, width 0.15s ease;
 }
+
 .oj-resizer-v:hover::before {
-  background: #cbd5e1; /* gray-300 on hover */
+  background: #cbd5e1;
+  /* gray-300 on hover */
   width: 2px;
 }
 
@@ -116,31 +151,39 @@ input, textarea, select {
   height: 72px;
   border-radius: 8px;
 }
+
 .oj-side-handle.blend {
-  border-color: #e5e7eb; /* match card border */
-  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+  border-color: #e5e7eb;
+  /* match card border */
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
 }
 
 /* Minimal horizontal resizer: thin hairline with wide hit-area */
 .oj-resizer-h {
   position: relative;
-  height: 12px; /* comfortable hit area */
+  height: 12px;
+  /* comfortable hit area */
   cursor: row-resize;
   background: transparent;
 }
+
 .oj-resizer-h::before {
   content: '';
   position: absolute;
   left: 0;
   top: 50%;
   transform: translateY(-50%);
-  height: 1px; /* visual hairline */
+  height: 1px;
+  /* visual hairline */
   width: 100%;
-  background: #e5e7eb; /* gray-200 */
+  background: #e5e7eb;
+  /* gray-200 */
   transition: background 0.15s ease, height 0.15s ease;
 }
+
 .oj-resizer-h:hover::before {
-  background: #cbd5e1; /* gray-300 on hover */
+  background: #cbd5e1;
+  /* gray-300 on hover */
   height: 2px;
 }
 
@@ -148,7 +191,8 @@ input, textarea, select {
 .oj-handle-h {
   position: absolute;
   left: 50%;
-  top: -18px; /* float over the line */
+  top: -18px;
+  /* float over the line */
   transform: translateX(-50%);
   height: 28px;
   display: inline-flex;
@@ -160,9 +204,10 @@ input, textarea, select {
   background: #ffffff;
   border: 1px solid #d1d5db;
   border-radius: 8px;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
   z-index: 40;
 }
+
 .oj-handle-h:hover {
   background: #f9fafb;
   border-color: #cbd5e1;
@@ -171,13 +216,14 @@ input, textarea, select {
 /* subtle variant to match problem handle blend */
 .oj-handle-h.blend {
   border-color: #e5e7eb;
-  box-shadow: 0 1px 4px rgba(0,0,0,0.12);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
 }
 
 /* OJ side handle (hex-tab style) */
 .oj-side-handle {
   position: absolute;
-  right: -26px; /* stick farther into editor */
+  right: -26px;
+  /* stick farther into editor */
   top: 50%;
   transform: translateY(-50%);
   width: 32px;
@@ -185,23 +231,43 @@ input, textarea, select {
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #111827; /* icon color: near-black */
-  background: #ffffff; /* solid white */
-  border: 1px solid #d1d5db; /* solid light border */
+  color: #111827;
+  /* icon color: near-black */
+  background: #ffffff;
+  /* solid white */
+  border: 1px solid #d1d5db;
+  /* solid light border */
   border-left: none;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
   cursor: pointer;
-  z-index: 50; /* above editor */
+  z-index: 50;
+  /* above editor */
   pointer-events: auto;
-  border-radius: 10px; /* rounded rectangle */
+  border-radius: 10px;
+  /* rounded rectangle */
 }
 
 .oj-side-handle:hover {
-  background: #f9fafb; /* subtle hover */
-  color: #000000; /* solid black icon */
+  background: #f9fafb;
+  /* subtle hover */
+  color: #000000;
+  /* solid black icon */
   border-color: #cbd5e1;
 }
 
 .oj-side-handle svg {
   opacity: 1;
+}
+
+/* Dual range slider: allow two overlaid thumbs to be draggable independently */
+.dual-range {
+  pointer-events: none;
+}
+
+.dual-range::-webkit-slider-thumb {
+  pointer-events: auto;
+}
+
+.dual-range::-moz-range-thumb {
+  pointer-events: auto;
 }

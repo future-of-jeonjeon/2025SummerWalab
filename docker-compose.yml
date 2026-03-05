@@ -98,7 +98,8 @@ services:
       - "9000:8000"
     environment:
       - SSO_INTROSPECT_URL=http://oj-backend:8000/api/sso
-      - REDIS_URL=redis://oj-redis:6379
+      - REDIS_HOST=oj-redis
+      - REDIS_PORT=6379
       - REDIS_SESSION_PREFIX="ms:session:"
       - TOKEN_COOKIE_NAME=ms_token
       - LOCAL_TOKEN_TTL_SECONDS=7200
@@ -109,7 +110,14 @@ services:
       - DB_PORT=${POSTGRES_PORT}
       - DB_NAME=${POSTGRES_DB}
       - CODE_SAVE_TTL_SECONDS=180
-      - REDIS_CODE_SAVE_PREFIX=ms:autosave
+      - REDIS_CODE_SAVE_PREFIX="ms:autosave"
+      - LOG_FILE_PATH=/log/app.log
+      - LOG_LEVEL=INFO
+      - SERVICE_DOMAIN=${SERVICE_DOMAIN}
+      - HGU_FRONT_VITE_API_URL=http://${SERVICE_DOMAIN}:8000/api
+      - HGU_FRONT_VITE_MS_API_BASE=http://${SERVICE_DOMAIN}:8000/api
+      - BACKEND_CORS_ORIGINS=["http://localhost:5173", "http://localhost:3000"]
+      - JUDGE_SERVER_TOKEN=${JUDGE_SERVER_TOKEN}
     volumes:
       - ./data/backend/test_case:/test_case:rw 
       - ./data/micro_service/log:/log 

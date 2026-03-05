@@ -4,6 +4,24 @@ import { UserProfile } from '../types';
 import { authService } from '../services/authService';
 import { queryClient } from '../hooks/useQueryClient';
 import { useProblemStore } from './problemStore';
+import { userService } from '../services/userService';
+
+const applyUserSettings = async () => {
+  try {
+    const userDetail = await userService.getUserData();
+    if (userDetail) {
+      const theme = userDetail.dark_mode_enabled ? 'dark' : 'light';
+      localStorage.setItem('theme', theme);
+      document.documentElement.classList.toggle('dark', theme === 'dark');
+
+      if (userDetail.language_preferences && userDetail.language_preferences.length > 0) {
+        localStorage.setItem('oj:editorLanguageOrder', JSON.stringify(userDetail.language_preferences));
+      }
+    }
+  } catch (err) {
+    console.error('Failed to load user settings:', err);
+  }
+};
 
 const invalidateUserScopedQueries = () => {
   const userScopedKeys = new Set<string>([
@@ -105,29 +123,20 @@ export const useAuthStore = create<AuthState & AuthActions>()(
 
         try {
           // 1. Online Judge 로그인
-          console.log('Starting login process...');
           const loginResponse = await authService.login({
             username,
             password,
             tfa_code: tfaCode,
           });
 
-          console.log('Login response received:', loginResponse);
           if (!loginResponse.success) {
-            console.log('Login failed:', loginResponse.message);
             set({ error: loginResponse.message || '로그인에 실패했습니다.', isLoading: false });
             return false;
           }
-
-          // 2. SSO 토큰 발급
           const ssoToken = await authService.getSSOToken();
-
-          // 3. Micro-service 로그인
           await authService.loginToMicroService(ssoToken);
-
-          // 4. 사용자 프로필 조회
           const user = await authService.getProfile();
-
+          await applyUserSettings();
           set({
             user,
             isAuthenticated: true,
@@ -149,11 +158,9 @@ export const useAuthStore = create<AuthState & AuthActions>()(
 
         try {
           // 1. Google Login Callback
-          console.log('Starting Google login process...');
           const loginResponse = await authService.googleLoginCallback(code);
 
           if (!loginResponse.success) {
-            console.log('Google login failed:', loginResponse.message);
             set({ error: loginResponse.message || 'Google 로그인에 실패했습니다.', isLoading: false });
             return false;
           }
@@ -166,6 +173,8 @@ export const useAuthStore = create<AuthState & AuthActions>()(
 
           // 4. 사용자 프로필 조회
           const user = await authService.getProfile();
+
+          await applyUserSettings();
 
           set({
             user,
@@ -192,6 +201,11 @@ export const useAuthStore = create<AuthState & AuthActions>()(
           console.error('로그아웃 중 오류:', error);
         } finally {
           clearOjStorage();
+
+          // Reset theme to default on logout
+          localStorage.removeItem('theme');
+          document.documentElement.classList.remove('dark');
+
           invalidateUserScopedQueries();
           queryClient.clear();
           const problemStore = useProblemStore.getState();
@@ -229,6 +243,7 @@ export const useAuthStore = create<AuthState & AuthActions>()(
           const isStillAuthenticated = await authService.checkAuth();
           if (isStillAuthenticated) {
             const user = await authService.getProfile();
+            await applyUserSettings();
             set({ user, isAuthenticated: true, isLoading: false });
           } else {
             set({ user: null, isAuthenticated: false, isLoading: false });

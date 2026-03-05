@@ -1,61 +1,79 @@
 import React from 'react';
 import { Card } from '../atoms/Card';
-import { Button } from '../atoms/Button';
 import { Workbook } from '../../types';
 
 interface WorkbookCardProps {
   workbook: Workbook;
   onClick: (workbookId: number) => void;
+  onTagClick?: (tag: string) => void;
 }
 
-export const WorkbookCard: React.FC<WorkbookCardProps> = ({ workbook, onClick }) => {
-  const handleClick = () => {
-    onClick(workbook.id);
-  };
+export const WorkbookCard: React.FC<WorkbookCardProps> = ({ workbook, onClick, onTagClick }) => {
+  const handleClick = () => onClick(workbook.id);
+
+  // 임시 더미 카테고리/태그 지원이 백엔드에서 되면 아래 slice 같은 부분 조정 필요
+  // 우선은 API 데이터 기반 태그만 렌더링하도록 변경합니다.
+  const displayTags = workbook.tags || [];
 
   return (
-    <Card className="mx-auto w-full max-w-[420px] p-4 hover:shadow-lg transition-shadow cursor-pointer h-56 flex flex-col">
-      {/* 제목과 문제 수 */}
-      <div className="flex justify-between items-start mb-2">
-        <h3 className="text-lg font-semibold text-gray-800 line-clamp-2 flex-1 pr-2">
-          {workbook.title}
+    <Card
+      onClick={handleClick}
+      className="mx-auto w-full p-5 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 hover:border-blue-400 hover:shadow-[0_8px_30px_rgb(0,0,0,0.08)] transition-all duration-300 cursor-pointer h-[280px] flex flex-col rounded-2xl relative"
+    >
+      {/* 1. Header: Author and Problem Count */}
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-bold text-blue-500 flex items-center gap-1.5 line-clamp-1">
+          {workbook.writer}
         </h3>
-        <span className="text-xs text-gray-500 flex-shrink-0 bg-gray-100 px-2 py-1 rounded-full">
-          {workbook.problemCount || 0}문제
+        <span className="px-2.5 py-1 text-[11px] font-bold text-gray-600 dark:text-slate-300 bg-gray-100 dark:bg-slate-800 rounded-full shrink-0">
+          총 {workbook.problemCount || 0}문제
         </span>
       </div>
-      
-      {/* 설명 */}
-      <div className="flex-1 mb-3">
-        <p className="text-gray-600 text-sm line-clamp-3 h-12 overflow-hidden">
-          {(typeof workbook.description === 'string' && workbook.description.length > 0
-            ? workbook.description.replace(/<[^>]*>/g, '')
-            : '설명이 없습니다.')}
-        </p>
-      </div>
-      
-      {/* 작성자와 공개여부, 날짜 */}
-      <div className="flex justify-between items-center text-xs text-gray-500 mb-3">
-        <span className="truncate flex-1 mr-2">작성자: User {workbook.created_by_id || 'Unknown'}</span>
-        <div className="flex items-center gap-2 flex-shrink-0">
-          {workbook.is_public && (
-            <span className="bg-green-100 text-green-800 px-2 py-1 rounded-full text-xs">
-              공개
-            </span>
-          )}
-          <span className="whitespace-nowrap">
-            {workbook.created_at ? new Date(workbook.created_at).toLocaleDateString() : ''}
+
+      {/* 2. Title & Category */}
+      <div className="mb-4">
+        {workbook.category && (
+          <span className="text-[11px] font-bold text-gray-500 dark:text-slate-400 tracking-wider mb-2 block">
+            {workbook.category}
           </span>
+        )}
+        <h2 className="text-xl font-extrabold text-gray-900 dark:text-slate-100 group-hover:text-blue-600 transition-colors line-clamp-2 leading-tight">
+          {workbook.title}
+        </h2>
+      </div>
+
+      {/* 3. Tags Grid (Replacing Description) */}
+      <div className="flex-1 mb-[18px] overflow-hidden">
+        <div className="flex flex-wrap gap-1.5">
+          {displayTags.map((tag, idx) => (
+            <span
+              key={idx}
+              onClick={(e) => {
+                if (onTagClick) {
+                  e.stopPropagation();
+                  onTagClick(tag);
+                }
+              }}
+              className={`text-[12px] font-medium text-gray-600 dark:text-slate-300 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-600 px-2.5 py-0.5 rounded shadow-sm whitespace-nowrap ${onTagClick ? 'hover:bg-gray-50 dark:hover:bg-slate-700 hover:text-blue-600 hover:border-blue-300 transition-colors' : ''}`}
+            >
+              #{tag}
+            </span>
+          ))}
         </div>
       </div>
-      
-      {/* 버튼 */}
-      <Button
-        onClick={handleClick}
-        className="w-full bg-blue-600 hover:bg-blue-700 text-white text-sm py-2 mt-auto"
-      >
-        문제집 보기
-      </Button>
+
+      {/* 4. Action Buttons */}
+      <div className="mt-auto">
+        <button
+          className="w-full py-2.5 px-0 rounded-lg bg-[#5d7ab9] hover:bg-[#4a649b] text-white text-[13px] font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm hover:shadow"
+          onClick={handleClick}
+        >
+          바로 시작하기
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M9 5l7 7-7 7" />
+          </svg>
+        </button>
+      </div>
     </Card>
   );
 };
