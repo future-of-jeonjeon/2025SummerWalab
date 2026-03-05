@@ -1,7 +1,7 @@
 """create organization contest table
 
 Revision ID: 9ff40babf0d0
-Revises: b188e3391dcb
+Revises: 348f9671d2e8
 Create Date: 2026-02-10 22:21:59.219113
 
 """
@@ -12,6 +12,8 @@ from typing import Sequence, Union
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy import inspect
+
+from migrations.migration_helpers import drop_constraint_if_exists, drop_fk_referencing_column
 
 
 # revision identifiers, used by Alembic.
@@ -56,22 +58,43 @@ def upgrade() -> None:
         schema='public'
         )
         op.create_index(op.f('ix_public_micro_organization_contest_id'), 'micro_organization_contest', ['id'], unique=False, schema='public')
-    op.drop_constraint(op.f('micro_contest_language_contest_id_fkey'), 'micro_contest_language', type_='foreignkey')
+
+    # --- micro_contest_language FK ---
+    drop_constraint_if_exists('micro_contest_language', 'micro_contest_language_contest_id_fkey')
     op.create_foreign_key(None, 'micro_contest_language', 'contest', ['contest_id'], ['id'], source_schema='public', referent_schema='public')
-    op.drop_constraint(op.f('micro_organization_member_organization_id_fkey'), 'micro_organization_member', type_='foreignkey')
-    op.drop_constraint(op.f('micro_organization_member_user_id_fkey'), 'micro_organization_member', type_='foreignkey')
+
+    # --- micro_organization_member FKs (handle both user_id and member_id schemas) ---
+    # 1. Drop all existing FKs on this table first
+    drop_fk_referencing_column('micro_organization_member', 'organization_id')
+    drop_fk_referencing_column('micro_organization_member', 'member_id')
+    drop_constraint_if_exists('micro_organization_member', 'micro_organization_member_user_id_fkey')
+    drop_constraint_if_exists('micro_organization_member', 'micro_organization_member_member_id_fkey')
+
+    # 2. Rename column member_id -> user_id if the DB still uses member_id
+    columns = {col["name"] for col in inspector.get_columns("micro_organization_member", schema="public")}
+    if "member_id" in columns and "user_id" not in columns:
+        op.alter_column('micro_organization_member', 'member_id', new_column_name='user_id', schema='public')
+
+    # 3. Re-create FKs on user_id (now guaranteed to exist)
     op.create_foreign_key(None, 'micro_organization_member', 'micro_organization', ['organization_id'], ['id'], source_schema='public', referent_schema='public', ondelete='CASCADE')
     op.create_foreign_key(None, 'micro_organization_member', 'user', ['user_id'], ['id'], source_schema='public', referent_schema='public', ondelete='CASCADE')
-    op.drop_constraint(op.f('micro_problem_code_user_id_fkey'), 'micro_problem_code', type_='foreignkey')
-    op.drop_constraint(op.f('micro_problem_code_problem_id_fkey'), 'micro_problem_code', type_='foreignkey')
+
+    # --- micro_problem_code FKs ---
+    drop_constraint_if_exists('micro_problem_code', 'micro_problem_code_user_id_fkey')
+    drop_constraint_if_exists('micro_problem_code', 'micro_problem_code_problem_id_fkey')
     op.create_foreign_key(None, 'micro_problem_code', 'problem', ['problem_id'], ['id'], source_schema='public', referent_schema='public', ondelete='CASCADE')
     op.create_foreign_key(None, 'micro_problem_code', 'user', ['user_id'], ['id'], source_schema='public', referent_schema='public', ondelete='CASCADE')
-    op.drop_constraint(op.f('micro_userdata_user_id_fkey'), 'micro_userdata', type_='foreignkey')
+
+    # --- micro_userdata FK ---
+    drop_constraint_if_exists('micro_userdata', 'micro_userdata_user_id_fkey')
     op.create_foreign_key(None, 'micro_userdata', 'user', ['user_id'], ['id'], source_schema='public', referent_schema='public')
-    op.drop_constraint(op.f('micro_workbook_problem_problem_id_fkey'), 'micro_workbook_problem', type_='foreignkey')
-    op.drop_constraint(op.f('micro_workbook_problem_workbook_id_fkey'), 'micro_workbook_problem', type_='foreignkey')
+
+    # --- micro_workbook_problem FKs ---
+    drop_constraint_if_exists('micro_workbook_problem', 'micro_workbook_problem_problem_id_fkey')
+    drop_constraint_if_exists('micro_workbook_problem', 'micro_workbook_problem_workbook_id_fkey')
     op.create_foreign_key(None, 'micro_workbook_problem', 'micro_workbook', ['workbook_id'], ['id'], source_schema='public', referent_schema='public', ondelete='CASCADE')
     op.create_foreign_key(None, 'micro_workbook_problem', 'problem', ['problem_id'], ['id'], source_schema='public', referent_schema='public')
+
     workbook_problem_columns = {col["name"] for col in inspector.get_columns("micro_workbook_problem", schema="public")}
     if "display_order" not in workbook_problem_columns:
         op.add_column('micro_workbook_problem', sa.Column('display_order', sa.Integer(), nullable=False, server_default='0'))
