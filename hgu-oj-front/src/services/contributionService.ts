@@ -15,6 +15,7 @@ export interface ProblemImportPollingStatus {
     left_problem: number;
     all_problem: number;
     error_code?: string;
+    problem_id?: number;
 }
 
 export const contributionService = {

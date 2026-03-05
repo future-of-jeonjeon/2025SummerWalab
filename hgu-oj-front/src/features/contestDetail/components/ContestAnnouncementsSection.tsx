@@ -38,11 +38,11 @@ export const ContestAnnouncementsSection: React.FC<ContestAnnouncementsSectionPr
     return (
       <div className="space-y-4 animate-pulse">
         {[...Array(3)].map((_, i) => (
-          <div key={i} className="p-5 bg-white rounded-lg border border-gray-200 shadow-sm">
+          <div key={i} className="p-5 bg-white rounded-lg border border-gray-200 shadow-sm dark:bg-slate-900 dark:border-slate-700">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
               <div className="space-y-2 flex-1">
-                <div className="h-6 bg-gray-200 rounded w-1/2"></div>
-                <div className="h-4 bg-gray-200 rounded w-1/4"></div>
+                <div className="h-6 bg-gray-200 rounded w-1/2 dark:bg-slate-700"></div>
+                <div className="h-4 bg-gray-200 rounded w-1/4 dark:bg-slate-700"></div>
               </div>
             </div>
           </div>
@@ -99,7 +99,7 @@ export const ContestAnnouncementsSection: React.FC<ContestAnnouncementsSectionPr
       />
 
       {announcements.length === 0 ? (
-        <div className="flex min-h-[120px] items-center justify-center py-6 text-center text-base text-gray-500">
+        <div className="flex min-h-[120px] items-center justify-center py-6 text-center text-base text-gray-500 dark:text-slate-400">
           등록된 공지가 없습니다.
         </div>
       ) : (
@@ -114,7 +114,7 @@ export const ContestAnnouncementsSection: React.FC<ContestAnnouncementsSectionPr
               <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">{announcement.title}</h3>
-                  <span className="text-xs text-gray-500">{formatDateTime(announcement.createdAt)}</span>
+                  <span className="text-xs text-gray-500 dark:text-slate-400">{formatDateTime(announcement.createdAt)}</span>
                 </div>
                 {canManage && (
                   <div className="flex gap-2">

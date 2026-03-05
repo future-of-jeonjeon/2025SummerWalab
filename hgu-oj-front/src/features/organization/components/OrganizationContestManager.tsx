@@ -102,7 +102,7 @@ export const OrganizationContestManager: React.FC = () => {
                 );
             case 'Ended': default:
                 return (
-                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 border border-gray-200">
+                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 border border-gray-200 dark:border-slate-700">
                         <span className="h-2 w-2 rounded-full bg-gray-400"></span>
                         종료
                     </span>
@@ -121,9 +121,9 @@ export const OrganizationContestManager: React.FC = () => {
             return `${year}.${month}.${day} ${hours}:${minutes}`;
         };
         return (
-            <div className="flex flex-col text-xs text-gray-500 font-mono">
+            <div className="flex flex-col text-xs text-gray-500 dark:text-slate-400 font-mono">
                 <span>{formatDate(start as string)}</span>
-                <span className="text-gray-300 rotate-90 w-3 h-3 flex items-center justify-center">|</span>
+                <span className="text-gray-300 dark:text-slate-600 rotate-90 w-3 h-3 flex items-center justify-center">|</span>
                 <span>{formatDate(end as string)}</span>
             </div>
         );
@@ -134,7 +134,6 @@ export const OrganizationContestManager: React.FC = () => {
             <div className="flex justify-end gap-4">
                 <Button
                     onClick={handleCreateClick}
-                    className="inline-flex items-center justify-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-lg text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors duration-200"
                 >
                     <svg className="w-5 h-5 mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -143,10 +142,10 @@ export const OrganizationContestManager: React.FC = () => {
                 </Button>
             </div>
 
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden ring-1 ring-black ring-opacity-5">
+            <div className="bg-white dark:bg-slate-900 rounded-2xl shadow-sm border border-gray-200 dark:border-slate-700 overflow-hidden ring-1 ring-black ring-opacity-5">
                 <div className="overflow-x-auto">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50/50">
+                    <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
+                        <thead className="bg-gray-50/50 dark:bg-slate-800">
                             <tr>
                                 <th scope="col" className="px-6 py-4 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">
                                     대회 정보
@@ -165,12 +164,12 @@ export const OrganizationContestManager: React.FC = () => {
                                 </th>
                             </tr>
                         </thead>
-                        <tbody className="bg-white divide-y divide-gray-200">
+                        <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-700 dark:divide-slate-700">
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500">
+                                    <td colSpan={5} className="px-6 py-12 text-center text-gray-500 dark:text-slate-400">
                                         <div className="flex flex-col items-center justify-center space-y-3">
-                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                                            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400"></div>
                                             <span className="text-sm">대회를 불러오는 중입니다...</span>
                                         </div>
                                     </td>
@@ -180,15 +179,15 @@ export const OrganizationContestManager: React.FC = () => {
                                     {contests.map((contest) => (
                                         <tr
                                             key={contest.id}
-                                            className="hover:bg-gray-50/80 transition-colors duration-150 ease-in-out group"
+                                            className="hover:bg-gray-50/80 dark:hover:bg-slate-800 transition-colors duration-150 ease-in-out group"
                                         >
                                             <td className="px-6 py-5 whitespace-nowrap">
                                                 <div className="flex flex-col">
-                                                    <span className="text-sm font-semibold text-gray-900 group-hover:text-indigo-600 transition-colors">
+                                                    <span className="text-sm font-semibold text-gray-900 dark:text-slate-100 group-hover:text-blue-600 dark:group-hover:text-blue-300 transition-colors">
                                                         {contest.title}
                                                     </span>
                                                     {contest.description && (
-                                                        <span className="text-xs text-gray-500 mt-0.5 truncate max-w-xs">
+                                                        <span className="text-xs text-gray-500 dark:text-slate-400 mt-0.5 truncate max-w-xs">
                                                             {contest.description}
                                                         </span>
                                                     )}
@@ -201,7 +200,7 @@ export const OrganizationContestManager: React.FC = () => {
                                                 {formatDateRange(contest.startTime, contest.endTime)}
                                             </td>
                                             <td className="px-6 py-5 whitespace-nowrap">
-                                                <div className="flex items-center text-sm text-gray-500">
+                                                <div className="flex items-center text-sm text-gray-500 dark:text-slate-400">
                                                     <svg className="flex-shrink-0 mr-1.5 h-4 w-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
                                                     </svg>
@@ -212,7 +211,7 @@ export const OrganizationContestManager: React.FC = () => {
                                                 <div className="flex justify-end items-center gap-2">
                                                     <button
                                                         onClick={() => handleEditClick(contest)}
-                                                        className="text-gray-400 hover:text-indigo-600 transition-colors p-2 rounded-full hover:bg-indigo-50"
+                                                        className="text-gray-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-300 transition-colors p-2 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/30"
                                                         title="대회 수정"
                                                     >
                                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -221,7 +220,7 @@ export const OrganizationContestManager: React.FC = () => {
                                                     </button>
                                                     <button
                                                         onClick={() => handleDelete(contest.id)}
-                                                        className="text-gray-400 hover:text-red-600 transition-colors p-2 rounded-full hover:bg-red-50"
+                                                        className="text-gray-400 dark:text-slate-500 hover:text-red-600 transition-colors p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20"
                                                         title="대회 삭제"
                                                     >
                                                         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -234,12 +233,12 @@ export const OrganizationContestManager: React.FC = () => {
                                     ))}
                                     {contests.length === 0 && (
                                         <tr>
-                                            <td colSpan={5} className="px-6 py-16 text-center text-gray-500">
+                                            <td colSpan={5} className="px-6 py-16 text-center text-gray-500 dark:text-slate-400">
                                                 <div className="flex flex-col items-center justify-center space-y-3">
-                                                    <svg className="h-12 w-12 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <svg className="h-12 w-12 text-gray-300 dark:text-slate-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
                                                     </svg>
-                                                    <p className="text-gray-500 font-medium">등록된 대회가 없습니다.</p>
+                                                    <p className="text-gray-500 dark:text-slate-400 font-medium">등록된 대회가 없습니다.</p>
                                                     {/* <Button onClick={handleCreateClick} variant="outline" size="sm" className="mt-2">
                                                         첫 대회 생성하기
                                                     </Button> */}
@@ -254,15 +253,14 @@ export const OrganizationContestManager: React.FC = () => {
                 </div>
             </div>
 
-            {!isLoading && totalPages > 0 && (
+            {!isLoading && (
                 <div className="flex justify-center mt-6">
                     <CommonPagination
                         page={page}
+                        pageSize={pageSize}
                         totalPages={totalPages}
                         totalItems={totalItems}
-                        pageSize={pageSize}
-                        onPrevious={() => setPage(Math.max(1, page - 1))}
-                        onNext={() => setPage(Math.min(totalPages, page + 1))}
+                        onChangePage={(nextPage) => setPage(nextPage)}
                         unit="개"
                     />
                 </div>

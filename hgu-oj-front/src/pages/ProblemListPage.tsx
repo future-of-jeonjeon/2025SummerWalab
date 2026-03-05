@@ -1,14 +1,16 @@
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { useProblems } from '../hooks/useProblems';
 import { Problem, ProblemFilter } from '../types';
 import { ProblemList } from '../components/organisms/ProblemList';
 import { useProblemStore } from '../stores/problemStore';
-import { resolveProblemStatus } from '../utils/problemStatus';
 import { useAuthStore } from '../stores/authStore';
 import { PROBLEM_STATUS_LABELS } from '../constants/problemStatus';
 import { problemService } from '../services/problemService';
+import CommonPagination from '../components/common/CommonPagination';
+import { normalizeDifficulty } from '../lib/difficulty';
+import { resolveProblemStatus } from '../utils/problemStatus';
 import { extractProblemTags } from '../utils/problemTags';
 
 const normalizeTags = (tags: string[]): string[] => {
@@ -20,22 +22,13 @@ const normalizeTags = (tags: string[]): string[] => {
   return Array.from(unique).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
 };
 
-const areTagArraysEqual = (a: string[], b: string[]): boolean => {
-  if (a.length !== b.length) return false;
-  return a.every((value, index) => value === b[index]);
-};
-
-const parseTagsFromQuery = (value: string | null): string[] => {
-  if (!value) return [];
-  return normalizeTags(value.split(','));
-};
-
 export const ProblemListPage: React.FC = () => {
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
   const { filter, setFilter } = useProblemStore();
   const [searchQuery, setSearchQuery] = useState('');
   const [showAllTags, setShowAllTags] = useState(false);
+  const [minDifficultyLevel, setMinDifficultyLevel] = useState(0);
+  const [maxDifficultyLevel, setMaxDifficultyLevel] = useState(5);
   const { isAuthenticated } = useAuthStore();
 
   const { data, isLoading, error } = useProblems(filter);
@@ -124,20 +117,12 @@ export const ProblemListPage: React.FC = () => {
     [filter.tags]
   );
 
-  const searchParamsString = searchParams.toString();
-  const selectedTagsRef = useRef<string[]>(selectedTags);
-
   useEffect(() => {
-    selectedTagsRef.current = selectedTags;
-  }, [selectedTags]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(searchParamsString);
-    const parsed = parseTagsFromQuery(params.get('tags'));
-    if (!areTagArraysEqual(parsed, selectedTagsRef.current)) {
-      setFilter({ tags: parsed, page: 1 });
-    }
-  }, [searchParamsString, setFilter]);
+    setFilter({ tags: [], page: 1 });
+    return () => {
+      setFilter({ tags: [], page: 1 });
+    };
+  }, []);
 
   const handleTagToggle = (tagName: string) => {
     const newTags = selectedTags.includes(tagName)
@@ -146,25 +131,10 @@ export const ProblemListPage: React.FC = () => {
     setFilter({ tags: newTags, page: 1 });
   };
 
-  useEffect(() => {
-    const normalized = normalizeTags(selectedTags);
-    const params = new URLSearchParams(searchParamsString);
-    const current = params.get('tags');
-
-    if (normalized.length === 0) {
-      if (current) {
-        params.delete('tags');
-        setSearchParams(params, { replace: true });
-      }
-      return;
-    }
-
-    const joined = normalized.join(',');
-    if (current !== joined) {
-      params.set('tags', joined);
-      setSearchParams(params, { replace: true });
-    }
-  }, [selectedTags, searchParamsString, setSearchParams]);
+  const handleProblemListTagClick = (tagName: string) => {
+    setFilter({ tags: [tagName], page: 1 });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const processedProblems = useMemo(() => {
     const items = microProblems;
@@ -175,47 +145,59 @@ export const ProblemListPage: React.FC = () => {
     const statusFilter = isAuthenticated ? (filter.statusFilter ?? 'all') : 'all';
     const requiredTags = selectedTags.map((tag) => tag.toLowerCase());
 
-    const matchesQuery = (problem: any) => {
+    const matchesQuery = (problem: Problem) => {
       if (!query) return true;
       if (searchField === 'tag') {
         const tags = [
-          ...(Array.isArray(problem.tags) ? problem.tags : []),
-          ...(Array.isArray(problem.tagNames) ? problem.tagNames : []),
-          ...(Array.isArray(problem.tag_list) ? problem.tag_list : []),
+          ...(Array.isArray((problem as any).tags) ? (problem as any).tags : []),
+          ...(Array.isArray((problem as any).tagNames) ? (problem as any).tagNames : []),
+          ...(Array.isArray((problem as any).tag_list) ? (problem as any).tag_list : []),
         ];
-        return tags.some((tag: unknown) =>
-          typeof tag === 'string' && tag.trim().toLowerCase().includes(query)
-        );
+        return tags.some((tag: unknown) => typeof tag === 'string' && tag.trim().toLowerCase().includes(query));
       }
       if (searchField === 'number') {
-        const identifier = (problem.displayId ?? problem._id ?? problem.id ?? '').toString().toLowerCase();
+        const identifier = String(problem.displayId ?? problem._id ?? problem.id ?? '').toLowerCase();
         return identifier.includes(query);
       }
-      return (problem.title ?? '').toLowerCase().includes(query);
+      return String(problem.title ?? '').toLowerCase().includes(query);
     };
 
     const matchesSelectedTags = (problem: Problem) => {
-      if (requiredTags.length === 0) {
-        return true;
-      }
-      const normalizedTags = extractProblemTags(problem)
-        .map((tag) => tag.toLowerCase());
-      if (normalizedTags.length === 0) {
-        return false;
-      }
-      // OR 조건: 선택된 태그 중 하나라도 포함되면 통과
+      if (requiredTags.length === 0) return true;
+      const normalizedTags = extractProblemTags(problem).map((tag) => tag.toLowerCase());
+      if (normalizedTags.length === 0) return false;
       return requiredTags.some((tag) => normalizedTags.includes(tag));
     };
 
+    const getDifficultyLevel = (problem: Problem) => {
+      const rawDifficulty =
+        (problem as any).difficulty ??
+        (problem as any).level ??
+        (problem as any).difficulty_level ??
+        (problem as any).difficultyLevel ??
+        (problem as any).difficulty_name ??
+        (problem as any).difficultyName;
+      return normalizeDifficulty(rawDifficulty);
+    };
+
+    const getNumericOrder = (problem: Problem) => {
+      const identifier = String(problem.displayId ?? problem._id ?? problem.id ?? '');
+      const numericOnly = identifier.replace(/[^0-9]/g, '');
+      return numericOnly ? Number(numericOnly) : Number.MAX_SAFE_INTEGER;
+    };
+
+    const compareStrings = (a: string, b: string) =>
+      a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+
     const hydratedItems = items.map((problem) => {
-      if (!isAuthenticated) {
-        return problem;
-      }
+      if (!isAuthenticated) return problem;
+
       const candidates = [problem.displayId, problem._id, (problem as any)._id, problem.id];
       for (const candidate of candidates) {
         if (candidate === undefined || candidate === null) continue;
         const key = String(candidate).trim().toLowerCase();
         if (!key) continue;
+
         const statusSource = normalizedStatusMap[key];
         if (statusSource) {
           return {
@@ -228,7 +210,7 @@ export const ProblemListPage: React.FC = () => {
       return problem;
     });
 
-    const filterResult = hydratedItems
+    const filtered = hydratedItems
       .filter(matchesSelectedTags)
       .filter(matchesQuery)
       .filter((problem) => {
@@ -238,96 +220,37 @@ export const ProblemListPage: React.FC = () => {
         return status === statusFilter;
       })
       .filter((problem) => {
-        if (filter.difficultyLevel && filter.difficultyLevel > 0) {
-          const rawDifficulty =
-            (problem as any).difficulty ??
-            (problem as any).level ??
-            (problem as any).difficulty_level ??
-            (problem as any).difficultyLevel ??
-            (problem as any).difficulty_name ??
-            (problem as any).difficultyName;
-          if (!rawDifficulty) return false;
-          const displayDifficulty = String(rawDifficulty).replace(/^Lv\.\s*/i, '');
-          return Number(displayDifficulty) === filter.difficultyLevel;
-        }
-        return true;
+        const difficultyLevel = getDifficultyLevel(problem);
+        if (difficultyLevel === null) return false;
+        return difficultyLevel >= minDifficultyLevel && difficultyLevel <= maxDifficultyLevel;
       });
 
-    const extractIdentifier = (problem: any) => (problem.displayId ?? problem._id ?? problem.id ?? '').toString();
-
-    const getNumericOrder = (problem: any) => {
-      const identifier = extractIdentifier(problem);
-      const numericOnly = identifier.replace(/[^0-9]/g, '');
-      if (!numericOnly) return null;
-      const numeric = Number(numericOnly);
-      return Number.isNaN(numeric) ? null : numeric;
-    };
-
-    const getAccuracy = (problem: any) => {
-      const submissions = Number(problem.submissionNumber ?? 0);
-      const accepted = Number(problem.acceptedNumber ?? 0);
-      if (!submissions) return 0;
-      return accepted / submissions;
-    };
-
-    const namePriority = (value: string) => {
-      if (/^[0-9]/.test(value)) return 0;
-      if (/^[A-Za-z]/.test(value)) return 1;
-      if (/^[가-힣]/.test(value)) return 2;
-      return 3;
-    };
-
-    const compareText = (aText: string, bText: string) => {
-      const prA = namePriority(aText);
-      const prB = namePriority(bText);
-      if (prA !== prB) return prA - prB;
-      return aText.localeCompare(bText, 'ko', { numeric: true, sensitivity: 'base' });
-    };
-
-    const sorted = [...filterResult].sort((a, b) => {
-      let result = 0;
-      if (sortField === 'submission') {
-        result = (a.submissionNumber ?? 0) - (b.submissionNumber ?? 0);
-      } else if (sortField === 'accuracy') {
-        result = getAccuracy(a) - getAccuracy(b);
-      } else if (sortField === 'number') {
-        const aNum = getNumericOrder(a);
-        const bNum = getNumericOrder(b);
-        if (typeof aNum === 'number' && typeof bNum === 'number') {
-          result = aNum - bNum;
-        } else if (typeof aNum === 'number') {
-          result = -1;
-        } else if (typeof bNum === 'number') {
-          result = 1;
-        } else {
-          const idA = extractIdentifier(a);
-          const idB = extractIdentifier(b);
-          result = compareText(idA, idB);
-        }
-      } else {
-        const titleA = (a.title ?? '').trim();
-        const titleB = (b.title ?? '').trim();
-        result = compareText(titleA, titleB);
-        if (result === 0) {
-          const idA = extractIdentifier(a);
-          const idB = extractIdentifier(b);
-          result = compareText(idA, idB);
-        }
+    const sorted = [...filtered].sort((a, b) => {
+      if (sortField === 'number') {
+        return getNumericOrder(a) - getNumericOrder(b);
       }
-      return sortOrder === 'desc' ? -result : result;
+      if (sortField === 'title') {
+        return compareStrings(String(a.title ?? ''), String(b.title ?? ''));
+      }
+      if (sortField === 'submission') {
+        return (a.submissionNumber ?? 0) - (b.submissionNumber ?? 0);
+      }
+      return (a.acceptedNumber ?? 0) - (b.acceptedNumber ?? 0);
     });
 
-    return sorted;
+    return sortOrder === 'desc' ? sorted.reverse() : sorted;
   }, [
     microProblems,
-    searchQuery,
     filter.searchField,
     filter.sortField,
     filter.sortOrder,
     filter.statusFilter,
+    searchQuery,
     isAuthenticated,
-    selectedTags,
     normalizedStatusMap,
+    selectedTags,
+    minDifficultyLevel,
+    maxDifficultyLevel,
   ]);
 
   const tagStats = useMemo(() => {
@@ -341,6 +264,7 @@ export const ProblemListPage: React.FC = () => {
 
   const handlePageChange = (page: number) => {
     setFilter({ page });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const pageSize = filter.limit ?? 20;
@@ -366,7 +290,7 @@ export const ProblemListPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
         <div className="flex flex-col lg:flex-row gap-6">
@@ -387,19 +311,19 @@ export const ProblemListPage: React.FC = () => {
                   value={searchQuery}
                   onChange={(event) => handleSearchChange(event.target.value)}
                   placeholder="제목, 내용 검색"
-                  className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white shadow-sm"
+                  className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 shadow-sm"
                 />
               </form>
             </div>
 
             {/* Categories */}
-            <div className="bg-white p-5 border border-gray-200 rounded-xl shadow-sm">
-              <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <svg className="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"></path></svg>
+            <div className="bg-white dark:bg-slate-900 p-5 border border-gray-200 dark:border-slate-800 rounded-xl shadow-sm">
+              <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+                <svg className="w-5 h-5 text-gray-500 dark:text-slate-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"></path></svg>
                 카테고리
               </h3>
               {isTagCountsLoading && (
-                <div className="text-sm text-gray-500 mb-3">태그를 불러오는 중입니다...</div>
+                <div className="text-sm text-gray-500 dark:text-slate-400 mb-3">태그를 불러오는 중입니다...</div>
               )}
               <div className="space-y-3">
                 <label className="flex items-center justify-between cursor-pointer group">
@@ -411,9 +335,9 @@ export const ProblemListPage: React.FC = () => {
                       onChange={() => setFilter({ tags: [], page: 1 })}
                       className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                     />
-                    <span className="ml-3 text-sm font-medium text-gray-700 group-hover:text-gray-900">전체 보기</span>
+                    <span className="ml-3 text-sm font-medium text-gray-700 dark:text-slate-300 group-hover:text-gray-900 dark:group-hover:text-slate-100">전체 보기</span>
                   </div>
-                  <span className="text-xs font-medium bg-gray-100 text-gray-600 py-1 px-2.5 rounded-full">{data?.total || microProblems.length}</span>
+                  <span className="text-xs font-medium bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 py-1 px-2.5 rounded-full">{data?.total || microProblems.length}</span>
                 </label>
                 {(tagStats || []).slice(0, showAllTags ? undefined : 8).map((tag) => (
                   <label key={tag.name} className="flex items-center justify-between cursor-pointer group">
@@ -425,9 +349,9 @@ export const ProblemListPage: React.FC = () => {
                         onChange={() => handleTagToggle(tag.name)}
                         className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                       />
-                      <span className="ml-3 text-sm font-medium text-gray-700 group-hover:text-gray-900">{tag.name}</span>
+                      <span className="ml-3 text-sm font-medium text-gray-700 dark:text-slate-300 group-hover:text-gray-900 dark:group-hover:text-slate-100">{tag.name}</span>
                     </div>
-                    <span className="text-xs font-medium bg-gray-100 text-gray-600 py-1 px-2.5 rounded-full">{tag.count}</span>
+                    <span className="text-xs font-medium bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 py-1 px-2.5 rounded-full">{tag.count}</span>
                   </label>
                 ))}
                 {(tagStats || []).length > 8 && (
@@ -443,23 +367,45 @@ export const ProblemListPage: React.FC = () => {
             </div>
 
             {/* Difficulty */}
-            <div className="bg-white p-5 border border-gray-200 rounded-xl shadow-sm">
-              <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+            <div className="bg-white dark:bg-slate-900 p-5 border border-gray-200 dark:border-slate-800 rounded-xl shadow-sm">
+              <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+                <svg className="w-5 h-5 text-gray-500 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
                 난이도
               </h3>
               <div className="px-2">
-                <input
-                  type="range"
-                  min="0"
-                  max="5"
-                  step="1"
-                  value={filter.difficultyLevel ?? 0}
-                  onChange={(e) => setFilter({ difficultyLevel: parseInt(e.target.value, 10), page: 1 })}
-                  className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                />
-                <div className="flex justify-between text-xs text-gray-500 mt-2 font-medium">
-                  <span>전체</span>
+                <div className="relative h-8">
+                  <div className="absolute inset-x-0 top-3 h-2 rounded-lg bg-gray-200 dark:bg-slate-700" />
+                  <input
+                    type="range"
+                    min="0"
+                    max="5"
+                    step="1"
+                    value={minDifficultyLevel}
+                    onChange={(e) => {
+                      const next = parseInt(e.target.value, 10);
+                      setMinDifficultyLevel(next);
+                      if (next > maxDifficultyLevel) setMaxDifficultyLevel(next);
+                      setFilter({ page: 1 });
+                    }}
+                    className="dual-range dual-range-min absolute inset-x-0 top-3 w-full h-2 bg-transparent appearance-none cursor-pointer accent-blue-600"
+                  />
+                  <input
+                    type="range"
+                    min="0"
+                    max="5"
+                    step="1"
+                    value={maxDifficultyLevel}
+                    onChange={(e) => {
+                      const next = parseInt(e.target.value, 10);
+                      setMaxDifficultyLevel(next);
+                      if (next < minDifficultyLevel) setMinDifficultyLevel(next);
+                      setFilter({ page: 1 });
+                    }}
+                    className="dual-range dual-range-max absolute inset-x-0 top-3 w-full h-2 bg-transparent appearance-none cursor-pointer accent-blue-600"
+                  />
+                </div>
+                <div className="flex justify-between text-xs text-gray-500 dark:text-slate-300 mt-3 font-medium">
+                  <span>Lv.0</span>
                   <span>Lv.1</span>
                   <span>Lv.2</span>
                   <span>Lv.3</span>
@@ -467,14 +413,8 @@ export const ProblemListPage: React.FC = () => {
                   <span>Lv.5</span>
                 </div>
                 <div className="mt-4 text-center">
-                  <span className={`inline-block px-3 py-1 rounded-full text-sm font-bold ${(filter.difficultyLevel === 0 || filter.difficultyLevel === undefined) ? 'bg-slate-100 text-slate-700' :
-                    filter.difficultyLevel === 1 ? 'bg-blue-100 text-blue-700' :
-                      filter.difficultyLevel === 2 ? 'bg-green-100 text-green-700' :
-                        filter.difficultyLevel === 3 ? 'bg-orange-100 text-orange-700' :
-                          filter.difficultyLevel === 4 ? 'bg-red-100 text-red-700' :
-                            'bg-purple-100 text-purple-700'
-                    }`}>
-                    {filter.difficultyLevel === 0 || filter.difficultyLevel === undefined ? '모든 난이도' : `Lv.${filter.difficultyLevel}`}
+                  <span className="inline-block px-3 py-1 rounded-full text-sm font-bold bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-100 dark:ring-1 dark:ring-slate-500/60">
+                    Lv.{minDifficultyLevel} ~ Lv.{maxDifficultyLevel}
                   </span>
                 </div>
               </div>
@@ -482,15 +422,15 @@ export const ProblemListPage: React.FC = () => {
 
             {/* Status */}
             {isAuthenticated && (
-              <div className="bg-white p-5 border border-gray-200 rounded-xl shadow-sm">
-                <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <svg className="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              <div className="bg-white dark:bg-slate-900 p-5 border border-gray-200 dark:border-slate-800 rounded-xl shadow-sm">
+                <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+                  <svg className="w-5 h-5 text-gray-500 dark:text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                   상태
                 </h3>
                 <select
                   value={filter.statusFilter ?? 'all'}
                   onChange={(e) => handleStatusFilterChange(e.target.value)}
-                  className="w-full bg-white border border-gray-300 text-gray-900 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5"
+                  className="w-full bg-white dark:bg-slate-800 border border-gray-300 dark:border-slate-600 text-gray-900 dark:text-slate-100 sm:text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5"
                 >
                   <option value="all">모든 문제</option>
                   <option value="untouched">{PROBLEM_STATUS_LABELS.untouched}</option>
@@ -504,13 +444,13 @@ export const ProblemListPage: React.FC = () => {
           {/* Main Content */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between mb-4">
-              <div className="text-sm text-gray-500">
-                총 <span className="font-bold text-gray-900">{data?.total ?? processedProblems.length}</span>개의 문제 중 <span className="font-bold text-gray-900">{processedProblems.length > 0 ? rowNumberBase + 1 : 0}-{Math.min(rowNumberBase + pageSize, data?.total ?? processedProblems.length)}</span> 표시
+              <div className="text-sm text-gray-500 dark:text-slate-400">
+                총 <span className="font-bold text-gray-900 dark:text-slate-100">{data?.total ?? processedProblems.length}</span>개의 문제
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-500">정렬:</span>
+                <span className="text-sm font-medium text-gray-500 dark:text-slate-400">정렬:</span>
                 <select
-                  className="bg-transparent text-sm font-bold text-gray-900 border-none focus:ring-0 cursor-pointer p-0 pr-6"
+                  className="bg-transparent text-sm font-bold text-gray-900 dark:text-slate-100 border-none focus:ring-0 cursor-pointer p-0 pr-6"
                   onChange={(e) => {
                     const value = e.target.value;
                     const isDesc = value.endsWith('-desc');
@@ -522,8 +462,7 @@ export const ProblemListPage: React.FC = () => {
                   <option value="title-asc">제목순</option>
                   <option value="submission-desc">제출 많은순</option>
                   <option value="accuracy-desc">정답률 높은순</option>
-                  <option value="number-asc">번호순</option>
-                  <option value="title-desc">최신순</option>
+                  <option value="number-desc">최신순</option>
                 </select>
               </div>
             </div>
@@ -531,16 +470,23 @@ export const ProblemListPage: React.FC = () => {
             <ProblemList
               problems={processedProblems}
               onProblemClick={handleProblemClick}
+              onTagClick={handleProblemListTagClick}
               isLoading={isLoading}
-              totalPages={data?.totalPages || 1}
-              currentPage={filter.page || 1}
-              onPageChange={handlePageChange}
               onSortChange={handleSortToggle}
               sortField={filter.sortField ?? 'title'}
               sortOrder={filter.sortOrder ?? 'asc'}
               showStatus={isAuthenticated}
               getRowNumber={resolveProblemRowNumber}
             />
+            <div className="mt-6">
+              <CommonPagination
+                page={filter.page || 1}
+                pageSize={pageSize}
+                totalPages={data?.totalPages || 1}
+                totalItems={data?.total}
+                onChangePage={handlePageChange}
+              />
+            </div>
           </div>
         </div>
       </div>

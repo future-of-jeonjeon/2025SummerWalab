@@ -5,7 +5,7 @@ from app.api.deps import get_database, get_database_readonly
 from app.core.auth.guards import require_role
 from app.organization.schemas import *
 from app.api.deps import get_userdata
-from app.user.schemas import UserData
+from app.user.schemas import UserProfile
 from app.common.page import Page
 import app.organization.service as organization_serv
 
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api/organization", tags=["organization"])
 @require_role("Admin")
 async def create_organization(
         data: OrganizationCreateRequest,
-        userdata: UserData = Depends(get_userdata),
+        user_profile: UserProfile = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)):
     return await organization_serv.create_organization(data, db)
 
@@ -40,17 +40,17 @@ async def get_organization(
 async def update_organization(
         organization_id: int,
         data: OrganizationUpdateRequest,
-        userdata: UserData = Depends(get_userdata),
+        user_profile: UserProfile = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)):
-    return await organization_serv.update_organization(organization_id, userdata, data, db)
+    return await organization_serv.update_organization(organization_id, user_profile, data, db)
 
 
 @router.delete("/{organization_id}")
 async def delete_organization(
         organization_id: int,
-        userdata: UserData = Depends(get_userdata),
+        user_profile: UserProfile = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)):
-    await organization_serv.delete_organization(organization_id, userdata, db)
+    await organization_serv.delete_organization(organization_id, user_profile, db)
     return {}
 
 
@@ -66,18 +66,18 @@ async def list_organization_users(
 @router.post("/{organization_id}/join-code", response_model=str)
 async def code_generate(
         organization_id: int,
-        userdata: UserData = Depends(get_userdata),
+        user_profile: UserProfile = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)):
-    return await organization_serv.organization_join_code(organization_id, userdata, db)
+    return await organization_serv.organization_join_code(organization_id, user_profile, db)
 
 
 @router.post("/{organization_id}/join", response_model=OrganizationMemberResponse)
 async def join_organization(
         join_code: str,
         organization_id: int,
-        userdata: UserData = Depends(get_userdata),
+        user_profile: UserProfile = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)):
-    return await organization_serv.join_organization(organization_id, userdata, join_code, db)
+    return await organization_serv.join_organization(organization_id, user_profile, join_code, db)
 
 
 @router.get("/{organization_id}/verify-join-code")
@@ -91,7 +91,7 @@ async def verify_join_code(
 async def delete_organization_user(
         organization_id: int,
         member_id: int,
-        userdata: UserData = Depends(get_userdata),
+        user_profile: UserProfile = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)):
-    return await organization_serv.delete_organization_user(organization_id, userdata, member_id, db)
+    return await organization_serv.delete_organization_user(organization_id, user_profile, member_id, db)
     return {}

@@ -59,6 +59,7 @@ const languageMap: Record<string, string> = {
   java: 'Java',
   cpp: 'C++',
   c: 'C',
+  go: 'Go',
 };
 
 const extractSubmissionId = (payload: any): number | string | undefined => {

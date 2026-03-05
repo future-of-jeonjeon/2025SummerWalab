@@ -530,8 +530,8 @@ export const WorkbookManageSection: React.FC = () => {
     <Card padding="lg">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-xl font-semibold text-gray-900">문제집 관리</h2>
-          <p className="text-sm text-gray-500">등록된 문제집을 확인하고 문제를 추가하거나 삭제할 수 있습니다.</p>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 dark:text-slate-100">문제집 관리</h2>
+          <p className="text-sm text-gray-500 dark:text-slate-400">등록된 문제집을 확인하고 문제를 추가하거나 삭제할 수 있습니다.</p>
         </div>
         <Button type="button" variant="outline" loading={isWorkbookListLoading} onClick={handleRefreshWorkbooks}>
           새로고침
@@ -541,13 +541,13 @@ export const WorkbookManageSection: React.FC = () => {
       {workbookListError && <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-600">{workbookListError}</div>}
 
       {isWorkbookListLoading && workbooks.length === 0 && !workbookListError && (
-        <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500">
+        <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500 dark:text-slate-400">
           문제집 정보를 불러오는 중입니다...
         </div>
       )}
 
       {!isWorkbookListLoading && workbooks.length === 0 && !workbookListError && (
-        <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500">
+        <div className="rounded-md border border-dashed border-gray-300 px-4 py-6 text-center text-sm text-gray-500 dark:text-slate-400">
           등록된 문제집이 없습니다. 문제집을 먼저 생성해 보세요.
         </div>
       )}
@@ -584,20 +584,20 @@ export const WorkbookManageSection: React.FC = () => {
             const editMessage = workbookEditMessage[workbook.id];
 
             return (
-              <li key={workbook.id} className="rounded-lg border border-gray-200 p-4 shadow-sm">
+              <li key={workbook.id} className="rounded-lg border border-gray-200 dark:border-slate-700 p-4 shadow-sm">
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="text-base font-semibold text-gray-900">{workbook.title}</h3>
-                      <span className={`text-xs font-medium ${workbook.is_public ? 'text-green-600' : 'text-gray-500'}`}>
+                      <h3 className="text-base font-semibold text-gray-900 dark:text-slate-100">{workbook.title}</h3>
+                      <span className={`text-xs font-medium ${workbook.is_public ? 'text-green-600' : 'text-gray-500 dark:text-slate-400'}`}>
                         {workbook.is_public ? '공개' : '비공개'}
                       </span>
                     </div>
-                    <p className="mt-1 text-xs text-gray-500">
+                    <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
                       ID: {workbook.id}
                       {workbook.category ? ` · 카테고리: ${workbook.category}` : ''}
                     </p>
-                    <p className="mt-2 text-xs text-gray-500">
+                    <p className="mt-2 text-xs text-gray-500 dark:text-slate-400">
                       생성: {formatDate(workbook.created_at)} · 수정: {formatDate(workbook.updated_at)}
                     </p>
                   </div>
@@ -622,8 +622,8 @@ export const WorkbookManageSection: React.FC = () => {
                     <form onSubmit={(event) => handleWorkbookMetaSubmit(event, workbook.id)} className="space-y-3 rounded-md border border-gray-200 p-4">
                       <div className="flex flex-wrap items-center justify-between gap-3">
                         <div>
-                          <h4 className="text-sm font-semibold text-gray-900">문제집 수정</h4>
-                          <p className="text-xs text-gray-500">기본 정보를 변경한 뒤 저장을 누르세요.</p>
+                          <h4 className="text-sm font-semibold text-gray-900 dark:text-slate-100">문제집 수정</h4>
+                          <p className="text-xs text-gray-500 dark:text-slate-400">기본 정보를 변경한 뒤 저장을 누르세요.</p>
                         </div>
                         <Button type="submit" size="sm" loading={savingWorkbookId === workbook.id}>
                           문제집 정보 저장
@@ -644,12 +644,12 @@ export const WorkbookManageSection: React.FC = () => {
                           onChange={(event) => handleWorkbookMetaChange(workbook.id, 'category', event.target.value)}
                         />
                       </div>
-                      <label className="inline-flex items-center gap-2 text-xs text-gray-700">
+                      <label className="inline-flex items-center gap-2 text-xs text-gray-700 dark:text-slate-300">
                         <input type="checkbox" checked={editForm.isPublic} onChange={(event) => handleWorkbookMetaToggle(workbook.id, event.target.checked)} />
                         <span>공개 문제집</span>
                       </label>
                       <div>
-                        <label className="mb-1 block text-xs font-medium text-gray-700">설명</label>
+                        <label className="mb-1 block text-xs font-medium text-gray-700 dark:text-slate-300">설명</label>
                         <textarea
                           className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
                           rows={3}
@@ -661,11 +661,11 @@ export const WorkbookManageSection: React.FC = () => {
 
                     <div className="space-y-3">
                       <div>
-                        <h4 className="text-sm font-medium text-gray-900">문제 목록</h4>
-                        <p className="mt-1 text-xs text-gray-500">문제를 추가하거나 삭제해 문제집 구성을 관리하세요.</p>
+                        <h4 className="text-sm font-medium text-gray-900 dark:text-slate-100">문제 목록</h4>
+                        <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">문제를 추가하거나 삭제해 문제집 구성을 관리하세요.</p>
                       </div>
                       {problemState.loading && (
-                        <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                        <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500 dark:text-slate-400">
                           문제 목록을 불러오는 중입니다...
                         </div>
                       )}
@@ -673,7 +673,7 @@ export const WorkbookManageSection: React.FC = () => {
                         <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-600">{problemState.error}</div>
                       )}
                       {!problemState.loading && !problemState.error && problemState.items.length === 0 && (
-                        <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500">
+                        <div className="rounded-md border border-dashed border-gray-300 px-4 py-3 text-sm text-gray-500 dark:text-slate-400">
                           아직 등록된 문제가 없습니다. 아래에서 문제를 추가해 보세요.
                         </div>
                       )}
@@ -716,24 +716,24 @@ export const WorkbookManageSection: React.FC = () => {
                               onKeyDown={(event) => void handleWorkbookProblemInputKeyDown(workbook.id, event)}
                             />
                             {searchError && <div className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-600">{searchError}</div>}
-                            {!searchError && trimmedProblemQuery && searchLoading && <p className="text-xs text-gray-500">문제를 검색 중입니다...</p>}
+                            {!searchError && trimmedProblemQuery && searchLoading && <p className="text-xs text-gray-500 dark:text-slate-400">문제를 검색 중입니다...</p>}
                             {!searchError && trimmedProblemQuery && !searchLoading && searchResults.length === 0 && (
-                              <p className="text-xs text-gray-500">검색 결과가 없습니다.</p>
+                              <p className="text-xs text-gray-500 dark:text-slate-400">검색 결과가 없습니다.</p>
                             )}
                             {!searchError && trimmedProblemQuery && searchResults.length > 0 && (
-                              <ul className="divide-y divide-gray-200 overflow-hidden rounded-lg border border-gray-200">
+                              <ul className="divide-y divide-gray-200 overflow-hidden rounded-lg border border-gray-200 dark:border-slate-700">
                                 {searchResults.map((result) => (
                                   <li key={`workbook-${workbook.id}-suggestion-${result.id}`}>
                                     <button
                                       type="button"
-                                      className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-gray-50"
+                                      className="flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800"
                                       onClick={() => void handleSelectWorkbookProblemSuggestion(workbook.id, result)}
                                     >
                                       <div>
                                         <p className="font-medium text-gray-800">
                                           {result.displayId ?? result.id} · {result.title}
                                         </p>
-                                        <p className="text-xs text-gray-500">난이도: {result.difficulty}</p>
+                                        <p className="text-xs text-gray-500 dark:text-slate-400">난이도: {result.difficulty}</p>
                                       </div>
                                       <span className="text-xs text-[#113F67]">선택</span>
                                     </button>

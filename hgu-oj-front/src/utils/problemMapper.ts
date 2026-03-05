@@ -24,7 +24,13 @@ export const mapProblem = (raw: any): Problem => ({
   _id: raw._id ?? raw.displayId ?? raw.id,
   title: raw.title ?? '제목 없음',
   description: raw.description ?? '',
-  difficulty: (raw.difficulty as Problem['difficulty']) ?? 'Mid',
+  difficulty: (
+    raw.lv ??
+    raw.level ??
+    raw.difficulty_level ??
+    raw.difficultyLevel ??
+    raw.difficulty
+  ) as Problem['difficulty'] ?? 0,
   timeLimit: raw.timeLimit ?? raw.time_limit ?? 0,
   memoryLimit: raw.memoryLimit ?? raw.memory_limit ?? 0,
   inputDescription: raw.inputDescription ?? raw.input_description ?? '',

@@ -1,26 +1,73 @@
-import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useMemo, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
 import { WorkbookList } from '../components/organisms/WorkbookList';
 import { useWorkbooks } from '../hooks/useWorkbooks';
 import { useWorkbookStore } from '../stores/workbookStore';
+import { problemService } from '../services/problemService';
+import CommonPagination from '../components/common/CommonPagination';
 
-// 임시 더미 카테고리 데이터
-const DUMMY_CATEGORIES = [
-  { name: '알고리즘', count: 12 },
-  { name: '자료구조', count: 8 },
-  { name: '코딩테스트 기초', count: 15 },
-  { name: '기출문제', count: 5 }
-];
+const normalizeTags = (tags: string[]): string[] => {
+  const unique = new Set(
+    tags
+      .map((tag) => tag?.trim())
+      .filter((tag): tag is string => Boolean(tag))
+  );
+  return Array.from(unique).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+};
 
 export const WorkbookListPage: React.FC = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { filter, setFilter } = useWorkbookStore();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [searchQuery, setSearchQuery] = useState(filter.search || '');
   const [showAllCategories, setShowAllCategories] = useState(false);
 
   // useWorkbooks returns { data, isLoading, error, refetch } from useQuery
   const { data: workbookResponse, isLoading, error } = useWorkbooks(filter);
+
+  const {
+    data: tagCountsData,
+    isLoading: isTagCountsLoading,
+  } = useQuery({
+    queryKey: ['problem', 'tag-counts'],
+    queryFn: ({ signal }) => problemService.getTagCounts({ signal }),
+  });
+
+  const tagStats = useMemo(() => {
+    return (tagCountsData ?? [])
+      .map(({ tag, count }) => ({
+        name: tag,
+        count,
+      }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
+  }, [tagCountsData]);
+
+  const selectedTags = useMemo(
+    () => normalizeTags(filter.tags ?? []),
+    [filter.tags]
+  );
+
+  useEffect(() => {
+    const presetTag = typeof (location.state as any)?.presetTag === 'string'
+      ? String((location.state as any).presetTag).trim()
+      : '';
+    if (presetTag) {
+      setFilter({ tags: [presetTag], page: 1 });
+    } else {
+      setFilter({ tags: [], page: 1 });
+    }
+    return () => {
+      setFilter({ tags: [], page: 1 });
+    };
+  }, []);
+
+  const handleCategoryToggle = (tagName: string) => {
+    const newTags = selectedTags.includes(tagName)
+      ? selectedTags.filter((t) => t !== tagName)
+      : [...selectedTags, tagName];
+    setFilter({ tags: newTags, page: 1 });
+  };
 
   const workbooks = workbookResponse?.data || [];
   const totalCount = workbookResponse?.total || 0;
@@ -36,6 +83,10 @@ export const WorkbookListPage: React.FC = () => {
     setFilter({ search: query, page: 1 });
   };
 
+  const handleTagClick = (tag: string) => {
+    setFilter({ tags: [tag], page: 1 });
+  };
+
   const handleSearchSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const trimmed = searchQuery.trim();
@@ -45,6 +96,7 @@ export const WorkbookListPage: React.FC = () => {
 
   const handlePageChange = (page: number) => {
     setFilter({ page });
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handleSortChange = (sortValue: string) => {
@@ -55,19 +107,8 @@ export const WorkbookListPage: React.FC = () => {
     }
   };
 
-  const handleCategoryToggle = (categoryName: string) => {
-    let newCategories = [];
-    if (selectedCategories.includes(categoryName)) {
-      newCategories = selectedCategories.filter((c) => c !== categoryName);
-    } else {
-      newCategories = [...selectedCategories, categoryName];
-    }
-    setSelectedCategories(newCategories);
-    // TODO: 백엔드 카테고리/태그 지원 시 setFilter({ tags: newCategories }) 등 추가
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
 
 
@@ -90,47 +131,50 @@ export const WorkbookListPage: React.FC = () => {
                   value={searchQuery}
                   onChange={(event) => handleSearchChange(event.target.value)}
                   placeholder="제목, 내용 검색"
-                  className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white shadow-sm"
+                  className="block w-full pl-10 pr-3 py-2.5 border border-gray-300 dark:border-slate-600 rounded-lg focus:ring-blue-500 focus:border-blue-500 sm:text-sm bg-white dark:bg-slate-800 text-gray-900 dark:text-slate-100 shadow-sm"
                 />
               </form>
             </div>
 
             {/* Categories */}
-            <div className="bg-white p-5 border border-gray-200 rounded-xl shadow-sm">
-              <h3 className="text-base font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <svg className="w-5 h-5 text-gray-500" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"></path></svg>
+            <div className="bg-white dark:bg-slate-900 p-5 border border-gray-200 dark:border-slate-800 rounded-xl shadow-sm">
+              <h3 className="text-base font-bold text-gray-900 dark:text-slate-100 mb-4 flex items-center gap-2">
+                <svg className="w-5 h-5 text-gray-500 dark:text-slate-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"></path></svg>
                 카테고리
               </h3>
+              {isTagCountsLoading && (
+                <div className="text-sm text-gray-500 dark:text-slate-400 mb-3">태그를 불러오는 중입니다...</div>
+              )}
               <div className="space-y-3">
                 <label className="flex items-center justify-between cursor-pointer group">
                   <div className="flex items-center">
                     <input
                       type="checkbox"
-                      checked={selectedCategories.length === 0}
-                      onChange={() => setSelectedCategories([])}
+                      checked={selectedTags.length === 0}
+                      onChange={() => setFilter({ tags: [], page: 1 })}
                       className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                     />
-                    <span className="ml-3 text-sm font-medium text-gray-700 group-hover:text-gray-900">전체 보기</span>
+                    <span className="ml-3 text-sm font-medium text-gray-700 dark:text-slate-300 group-hover:text-gray-900 dark:group-hover:text-slate-100">전체 보기</span>
                   </div>
-                  <span className="text-xs font-medium bg-gray-100 text-gray-600 py-1 px-2.5 rounded-full">{totalCount}</span>
+                  <span className="text-xs font-medium bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 py-1 px-2.5 rounded-full">{totalCount}</span>
                 </label>
 
-                {DUMMY_CATEGORIES.slice(0, showAllCategories ? undefined : 8).map((category) => (
+                {(tagStats || []).slice(0, showAllCategories ? undefined : 8).map((category) => (
                   <label key={category.name} className="flex items-center justify-between cursor-pointer group">
                     <div className="flex items-center">
                       <input
                         type="checkbox"
-                        checked={selectedCategories.includes(category.name)}
+                        checked={selectedTags.includes(category.name)}
                         onChange={() => handleCategoryToggle(category.name)}
                         className="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500"
                       />
-                      <span className="ml-3 text-sm font-medium text-gray-700 group-hover:text-gray-900">{category.name}</span>
+                      <span className="ml-3 text-sm font-medium text-gray-700 dark:text-slate-300 group-hover:text-gray-900 dark:group-hover:text-slate-100">{category.name}</span>
                     </div>
-                    <span className="text-xs font-medium bg-gray-100 text-gray-600 py-1 px-2.5 rounded-full">{category.count}</span>
+                    <span className="text-xs font-medium bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 py-1 px-2.5 rounded-full">{category.count}</span>
                   </label>
                 ))}
 
-                {DUMMY_CATEGORIES.length > 8 && (
+                {(tagStats || []).length > 8 && (
                   <button
                     type="button"
                     onClick={() => setShowAllCategories(!showAllCategories)}
@@ -147,15 +191,15 @@ export const WorkbookListPage: React.FC = () => {
           {/* Main Content */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between mb-4">
-              <div className="text-sm text-gray-500">
-                총 <span className="font-bold text-gray-900">{totalCount}</span>개의 문제집
+              <div className="text-sm text-gray-500 dark:text-slate-400">
+                총 <span className="font-bold text-gray-900 dark:text-slate-100">{totalCount}</span>개의 문제집
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-500">정렬:</span>
+                <span className="text-sm font-medium text-gray-500 dark:text-slate-400">정렬:</span>
                 <select
                   value={filter.sortBy === 'created_at' && filter.sortOrder === 'desc' ? 'newest' : 'oldest'}
                   onChange={(e) => handleSortChange(e.target.value)}
-                  className="bg-transparent text-sm font-bold text-gray-900 border-none focus:ring-0 cursor-pointer p-0 pr-6"
+                  className="bg-transparent text-sm font-bold text-gray-900 dark:text-slate-100 border-none focus:ring-0 cursor-pointer p-0 pr-6"
                 >
                   <option value="newest">최신순</option>
                   <option value="oldest">오래된순</option>
@@ -169,10 +213,17 @@ export const WorkbookListPage: React.FC = () => {
               error={error}
               searchQuery={searchQuery}
               onWorkbookClick={handleWorkbookClick}
-              onPageChange={handlePageChange}
-              currentPage={currentPage}
-              totalPages={totalPages}
+              onTagClick={handleTagClick}
             />
+            <div className="mt-10">
+              <CommonPagination
+                page={currentPage}
+                pageSize={filter.limit ?? 10}
+                totalPages={totalPages}
+                totalItems={totalCount}
+                onChangePage={handlePageChange}
+              />
+            </div>
           </div>
 
         </div>

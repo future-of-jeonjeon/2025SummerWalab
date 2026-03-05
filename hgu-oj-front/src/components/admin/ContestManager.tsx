@@ -1,11 +1,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Card } from '../atoms/Card';
-import { Button } from '../atoms/Button';
 import { Input } from '../atoms/Input';
-import { ContestModal } from './ContestModal';
 import { adminService } from '../../services/adminService';
 import { AdminContest } from '../../types';
 import { formatDateTime } from '../../lib/date';
+import { CreateContestModal } from '../../features/organization/components/CreateContestModal';
+import { VisibilityBadge } from '../common/VisibilityBadge';
+import { ActionIconButtons } from '../../features/contribution/components/ActionIconButtons';
+import CommonPagination from '../common/CommonPagination';
 
 export const ContestManager: React.FC = () => {
     const [contestList, setContestList] = useState<AdminContest[]>([]);
@@ -16,8 +18,7 @@ export const ContestManager: React.FC = () => {
     const [keyword, setKeyword] = useState('');
 
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
-    const [selectedContestId, setSelectedContestId] = useState<number | null>(null);
+    const [selectedContest, setSelectedContest] = useState<AdminContest | undefined>(undefined);
 
     const fetchContests = useCallback(async (p: number = 1, k: string = '') => {
         setLoading(true);
@@ -27,7 +28,7 @@ export const ContestManager: React.FC = () => {
             setContestList(Array.isArray(response.results) ? response.results : []);
             setTotal(response.total);
             setPage(p);
-        } catch (err) {
+        } catch {
             setError('대회 목록을 불러오지 못했습니다.');
         } finally {
             setLoading(false);
@@ -44,9 +45,8 @@ export const ContestManager: React.FC = () => {
         setTimeout(() => fetchContests(1, val), 300);
     };
 
-    const openModal = (mode: 'create' | 'edit', id?: number) => {
-        setModalMode(mode);
-        setSelectedContestId(id ?? null);
+    const openModal = (contest?: AdminContest) => {
+        setSelectedContest(contest);
         setIsModalOpen(true);
     };
 
@@ -75,8 +75,7 @@ export const ContestManager: React.FC = () => {
             <div className="space-y-6">
                 <div className="flex items-center justify-between">
                     <div className="space-y-1">
-                        <h2 className="text-xl font-semibold text-gray-900">대회 목록</h2>
-                        <p className="text-sm text-gray-500">등록된 대회를 관리합니다.</p>
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 dark:text-slate-100">대회 목록</h2>
                     </div>
                 </div>
 
@@ -88,64 +87,75 @@ export const ContestManager: React.FC = () => {
                     />
                 </div>
 
-                <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+                <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-slate-700 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm">
                     <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
+                        <thead className="bg-gray-50 dark:bg-slate-800">
                             <tr>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">제목</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">기간</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">상태</th>
-                                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">관리</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">ID</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">제목</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">기간</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">상태</th>
+                                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">관리</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-200 bg-white">
+                        <tbody className="divide-y divide-gray-200 dark:divide-slate-700 bg-white dark:bg-slate-900">
                             {loading ? (
-                                <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500">로딩 중...</td></tr>
+                                <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-slate-400">로딩 중...</td></tr>
                             ) : error ? (
                                 <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-red-600">{error}</td></tr>
                             ) : contestList.length === 0 ? (
-                                <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500">대회가 없습니다.</td></tr>
+                                <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-slate-400">대회가 없습니다.</td></tr>
                             ) : (
                                 contestList.map((contest) => (
-                                    <tr key={contest.id} className="hover:bg-gray-50">
-                                        <td className="px-4 py-3 text-sm text-gray-900">{contest.id}</td>
-                                        <td className="px-4 py-3 text-sm text-gray-900 font-medium">{contest.title}</td>
-                                        <td className="px-4 py-3 text-sm text-gray-500">
+                                    <tr key={contest.id} className="hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800">
+                                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-slate-100">{contest.id}</td>
+                                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-slate-100 font-medium">{contest.title}</td>
+                                        <td className="px-4 py-3 text-sm text-gray-500 dark:text-slate-400">
                                             <div className="flex flex-col">
                                                 <span>{formatDateTime(contest.startTime)} ~</span>
                                                 <span>{formatDateTime(contest.endTime)}</span>
                                             </div>
                                         </td>
                                         <td className="px-4 py-3 text-sm">
-                                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${contest.visible ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                                                {contest.visible ? '공개' : '비공개'}
-                                            </span>
+                                            <VisibilityBadge visible={Boolean(contest.visible)} />
                                         </td>
-                                        <td className="px-4 py-3 text-sm text-right space-x-2">
-                                            <Button size="sm" variant="outline" onClick={() => openModal('edit', contest.id)}>수정</Button>
-                                            <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleDelete(contest.id, contest.title)}>삭제</Button>
+                                        <td className="px-4 py-3 text-sm">
+                                            <ActionIconButtons
+                                                onEdit={() => openModal(contest)}
+                                                onDelete={() => handleDelete(contest.id, contest.title)}
+                                                editTitle={`대회 ${contest.title} 수정`}
+                                                deleteTitle={`대회 ${contest.title} 삭제`}
+                                            />
                                         </td>
                                     </tr>
                                 ))
                             )}
                         </tbody>
                     </table>
-                    <div className="border-t border-gray-200 bg-gray-50 px-4 py-3 flex justify-between items-center">
-                        <span className="text-sm text-gray-700">총 {total}개</span>
-                        <div className="flex gap-2">
-                            <Button size="sm" variant="outline" disabled={page === 1} onClick={() => fetchContests(page - 1, keyword)}>이전</Button>
-                            <Button size="sm" variant="outline" disabled={page >= Math.ceil(total / 20)} onClick={() => fetchContests(page + 1, keyword)}>다음</Button>
-                        </div>
-                    </div>
+                </div>
+                <div className="mt-4">
+                    <CommonPagination
+                        page={page}
+                        pageSize={20}
+                        totalItems={total}
+                        onChangePage={(nextPage) => fetchContests(nextPage, keyword)}
+                    />
                 </div>
             </div>
-            <ContestModal
+            <CreateContestModal
                 isOpen={isModalOpen}
-                onClose={() => setIsModalOpen(false)}
-                mode={modalMode}
-                contestId={selectedContestId}
-                onSuccess={() => fetchContests(page, keyword)}
+                onClose={() => {
+                    setIsModalOpen(false);
+                    setSelectedContest(undefined);
+                }}
+                context="admin"
+                contestId={selectedContest?.id ?? null}
+                initialData={selectedContest}
+                onSuccess={() => {
+                    setIsModalOpen(false);
+                    setSelectedContest(undefined);
+                    fetchContests(page, keyword);
+                }}
             />
         </Card>
     );

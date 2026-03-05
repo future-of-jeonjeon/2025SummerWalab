@@ -30,6 +30,9 @@ export const workbookService = {
       search: filter?.search,
       page: page,
       size: limit,
+      tags: filter?.tags?.join(',') || '',
+      sort_by: filter?.sortBy === 'created_at' ? 'created_time' : filter?.sortBy,
+      sort_order: filter?.sortOrder,
     });
 
     const response = await apiClient.get<any>(url);

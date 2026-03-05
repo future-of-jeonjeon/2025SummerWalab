@@ -312,7 +312,7 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
   };
 
   if (!isAdminUser) {
-    return <div className="text-sm text-gray-600">관리자만 제출 상세정보를 확인할 수 있습니다.</div>;
+    return <div className="text-sm text-gray-600 dark:text-slate-400">관리자만 제출 상세정보를 확인할 수 있습니다.</div>;
   }
 
   if (mode === 'submissions' && selectedUser) {
@@ -322,35 +322,35 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
           <button
             type="button"
             onClick={() => setMode('scoreboard')}
-            className="px-4 py-2 rounded-md border border-blue-200 bg-blue-50 text-sm font-semibold text-blue-700 hover:bg-blue-100"
+            className="px-4 py-2 rounded-md border border-blue-200 bg-blue-50 text-sm font-semibold text-blue-700 hover:bg-blue-100 dark:border-blue-400/50 dark:bg-blue-900/30 dark:text-blue-200 dark:hover:bg-blue-900/40"
           >
             목록으로 돌아가기
           </button>
-          <div className="text-sm font-semibold text-gray-800">
+          <div className="text-sm font-semibold text-gray-800 dark:text-slate-200">
             {selectedUser.username}의 제출기록
             {selectedProblem ? ` · ${selectedProblem.displayId ?? (selectedProblem as any)?._id ?? selectedProblem.id}` : ' · 전체'}
           </div>
         </div>
         {submissionsLoading ? (
-          <div className="overflow-hidden rounded-lg border border-gray-200 animate-pulse">
-            <div className="bg-gray-50 px-4 py-3 border-b border-gray-200">
+          <div className="overflow-hidden rounded-lg border border-gray-200 animate-pulse dark:border-slate-700">
+            <div className="bg-gray-50 px-4 py-3 border-b border-gray-200 dark:bg-slate-800 dark:border-slate-700">
               <div className="grid grid-cols-5 gap-4">
-                <div className="h-4 bg-gray-200 rounded w-16"></div>
-                <div className="h-4 bg-gray-200 rounded w-16"></div>
-                <div className="h-4 bg-gray-200 rounded w-24"></div>
-                <div className="h-4 bg-gray-200 rounded w-16 mx-auto"></div>
-                <div className="h-4 bg-gray-200 rounded w-20 mx-auto"></div>
+                <div className="h-4 bg-gray-200 rounded w-16 dark:bg-slate-700"></div>
+                <div className="h-4 bg-gray-200 rounded w-16 dark:bg-slate-700"></div>
+                <div className="h-4 bg-gray-200 rounded w-24 dark:bg-slate-700"></div>
+                <div className="h-4 bg-gray-200 rounded w-16 mx-auto dark:bg-slate-700"></div>
+                <div className="h-4 bg-gray-200 rounded w-20 mx-auto dark:bg-slate-700"></div>
               </div>
             </div>
-            <div className="divide-y divide-gray-200 bg-white">
+            <div className="divide-y divide-gray-200 bg-white dark:divide-slate-700 dark:bg-slate-900">
               {[...Array(5)].map((_, i) => (
                 <div key={i} className="px-4 py-3">
                   <div className="grid grid-cols-5 gap-4 items-center">
-                    <div className="h-4 bg-gray-200 rounded w-12"></div>
-                    <div className="h-4 bg-gray-200 rounded w-10"></div>
-                    <div className="h-4 bg-gray-200 rounded w-32"></div>
-                    <div className="h-8 bg-gray-200 rounded w-16 mx-auto"></div>
-                    <div className="h-8 bg-gray-200 rounded w-20 mx-auto"></div>
+                    <div className="h-4 bg-gray-200 rounded w-12 dark:bg-slate-700"></div>
+                    <div className="h-4 bg-gray-200 rounded w-10 dark:bg-slate-700"></div>
+                    <div className="h-4 bg-gray-200 rounded w-32 dark:bg-slate-700"></div>
+                    <div className="h-8 bg-gray-200 rounded w-16 mx-auto dark:bg-slate-700"></div>
+                    <div className="h-8 bg-gray-200 rounded w-20 mx-auto dark:bg-slate-700"></div>
                   </div>
                 </div>
               ))}
@@ -359,19 +359,19 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
         ) : submissionsError ? (
           <div className="text-sm text-red-600">{submissionsError}</div>
         ) : (
-          <div className="overflow-hidden rounded-lg border border-gray-200">
-            <table className="min-w-full divide-y divide-gray-200 text-sm">
-              <thead className="bg-gray-50">
+          <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-slate-700">
+            <table className="min-w-full divide-y divide-gray-200 text-sm dark:divide-slate-700">
+              <thead className="bg-gray-50 dark:bg-slate-800">
                 <tr>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-700">문제</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-700">결과</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-700">언어</th>
-                  <th className="px-4 py-3 text-left font-semibold text-gray-700">제출 시각</th>
-                  <th className="px-4 py-3 text-center font-semibold text-gray-700">코드</th>
-                  <th className="px-4 py-3 text-center font-semibold text-gray-700">테스트 결과</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-slate-300">문제</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-slate-300">결과</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-slate-300">언어</th>
+                  <th className="px-4 py-3 text-left font-semibold text-gray-700 dark:text-slate-300">제출 시각</th>
+                  <th className="px-4 py-3 text-center font-semibold text-gray-700 dark:text-slate-300">코드</th>
+                  <th className="px-4 py-3 text-center font-semibold text-gray-700 dark:text-slate-300">테스트 결과</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-200">
+              <tbody className="divide-y divide-gray-200 dark:divide-slate-700">
                 {submissions.map((item) => {
                   const createdAt =
                     'create_time' in item && typeof item.create_time === 'string'
@@ -387,20 +387,20 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
                   const problemDisplayId = resolveProblemDisplayId(item);
                   return (
                     <tr key={String(submissionId ?? Math.random())}>
-                      <td className="px-4 py-2 text-gray-800">{problemDisplayId ?? '-'}</td>
-                      <td className="px-4 py-2 text-gray-800">{statusText}</td>
-                      <td className="px-4 py-2 text-gray-800">
+                      <td className="px-4 py-2 text-gray-800 dark:text-slate-200">{problemDisplayId ?? '-'}</td>
+                      <td className="px-4 py-2 text-gray-800 dark:text-slate-200">{statusText}</td>
+                      <td className="px-4 py-2 text-gray-800 dark:text-slate-200">
                         {item.language ??
                           ('language_name' in item && typeof (item as SubmissionListItem & { language_name?: string }).language_name === 'string'
                             ? (item as SubmissionListItem & { language_name?: string }).language_name
                             : '-')}
                       </td>
-                      <td className="px-4 py-2 text-gray-600">{formatKSTDateTime(createdAt)}</td>
+                      <td className="px-4 py-2 text-gray-600 dark:text-slate-400">{formatKSTDateTime(createdAt)}</td>
                       <td className="px-4 py-2 text-center">
                         <button
                           type="button"
                           onClick={() => handleOpenCode(submissionId)}
-                          className="px-3 py-1 rounded-md border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 bg-white"
+                          className="px-3 py-1 rounded-md border border-gray-300 text-sm text-gray-700 hover:bg-gray-50 bg-white dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
                         >
                           소스 보기
                         </button>
@@ -410,11 +410,11 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
                           <button
                             type="button"
                             onClick={() => handleOpenCaseModal(submissionId)}
-                            className="px-3 py-1 rounded-md border border-indigo-200 text-sm text-indigo-700 hover:bg-indigo-50 bg-indigo-50"
+                            className="px-3 py-1 rounded-md border border-indigo-200 text-sm text-indigo-700 hover:bg-indigo-50 bg-indigo-50 dark:border-indigo-400/50 dark:bg-indigo-900/30 dark:text-indigo-200 dark:hover:bg-indigo-900/50"
                           >
                             케이스 결과
                           </button>
-                          <div className="text-xs text-gray-500 min-w-[48px] text-right">
+                          <div className="text-xs text-gray-500 min-w-[48px] text-right dark:text-slate-400">
                             {caseStat && caseStat.total > 0 ? `${caseStat.passed}/${caseStat.total}` : '-'}
                           </div>
                         </div>
@@ -424,7 +424,7 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
                 })}
                 {submissions.length === 0 && (
                   <tr>
-                    <td colSpan={5} className="px-4 py-6 text-center text-gray-500">
+                    <td colSpan={5} className="px-4 py-6 text-center text-gray-500 dark:text-slate-400">
                       제출 기록이 없습니다.
                     </td>
                   </tr>
@@ -439,7 +439,7 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
             type="button"
             onClick={handleExport}
             disabled={exporting}
-            className="px-4 py-2 rounded-md border border-indigo-200 bg-indigo-50 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60"
+            className="px-4 py-2 rounded-md border border-indigo-200 bg-indigo-50 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60 dark:border-indigo-400/50 dark:bg-indigo-900/30 dark:text-indigo-200 dark:hover:bg-indigo-900/50"
           >
             {exporting ? '내보내는 중...' : '대회 결과 다운로드 (xlsx)'}
           </button>
@@ -482,15 +482,15 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
         {caseModal.open && (
           <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setCaseModal({ open: false, loading: false })}>
             <div
-              className="bg-white rounded-lg shadow-xl max-w-sm w-full max-h-[80vh] overflow-hidden"
+              className="bg-white rounded-lg shadow-xl max-w-sm w-full max-h-[80vh] overflow-hidden dark:bg-slate-900 dark:border dark:border-slate-700"
               onClick={(e) => e.stopPropagation()}
             >
-              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
-                <div className="text-sm font-semibold text-gray-800">테스트 케이스 결과</div>
+              <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-slate-700">
+                <div className="text-sm font-semibold text-gray-800 dark:text-slate-100">테스트 케이스 결과</div>
                 <button
                   type="button"
                   onClick={() => setCaseModal({ open: false, loading: false })}
-                  className="text-sm text-gray-500 hover:text-gray-700"
+                  className="text-sm text-gray-500 hover:text-gray-700 dark:text-slate-400 dark:hover:text-slate-200"
                 >
                   닫기
                 </button>
@@ -499,24 +499,26 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
                 {caseModal.loading ? (
                   <div className="space-y-3 animate-pulse">
                     <div className="grid grid-cols-2 gap-4 px-1">
-                      <div className="h-4 bg-gray-200 rounded mx-auto w-12"></div>
-                      <div className="h-4 bg-gray-200 rounded mx-auto w-12"></div>
+                      <div className="h-4 bg-gray-200 rounded mx-auto w-12 dark:bg-slate-700"></div>
+                      <div className="h-4 bg-gray-200 rounded mx-auto w-12 dark:bg-slate-700"></div>
                     </div>
                     {[...Array(3)].map((_, i) => (
-                      <div key={i} className="h-10 bg-gray-100 rounded border border-gray-200"></div>
+                      <div key={i} className="h-10 bg-gray-100 rounded border border-gray-200 dark:bg-slate-800 dark:border-slate-700"></div>
                     ))}
                   </div>
                 ) : caseModal.error ? (
                   <div className="text-sm text-red-600">{caseModal.error}</div>
                 ) : (
                   <div className="space-y-3">
-                    <div className="grid grid-cols-2 items-center text-xs font-semibold text-gray-600 px-1">
+                    <div className="grid grid-cols-2 items-center text-xs font-semibold text-gray-600 px-1 dark:text-slate-300">
                       <div className="text-center">케이스</div>
                       <div className="text-center">결과</div>
                     </div>
                     {(caseModal.cases ?? []).map((tc) => {
                       const success = tc.success;
-                      const rowTone = success ? 'bg-green-50 text-green-800 border-green-200' : 'bg-rose-50 text-rose-800 border-rose-200';
+                      const rowTone = success
+                        ? 'bg-green-50 text-green-800 border-green-200 dark:bg-green-900/20 dark:text-green-200 dark:border-green-700/60'
+                        : 'bg-rose-50 text-rose-800 border-rose-200 dark:bg-rose-900/20 dark:text-rose-200 dark:border-rose-700/60';
                       const label = success ? '성공' : '실패';
                       return (
                         <div
@@ -529,7 +531,7 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
                       );
                     })}
                     {(caseModal.cases ?? []).length === 0 && (
-                      <div className="text-sm text-gray-600">테스트 케이스 정보를 확인할 수 없습니다.</div>
+                      <div className="text-sm text-gray-600 dark:text-slate-400">테스트 케이스 정보를 확인할 수 없습니다.</div>
                     )}
                   </div>
                 )}
@@ -555,8 +557,8 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
   const rankWidth = baseColumnsPx[0];
 
   const stickyHeaderStyles = [
-    { position: 'sticky' as const, left: 0, zIndex: 3, background: '#f8fafc' },
-    { position: 'sticky' as const, left: rankWidth, zIndex: 3, background: '#f8fafc' },
+    { position: 'sticky' as const, left: 0, zIndex: 3 },
+    { position: 'sticky' as const, left: rankWidth, zIndex: 3 },
   ];
   const stickyBodyBase = {
     position: 'sticky' as const,
@@ -574,7 +576,7 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
         type="button"
         onClick={handleExport}
         disabled={exporting}
-        className="px-4 py-2 rounded-md border border-indigo-200 bg-indigo-50 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60"
+        className="px-4 py-2 rounded-md border border-indigo-200 bg-indigo-50 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 disabled:opacity-60 dark:border-indigo-400/50 dark:bg-indigo-900/30 dark:text-indigo-200 dark:hover:bg-indigo-900/50"
       >
         {exporting ? '내보내는 중...' : '대회 결과 다운로드 (xlsx)'}
       </button>
@@ -585,50 +587,48 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
     <div className="space-y-2">
       {exportButton}
       <div
-        className="bg-white rounded-lg shadow-sm border border-gray-200 mx-auto"
+        className="bg-white rounded-lg shadow-sm border border-gray-200 mx-auto dark:bg-slate-900 dark:border-slate-700"
         style={{ width: `${TABLE_OUTER_MAX}px` }}
       >
         <div className="w-full overflow-x-auto">
           <div
-            className="inline-block bg-white"
+            className="inline-block bg-white dark:bg-slate-900"
             style={{
               minWidth: `${minTableWidthPx}px`,
               width: `${minTableWidthPx}px`,
             }}
           >
-            <div className="border-b border-gray-200 bg-gray-50 px-1 py-4">
+            <div className="border-b border-gray-200 bg-gray-50 px-1 py-4 dark:border-slate-700 dark:bg-slate-800">
               <div className="grid items-center gap-x-2" style={{ gridTemplateColumns }}>
-                <div className="text-center text-sm font-medium text-gray-500 uppercase tracking-wider" style={stickyHeaderStyles[0]}>
+                <div className="text-center text-sm font-medium text-gray-500 uppercase tracking-wider bg-gray-50 dark:bg-slate-800 dark:text-slate-300" style={stickyHeaderStyles[0]}>
                   순위
                 </div>
-                <div className="text-center text-sm font-medium text-gray-500 uppercase tracking-wider" style={stickyHeaderStyles[1]}>
+                <div className="text-center text-sm font-medium text-gray-500 uppercase tracking-wider bg-gray-50 dark:bg-slate-800 dark:text-slate-300" style={stickyHeaderStyles[1]}>
                   유저
                 </div>
-                <div className="text-center text-sm font-medium text-gray-500 uppercase tracking-wider">해결</div>
-                <div className="text-center text-sm font-medium text-gray-500 uppercase tracking-wider">점수</div>
+                <div className="text-center text-sm font-medium text-gray-500 uppercase tracking-wider dark:text-slate-300">해결</div>
+                <div className="text-center text-sm font-medium text-gray-500 uppercase tracking-wider dark:text-slate-300">점수</div>
                 {problemList.map((_, idx) => (
-                  <div key={`problem-header-${idx}`} className="text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wider">
+                  <div key={`problem-header-${idx}`} className="text-center text-[11px] font-semibold text-gray-500 uppercase tracking-wider dark:text-slate-300">
                     {idx + 1}
                   </div>
                 ))}
               </div>
             </div>
-            <div className="divide-y divide-gray-200">
+            <div className="divide-y divide-gray-200 dark:divide-slate-700">
               {scoreboardEntries.map((entry, index) => (
                 <div
                   key={entry.id ?? index}
-                  className="px-1 py-4 transition-colors"
+                  className={`px-1 py-4 transition-colors ${hoveredRow === index ? 'bg-gray-50 dark:bg-slate-800/40' : 'bg-white dark:bg-slate-900'}`}
                   onMouseEnter={() => setHoveredRow(index)}
                   onMouseLeave={() => setHoveredRow(null)}
-                  style={{ backgroundColor: hoveredRow === index ? '#f8fafc' : '#ffffff' }}
                 >
                   <div className="grid items-center gap-x-2" style={{ gridTemplateColumns }}>
                     <div
-                      className="text-center font-semibold text-gray-800"
+                      className={`text-center font-semibold text-gray-800 dark:text-slate-200 ${hoveredRow === index ? 'bg-gray-50 dark:bg-slate-800/60' : 'bg-white dark:bg-slate-900'}`}
                       style={{
                         ...stickyBodyBase,
                         left: 0,
-                        backgroundColor: hoveredRow === index ? '#f8fafc' : '#ffffff',
                       }}
                     >
                       {index + 1}
@@ -639,21 +639,20 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
                       style={{
                         ...stickyBodyBase,
                         left: rankWidth,
-                        backgroundColor: hoveredRow === index ? '#f8fafc' : '#ffffff',
                       }}
-                      className="text-center w-full focus:outline-none"
+                      className={`text-center w-full focus:outline-none ${hoveredRow === index ? 'bg-gray-50 dark:bg-slate-800/60' : 'bg-white dark:bg-slate-900'}`}
                     >
-                      <div className="text-sm font-medium text-gray-900 hover:underline">
+                      <div className="text-sm font-medium text-gray-900 hover:underline dark:text-slate-100">
                         {entry.user.realName || entry.user.username}
                       </div>
                       {entry.user.studentId && (
-                        <div className="text-xs text-gray-500">{entry.user.studentId}</div>
+                        <div className="text-xs text-gray-500 dark:text-slate-400">{entry.user.studentId}</div>
                       )}
                     </button>
-                    <div className="text-center text-sm text-gray-700">
+                    <div className="text-center text-sm text-gray-700 dark:text-slate-300">
                       {(entry.acceptedNumber ?? 0)}/{problemList.length}
                     </div>
-                    <div className="text-center text-sm text-gray-700">{entry.totalScore ?? 0}</div>
+                    <div className="text-center text-sm text-gray-700 dark:text-slate-300">{entry.totalScore ?? 0}</div>
                     {problemList.map((problem, pIdx) => {
                       const info = entry.problemStatuses ? entry.problemStatuses[pIdx] : null;
                       const status = info?.status ?? 'unknown';
@@ -662,7 +661,7 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
                           ? 'bg-green-100 text-green-700'
                           : status === 'tried'
                             ? 'bg-amber-50 text-amber-700'
-                            : 'bg-gray-100 text-gray-400';
+                            : 'bg-gray-100 text-gray-400 dark:bg-slate-800 dark:text-slate-400';
                       const labelScore = info?.score;
                       const label = labelScore != null ? `${labelScore}` : status === 'ac' ? 'AC' : status === 'tried' ? 'T' : '-';
                       const handleClick = () => {

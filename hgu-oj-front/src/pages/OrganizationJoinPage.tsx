@@ -83,7 +83,7 @@ export const OrganizationJoinPage: React.FC = () => {
 
     if (loading) {
         return (
-            <div className="flex justify-center items-center h-screen bg-gray-50">
+            <div className="flex justify-center items-center h-screen bg-gray-50 dark:bg-slate-950">
                 <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-blue-600"></div>
             </div>
         );
@@ -91,14 +91,14 @@ export const OrganizationJoinPage: React.FC = () => {
 
     if (error || !organization) {
         return (
-            <div className="flex flex-col items-center justify-center h-screen bg-gray-50 p-4">
-                <div className="bg-white p-8 rounded-lg shadow-sm border border-gray-200 text-center max-w-md w-full">
+            <div className="flex flex-col items-center justify-center h-screen bg-gray-50 dark:bg-slate-950 p-4">
+                <div className="bg-white dark:bg-slate-900 p-8 rounded-lg shadow-sm border border-gray-200 dark:border-slate-800 text-center max-w-md w-full">
                     <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4 text-red-500">
                         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
                         </svg>
                     </div>
-                    <h3 className="text-lg font-medium text-gray-900 mb-2">{error || '잘못된 접근입니다.'}</h3>
+                    <h3 className="text-lg font-medium text-gray-900 dark:text-slate-100 mb-2">{error || '잘못된 접근입니다.'}</h3>
                     <Button onClick={() => navigate('/')} className="w-full mt-4">홈으로 돌아가기</Button>
                 </div>
             </div>
@@ -106,7 +106,7 @@ export const OrganizationJoinPage: React.FC = () => {
     }
 
     return (
-        <div className="min-h-screen bg-[#f6f8fa] flex flex-col items-center pt-16 md:pt-24 px-4 font-sans">
+        <div className="min-h-screen bg-[#f6f8fa] dark:bg-slate-950 flex flex-col items-center pt-16 md:pt-24 px-4 font-sans">
             {/* Logo Section */}
             <div className="mb-6">
                 <OrganizationLogo
@@ -118,16 +118,16 @@ export const OrganizationJoinPage: React.FC = () => {
             </div>
 
             {/* Title */}
-            <h1 className="text-2xl md:text-3xl font-semibold text-gray-900 mb-8 text-center">
+            <h1 className="text-2xl md:text-3xl font-semibold text-gray-900 dark:text-slate-100 mb-8 text-center">
                 {organization.name}에 가입하기
             </h1>
 
             {/* Main Card */}
-            <div className="w-full max-w-[540px] bg-white rounded-lg border border-gray-200 shadow-sm p-6 md:p-8">
+            <div className="w-full max-w-[540px] bg-white dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-slate-800 shadow-sm p-6 md:p-8">
 
                 {/* Info Box - Membership Details REMOVED */}
                 <div className="text-center mb-8">
-                    <p className="text-sm text-gray-600 leading-relaxed">
+                    <p className="text-sm text-gray-600 dark:text-slate-300 leading-relaxed">
                         {organization.description || '이 단체는 아직 설명이 없습니다.'}
                     </p>
                 </div>
@@ -135,8 +135,8 @@ export const OrganizationJoinPage: React.FC = () => {
                 {/* User Status - Icon REMOVED */}
                 {isAuthenticated && user && (
                     <div className="flex justify-center items-center gap-1 mb-6 text-sm">
-                        <span className="text-gray-500">로그인된 계정:</span>
-                        <span className="font-semibold text-gray-900">{user.username}</span>
+                        <span className="text-gray-500 dark:text-slate-400">로그인된 계정:</span>
+                        <span className="font-semibold text-gray-900 dark:text-slate-100">{user.username}</span>
                     </div>
                 )}
 
@@ -160,7 +160,7 @@ export const OrganizationJoinPage: React.FC = () => {
             </div>
 
             {/* Footer */}
-            <p className="mt-8 text-xs text-gray-400 text-center max-w-md leading-relaxed px-4 mb-12">
+            <p className="mt-8 text-xs text-gray-400 dark:text-slate-500 text-center max-w-md leading-relaxed px-4 mb-12">
                 사용자의 프로필과 제출 기록이 단체 관리자에게 공개될 수 있습니다.
             </p>
         </div>

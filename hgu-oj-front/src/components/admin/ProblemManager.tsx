@@ -3,8 +3,10 @@ import { Card } from '../atoms/Card';
 import { Button } from '../atoms/Button';
 import { Input } from '../atoms/Input';
 import { ProblemRegistrationModal } from '../../features/contribution/components/ProblemRegistrationModal';
+import { ProblemListTable } from '../../features/contribution/components/ProblemListTable';
 import { adminService } from '../../services/adminService';
 import { Problem } from '../../types';
+import CommonPagination from '../common/CommonPagination';
 
 export const ProblemManager: React.FC = () => {
     const [problemList, setProblemList] = useState<Problem[]>([]);
@@ -15,6 +17,7 @@ export const ProblemManager: React.FC = () => {
     const [problemSearchKeyword, setProblemSearchKeyword] = useState('');
     const problemSearchTimerRef = useRef<number | null>(null);
     const [isProblemModalOpen, setIsProblemModalOpen] = useState(false);
+    const [editingProblemId, setEditingProblemId] = useState<number | undefined>(undefined);
 
     const fetchProblems = useCallback(async (page: number = 1, keyword: string = '') => {
         setProblemListLoading(true);
@@ -28,7 +31,7 @@ export const ProblemManager: React.FC = () => {
             setProblemList(results);
             setProblemTotal(total);
             setProblemPage(page);
-        } catch (error) {
+        } catch {
             setProblemListError('문제 목록을 불러오지 못했습니다.');
         } finally {
             setProblemListLoading(false);
@@ -43,10 +46,11 @@ export const ProblemManager: React.FC = () => {
         }, 300);
     };
 
-    const handleOpenProblemModal = (mode: 'create' | 'edit') => {
-        if (mode === 'edit') {
-            alert('기존 문제 수정 기능은 추후 제공될 예정입니다.');
-            return;
+    const handleOpenProblemModal = (mode: 'create' | 'edit', problemId?: number) => {
+        if (mode === 'edit' && problemId) {
+            setEditingProblemId(problemId);
+        } else {
+            setEditingProblemId(undefined);
         }
         setIsProblemModalOpen(true);
     };
@@ -70,9 +74,16 @@ export const ProblemManager: React.FC = () => {
             <div className="space-y-6">
                 <div className="flex items-center justify-between">
                     <div className="space-y-1">
-                        <h2 className="text-xl font-semibold text-gray-900">문제 목록</h2>
-                        <p className="text-sm text-gray-500">등록된 문제를 관리합니다.</p>
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 dark:text-slate-100">문제 목록</h2>
                     </div>
+                    <Button
+                        onClick={() => handleOpenProblemModal('create')}
+                    >
+                        <svg className="w-5 h-5 mr-2 -ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        문제 등록
+                    </Button>
                 </div>
 
                 <div className="flex gap-2">
@@ -83,57 +94,44 @@ export const ProblemManager: React.FC = () => {
                     />
                 </div>
 
-                <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
-                    <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
-                            <tr>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">제목</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">난이도</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">상태</th>
-                                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">관리</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-gray-200 bg-white">
-                            {problemListLoading ? (
-                                <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500">로딩 중...</td></tr>
-                            ) : problemListError ? (
-                                <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-red-600">{problemListError}</td></tr>
-                            ) : problemList.length === 0 ? (
-                                <tr><td colSpan={5} className="px-4 py-8 text-center text-sm text-gray-500">문제가 없습니다.</td></tr>
-                            ) : (
-                                problemList.map((problem) => (
-                                    <tr key={problem.id} className="hover:bg-gray-50">
-                                        <td className="px-4 py-3 text-sm text-gray-900">{problem.id}</td>
-                                        <td className="px-4 py-3 text-sm text-gray-900 font-medium">{problem.title}</td>
-                                        <td className="px-4 py-3 text-sm text-gray-500">{problem.difficulty}</td>
-                                        <td className="px-4 py-3 text-sm">
-                                            <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${problem.visible ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
-                                                {problem.visible ? '공개' : '비공개'}
-                                            </span>
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-right space-x-2">
-                                            <Button size="sm" variant="outline" onClick={() => handleOpenProblemModal('edit')}>수정</Button>
-                                            <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleDeleteProblem(problem.id, problem.title)}>삭제</Button>
-                                        </td>
-                                    </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                    <div className="border-t border-gray-200 bg-gray-50 px-4 py-3 flex justify-between items-center">
-                        <span className="text-sm text-gray-700">총 {problemTotal}개</span>
-                        <div className="flex gap-2">
-                            <Button size="sm" variant="outline" disabled={problemPage === 1} onClick={() => fetchProblems(problemPage - 1, problemSearchKeyword)}>이전</Button>
-                            <Button size="sm" variant="outline" disabled={problemPage >= Math.ceil(problemTotal / 20)} onClick={() => fetchProblems(problemPage + 1, problemSearchKeyword)}>다음</Button>
-                        </div>
-                    </div>
+                <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-slate-700 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm">
+                    {problemListLoading ? (
+                        <div className="px-4 py-8 text-center text-sm text-gray-500 dark:text-slate-400">로딩 중...</div>
+                    ) : problemListError ? (
+                        <div className="px-4 py-8 text-center text-sm text-red-600">{problemListError}</div>
+                    ) : (
+                        <>
+                            <ProblemListTable
+                                showHeader={false}
+                                problems={problemList}
+                                onEdit={(problem) => handleOpenProblemModal('edit', problem.id)}
+                                onDelete={(problemId) => {
+                                    const target = problemList.find((problem) => problem.id === problemId);
+                                    if (target) {
+                                        void handleDeleteProblem(problemId, target.title);
+                                    }
+                                }}
+                            />
+                            <div className="px-4 py-4 border-t border-gray-200 dark:border-slate-700">
+                                <CommonPagination
+                                    page={problemPage}
+                                    pageSize={20}
+                                    totalItems={problemTotal}
+                                    onChangePage={(nextPage) => fetchProblems(nextPage, problemSearchKeyword)}
+                                />
+                            </div>
+                        </>
+                    )}
                 </div>
             </div>
             <ProblemRegistrationModal
                 isOpen={isProblemModalOpen}
-                onClose={() => setIsProblemModalOpen(false)}
+                onClose={() => {
+                    setIsProblemModalOpen(false);
+                    setEditingProblemId(undefined);
+                }}
                 onSuccess={() => fetchProblems(problemPage, problemSearchKeyword)}
+                editProblemId={editingProblemId}
             />
         </Card>
     );

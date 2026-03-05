@@ -73,38 +73,37 @@ export const OrganizationApplyManager: React.FC = () => {
         <Card padding="lg">
             <div className="space-y-6">
                 <div className="space-y-1">
-                    <h2 className="text-xl font-semibold text-gray-900">단체 신청 관리</h2>
-                    <p className="text-sm text-gray-500">단체 신청을 관리합니다.</p>
+                    <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 dark:text-slate-100">단체 신청 관리</h2>
                 </div>
 
-                <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+                <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-slate-700 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm">
                     <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
+                        <thead className="bg-gray-50 dark:bg-slate-800">
                             <tr>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">신청자</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">단체 이름</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">신청일자</th>
-                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">남은 시간</th>
-                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">액션</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">신청자</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">단체 이름</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">신청일자</th>
+                                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">남은 시간</th>
+                                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">액션</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-200 bg-white">
+                        <tbody className="divide-y divide-gray-200 dark:divide-slate-700 bg-white dark:bg-slate-900">
                             {loading ? (
-                                <tr><td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-500">로딩 중...</td></tr>
+                                <tr><td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-500 dark:text-slate-400">로딩 중...</td></tr>
                             ) : error ? (
                                 <tr><td colSpan={5} className="px-6 py-8 text-center text-sm text-red-600">{error}</td></tr>
                             ) : applies.length === 0 ? (
-                                <tr><td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-500">대기 중인 신청이 없습니다.</td></tr>
+                                <tr><td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-500 dark:text-slate-400">대기 중인 신청이 없습니다.</td></tr>
                             ) : (
                                 applies.map((apply) => (
                                     <tr
                                         key={apply.id}
-                                        className="hover:bg-gray-50 cursor-pointer transition-colors"
+                                        className="hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800 cursor-pointer transition-colors"
                                         onClick={() => setSelectedApply(apply)}
                                     >
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{apply.applicant_name}</td>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-slate-100">{apply.applicant_name}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-[#113F67]">{apply.name}</td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">
                                             {formatDate(apply.created_at)}
                                         </td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm">
@@ -125,7 +124,6 @@ export const OrganizationApplyManager: React.FC = () => {
                                             <Button
                                                 size="sm"
                                                 variant="outline"
-                                                className="text-red-600 border-red-200 hover:bg-red-50"
                                                 onClick={() => handleAction(apply.id, apply.name, 'REJECTED')}
                                             >
                                                 반려
@@ -148,7 +146,7 @@ export const OrganizationApplyManager: React.FC = () => {
                                 <h3 className="text-xl font-bold text-[#113F67]">단체 신청 상세 정보</h3>
                                 <button
                                     onClick={() => setSelectedApply(null)}
-                                    className="text-gray-400 hover:text-gray-600 transition-colors"
+                                    className="text-gray-400 dark:text-slate-500 hover:text-gray-600 dark:text-slate-400 transition-colors"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -158,33 +156,33 @@ export const OrganizationApplyManager: React.FC = () => {
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 <div className="space-y-1">
-                                    <p className="text-xs font-semibold text-gray-500 uppercase">신청자</p>
-                                    <p className="text-sm font-medium text-gray-900">{selectedApply.applicant_name}</p>
+                                    <p className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase">신청자</p>
+                                    <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{selectedApply.applicant_name}</p>
                                 </div>
                                 <div className="space-y-1">
-                                    <p className="text-xs font-semibold text-gray-500 uppercase">단체 이름</p>
-                                    <p className="text-sm font-medium text-gray-900">{selectedApply.name}</p>
+                                    <p className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase">단체 이름</p>
+                                    <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{selectedApply.name}</p>
                                 </div>
                                 <div className="space-y-1">
-                                    <p className="text-xs font-semibold text-gray-500 uppercase">신청 일시</p>
-                                    <p className="text-sm font-medium text-gray-900">{formatDate(selectedApply.created_at)}</p>
+                                    <p className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase">신청 일시</p>
+                                    <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{formatDate(selectedApply.created_at)}</p>
                                 </div>
                                 <div className="space-y-1">
-                                    <p className="text-xs font-semibold text-gray-500 uppercase">만료까지 남은 시간</p>
+                                    <p className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase">만료까지 남은 시간</p>
                                     <p className="text-sm font-medium text-green-700">{calculateTimeRemaining(selectedApply.created_at)}</p>
                                 </div>
                             </div>
 
                             <div className="space-y-2 border-t pt-4">
-                                <p className="text-xs font-semibold text-gray-500 uppercase">단체 설명 / 신청 사유</p>
-                                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">
+                                <p className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase">단체 설명 / 신청 사유</p>
+                                <div className="bg-gray-50 p-4 rounded-lg border border-gray-200 dark:border-slate-700 text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">
                                     {selectedApply.description || '작성된 내용이 없습니다.'}
                                 </div>
                             </div>
 
                             {selectedApply.img_url && (
                                 <div className="space-y-2">
-                                    <p className="text-xs font-semibold text-gray-500 uppercase">로고 이미지</p>
+                                    <p className="text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase">로고 이미지</p>
                                     <div className="bg-gray-100 rounded-lg p-2 inline-block">
                                         <img
                                             src={selectedApply.img_url}
@@ -198,7 +196,6 @@ export const OrganizationApplyManager: React.FC = () => {
                             <div className="flex justify-end gap-3 pt-6 border-t font-semibold">
                                 <Button
                                     variant="outline"
-                                    className="text-red-600 border-red-200 hover:bg-red-50"
                                     onClick={() => handleAction(selectedApply.id, selectedApply.name, 'REJECTED')}
                                 >
                                     반려하기

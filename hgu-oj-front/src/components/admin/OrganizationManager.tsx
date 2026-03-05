@@ -5,6 +5,8 @@ import { Input } from '../atoms/Input';
 import { OrganizationModal } from './OrganizationModal';
 import { adminService } from '../../services/adminService';
 import { Organization } from '../../types';
+import { ActionIconButtons } from '../../features/contribution/components/ActionIconButtons';
+import CommonPagination from '../common/CommonPagination';
 
 export const OrganizationManager: React.FC = () => {
     const [orgList, setOrgList] = useState<Organization[]>([]);
@@ -26,7 +28,7 @@ export const OrganizationManager: React.FC = () => {
             setOrgList(response.items);
             setTotal(response.total);
             setPage(p);
-        } catch (err) {
+        } catch {
             setError('단체 목록을 불러오지 못했습니다.');
         } finally {
             setLoading(false);
@@ -63,8 +65,7 @@ export const OrganizationManager: React.FC = () => {
             <div className="space-y-6">
                 <div className="flex items-center justify-between">
                     <div className="space-y-1">
-                        <h2 className="text-xl font-semibold text-gray-900">단체 목록</h2>
-                        <p className="text-sm text-gray-500">등록된 단체를 관리합니다.</p>
+                        <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 dark:text-slate-100">단체 목록</h2>
                     </div>
                     <Button onClick={() => openModal('create')}>단체 등록</Button>
                 </div>
@@ -77,45 +78,50 @@ export const OrganizationManager: React.FC = () => {
                     />
                 </div>
 
-                <div className="overflow-hidden rounded-lg border border-gray-200 bg-white shadow-sm">
+                <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-slate-700 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm">
                     <table className="min-w-full divide-y divide-gray-200">
-                        <thead className="bg-gray-50">
+                        <thead className="bg-gray-50 dark:bg-slate-800">
                             <tr>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">ID</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">이름</th>
-                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">설명</th>
-                                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase">관리</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">ID</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">이름</th>
+                                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">설명</th>
+                                <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase">관리</th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-200 bg-white">
+                        <tbody className="divide-y divide-gray-200 dark:divide-slate-700 bg-white dark:bg-slate-900">
                             {loading ? (
-                                <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-500">로딩 중...</td></tr>
+                                <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-slate-400">로딩 중...</td></tr>
                             ) : error ? (
                                 <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-red-600">{error}</td></tr>
                             ) : orgList.length === 0 ? (
-                                <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-500">단체가 없습니다.</td></tr>
+                                <tr><td colSpan={4} className="px-4 py-8 text-center text-sm text-gray-500 dark:text-slate-400">단체가 없습니다.</td></tr>
                             ) : (
                                 orgList.map((org) => (
-                                    <tr key={org.id} className="hover:bg-gray-50">
-                                        <td className="px-4 py-3 text-sm text-gray-900">{org.id}</td>
-                                        <td className="px-4 py-3 text-sm text-gray-900 font-medium">{org.name}</td>
-                                        <td className="px-4 py-3 text-sm text-gray-500">{org.description}</td>
-                                        <td className="px-4 py-3 text-sm text-right space-x-2">
-                                            <Button size="sm" variant="outline" onClick={() => openModal('edit', org.id)}>수정</Button>
-                                            <Button size="sm" variant="outline" className="text-red-600 border-red-200 hover:bg-red-50" onClick={() => handleDelete(org.id, org.name)}>삭제</Button>
+                                    <tr key={org.id} className="hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800">
+                                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-slate-100">{org.id}</td>
+                                        <td className="px-4 py-3 text-sm text-gray-900 dark:text-slate-100 font-medium">{org.name}</td>
+                                        <td className="px-4 py-3 text-sm text-gray-500 dark:text-slate-400">{org.description}</td>
+                                        <td className="px-4 py-3 text-sm">
+                                            <ActionIconButtons
+                                                onEdit={() => openModal('edit', org.id)}
+                                                onDelete={() => handleDelete(org.id, org.name)}
+                                                editTitle={`단체 ${org.name} 수정`}
+                                                deleteTitle={`단체 ${org.name} 삭제`}
+                                            />
                                         </td>
                                     </tr>
                                 ))
                             )}
                         </tbody>
                     </table>
-                    <div className="border-t border-gray-200 bg-gray-50 px-4 py-3 flex justify-between items-center">
-                        <span className="text-sm text-gray-700">총 {total}개</span>
-                        <div className="flex gap-2">
-                            <Button size="sm" variant="outline" disabled={page === 1} onClick={() => fetchOrganizations(page - 1)}>이전</Button>
-                            <Button size="sm" variant="outline" disabled={page >= Math.ceil(total / 20)} onClick={() => fetchOrganizations(page + 1)}>다음</Button>
-                        </div>
-                    </div>
+                </div>
+                <div className="mt-4">
+                    <CommonPagination
+                        page={page}
+                        pageSize={10}
+                        totalItems={total}
+                        onChangePage={(nextPage) => fetchOrganizations(nextPage)}
+                    />
                 </div>
             </div>
             <OrganizationModal

@@ -16,6 +16,8 @@ class ProblemImportPollingStatus(BaseModel):
     left_problem:int
     all_problem:int
     error_code: Optional[str] = None
+    error_message: Optional[str] = None
+    problem_id: Optional[int] = None
 
 class ProblemMetadata(BaseModel):
     display_id: str = Field(..., alias='_id', description="문제의 고유 Display ID")
@@ -139,3 +141,21 @@ class CreateProblemData(BaseModel):
     io_mode: Dict[str, str] = {"io_mode": "Standard IO", "input": "input.txt", "output": "output.txt"}
     test_case_score: List[Dict[str, Any]] = []
     visible: bool = True
+
+class ProblemUpdateRequest(BaseModel):
+    id: int
+    title: Optional[str] = None
+    description: Optional[str] = None
+    input_description: Optional[str] = None
+    output_description: Optional[str] = None
+    test_case_id: Optional[str] = None
+    samples: Optional[List[Sample]] = None
+    time_limit: Optional[int] = None
+    memory_limit: Optional[int] = None
+    languages: Optional[List[str]] = None
+    template: Optional[Dict[str, str]] = None
+    difficulty: Optional[str] = None
+    tags: Optional[List[str]] = None
+    hint: Optional[str] = None
+    solution_code: Optional[str] = None
+    solution_code_language: Optional[str] = None

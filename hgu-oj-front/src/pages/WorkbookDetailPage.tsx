@@ -2,8 +2,9 @@ import React, { useCallback, useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { Button } from '../components/atoms/Button';
-import { WorkbookProblemList } from '../components/organisms/WorkbookProblemList';
+import { ProblemList } from '../components/organisms/ProblemList';
 import { useWorkbook, useWorkbookProblems } from '../hooks/useWorkbooks';
+import { useWorkbookStore } from '../stores/workbookStore';
 import { Problem } from '../types';
 import { problemService } from '../services/problemService';
 import { resolveProblemStatus } from '../utils/problemStatus';
@@ -16,8 +17,8 @@ export const WorkbookDetailPage: React.FC = () => {
 
   const { data: workbook, isLoading: workbookLoading, error: workbookError } = useWorkbook(workbookId);
   const { data: problemsData, isLoading: problemsLoading, error: problemsError } = useWorkbookProblems(workbookId);
+  const { setFilter } = useWorkbookStore();
   const [statusFilter, setStatusFilter] = useState<'all' | ProblemStatusKey>('all');
-  const [difficultyFilter, setDifficultyFilter] = useState<string>('all'); // Added for dropdown
 
   const getProblemExternalId = useCallback((problem: Problem | undefined): string | undefined => {
     if (!problem) return undefined;
@@ -45,6 +46,11 @@ export const WorkbookDetailPage: React.FC = () => {
 
   const handleBackClick = () => {
     navigate('/workbooks');
+  };
+
+  const handleTagClick = (tag: string) => {
+    setFilter({ tags: [tag], page: 1 });
+    navigate('/workbooks', { state: { presetTag: tag } });
   };
 
   const formatDateWithDots = (value?: string) => {
@@ -111,33 +117,12 @@ export const WorkbookDetailPage: React.FC = () => {
       return status === statusFilter;
     };
 
-    const matchesDifficultyFilter = (problem: Problem) => {
-      if (difficultyFilter === 'all') return true;
-      const rawDifficulty =
-        (problem as any).difficulty ??
-        (problem as any).level ??
-        (problem as any).difficulty_level ??
-        (problem as any).difficultyLevel ??
-        (problem as any).difficulty_name ??
-        (problem as any).difficultyName;
-      if (!rawDifficulty) return false;
-      const displayDifficulty = String(rawDifficulty).replace(/^Lv\.\s*/i, '');
-      const level = Number(displayDifficulty);
-      if (Number.isNaN(level)) return false;
-
-      if (difficultyFilter === 'easy') return level === 1;
-      if (difficultyFilter === 'medium') return level === 2 || level === 3;
-      if (difficultyFilter === 'hard') return level >= 4;
-      return true;
-    };
-
     const filtered = enrichedProblems
-      .filter(matchesStatusFilter)
-      .filter(matchesDifficultyFilter);
+      .filter(matchesStatusFilter);
 
     // Keep original ordering for now (which usually is problem order in the workbook)
     return filtered;
-  }, [enrichedProblems, statusFilter, difficultyFilter]);
+  }, [enrichedProblems, statusFilter]);
 
   const totalProblemCount = workbook?.problemCount ?? problems.length;
 
@@ -149,8 +134,30 @@ export const WorkbookDetailPage: React.FC = () => {
 
   if (workbookLoading) {
     return (
-      <div className="flex h-64 items-center justify-center">
-        <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-blue-600"></div>
+      <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
+        <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 animate-pulse">
+          <div className="h-4 w-56 rounded bg-gray-200 dark:bg-slate-700" />
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 p-8 sm:p-10 space-y-6">
+            <div className="flex gap-2">
+              <div className="h-6 w-16 rounded-full bg-gray-200 dark:bg-slate-700" />
+              <div className="h-6 w-20 rounded-full bg-gray-200 dark:bg-slate-700" />
+            </div>
+            <div className="h-10 w-2/3 rounded bg-gray-200 dark:bg-slate-700" />
+            <div className="h-4 w-full rounded bg-gray-200 dark:bg-slate-700" />
+            <div className="h-4 w-5/6 rounded bg-gray-200 dark:bg-slate-700" />
+            <div className="h-4 w-1/2 rounded bg-gray-200 dark:bg-slate-700" />
+          </div>
+          <div className="h-8 w-40 rounded bg-gray-200 dark:bg-slate-700" />
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 p-6 space-y-4">
+            {Array.from({ length: 5 }).map((_, idx) => (
+              <div key={`workbook-detail-skeleton-${idx}`} className="grid grid-cols-[minmax(0,1fr)_100px_100px] items-center gap-4">
+                <div className="h-4 w-2/3 rounded bg-gray-200 dark:bg-slate-700" />
+                <div className="h-6 w-14 rounded bg-gray-200 dark:bg-slate-700 justify-self-center" />
+                <div className="h-4 w-3/4 rounded bg-gray-200 dark:bg-slate-700 justify-self-end" />
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -183,43 +190,51 @@ export const WorkbookDetailPage: React.FC = () => {
     }
   };
 
-  const handleDifficultyFilterChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    setDifficultyFilter(event.target.value);
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
 
         {/* Navigation Breadcrumb */}
-        <nav className="flex text-sm text-gray-500">
-          <span className="cursor-pointer hover:text-gray-900" onClick={() => navigate('/workbooks')}>Workbooks</span>
+        <nav className="flex text-sm text-gray-500 dark:text-slate-400">
+          <span className="cursor-pointer hover:text-gray-900 dark:hover:text-slate-100" onClick={() => navigate('/workbooks')}>Workbooks</span>
           <span className="mx-2">/</span>
-          <span className="text-gray-900 font-medium truncate">{workbook.title}</span>
+          <span className="text-gray-900 dark:text-slate-100 font-medium truncate">{workbook.title}</span>
         </nav>
 
         {/* 1. Header Card */}
-        <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden relative">
+        <div className="bg-white dark:bg-slate-900 rounded-2xl border border-gray-200 dark:border-slate-800 overflow-hidden relative">
           <div className="p-8 sm:p-10">
             {/* Tags */}
-            <div className="flex items-center gap-2 mb-4">
-              <span className="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-extrabold tracking-wide uppercase rounded-full">
-                OFFICIAL
+            <div className="flex items-center gap-2 mb-4 flex-wrap">
+              <span className="px-3 py-1 bg-blue-50 text-blue-600 text-xs font-extrabold tracking-wide rounded-full shrink-0 flex items-center gap-1">
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" /></svg>
+                {workbook.writer || `User ${workbook.created_by_id}`}
               </span>
-              <span className="px-3 py-1 bg-gray-100 text-gray-700 text-xs font-bold rounded-full">
-                {workbook.category || '기본 커리큘럼'}
-              </span>
+              {workbook.category && (
+                <span className="px-3 py-1 bg-gray-100 dark:bg-slate-800 text-gray-700 dark:text-slate-300 text-xs font-bold rounded-full shrink-0">
+                  {workbook.category}
+                </span>
+              )}
+              {workbook.tags && workbook.tags.length > 0 && workbook.tags.map((tag, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleTagClick(tag)}
+                  className="px-3 py-1 bg-white dark:bg-slate-900 border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-300 text-xs font-bold rounded-full hover:bg-gray-50 dark:hover:bg-slate-800 hover:text-blue-600 hover:border-blue-300 transition-colors shrink-0"
+                >
+                  #{tag}
+                </button>
+              ))}
             </div>
 
             <div className="flex flex-col lg:flex-row justify-between items-start lg:items-end gap-10 lg:gap-16">
               <div className="max-w-3xl flex-1">
                 {/* Title */}
-                <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 mb-4 tracking-tight">
+                <h1 className="text-3xl sm:text-4xl font-extrabold text-gray-900 dark:text-slate-100 mb-4 tracking-tight">
                   {workbook.title}
                 </h1>
 
                 {/* Description */}
-                <div className="text-[15px] text-gray-600 mb-6 leading-relaxed max-w-2xl">
+                <div className="text-[15px] text-gray-600 dark:text-slate-300 mb-6 leading-relaxed max-w-2xl">
                   {workbook.description ? (
                     <div dangerouslySetInnerHTML={{ __html: workbook.description }} />
                   ) : (
@@ -228,7 +243,7 @@ export const WorkbookDetailPage: React.FC = () => {
                 </div>
 
                 {/* Meta Info */}
-                <div className="flex items-center gap-6 text-sm text-gray-500 font-medium mb-4 lg:mb-0">
+                <div className="flex items-center gap-6 text-sm text-gray-500 dark:text-slate-400 font-medium mb-4 lg:mb-0">
                   <div className="flex items-center gap-2">
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     최종 업데이트: {formatDateWithDots(workbook.updated_at || workbook.created_at)}
@@ -239,10 +254,10 @@ export const WorkbookDetailPage: React.FC = () => {
               {/* Progress Bar Area - Right side */}
               <div className="w-full lg:w-[350px] flex-shrink-0">
                 <div className="flex justify-between items-end mb-2">
-                  <div className="text-[13px] font-medium text-gray-500">전체 진행률</div>
+                  <div className="text-[13px] font-medium text-gray-500 dark:text-slate-400">전체 진행률</div>
                   <div className="text-3xl font-extrabold text-blue-600 leading-none">{progressPercentage}%</div>
                 </div>
-                <div className="text-[15px] font-bold text-gray-900 mb-3">
+                <div className="text-[15px] font-bold text-gray-900 dark:text-slate-100 mb-3">
                   {solvedCount} / {totalProblemCount} 문제 완료
                 </div>
                 <div className="w-full bg-gray-100 rounded-full h-3.5 overflow-hidden">
@@ -258,27 +273,16 @@ export const WorkbookDetailPage: React.FC = () => {
 
         {/* 2. Problem List Header & Filters */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mt-8 mb-4">
-          <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+          <h2 className="text-xl font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
             <svg className="w-5 h-5 text-blue-600" fill="currentColor" viewBox="0 0 20 20"><path d="M4 4a2 2 0 012-2h4.586A2 2 0 0112 2.586L15.414 6A2 2 0 0116 7.414V16a2 2 0 01-2 2h-1.5v-2.5a1.5 1.5 0 00-1.5-1.5h-2a1.5 1.5 0 00-1.5 1.5V18H6a2 2 0 01-2-2V4z" /></svg>
             문제 목록
           </h2>
 
           <div className="flex items-center gap-2.5">
             <select
-              value={difficultyFilter}
-              onChange={handleDifficultyFilterChange}
-              className="rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 hover:bg-gray-50 cursor-pointer shadow-sm min-w-[120px]"
-            >
-              <option value="all">모든 난이도</option>
-              <option value="easy">Easy (Lv 1)</option>
-              <option value="medium">Medium (Lv 2-3)</option>
-              <option value="hard">Hard (Lv 4+)</option>
-            </select>
-
-            <select
               value={statusFilter}
               onChange={handleStatusFilterChange}
-              className="rounded-lg border border-gray-200 bg-white px-3.5 py-2 text-sm font-medium text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500 hover:bg-gray-50 cursor-pointer shadow-sm min-w-[120px]"
+              className="rounded-lg border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3.5 py-2 text-sm font-medium text-gray-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-blue-500 hover:bg-gray-50 dark:hover:bg-slate-800 cursor-pointer shadow-sm min-w-[120px]"
             >
               <option value="all">해결 상태</option>
               <option value="solved">{PROBLEM_STATUS_LABELS.solved}</option>
@@ -290,16 +294,24 @@ export const WorkbookDetailPage: React.FC = () => {
 
         {/* 3. Problem List Component */}
         {problemsLoading || statusLoading ? (
-          <div className="flex h-32 items-center justify-center bg-white rounded-xl border border-gray-200">
-            <div className="h-8 w-8 animate-spin rounded-full border-b-2 border-blue-600"></div>
+          <div className="bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800 p-6 animate-pulse">
+            <div className="space-y-4">
+              {Array.from({ length: 5 }).map((_, idx) => (
+                <div key={`problem-list-skeleton-${idx}`} className="grid grid-cols-[minmax(0,1fr)_100px_100px] items-center gap-4">
+                  <div className="h-4 w-2/3 rounded bg-gray-200 dark:bg-slate-700" />
+                  <div className="h-6 w-14 rounded bg-gray-200 dark:bg-slate-700 justify-self-center" />
+                  <div className="h-4 w-3/4 rounded bg-gray-200 dark:bg-slate-700 justify-self-end" />
+                </div>
+              ))}
+            </div>
           </div>
         ) : problemsError ? (
-          <div className="text-center py-8 bg-white rounded-xl border border-gray-200">
+          <div className="text-center py-8 bg-white dark:bg-slate-900 rounded-xl border border-gray-200 dark:border-slate-800">
             <div className="text-red-500 font-medium mb-2">문제 목록을 불러오는 중 오류가 발생했습니다.</div>
-            <p className="text-sm text-gray-500">{getErrorMessage(problemsError)}</p>
+            <p className="text-sm text-gray-500 dark:text-slate-400">{getErrorMessage(problemsError)}</p>
           </div>
         ) : (
-          <WorkbookProblemList
+          <ProblemList
             problems={processedProblems}
             onProblemClick={handleProblemClick}
           />

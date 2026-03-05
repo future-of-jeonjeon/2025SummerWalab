@@ -2,9 +2,7 @@ import React, { useState } from 'react';
 import { Button } from '../../../components/atoms/Button';
 import { Input } from '../../../components/atoms/Input';
 import { RichTextEditor } from '../../../components/molecules/RichTextEditor';
-import { TagChip } from '../../../components/atoms/TagChip';
-import { getTagColor } from '../../../utils/tagColor';
-import { CreateProblemPayload } from '../../../services/adminService';
+import { CreateProblemPayload, adminService } from '../../../services/adminService';
 import { contributionService } from '../../../services/contributionService';
 import { availableLanguages, toBackendLanguageList, getLanguageBackendValue, getLanguageLabel, normalizeLanguageKey } from '../../../lib/problemLanguage';
 import codeTemplates from '../../../config/codeTemplates.json';
@@ -12,7 +10,8 @@ import codeTemplates from '../../../config/codeTemplates.json';
 interface ProblemRegistrationModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSuccess: () => void;
+    onSuccess: (created?: { problemId: number; title?: string }) => void;
+    editProblemId?: number;
 }
 
 type ProblemFormState = {
@@ -20,7 +19,7 @@ type ProblemFormState = {
     description: string;
     inputDescription: string;
     outputDescription: string;
-    difficulty: 'High' | 'Mid' | 'Low';
+    difficulty: string;
     timeLimit: string;
     memoryLimit: string;
     tags: string[];
@@ -38,7 +37,7 @@ const initialFormState: ProblemFormState = {
     description: '',
     inputDescription: '',
     outputDescription: '',
-    difficulty: 'Mid',
+    difficulty: '2',
     timeLimit: '1000',
     memoryLimit: '256',
     tags: [],
@@ -52,7 +51,7 @@ const initialFormState: ProblemFormState = {
 };
 
 export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> = ({
-    isOpen, onClose, onSuccess
+    isOpen, onClose, onSuccess, editProblemId
 }) => {
     const [formState, setFormState] = useState<ProblemFormState>(initialFormState);
     const [samples, setSamples] = useState<Array<{ input: string; output: string }>>([
@@ -68,19 +67,75 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
 
     React.useEffect(() => {
         if (isOpen) {
-            setFormState(initialFormState);
-            setSamples([{ input: '', output: '' }]);
-            setTestCaseId('');
-            setTestCaseFile(null);
             setMessage({});
-            // Initialize templates
-            const initialTemplates = availableLanguages.reduce((acc, lang) => {
-                acc[lang] = (codeTemplates as any)[lang] || '';
-                return acc;
-            }, {} as Record<string, string>);
-            setFormState(prev => ({ ...prev, templates: initialTemplates }));
+            if (editProblemId) {
+                setLoading(true);
+                adminService.getAdminProblemDetail(editProblemId)
+                    .then((detail: any) => {
+                        const initialTemplates = availableLanguages.reduce((acc, lang) => {
+                            acc[lang] = (codeTemplates as any)[lang] || '';
+                            return acc;
+                        }, {} as Record<string, string>);
+
+                        const backendTemplates = detail.template || {};
+                        const selectedTplLangs = availableLanguages.filter(lang =>
+                            !!backendTemplates[getLanguageBackendValue(lang)]
+                        );
+
+                        const frontendLanguages = detail.languages.map((bl: string) => {
+                            return availableLanguages.find((l: string) => getLanguageBackendValue(l) === bl) || bl;
+                        }).filter((l: string) => availableLanguages.includes(l));
+
+                        setFormState({
+                            title: detail.title,
+                            description: detail.description,
+                            inputDescription: detail.inputDescription,
+                            outputDescription: detail.outputDescription,
+                            difficulty: detail.difficulty,
+                            timeLimit: String(detail.timeLimit),
+                            memoryLimit: String(detail.memoryLimit),
+                            tags: detail.tags,
+                            useHint: !!detail.hint,
+                            hint: detail.hint || '',
+                            languages: frontendLanguages.length > 0 ? frontendLanguages : [...availableLanguages],
+                            selectedTemplateLanguages: selectedTplLangs,
+                            templates: {
+                                ...initialTemplates,
+                                ...Object.fromEntries(
+                                    availableLanguages.map(lang => [
+                                        lang,
+                                        backendTemplates[getLanguageBackendValue(lang)] || initialTemplates[lang]
+                                    ])
+                                )
+                            },
+                            solutionLanguage: availableLanguages[0] || 'C',
+                            solutionCode: '',
+                        });
+
+                        setSamples(detail.samples.length > 0 ? detail.samples : [{ input: '', output: '' }]);
+                        setTestCaseId(detail.testCaseId || '');
+                        setTestCaseFile(null);
+                        setLoading(false);
+                    })
+                    .catch((err: any) => {
+                        console.error('Failed to load problem details:', err);
+                        setMessage({ error: '문제 정보를 불러오지 못했습니다.' });
+                        setLoading(false);
+                    });
+            } else {
+                setFormState(initialFormState);
+                setSamples([{ input: '', output: '' }]);
+                setTestCaseId('');
+                setTestCaseFile(null);
+
+                const initialTemplates = availableLanguages.reduce((acc, lang) => {
+                    acc[lang] = (codeTemplates as any)[lang] || '';
+                    return acc;
+                }, {} as Record<string, string>);
+                setFormState(prev => ({ ...prev, templates: initialTemplates }));
+            }
         }
-    }, [isOpen]);
+    }, [isOpen, editProblemId]);
 
     if (!isOpen) return null;
 
@@ -206,19 +261,32 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                 test_case_id: testCaseId,
             };
 
-            const { polling_key } = await contributionService.createProblem(payload);
-
-            let isPolling = true;
-            while (isPolling) {
-                const status = await contributionService.getPollingStatus(polling_key);
-                if (status.status === 'done') {
+            if (editProblemId) {
+                await adminService.updateAdminProblem({ ...payload, id: editProblemId });
+                setMessage({ success: '성공적으로 수정되었습니다.' });
+                setTimeout(() => {
                     onSuccess();
                     onClose();
-                    isPolling = false;
-                } else if (status.status === 'error') {
-                    throw new Error(`문제 생성 실패: ${status.error_code || '알 수 없는 오류'}`);
-                } else {
-                    await new Promise((resolve) => setTimeout(resolve, 1000));
+                }, 1000);
+            } else {
+                const { polling_key } = await contributionService.createProblem(payload);
+
+                let isPolling = true;
+                while (isPolling) {
+                    const status = await contributionService.getPollingStatus(polling_key);
+                    if (status.status === 'done') {
+                        const createdProblemId = Number(status.problem_id ?? 0);
+                        if (!Number.isFinite(createdProblemId) || createdProblemId <= 0) {
+                            throw new Error('문제 생성은 완료되었지만 problem_id를 받지 못했습니다. 잠시 후 다시 시도해주세요.');
+                        }
+                        onSuccess({ problemId: createdProblemId, title: formState.title.trim() });
+                        onClose();
+                        isPolling = false;
+                    } else if (status.status === 'error') {
+                        throw new Error(`문제 생성 실패: ${status.error_code || '알 수 없는 오류'}`);
+                    } else {
+                        await new Promise((resolve) => setTimeout(resolve, 1000));
+                    }
                 }
             }
         } catch (error) {
@@ -240,16 +308,16 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
 
                 <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
-                <div className="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full border border-gray-100">
-                    <div className="bg-white px-8 pt-8 pb-6">
+                <div className="inline-block align-bottom bg-white dark:bg-slate-900 rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full border border-gray-100 dark:border-slate-800">
+                    <div className="bg-white dark:bg-slate-900 px-8 pt-8 pb-6">
                         <div className="sm:flex sm:items-start">
                             <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
-                                <h3 className="text-2xl font-bold leading-6 text-gray-900 tracking-tight mb-6" id="modal-title">
-                                    새 문제 등록
+                                <h3 className="text-2xl font-bold leading-6 text-gray-900 dark:text-slate-100 tracking-tight mb-6" id="modal-title">
+                                    {editProblemId ? '문제 수정' : '새 문제 등록'}
                                 </h3>
 
                                 {message.error && (
-                                    <div className="mt-4 bg-red-50 text-red-700 p-4 rounded-lg text-sm border border-red-100 flex items-center mb-6">
+                                    <div className="mt-4 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 p-4 rounded-lg text-sm border border-red-100 dark:border-red-800/40 flex items-center mb-6">
                                         <svg className="w-5 h-5 mr-2 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
@@ -257,7 +325,7 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                                     </div>
                                 )}
                                 {message.success && (
-                                    <div className="mt-4 bg-green-50 text-green-700 p-4 rounded-lg text-sm border border-green-100 flex items-center mb-6">
+                                    <div className="mt-4 bg-green-50 dark:bg-emerald-900/20 text-green-700 dark:text-emerald-300 p-4 rounded-lg text-sm border border-green-100 dark:border-emerald-800/40 flex items-center mb-6">
                                         <svg className="w-5 h-5 mr-2 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                                         </svg>
@@ -273,7 +341,7 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                                             value={formState.title}
                                             onChange={(e) => setFormState({ ...formState, title: e.target.value })}
                                             required
-                                            className="bg-gray-50 focus:bg-white transition-colors"
+                                            className="bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-700 transition-colors"
                                         />
 
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -285,34 +353,37 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                                                         type="number"
                                                         value={formState.timeLimit}
                                                         onChange={(e) => setFormState({ ...formState, timeLimit: e.target.value })}
-                                                        className="bg-gray-50 focus:bg-white transition-colors"
+                                                        className="bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-700 transition-colors"
                                                     />
                                                     <Input
                                                         label="메모리 제한 (MB)"
                                                         type="number"
                                                         value={formState.memoryLimit}
                                                         onChange={(e) => setFormState({ ...formState, memoryLimit: e.target.value })}
-                                                        className="bg-gray-50 focus:bg-white transition-colors"
+                                                        className="bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-700 transition-colors"
                                                     />
                                                 </div>
 
                                                 <div>
-                                                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">난이도</label>
+                                                    <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">난이도 (레벨)</label>
                                                     <select
-                                                        className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm py-2.5 px-3 bg-gray-50 focus:bg-white transition-colors"
                                                         value={formState.difficulty}
-                                                        onChange={(e) => setFormState({ ...formState, difficulty: e.target.value as any })}
+                                                        onChange={(e) => setFormState({ ...formState, difficulty: e.target.value })}
+                                                        className="h-[42px] w-full rounded-lg border border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-800 px-3 text-sm text-gray-900 dark:text-slate-100 shadow-sm focus:border-blue-500 focus:bg-white dark:focus:bg-slate-700 focus:ring-blue-500"
                                                     >
-                                                        <option value="Low">Level 1</option>
-                                                        <option value="Mid">Level 2</option>
-                                                        <option value="High">Level 3</option>
+                                                        <option value="0">Lv.0</option>
+                                                        <option value="1">Lv.1</option>
+                                                        <option value="2">Lv.2</option>
+                                                        <option value="3">Lv.3</option>
+                                                        <option value="4">Lv.4</option>
+                                                        <option value="5">Lv.5</option>
                                                     </select>
                                                 </div>
                                             </div>
 
                                             {/* Right Column: Tags */}
                                             <div className="flex flex-col h-full">
-                                                <label className="block text-sm font-semibold text-gray-700 mb-1.5">태그</label>
+                                                <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">태그</label>
                                                 <div className="flex gap-2">
                                                     <div className="flex-1">
                                                         <Input
@@ -325,24 +396,25 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                                                                 }
                                                             }}
                                                             placeholder="태그 입력 후 Enter"
-                                                            className="bg-gray-50 focus:bg-white transition-colors"
+                                                            className="bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-700 transition-colors"
                                                         />
                                                     </div>
-                                                    <Button type="button" onClick={handleAddTag} className="bg-indigo-600 hover:bg-indigo-700 text-white shrink-0 h-[42px]">추가</Button>
+                                                    <Button type="button" onClick={handleAddTag} className="shrink-0 h-[42px]">추가</Button>
                                                 </div>
 
-                                                <div className="mt-4 flex flex-wrap content-start gap-2 p-3 bg-gray-50 rounded-lg border border-gray-200 min-h-[46px]">
+                                                <div className="mt-4 flex flex-wrap content-start gap-2 p-3 bg-gray-50 dark:bg-slate-800 rounded-lg border border-gray-200 dark:border-slate-700 min-h-[46px]">
                                                     {formState.tags.length === 0 ? (
-                                                        <span className="text-sm text-gray-400">등록된 태그가 없습니다.</span>
+                                                        <span className="text-sm text-gray-400 dark:text-slate-500">등록된 태그가 없습니다.</span>
                                                     ) : (
                                                         formState.tags.map((tag) => (
-                                                            <TagChip
+                                                            <button
                                                                 key={tag}
-                                                                label={tag}
+                                                                type="button"
                                                                 onClick={() => handleRemoveTag(tag)}
-                                                                colorScheme={getTagColor(tag)}
-                                                                className="cursor-pointer hover:opacity-80 transition-opacity"
-                                                            />
+                                                                className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                                                            >
+                                                                #{tag}
+                                                            </button>
                                                         ))
                                                     )}
                                                 </div>
@@ -374,15 +446,15 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                                                     type="checkbox"
                                                     checked={formState.useHint}
                                                     onChange={(e) => setFormState({ ...formState, useHint: e.target.checked })}
-                                                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded transition-colors"
+                                                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded transition-colors"
                                                 />
-                                                <label htmlFor="useHint" className="ml-2 block text-sm font-bold text-gray-900 cursor-pointer select-none">
+                                                <label htmlFor="useHint" className="ml-2 block text-sm font-bold text-gray-900 dark:text-slate-100 cursor-pointer select-none">
                                                     힌트 제공
                                                 </label>
                                             </div>
 
                                             {formState.useHint && (
-                                                <div className="pl-6 border-l-2 border-indigo-100 ml-2">
+                                                <div className="pl-6 border-l-2 border-blue-100 ml-2">
                                                     <RichTextEditor
                                                         label="힌트 내용"
                                                         value={formState.hint}
@@ -393,19 +465,19 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                                         </div>
                                     </div>
 
-                                    <div className="space-y-4 bg-gray-50 p-6 rounded-xl border border-gray-100">
+                                    <div className="space-y-4 bg-gray-50 dark:bg-slate-800 p-6 rounded-xl border border-gray-100 dark:border-slate-700">
                                         <div className="flex items-center justify-between">
-                                            <h4 className="text-lg font-bold text-gray-900">예제 입출력</h4>
-                                            <Button type="button" variant="outline" size="sm" onClick={() => setSamples([...samples, { input: '', output: '' }])} className="text-indigo-600 border-indigo-200 hover:bg-indigo-50">
+                                            <h4 className="text-lg font-bold text-gray-900 dark:text-slate-100">예제 입출력</h4>
+                                            <Button type="button" variant="outline" size="sm" onClick={() => setSamples([...samples, { input: '', output: '' }])}>
                                                 예제 추가
                                             </Button>
                                         </div>
                                         {samples.map((sample, idx) => (
-                                            <div key={idx} className="grid gap-4 md:grid-cols-2 bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+                                            <div key={idx} className="grid gap-4 md:grid-cols-2 bg-white dark:bg-slate-900 p-4 rounded-lg shadow-sm border border-gray-100 dark:border-slate-700">
                                                 <div>
-                                                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">입력 #{idx + 1}</label>
+                                                    <label className="block text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-2">입력 #{idx + 1}</label>
                                                     <textarea
-                                                        className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm py-2 px-3 bg-gray-50 focus:bg-white transition-colors resize-none"
+                                                        className="block w-full border-gray-300 dark:border-slate-600 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm py-2 px-3 bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-700 transition-colors resize-none"
                                                         rows={3}
                                                         value={sample.input}
                                                         onChange={(e) => {
@@ -416,9 +488,9 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                                                     />
                                                 </div>
                                                 <div>
-                                                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">출력 #{idx + 1}</label>
+                                                    <label className="block text-xs font-semibold text-gray-500 dark:text-slate-400 uppercase tracking-wider mb-2">출력 #{idx + 1}</label>
                                                     <textarea
-                                                        className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm py-2 px-3 bg-gray-50 focus:bg-white transition-colors resize-none"
+                                                        className="block w-full border-gray-300 dark:border-slate-600 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm py-2 px-3 bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-700 transition-colors resize-none"
                                                         rows={3}
                                                         value={sample.output}
                                                         onChange={(e) => {
@@ -430,7 +502,7 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                                                 </div>
                                                 {samples.length > 1 && (
                                                     <div className="md:col-span-2 flex justify-end">
-                                                        <Button type="button" variant="ghost" onClick={() => setSamples(samples.filter((_, i) => i !== idx))} className="text-red-500 hover:text-red-700 hover:bg-red-50">
+                                                        <Button type="button" variant="ghost" onClick={() => setSamples(samples.filter((_, i) => i !== idx))} className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20">
                                                             삭제
                                                         </Button>
                                                     </div>
@@ -442,7 +514,7 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                                     <div className="space-y-6">
                                         {/* Supported Languages Section */}
                                         <div>
-                                            <h4 className="text-lg font-bold text-gray-900 mb-3">지원 언어</h4>
+                                            <h4 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-3">지원 언어</h4>
                                             <div className="flex flex-wrap gap-2.5">
                                                 {availableLanguages.map(lang => (
                                                     <label
@@ -450,8 +522,8 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                                                         className={`
                                                             inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium border cursor-pointer transition-all duration-200
                                                             ${formState.languages.includes(lang)
-                                                                ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
-                                                                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}
+                                                                ? 'bg-blue-50 text-blue-700 border-blue-200'
+                                                                : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800'}
                                                         `}
                                                     >
                                                         <input
@@ -462,7 +534,7 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                                                         />
                                                         <span>{getLanguageLabel(lang)}</span>
                                                         {formState.languages.includes(lang) && (
-                                                            <svg className="ml-1.5 w-3 h-3 text-indigo-500" fill="currentColor" viewBox="0 0 20 20">
+                                                            <svg className="ml-1.5 w-3 h-3 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
                                                                 <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                                             </svg>
                                                         )}
@@ -473,7 +545,7 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
 
                                         {/* Template Languages Section */}
                                         <div>
-                                            <h4 className="text-lg font-bold text-gray-900 mb-3">제공 템플릿</h4>
+                                            <h4 className="text-lg font-bold text-gray-900 dark:text-slate-100 mb-3">제공 템플릿</h4>
                                             <div className="flex flex-wrap gap-2.5 mb-4">
                                                 {availableLanguages.map(lang => (
                                                     <label
@@ -482,7 +554,7 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                                                             inline-flex items-center px-3 py-1.5 rounded-full text-sm font-medium border cursor-pointer transition-all duration-200
                                                             ${formState.selectedTemplateLanguages.includes(lang)
                                                                 ? 'bg-green-50 text-green-700 border-green-200'
-                                                                : 'bg-white text-gray-600 border-gray-200 hover:bg-gray-50'}
+                                                                : 'bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-300 border-gray-200 dark:border-slate-700 hover:bg-gray-50 dark:hover:bg-slate-800'}
                                                         `}
                                                     >
                                                         <input
@@ -505,13 +577,13 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                                             {formState.selectedTemplateLanguages.length > 0 && (
                                                 <div className="space-y-4 mt-4">
                                                     {formState.selectedTemplateLanguages.map(lang => (
-                                                        <div key={lang} className="border border-gray-200 rounded-lg overflow-hidden">
-                                                            <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 text-sm font-medium text-gray-700 flex justify-between items-center">
+                                                        <div key={lang} className="border border-gray-200 dark:border-slate-700 rounded-lg overflow-hidden">
+                                                            <div className="bg-gray-50 dark:bg-slate-800 px-4 py-2 border-b border-gray-200 dark:border-slate-700 text-sm font-medium text-gray-700 dark:text-slate-300 flex justify-between items-center">
                                                                 <span>{getLanguageLabel(lang)} Template</span>
                                                                 <button
                                                                     type="button"
                                                                     onClick={() => toggleTemplateLanguage(lang)}
-                                                                    className="text-gray-400 hover:text-red-500"
+                                                                    className="text-gray-400 hover:text-red-500 dark:hover:text-red-400"
                                                                     title="템플릿 삭제"
                                                                 >
                                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -520,7 +592,7 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                                                                 </button>
                                                             </div>
                                                             <textarea
-                                                                className="block w-full border-0 p-3 text-sm font-mono h-32 focus:ring-0 resize-y"
+                                                                className="block w-full border-0 p-3 text-sm font-mono h-32 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 focus:ring-0 resize-y"
                                                                 value={formState.templates[lang] || ''}
                                                                 onChange={(e) => setFormState(prev => ({
                                                                     ...prev,
@@ -535,15 +607,15 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                                         </div>
                                     </div>
 
-                                    <div className="space-y-3 bg-gray-50 p-6 rounded-xl border border-gray-100">
-                                        <h4 className="text-lg font-bold text-gray-900">정답 코드</h4>
+                                    <div className="space-y-3 bg-gray-50 dark:bg-slate-800 p-6 rounded-xl border border-gray-100 dark:border-slate-700">
+                                        <h4 className="text-lg font-bold text-gray-900 dark:text-slate-100">정답 코드</h4>
                                         <div className="space-y-4">
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">언어</label>
+                                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">언어</label>
                                                 <select
                                                     value={formState.solutionLanguage}
                                                     onChange={(e) => setFormState(prev => ({ ...prev, solutionLanguage: e.target.value }))}
-                                                    className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm py-2 px-3 bg-white"
+                                                    className="block w-full border-gray-300 dark:border-slate-600 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm py-2 px-3 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100"
                                                 >
                                                     {availableLanguages.map(lang => (
                                                         <option key={lang} value={lang}>{getLanguageLabel(lang)}</option>
@@ -551,10 +623,10 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                                                 </select>
                                             </div>
                                             <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-1">코드</label>
-                                                <div className="border border-gray-200 rounded-lg overflow-hidden">
+                                                <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">코드</label>
+                                                <div className="border border-gray-200 dark:border-slate-700 rounded-lg overflow-hidden">
                                                     <textarea
-                                                        className="block w-full border-0 p-3 text-sm font-mono h-48 focus:ring-0 resize-y"
+                                                        className="block w-full border-0 p-3 text-sm font-mono h-48 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 focus:ring-0 resize-y"
                                                         value={formState.solutionCode}
                                                         onChange={(e) => setFormState(prev => ({ ...prev, solutionCode: e.target.value }))}
                                                         spellCheck={false}
@@ -564,26 +636,26 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                                         </div>
                                     </div>
 
-                                    <div className="space-y-3 bg-gray-50 p-6 rounded-xl border border-gray-100">
-                                        <h4 className="text-lg font-bold text-gray-900">테스트케이스</h4>
+                                    <div className="space-y-3 bg-gray-50 dark:bg-slate-800 p-6 rounded-xl border border-gray-100 dark:border-slate-700">
+                                        <h4 className="text-lg font-bold text-gray-900 dark:text-slate-100">테스트케이스</h4>
                                         <div className="flex items-center gap-4">
                                             <input
                                                 type="file"
                                                 accept=".zip"
-                                                className="block w-full text-sm text-gray-500
+                                                className="block w-full text-sm text-gray-500 dark:text-slate-400
                                                     file:mr-4 file:py-2.5 file:px-4
                                                     file:rounded-lg file:border-0
                                                     file:text-sm file:font-semibold
-                                                    file:bg-indigo-50 file:text-indigo-700
-                                                    hover:file:bg-indigo-100
+                                                    file:bg-blue-50 file:text-blue-700
+                                                    hover:file:bg-blue-100
                                                     transition-colors cursor-pointer"
                                                 onChange={(e) => setTestCaseFile(e.target.files?.[0] ?? null)}
                                             />
-                                            <Button type="button" variant="outline" loading={isUploadingTestCases} onClick={handleUploadTestCases} className="bg-white border-gray-300 text-gray-700 hover:bg-gray-50 whitespace-nowrap">
+                                            <Button type="button" variant="outline" loading={isUploadingTestCases} onClick={handleUploadTestCases} className="whitespace-nowrap">
                                                 업로드
                                             </Button>
                                         </div>
-                                        {testCaseId && <div className="text-sm font-medium text-green-600 flex items-center mt-2">
+                                        {testCaseId && <div className="text-sm font-medium text-green-600 dark:text-emerald-400 flex items-center mt-2">
                                             <svg className="w-4 h-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
                                             업로드 완료 (ID: {testCaseId})
                                         </div>}
@@ -592,19 +664,11 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                             </div>
                         </div>
                     </div>
-                    <div className="bg-gray-50/80 px-8 py-5 sm:flex sm:flex-row-reverse border-t border-gray-100">
-                        <Button
-                            onClick={handleSubmit}
-                            disabled={loading}
-                            className="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-5 py-2.5 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm transition-colors"
-                        >
-                            {loading ? '등록 중...' : '등록하기'}
+                    <div className="bg-gray-50/80 dark:bg-slate-800 px-8 py-5 sm:flex sm:flex-row-reverse border-t border-gray-100 dark:border-slate-800">
+                        <Button onClick={handleSubmit} disabled={loading} className="w-full sm:ml-3 sm:w-auto">
+                            {loading ? (editProblemId ? '수정 중...' : '등록 중...') : (editProblemId ? '수정하기' : '등록하기')}
                         </Button>
-                        <Button
-                            onClick={onClose}
-                            variant="outline"
-                            className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-5 py-2.5 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition-colors"
-                        >
+                        <Button onClick={onClose} variant="outline" className="mt-3 w-full sm:mt-0 sm:ml-3 sm:w-auto">
                             취소
                         </Button>
                     </div>

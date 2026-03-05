@@ -2,7 +2,7 @@ import io
 import os
 import uuid
 import zipfile
-
+from typing import Union
 from fastapi import UploadFile
 from sqlalchemy import asc, desc, case, cast, Float
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,7 +16,7 @@ from app.execution.schemas import RunCodeRequest
 from app.problem import repository as problem_repository
 from app.problem.models import Problem
 from app.problem.schemas import *
-from app.user.schemas import UserData
+from app.user.schemas import UserProfile
 from app.problem import utils
 
 POLLING_SESSION_TIME = 3600
@@ -25,18 +25,12 @@ POLLING_SESSION_TIME = 3600
 async def create_problem(
         polling_key: str,
         request_data: ProblemCreateRequest,
-        user_data: UserData,
+        user_profile: UserProfile,
         is_admin: bool):
     try:
         await _set_redis_polling_state(polling_key, "processing", 0, 1, 1)
         async for db in get_background_database():
-            test_case = utils.get_saved_test_case_by_id(request_data.test_case_id)
-            validation_cases = list(test_case)
-            for s in request_data.samples:
-                validation_cases.append(s.model_dump())
-            await _validate_solution_code(request_data.solution_code, request_data.solution_code_language,
-                                          validation_cases,
-                                          db)
+            await _validate_problem_request(request_data, db)
             info_json = utils.load_test_case_info(request_data.test_case_id)
             test_cases_info = info_json.get("test_cases", {})
             sorted_keys = sorted(test_cases_info.keys(), key=lambda x: int(x) if x.isdigit() else x)
@@ -45,16 +39,106 @@ async def create_problem(
             create_data.spj = info_json.get("spj", False)
             display_id = str(uuid.uuid4())
             problem = utils.create_problem_from_data(create_data, display_id, request_data.test_case_id, info_list)
-            problem.created_by_id = user_data.user_id
-            if create_data.tags:
-                problem.tags = await _process_tags(db, create_data.tags)
+            problem.created_by_id = user_profile.user_id
+            if request_data.tags:
+                problem.tags = await _process_tags(db, request_data.tags)
             await problem_repository.create_problem(db, problem)
-        await _set_redis_polling_state(polling_key, "done", 1, 0, 1)
+        await _set_redis_polling_state(polling_key, "done", 1, 0, 1, problem_id=problem.id)
     except Exception as e:
         logger.error(f"Failed to create problem: {e}")
         error_code = getattr(e, "detail", {}).get("code") if hasattr(e, "detail") else "unknown_error"
         utils.remove_test_case_directory([request_data.test_case_id])
         await _set_redis_polling_state(polling_key, "error", 0, 1, 1, error_code)
+
+
+async def update_problem(
+        polling_key: str,
+        problem_id: int,
+        request_data: ProblemUpdateRequest,
+        user_profile: UserProfile,
+        is_admin: bool):
+    try:
+        await _set_redis_polling_state(polling_key, "processing", 0, 1, 1)
+        async for db in get_background_database():
+            problem = await problem_repository.find_problem_with_tags_by_id(problem_id, db)
+            if not problem:
+                await _set_redis_polling_state(polling_key, "error", 0, 1, 1)
+                problem_exceptions.problem_not_found()
+            await _validate_problem_request(request_data, db, problem)
+            await _apply_problem_updates(problem, request_data, db)            
+        await _set_redis_polling_state(polling_key, "done", 1, 0, 1, problem_id=problem.id)
+    except Exception as e:
+        logger.error(f"Failed to update problem: {e}")
+        error_code = getattr(e, "detail", {}).get("code") if hasattr(e, "detail") else "unknown_error"
+        if request_data.test_case_id and problem and request_data.test_case_id != problem.test_case_id:
+            utils.remove_test_case_directory([request_data.test_case_id])
+        await _set_redis_polling_state(polling_key, "error", 0, 1, 1, error_code)
+
+
+async def _validate_problem_request(request_data: Union[ProblemCreateRequest, ProblemUpdateRequest], db: AsyncSession, problem: Optional[Problem] = None):
+    if not request_data.solution_code or not request_data.solution_code_language:
+        return
+
+    test_case_id = getattr(request_data, "test_case_id", None)
+    if not test_case_id and problem:
+        test_case_id = problem.test_case_id
+
+    if not test_case_id:
+        return
+
+    test_case = utils.get_saved_test_case_by_id(test_case_id)
+    validation_cases = list(test_case)
+
+    samples = getattr(request_data, "samples", None)
+    if samples is None and problem:
+        samples = problem.samples
+
+    if samples:
+        for s in samples:
+            if hasattr(s, "model_dump"):
+                validation_cases.append(s.model_dump())
+            else:
+                validation_cases.append(s)
+
+    await _validate_solution_code(
+        solution_code=request_data.solution_code, 
+        solution_code_language=request_data.solution_code_language, 
+        test_case=validation_cases, 
+        db=db
+    )
+
+
+async def _apply_problem_updates(problem: Problem, request_data: ProblemUpdateRequest, db: AsyncSession):
+    from datetime import datetime
+    
+    for field in ["title", "description", "input_description", "output_description", 
+                  "time_limit", "memory_limit", "template", "difficulty", "hint"]:
+        val = getattr(request_data, field)
+        if val is not None:
+            setattr(problem, field, val)
+    
+    if request_data.samples is not None:
+        problem.samples = [s.model_dump() for s in request_data.samples]
+        
+    if request_data.languages is not None:
+        problem.languages = utils.normalize_languages(request_data.languages)
+        
+    if request_data.tags is not None:
+        problem.tags = await _process_tags(db, request_data.tags)
+        
+    if request_data.test_case_id and request_data.test_case_id != problem.test_case_id:
+        problem.test_case_id = request_data.test_case_id
+        info_json = utils.load_test_case_info(request_data.test_case_id)
+        test_cases_info = info_json.get("test_cases", {})
+        sorted_keys = sorted(test_cases_info.keys(), key=lambda x: int(x) if x.isdigit() else x)
+        info_list = [test_cases_info[key] for key in sorted_keys]
+        
+        raw_test_case_scores = [{"input_name": item["input_name"], "output_name": item.get("output_name"), "score": 0} for item in info_list]
+        problem.test_case_score = utils.calculate_test_case_score(raw_test_case_scores)
+        if problem.rule_type == "OI":
+            problem.total_score = sum([item.get("score", 0) for item in problem.test_case_score])
+            
+    problem.last_update_time = datetime.now()
 
 
 async def _set_redis_polling_state(
@@ -63,7 +147,9 @@ async def _set_redis_polling_state(
         processed_problem: int,
         left_problem: int,
         all_problem: int,
-        error_code: str = "", ):
+        error_code: str = "",
+        error_message: str = "",
+        problem_id: int | None = None):
     redis = await get_polling_task()
     if status != "initialized" and not await redis.get(polling_key):
         problem_exceptions.polling_not_found()
@@ -71,9 +157,12 @@ async def _set_redis_polling_state(
         status=status,
         processed_problem=processed_problem,
         left_problem=left_problem,
-        all_problem=all_problem)
+        all_problem=all_problem,
+        problem_id=problem_id)
     if error_code != "":
         data.error_code = error_code
+    if error_message != "":
+        data.error_message = error_message
     await redis.set(polling_key, data.model_dump_json(), ex=POLLING_SESSION_TIME)
 
 
@@ -99,8 +188,9 @@ async def setup_polling(
 
 async def import_problem_from_file(
         polling_key: str,
-        zip_file: UploadFile,
-        user_data: UserData,
+        file_contents: bytes,
+        filename: str,
+        user_profile: UserProfile,
         is_admin: bool) -> str | None:
     problems = []
     testcase_list = []
@@ -111,13 +201,12 @@ async def import_problem_from_file(
     status = ProblemImportPollingStatus.model_validate_json(raw)
     try:
         async for db in get_background_database():
-            if not zip_file:
+            if not file_contents:
                 logger.error("No zip file provided")
                 problem_exceptions.bad_zip_file()
-            logger.info(f"Starting import. user: {user_data.user_id}, file: {zip_file.filename}")
-            contents = await zip_file.read()
+            logger.info(f"Starting import. user: {user_profile.user_id}, file: {filename}")
             try:
-                zip_ref = utils.open_zip_bytes(contents)
+                zip_ref = utils.open_zip_bytes(file_contents)
             except Exception:
                 problem_exceptions.bad_zip_file()
             with zip_ref:
@@ -125,18 +214,40 @@ async def import_problem_from_file(
                 md_paths = utils.filter_problem_md_paths(file_list)
                 logger.info(f"Found {len(md_paths)} problems in zip")
                 for i, path in enumerate(md_paths):
-                    problem = await _process_single_problem(zip_ref, file_list, path, user_data.user_id, db)
+                    try:
+                        problem = await _process_single_problem(zip_ref, file_list, path, user_profile.user_id, db)
+                    except Exception as e:
+                        title_hint = ""
+                        try:
+                            md_content = zip_ref.read(path).decode("utf-8")
+                            meta_data, _ = utils.parse_problem_md(md_content)
+                            parsed_title = meta_data.get("title")
+                            if parsed_title:
+                                title_hint = str(parsed_title)
+                        except Exception:
+                            # Keep import failure context best-effort only.
+                            pass
+
+                        context_prefix = f"[Problem {i + 1}/{len(md_paths)}]"
+                        if title_hint:
+                            context_prefix += f" {title_hint}"
+                        context_prefix += f" ({path})"
+
+                        if hasattr(e, "detail") and isinstance(getattr(e, "detail", None), dict):
+                            original_message = e.detail.get("message", str(e))
+                            e.detail["message"] = f"{context_prefix}\n{original_message}"
+                        raise
                     problems.append(problem)
                     testcase_list.append(problem.test_case_id)
                     status.status = "processing"
-                    status.imported_problem = i + 1
-                    status.left_problem = status.all_problem - status.imported_problem
+                    status.processed_problem = i + 1
+                    status.left_problem = status.all_problem - status.processed_problem
                     await _set_redis_polling_state(polling_key, "processing", i + 1, status.left_problem,
                                                    status.all_problem)
                 status.status = "done"
                 status.left_problem = 0
                 logger.info(f"Polling finished: {status}")
-                await _set_redis_polling_state(polling_key, "done", status.imported_problem, 0,
+                await _set_redis_polling_state(polling_key, "done", status.processed_problem, 0,
                                                status.all_problem)
             await problem_repository.create_problems(db, problems)
             logger.info(f"Successfully imported {len(problems)} problems")
@@ -145,8 +256,9 @@ async def import_problem_from_file(
         logger.error(f"Import failed: {e}")
         status.status = "error"
         status.error_code = getattr(e, "detail", {}).get("code") if hasattr(e, "detail") else "unknown_error"
-        await _set_redis_polling_state(polling_key, "error", status.imported_problem, status.left_problem,
-                                       status.all_problem)
+        status.error_message = getattr(e, "detail", {}).get("message") if hasattr(e, "detail") else str(e)
+        await _set_redis_polling_state(polling_key, "error", status.processed_problem, status.left_problem,
+                                       status.all_problem, error_code=status.error_code, error_message=status.error_message)
         utils.remove_test_case_directory(testcase_list)
         return None
 
@@ -254,6 +366,8 @@ async def get_tag_count(db: AsyncSession):
 
 async def get_filter_sorted_problems(
         tags: Optional[List[str]],
+        keyword: Optional[str],
+        difficulty: Optional[int],
         sort_option: Optional[str],
         order: Optional[str],
         page: int,
@@ -288,6 +402,8 @@ async def get_filter_sorted_problems(
     problem_page = await problem_repository.fetch_filtered_problems(
         db,
         tags=tags,
+        keyword=keyword,
+        difficulty=difficulty,
         ordering=ordering,
         page=page,
         page_size=page_size,
@@ -347,6 +463,30 @@ async def count_problems_in_file(file: UploadFile) -> int:
     return count
 
 
-async def get_contributed_problem(user_data: UserData, page: int, size: int, db: AsyncSession):
-    problems = await problem_repository.find_problems_by_creator_id(user_data.user_id, page, size, db)
+async def get_contributed_problem(user_profile: UserProfile, page: int, size: int, db: AsyncSession):
+    problems = await problem_repository.find_problems_by_creator_id(user_profile.user_id, page, size, db)
     return problems.map(ProblemSchema.model_validate)
+
+
+async def get_available_contest_problem(
+        page: int,
+        size: int,
+        keyword: Optional[str],
+        user_profile: UserProfile,
+        db: AsyncSession
+) -> ProblemListResponse:
+    page_data = await problem_repository.find_available_problems_by_creator_id_and_keyword(
+        page=page,
+        page_size=size,
+        user_id=user_profile.user_id,
+        keyword=keyword,
+        db=db)
+
+    serialized = [_serialize_problem(problem) for problem in page_data.items]
+
+    return ProblemListResponse(
+        total=page_data.total,
+        page=page_data.page,
+        size=page_data.size,
+        items=serialized,
+    )

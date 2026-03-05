@@ -79,9 +79,7 @@ const toString = (value: unknown, fallback = ''): string => {
 const pad2 = (value: number): string => String(value).padStart(2, '0');
 
 const normalizeAvatarUrl = (url: string): string => {
-  if (url.startsWith('/public/')) {
-    return url.replace('/public/', '/');
-  }
+  if (!url) return '';
   return url;
 };
 

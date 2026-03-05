@@ -6,7 +6,7 @@ import httpx
 
 
 from app.core.redis import get_redis
-from app.user.schemas import UserData
+from app.user.schemas import UserProfile
 from app.user import repository as user_repo
 from app.core.database import SessionLocal
 
@@ -28,12 +28,12 @@ async def exchange_sso_for_local_token(sso_token: str) -> str:
     resp = await _sso_request(sso_token, timeout)
     if resp.status_code != 200:
         exceptions.sso_unreachable()
-    userdata = await _check_and_parse_userdata(resp)
+    user_profile = await _check_and_parse_userdata(resp)
     local_token = await _create_token()
     redis = await get_redis()
     redis_key = f"{REDIS_SESSION_PREFIX}{local_token}"
     print("redis_key = ", redis_key)
-    await redis.setex(redis_key, LOCAL_TOKEN_TTL_SECONDS, userdata.model_dump_json())
+    await redis.setex(redis_key, LOCAL_TOKEN_TTL_SECONDS, user_profile.model_dump_json())
     return local_token
 
 
@@ -46,13 +46,13 @@ async def verify_local_token(token: str) -> dict:
     if not user_data_str:
         exceptions.invalid_token()
     try:
-        user_data = json.loads(user_data_str)
+        user_profile = json.loads(user_data_str)
     except json.JSONDecodeError:
         exceptions.corrupted_session_data()
-    return user_data
+    return user_profile
 
 
-async def get_user_session_data(token: str) -> UserData:
+async def get_user_session_data(token: str) -> UserProfile:
     if not token:
         exceptions.missing_token_bad_request()
     redis = await get_redis()
@@ -61,7 +61,7 @@ async def get_user_session_data(token: str) -> UserData:
     if not user_data_str:
         exceptions.invalid_token()
     try:
-        return UserData.model_validate_json(user_data_str)
+        return UserProfile.model_validate_json(user_data_str)
     except ValidationError:
         exceptions.corrupted_session_data()
 
@@ -90,18 +90,18 @@ async def _sso_request(sso_token: str, timeout: httpx.Timeout) -> httpx.Response
 
 
 async def _check_and_parse_userdata(resp: httpx.Response):
-    user_data = resp.json().get("data")
-    if not user_data:
+    user_profile = resp.json().get("data")
+    if not user_profile:
         exceptions.invalid_sso_token()
-    username = user_data.get("username")
+    username = user_profile.get("username")
     async with SessionLocal() as db:
         if not await user_repo.check_user_exists_by_username(username, db):
             exceptions.invalid_sso_token()
         user_id = await user_repo.get_user_id_by_username(username, db)
 
-    return UserData(
+    return UserProfile(
         user_id=user_id,
         username=username,
-        avatar=user_data.get("avatar"),
-        admin_type=user_data.get("admin_type"),
+        avatar=user_profile.get("avatar"),
+        admin_type=user_profile.get("admin_type"),
     )

@@ -15,7 +15,7 @@ export interface Problem {
   _id?: string | number;
   title: string;
   description: string;
-  difficulty: 'Low' | 'Mid' | 'High' | '상' | '중' | '하';
+  difficulty: string | number;
   timeLimit: number;
   memoryLimit: number;
   inputDescription?: string;
@@ -88,6 +88,8 @@ export interface Contest {
   participants: number;
   languages?: string[];
   isOrganizationOnly?: boolean;
+  organization_id?: number | null;
+  organization_name?: string | null;
 }
 
 export interface ContestDataDTO {
@@ -110,6 +112,8 @@ export interface ContestDataDTO {
   };
   participants: number;
   languages: string[];
+  organization_id?: number | null;
+  organization_name?: string | null;
 }
 
 export interface ContestAnnouncement {
@@ -126,6 +130,11 @@ export interface ContestAccess {
   access: boolean;
 }
 
+export interface ContestProblemInputDTO {
+  problem_id: number;
+  display_id: string;
+}
+
 export interface CreateContestRequest {
   title: string;
   description: string;
@@ -140,6 +149,7 @@ export interface CreateContestRequest {
   is_organization_only?: boolean;
   languages: string[];
   organization_id: number;
+  problems?: ContestProblemInputDTO[];
 }
 
 export interface ContestRankEntry {
@@ -196,6 +206,7 @@ export interface Workbook {
   is_public: boolean;
   problemCount?: number;
   tags?: string[];
+  writer?: string;
 }
 
 export interface WorkbookProblem {
@@ -289,7 +300,7 @@ export interface LanguageOption {
 
 // 필터 관련 타입
 export interface ProblemFilter {
-  difficulty?: 'Low' | 'Mid' | 'High' | '상' | '중' | '하';
+  difficulty?: string | number;
   difficultyLevel?: number;
   search?: string;
   page?: number;

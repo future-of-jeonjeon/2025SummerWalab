@@ -313,7 +313,7 @@ export const ContestDetailPage: React.FC = () => {
     return (
       <div className="text-center py-12">
         <div className="text-red-600 text-lg mb-4">대회를 불러오지 못했습니다.</div>
-        <p className="text-gray-600">{error instanceof Error ? error.message : '정보를 가져오는 중 오류가 발생했습니다.'}</p>
+        <p className="text-gray-600 dark:text-slate-400">{error instanceof Error ? error.message : '정보를 가져오는 중 오류가 발생했습니다.'}</p>
         <Button variant="secondary" className="mt-6 w-fit min-w-[180px]" onClick={() => navigate('/contests')}>
           대회 목록으로 이동
         </Button>
@@ -322,7 +322,7 @@ export const ContestDetailPage: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8 w-full">
         {contestLockedForUser && (
           <Card className="mb-6 border border-amber-200 bg-amber-50 px-6 py-4 text-amber-800 dark:border-amber-500/40 dark:bg-amber-900/30 dark:text-amber-100">
@@ -341,30 +341,72 @@ export const ContestDetailPage: React.FC = () => {
           </Card>
         )}
 
-        <div className="flex flex-col lg:flex-row gap-6 mt-6">
-          <aside className="w-[180px] min-w-[180px] max-w-[180px] space-y-2">
-            {tabs.map((tab) => {
-              const disabled = disabledTabs(tab.id);
-              const isActive = activeTab === tab.id;
-              return (
-                <button
-                  key={tab.id}
-                  type="button"
-                  onClick={() => {
-                    if (!disabled) {
-                      handleTabChange(tab.id);
-                    }
-                  }}
-                  disabled={disabled}
-                  aria-disabled={disabled}
-                  className={`w-full text-center whitespace-nowrap px-4 py-3 rounded-lg font-medium transition-colors ${isActive ? 'bg-blue-600 text-white' : 'bg-white text-gray-700 hover:bg-blue-50'
-                    } ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
-                >
-                  {tab.label}
-                </button>
-              );
-            })}
-          </aside>
+        {/* Mobile Nav Placeholder */}
+        <div className="lg:hidden mb-4 mt-6 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 flex justify-between items-center">
+          <span className="font-bold text-gray-900 dark:text-slate-100">대회 메뉴</span>
+        </div>
+
+        <div className="flex flex-col lg:flex-row gap-8 lg:mt-6">
+          <div className="w-full lg:w-64 flex-shrink-0">
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden sticky top-24">
+              <div className="p-6 border-b border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/60">
+                <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100 leading-tight">{contest?.title || '대회'}</h2>
+                {contest?.organization_name && (
+                  <div className="text-xs text-gray-500 dark:text-slate-400 font-medium mt-1 mb-2">
+                    - {contest.organization_name}
+                  </div>
+                )}
+                {!contest?.organization_name && <div className="mb-2"></div>}
+                <div className="text-xs text-gray-500 dark:text-slate-400 font-medium tracking-wide uppercase">대회 메뉴</div>
+              </div>
+              <nav className="p-2 space-y-1">
+                {tabs.map((tab) => {
+                  const disabled = disabledTabs(tab.id);
+                  const isActive = activeTab === tab.id;
+
+                  let iconPath = null;
+                  if (tab.id === 'overview') {
+                    iconPath = <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />;
+                  } else if (tab.id === 'problems') {
+                    iconPath = <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />;
+                  } else if (tab.id === 'rank') {
+                    iconPath = <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />;
+                  } else if (tab.id === 'user-management') {
+                    iconPath = <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />;
+                  } else if (tab.id === 'submission-details') {
+                    iconPath = <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />;
+                  }
+
+                  return (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => {
+                        if (!disabled) {
+                          handleTabChange(tab.id);
+                        }
+                      }}
+                      disabled={disabled}
+                      aria-disabled={disabled}
+                      className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${isActive
+                        ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                        : disabled
+                          ? 'text-gray-400 dark:text-slate-500 opacity-50 cursor-not-allowed'
+                          : 'text-gray-700 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'
+                        }`}
+                    >
+                      {iconPath && (
+                        <svg className={`mr-3 h-5 w-5 flex-shrink-0 ${isActive ? 'text-blue-600 dark:text-blue-300' : 'text-gray-400 dark:text-slate-500'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          {iconPath}
+                        </svg>
+                      )}
+                      {tab.label}
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+          </div>
 
           <div className="flex-1 space-y-6 min-w-0 w-full">
             {activeTab === 'overview' && (

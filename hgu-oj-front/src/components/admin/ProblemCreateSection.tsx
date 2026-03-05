@@ -19,7 +19,7 @@ type ProblemFormState = {
   description: string;
   inputDescription: string;
   outputDescription: string;
-  difficulty: 'High' | 'Mid' | 'Low';
+  difficulty: string;
   timeLimit: string;
   memoryLimit: string;
   ruleType: 'ACM' | 'OI';
@@ -38,7 +38,7 @@ const initialProblemForm: ProblemFormState = {
   description: '',
   inputDescription: '',
   outputDescription: '',
-  difficulty: 'Mid',
+  difficulty: '2',
   timeLimit: '1000',
   memoryLimit: '256',
   ruleType: 'ACM',
@@ -156,14 +156,12 @@ export const ProblemCreateSection: React.FC = () => {
     const backendLanguages = toBackendLanguageList(problemLanguages);
 
     const payload: CreateProblemPayload = {
-      _id: problemForm.displayId.trim(),
       title: problemForm.title.trim(),
       description: problemForm.description,
       input_description: problemForm.inputDescription,
       output_description: problemForm.outputDescription,
       samples: cleanedSamples,
       test_case_id: testCaseId,
-      test_case_score: [] as Array<{ input_name: string; output_name: string; score: number }>,
       time_limit: Number(problemForm.timeLimit) || 1000,
       memory_limit: Number(problemForm.memoryLimit) || 256,
       languages: backendLanguages,
@@ -172,22 +170,9 @@ export const ProblemCreateSection: React.FC = () => {
         acc[backendKey] = templateMap[lang] || '';
         return acc;
       }, {}),
-      rule_type: problemForm.ruleType,
-      io_mode: {
-        io_mode: 'Standard IO',
-        input: problemForm.ioInput.trim() || 'input.txt',
-        output: problemForm.ioOutput.trim() || 'output.txt',
-      },
-      spj: false,
-      spj_language: null,
-      spj_code: null,
-      spj_compile_ok: false,
-      visible: problemForm.visible,
       difficulty: problemForm.difficulty,
       tags: tagList,
       hint: problemForm.hint.trim() || null,
-      source: problemForm.source.trim() || null,
-      share_submission: problemForm.shareSubmission,
     };
 
     try {
@@ -211,8 +196,8 @@ export const ProblemCreateSection: React.FC = () => {
     <Card padding="lg">
       <form onSubmit={handleProblemSubmit} className="space-y-6">
         <div className="space-y-1">
-          <h2 className="text-xl font-semibold text-gray-900">문제 등록</h2>
-          <p className="text-sm text-gray-500">ZIP 테스트케이스 업로드 후 메타데이터를 입력하세요. SPJ는 현재 지원하지 않습니다.</p>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 dark:text-slate-100">문제 등록</h2>
+          <p className="text-sm text-gray-500 dark:text-slate-400">ZIP 테스트케이스 업로드 후 메타데이터를 입력하세요. SPJ는 현재 지원하지 않습니다.</p>
         </div>
 
         {problemMessage.error && (
@@ -254,19 +239,19 @@ export const ProblemCreateSection: React.FC = () => {
             placeholder="dp, greedy"
           />
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">난이도</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">난이도</label>
             <select
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
               value={problemForm.difficulty}
               onChange={(e) => setProblemForm((prev) => ({ ...prev, difficulty: e.target.value as ProblemFormState['difficulty'] }))}
             >
-              <option value="Low">Level1</option>
-              <option value="Mid">Level2</option>
-              <option value="High">Level3</option>
+              <option value="1">Lv.1</option>
+              <option value="2">Lv.2</option>
+              <option value="3">Lv.3</option>
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">룰 타입</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">룰 타입</label>
             <select
               className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
               value={problemForm.ruleType}
@@ -277,9 +262,9 @@ export const ProblemCreateSection: React.FC = () => {
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">공개/풀이 공유</label>
+            <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">공개/풀이 공유</label>
             <div className="flex items-center space-x-3">
-              <label className="inline-flex items-center space-x-2 text-sm text-gray-700">
+              <label className="inline-flex items-center space-x-2 text-sm text-gray-700 dark:text-slate-300">
                 <input
                   type="checkbox"
                   checked={problemForm.visible}
@@ -287,7 +272,7 @@ export const ProblemCreateSection: React.FC = () => {
                 />
                 <span>공개</span>
               </label>
-              <label className="inline-flex items-center space-x-2 text-sm text-gray-700">
+              <label className="inline-flex items-center space-x-2 text-sm text-gray-700 dark:text-slate-300">
                 <input
                   type="checkbox"
                   checked={problemForm.shareSubmission}
@@ -321,8 +306,8 @@ export const ProblemCreateSection: React.FC = () => {
 
         <section className="space-y-4">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">문제 설명</h3>
-            <p className="text-xs text-gray-500">문제 본문 및 입출력 설명을 작성하세요.</p>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">문제 설명</h3>
+            <p className="text-xs text-gray-500 dark:text-slate-400">문제 본문 및 입출력 설명을 작성하세요.</p>
           </div>
           <RichTextEditor
             label="문제 설명"
@@ -344,8 +329,8 @@ export const ProblemCreateSection: React.FC = () => {
         <section className="space-y-4">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="text-lg font-semibold text-gray-900">예제 입출력</h3>
-              <p className="text-xs text-gray-500">예제 입력과 출력을 최소 1개 이상 입력하세요.</p>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">예제 입출력</h3>
+              <p className="text-xs text-gray-500 dark:text-slate-400">예제 입력과 출력을 최소 1개 이상 입력하세요.</p>
             </div>
             <Button type="button" variant="outline" size="sm" onClick={handleAddSample}>
               예제 추가
@@ -356,7 +341,7 @@ export const ProblemCreateSection: React.FC = () => {
               <div key={`sample-${index}`} className="border rounded-lg p-4 space-y-3">
                 <div className="grid gap-3 md:grid-cols-2">
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">예제 입력 #{index + 1}</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">예제 입력 #{index + 1}</label>
                     <textarea
                       className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8] resize-none"
                       rows={3}
@@ -365,7 +350,7 @@ export const ProblemCreateSection: React.FC = () => {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">예제 출력 #{index + 1}</label>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">예제 출력 #{index + 1}</label>
                     <textarea
                       className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8] resize-none"
                       rows={3}
@@ -387,12 +372,12 @@ export const ProblemCreateSection: React.FC = () => {
         </section>
 
         <div className="space-y-3">
-          <h3 className="text-lg font-semibold text-gray-900">지원 언어</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">지원 언어</h3>
           <div className="flex flex-wrap gap-3">
             {availableLanguages.map((language) => (
               <label
                 key={language}
-                className="inline-flex items-center space-x-2 rounded-md border border-gray-300 px-3 py-1 text-sm text-gray-700"
+                className="inline-flex items-center space-x-2 rounded-md border border-gray-300 px-3 py-1 text-sm text-gray-700 dark:text-slate-300"
               >
                 <input
                   type="checkbox"
@@ -406,7 +391,7 @@ export const ProblemCreateSection: React.FC = () => {
         </div>
 
         <div className="space-y-3">
-          <h3 className="text-lg font-semibold text-gray-900">테스트케이스 업로드</h3>
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">테스트케이스 업로드</h3>
           <div className="flex flex-col md:flex-row md:items-center gap-4">
             <input
               type="file"
@@ -430,4 +415,3 @@ export const ProblemCreateSection: React.FC = () => {
 };
 
 export default ProblemCreateSection;
-

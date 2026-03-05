@@ -98,47 +98,49 @@ export const ContestOverviewTab: React.FC<ContestOverviewTabProps> = ({
     <div className="flex flex-col gap-6">
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className={_stats ? 'lg:col-span-2' : 'lg:col-span-3'}>
-          <Card className="border border-slate-200 bg-white shadow-sm overflow-hidden p-6 sm:p-10 flex flex-col md:flex-row items-center justify-between min-h-[180px] relative rounded-lg h-full">
+          <Card className="border border-slate-200 bg-white shadow-sm overflow-hidden p-6 sm:p-10 flex flex-col md:flex-row items-center justify-between min-h-[180px] relative rounded-lg h-full dark:border-slate-700 dark:bg-slate-900">
             <div className="text-left w-full md:w-auto mb-6 md:mb-0 flex-1 flex flex-col justify-center md:items-start items-center">
               <div className="flex items-center gap-2 min-w-[200px]">
-                <h2 className="text-base sm:text-lg font-bold text-slate-800 whitespace-nowrap">대회 종료까지</h2>
+                <h2 className="text-base sm:text-lg font-bold text-slate-800 whitespace-nowrap dark:text-slate-100">
+                  {contestPhase === 'before' ? '대회 시작까지' : '대회 종료까지'}
+                </h2>
               </div>
-              <div className="text-xs sm:text-sm text-slate-500 mt-2 space-y-1 text-center md:text-left">
-                <p><span className="font-semibold text-slate-600">시작</span> {startTimeDisplay}</p>
-                <p><span className="font-semibold text-slate-600">종료</span> {endTimeDisplay}</p>
+              <div className="text-xs sm:text-sm text-slate-500 mt-2 space-y-1 text-center md:text-left dark:text-slate-300">
+                <p><span className="font-semibold text-slate-600 dark:text-slate-200">시작</span> {startTimeDisplay}</p>
+                <p><span className="font-semibold text-slate-600 dark:text-slate-200">종료</span> {endTimeDisplay}</p>
               </div>
             </div>
 
             <div className="flex items-center justify-center w-full md:w-auto gap-4 sm:gap-6">
               <div className="flex flex-col items-center">
-                <div className="rounded-2xl w-20 sm:w-24 h-24 sm:h-28 flex items-center justify-center bg-[#F8FAFC] border border-slate-100 mb-2 shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
-                  <span className={`text-4xl sm:text-5xl font-extrabold tracking-tight text-[#4F6294] whitespace-nowrap`}>
+                <div className="rounded-2xl w-20 sm:w-24 h-24 sm:h-28 flex items-center justify-center bg-[#F8FAFC] border border-slate-100 mb-2 shadow-[0_2px_10px_rgba(0,0,0,0.02)] dark:bg-slate-800 dark:border-slate-700">
+                  <span className="text-4xl sm:text-5xl font-extrabold tracking-tight text-[#4F6294] whitespace-nowrap dark:text-blue-300">
                     {parsedHours}
                   </span>
                 </div>
-                <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-[0.2em] mt-1">Hours</span>
+                <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-[0.2em] mt-1 dark:text-slate-400">Hours</span>
               </div>
 
-              <div className="text-slate-200 text-3xl font-light pb-8">:</div>
+              <div className="text-slate-200 text-3xl font-light pb-8 dark:text-slate-600">:</div>
 
               <div className="flex flex-col items-center">
-                <div className="rounded-2xl w-20 sm:w-24 h-24 sm:h-28 flex items-center justify-center bg-[#F8FAFC] border border-slate-100 mb-2 shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
-                  <span className={`text-4xl sm:text-5xl font-extrabold tracking-tight text-[#4F6294] whitespace-nowrap`}>
+                <div className="rounded-2xl w-20 sm:w-24 h-24 sm:h-28 flex items-center justify-center bg-[#F8FAFC] border border-slate-100 mb-2 shadow-[0_2px_10px_rgba(0,0,0,0.02)] dark:bg-slate-800 dark:border-slate-700">
+                  <span className="text-4xl sm:text-5xl font-extrabold tracking-tight text-[#4F6294] whitespace-nowrap dark:text-blue-300">
                     {parsedMinutes}
                   </span>
                 </div>
-                <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-[0.2em] mt-1">Min</span>
+                <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-[0.2em] mt-1 dark:text-slate-400">Min</span>
               </div>
 
-              <div className="text-slate-200 text-3xl font-light pb-8">:</div>
+              <div className="text-slate-200 text-3xl font-light pb-8 dark:text-slate-600">:</div>
 
               <div className="flex flex-col items-center">
-                <div className="rounded-2xl w-20 sm:w-24 h-24 sm:h-28 flex items-center justify-center bg-[#F8FAFC] border border-slate-100 mb-2 shadow-[0_2px_10px_rgba(0,0,0,0.02)]">
-                  <span className={`text-4xl sm:text-5xl font-extrabold tracking-tight text-[#4F6294] whitespace-nowrap`}>
+                <div className="rounded-2xl w-20 sm:w-24 h-24 sm:h-28 flex items-center justify-center bg-[#F8FAFC] border border-slate-100 mb-2 shadow-[0_2px_10px_rgba(0,0,0,0.02)] dark:bg-slate-800 dark:border-slate-700">
+                  <span className="text-4xl sm:text-5xl font-extrabold tracking-tight text-[#4F6294] whitespace-nowrap dark:text-blue-300">
                     {parsedSeconds}
                   </span>
                 </div>
-                <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-[0.2em] mt-1">Sec</span>
+                <span className="text-[10px] font-bold text-[#64748B] uppercase tracking-[0.2em] mt-1 dark:text-slate-400">Sec</span>
               </div>
             </div>
           </Card>
@@ -146,25 +148,25 @@ export const ContestOverviewTab: React.FC<ContestOverviewTabProps> = ({
 
         {_stats && (
           <div className="lg:col-span-1">
-            <Card className="border border-slate-200 bg-white p-6 sm:p-10 shadow-sm rounded-lg flex flex-col justify-center min-h-[180px] relative overflow-hidden h-full">
-              <div className="absolute right-0 top-1/2 -translate-y-[40%] translate-x-1/4 text-[#E6F8EF]">
+            <Card className="border border-slate-200 bg-white p-6 sm:p-10 shadow-sm rounded-lg flex flex-col justify-center min-h-[180px] relative overflow-hidden h-full dark:border-slate-700 dark:bg-slate-900">
+              <div className="absolute right-0 top-1/2 -translate-y-[40%] translate-x-1/4 text-[#E6F8EF] dark:text-emerald-500/15">
                 <svg className="w-48 h-48" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" />
                 </svg>
               </div>
               <div className="flex items-center gap-2 mb-6 relative z-10">
-                <div className="w-6 h-6 rounded-full bg-[#E0F3EA] flex items-center justify-center text-[#2ECC71]">
+                <div className="w-6 h-6 rounded-full bg-[#E0F3EA] flex items-center justify-center text-[#2ECC71] dark:bg-emerald-500/20 dark:text-emerald-300">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                   </svg>
                 </div>
-                <span className="text-[#334155] font-bold text-sm">해결한 문제</span>
+                <span className="text-[#334155] font-bold text-sm dark:text-slate-200">해결한 문제</span>
               </div>
               <div className="flex items-baseline gap-2 relative z-10">
-                <span className="text-5xl font-black text-[#0F172A]">{_stats.solvedProblems}</span>
-                <span className="text-[#94A3B8] font-medium text-xl">/ {_stats.totalProblems}</span>
+                <span className="text-5xl font-black text-[#0F172A] dark:text-slate-100">{_stats.solvedProblems}</span>
+                <span className="text-[#94A3B8] font-medium text-xl dark:text-slate-400">/ {_stats.totalProblems}</span>
               </div>
-              <div className="w-full bg-[#F1F5F9] rounded-full h-1.5 mt-8 relative z-10 w-[85%]">
+              <div className="w-full bg-[#F1F5F9] rounded-full h-1.5 mt-8 relative z-10 w-[85%] dark:bg-slate-800">
                 <div className="bg-[#2ECC71] h-1.5 rounded-full" style={{ width: `${Math.max(2, (_stats.solvedProblems / (_stats.totalProblems || 1)) * 100)}%` }}></div>
               </div>
             </Card>
@@ -181,7 +183,7 @@ export const ContestOverviewTab: React.FC<ContestOverviewTabProps> = ({
               </svg>
               <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">공지사항</h2>
             </div>
-            <div className="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 p-2 overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-sm ring-1 ring-slate-200 p-2 overflow-hidden dark:bg-slate-900 dark:ring-slate-700">
               {announcementsNode}
             </div>
           </div>

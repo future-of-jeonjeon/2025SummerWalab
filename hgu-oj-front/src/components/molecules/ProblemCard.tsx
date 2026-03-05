@@ -19,7 +19,7 @@ export const ProblemCard: React.FC<ProblemCardProps> = ({
   showOrder = false, 
   order 
 }) => {
-  const getDifficultyLabel = (difficulty: string) => {
+  const getDifficultyLabel = (difficulty: string | number) => {
     const label = mapDifficulty(difficulty);
     if (label === '-') {
       return '정보 없음';
@@ -27,14 +27,16 @@ export const ProblemCard: React.FC<ProblemCardProps> = ({
     return label;
   };
 
-  const getDifficultyColor = (difficulty: string) => {
+  const getDifficultyColor = (difficulty: string | number) => {
     const label = mapDifficulty(difficulty);
     switch (label) {
-      case 'Easy':
+      case 'Lv.1':
+        return 'text-blue-600 bg-blue-100';
+      case 'Lv.2':
         return 'text-green-600 bg-green-100';
-      case 'Mid':
+      case 'Lv.3':
         return 'text-yellow-600 bg-yellow-100';
-      case 'Hard':
+      case 'Lv.4':
         return 'text-red-600 bg-red-100';
       default:
         return 'text-gray-600 bg-gray-100';

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { Card } from '../atoms/Card';
 import { Button } from '../atoms/Button';
+import { ActionIconButtons } from '../../features/contribution/components/ActionIconButtons';
 import { adminService } from '../../services/adminService';
 import { JudgeServer, ServiceHealthStatus } from '../../types';
 
@@ -16,7 +17,6 @@ const formatLatency = (value?: number) => {
 
 export const ServerAdminSection: React.FC = () => {
   const [judgeServers, setJudgeServers] = useState<JudgeServer[]>([]);
-  const [judgeServerToken, setJudgeServerToken] = useState('');
   const [judgeServerLoading, setJudgeServerLoading] = useState(false);
   const [judgeServerError, setJudgeServerError] = useState<string | null>(null);
   const [backendStatus, setBackendStatus] = useState<ServiceHealthStatus>({
@@ -36,9 +36,8 @@ export const ServerAdminSection: React.FC = () => {
     setJudgeServerLoading(true);
     const started = performance.now();
     try {
-      const { token, servers } = await adminService.getJudgeServers();
+      const { servers } = await adminService.getJudgeServers();
       const latency = performance.now() - started;
-      setJudgeServerToken(token ?? '');
       setJudgeServers(Array.isArray(servers) ? servers : []);
       setBackendStatus({
         name: 'OJ Backend',
@@ -51,7 +50,6 @@ export const ServerAdminSection: React.FC = () => {
       const message = error instanceof Error ? error.message : '채점 서버 목록을 불러오지 못했습니다.';
       setJudgeServerError(message);
       setJudgeServers([]);
-      setJudgeServerToken('');
       setBackendStatus({
         name: 'OJ Backend',
         status: 'offline',
@@ -146,79 +144,90 @@ export const ServerAdminSection: React.FC = () => {
   return (
     <Card padding="lg">
       <div className="space-y-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="space-y-1">
-            <h2 className="text-xl font-semibold text-gray-900">서버 관리</h2>
-            <p className="text-sm text-gray-500">채점 서버와 마이크로 서비스 상태를 확인하고 관리할 수 있습니다.</p>
-          </div>
-          <Button variant="outline" onClick={() => void handleRefresh()} loading={judgeServerLoading}>
-            새로고침
-          </Button>
-        </div>
-
         {/* 통합 대시보드 레이아웃 */}
         <div className="space-y-6">
           {/* 상단: 시스템 핵심 지표 (모니터링 + 서버 상태 요약) */}
           <section>
             <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-slate-100 flex items-center gap-2">
                 <span className="relative flex h-3 w-3">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
                   <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
                 </span>
                 실시간 시스템 현황
               </h3>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => void handleRefresh()}
+                loading={judgeServerLoading}
+                className="flex items-center gap-1.5"
+                title="새로고침"
+              >
+                {!judgeServerLoading && (
+                  <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                )}
+                <span className="hidden sm:inline">새로고침</span>
+              </Button>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {/* 1. 백엔드 상태 */}
-              <div className={`rounded-lg p-4 border ${backendStatus.status === 'online' ? 'bg-white border-gray-200' : 'bg-red-50 border-red-100'} shadow-sm`}>
+              <div className={`rounded-lg p-4 border shadow-sm ${backendStatus.status === 'online'
+                ? 'bg-white border-gray-200 dark:bg-slate-900 dark:border-slate-700'
+                : 'bg-red-50 border-red-100 dark:bg-red-900/20 dark:border-red-800/40'
+                }`}>
                 <div className="flex justify-between items-start">
                   <div>
-                    <div className="text-sm font-medium text-gray-500">OJ Backend</div>
+                    <div className="text-sm font-medium text-gray-500 dark:text-slate-400">OJ Backend</div>
                     <div className="mt-1 flex items-baseline gap-2">
-                      <span className={`text-lg font-bold ${backendStatus.status === 'online' ? 'text-green-600' : 'text-red-600'}`}>
+                      <span className={`text-lg font-bold ${backendStatus.status === 'online' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                         {backendStatus.status === 'online' ? '정상 가동' : '중단됨'}
                       </span>
                     </div>
                   </div>
                 </div>
-                <div className="mt-2 text-xs text-gray-500">
+                <div className="mt-2 text-xs text-gray-500 dark:text-slate-400">
                   응답 속도: {formatLatency(backendStatus.latency)}
                 </div>
               </div>
 
               {/* 2. MS Server 상태 */}
-              <div className={`rounded-lg p-4 border ${msBackendStatus.status === 'online' ? 'bg-white border-gray-200' : 'bg-red-50 border-red-100'} shadow-sm`}>
+              <div className={`rounded-lg p-4 border shadow-sm ${msBackendStatus.status === 'online'
+                ? 'bg-white border-gray-200 dark:bg-slate-900 dark:border-slate-700'
+                : 'bg-red-50 border-red-100 dark:bg-red-900/20 dark:border-red-800/40'
+                }`}>
                 <div className="flex justify-between items-start">
                   <div>
-                    <div className="text-sm font-medium text-gray-500">Micro Service Server</div>
+                    <div className="text-sm font-medium text-gray-500 dark:text-slate-400">Micro Service Server</div>
                     <div className="mt-1 flex items-baseline gap-2">
-                      <span className={`text-lg font-bold ${msBackendStatus.status === 'online' ? 'text-green-600' : 'text-red-600'}`}>
+                      <span className={`text-lg font-bold ${msBackendStatus.status === 'online' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}>
                         {msBackendStatus.status === 'online' ? '정상 가동' : '중단됨'}
                       </span>
                     </div>
                   </div>
                 </div>
-                <div className="mt-2 text-xs text-gray-500">
+                <div className="mt-2 text-xs text-gray-500 dark:text-slate-400">
                   응답 속도: {formatLatency(msBackendStatus.latency)}
                 </div>
               </div>
 
               {/* 4. 채점 서버 상태 요약 */}
-              <div className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+              <div className="rounded-lg border border-gray-200 dark:border-slate-700 dark:border-slate-700 bg-white dark:bg-slate-900 p-4 shadow-sm">
                 <div className="flex justify-between items-start">
                   <div>
-                    <div className="text-sm font-medium text-gray-500">Judge Servers</div>
+                    <div className="text-sm font-medium text-gray-500 dark:text-slate-400">Judge Servers</div>
                     <div className="mt-1 flex items-baseline gap-2">
-                      <span className="text-2xl font-bold text-gray-900">
+                      <span className="text-2xl font-bold text-gray-900 dark:text-slate-100">
                         {judgeServers.filter(s => s.status === 'normal' && !s.is_disabled).length}
-                        <span className="text-sm font-normal text-gray-400">/{judgeServers.length}</span>
+                        <span className="text-sm font-normal text-gray-400 dark:text-slate-500">/{judgeServers.length}</span>
                       </span>
                     </div>
                   </div>
                 </div>
-                <div className="mt-2 text-xs text-gray-500">
+                <div className="mt-2 text-xs text-gray-500 dark:text-slate-400">
                   총 {judgeServers.length}개 서버 등록됨
                 </div>
               </div>
@@ -228,30 +237,27 @@ export const ServerAdminSection: React.FC = () => {
 
         <section className="space-y-3">
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">Judge Server 토큰</h3>
-            <div className="mt-2 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-sm text-gray-700">
-              {judgeServerToken || '토큰 정보가 없습니다.'}
-            </div>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">채점서버 현황</h3>
           </div>
 
-          <div className="overflow-hidden rounded-lg border border-gray-200">
+          <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-slate-700">
             <table className="min-w-full divide-y divide-gray-200 text-left">
-              <thead className="bg-gray-50">
+              <thead className="bg-gray-50 dark:bg-slate-800">
                 <tr>
-                  <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500">상태</th>
-                  <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500">호스트명</th>
-                  <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500">작업</th>
-                  <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500">CPU</th>
-                  <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500">메모리</th>
-                  <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500">IP</th>
-                  <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500">비활성화</th>
-                  <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500">관리</th>
+                  <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">상태</th>
+                  <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">호스트명</th>
+                  <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">작업</th>
+                  <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">CPU</th>
+                  <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">메모리</th>
+                  <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">IP</th>
+                  <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">비활성화</th>
+                  <th className="px-4 py-3 text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-slate-400">관리</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
+              <tbody className="divide-y divide-gray-100 dark:divide-slate-700 bg-white dark:bg-slate-900">
                 {judgeServerLoading ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-6 text-center text-sm text-gray-500">
+                    <td colSpan={8} className="px-4 py-6 text-center text-sm text-gray-500 dark:text-slate-400">
                       채점 서버 정보를 불러오는 중입니다...
                     </td>
                   </tr>
@@ -261,7 +267,7 @@ export const ServerAdminSection: React.FC = () => {
                   </tr>
                 ) : judgeServers.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-4 py-6 text-center text-sm text-gray-500">
+                    <td colSpan={8} className="px-4 py-6 text-center text-sm text-gray-500 dark:text-slate-400">
                       등록된 채점 서버가 없습니다.
                     </td>
                   </tr>
@@ -269,24 +275,24 @@ export const ServerAdminSection: React.FC = () => {
                   judgeServers.map((server) => {
                     const online = server.status === 'normal' && !server.is_disabled;
                     return (
-                      <tr key={server.id} className="transition-colors hover:bg-gray-50">
+                      <tr key={server.id} className="transition-colors hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800">
                         <td className="px-4 py-3 text-sm">
                           <span
-                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${online ? 'bg-green-100 text-green-700' : 'bg-gray-200 text-gray-700'
+                            className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${online ? 'bg-green-100 text-green-700' : 'bg-gray-200 dark:bg-slate-700 text-gray-700 dark:text-slate-300 dark:text-slate-300'
                               }`}
                           >
                             {online ? '정상' : '오프라인'}
                           </span>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-700">
-                          <div className="font-medium text-gray-900">{server.hostname}</div>
-                          <div className="text-xs text-gray-500">버전 {server.judger_version ?? '-'}</div>
+                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-300">
+                          <div className="font-medium text-gray-900 dark:text-slate-100">{server.hostname}</div>
+                          <div className="text-xs text-gray-500 dark:text-slate-400">버전 {server.judger_version ?? '-'}</div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-700">{server.task_number}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700">{server.cpu_usage}% / {server.cpu_core}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700">{server.memory_usage}%</td>
-                        <td className="px-4 py-3 text-sm text-gray-700">{server.ip ?? '-'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700">
+                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-300">{server.task_number}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-300">{server.cpu_usage}% / {server.cpu_core}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-300">{server.memory_usage}%</td>
+                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-300">{server.ip ?? '-'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-300">
                           <div className="inline-flex items-center gap-3">
                             <button
                               type="button"
@@ -300,7 +306,7 @@ export const ServerAdminSection: React.FC = () => {
                                 handleToggleJudgeServerDisabled(server, !server.is_disabled);
                               }}
                               disabled={updatingJudgeServerId === server.id}
-                              className={`relative inline-flex h-6 w-12 items-center rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#58A0C8] transition-colors duration-150 ease-out ${server.is_disabled ? 'bg-gray-300' : 'bg-green-500'
+                              className={`relative inline-flex h-6 w-12 items-center rounded-full focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#58A0C8] transition-colors duration-150 ease-out ${server.is_disabled ? 'bg-gray-300 dark:bg-slate-600' : 'bg-green-500'
                                 } ${updatingJudgeServerId === server.id
                                   ? 'cursor-not-allowed opacity-60'
                                   : 'cursor-pointer'
@@ -312,24 +318,22 @@ export const ServerAdminSection: React.FC = () => {
                               />
                             </button>
                             <span
-                              className={`text-sm ${server.is_disabled ? 'text-gray-500' : 'font-medium text-[#113F67]'
+                              className={`text-sm ${server.is_disabled ? 'text-gray-500 dark:text-slate-400' : 'font-medium text-[#113F67] dark:text-emerald-400'
                                 }`}
                             >
                               {server.is_disabled ? '비활성' : '활성'}
                             </span>
                           </div>
                         </td>
-                        <td className="px-4 py-3 text-sm text-gray-700">
-
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            className="text-red-600 hover:bg-red-50 hover:text-red-700"
-                            onClick={() => handleDeleteJudgeServer(server.hostname)}
-                            loading={deletingJudgeServerHostname === server.hostname}
-                          >
-                            삭제
-                          </Button>
+                        <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-300">
+                          {deletingJudgeServerHostname === server.hostname ? (
+                            <span className="text-xs text-gray-500 dark:text-slate-400">삭제 중...</span>
+                          ) : (
+                            <ActionIconButtons
+                              onDelete={() => handleDeleteJudgeServer(server.hostname)}
+                              deleteTitle={`${server.hostname} 서버 삭제`}
+                            />
+                          )}
                         </td>
                       </tr>
                     );
@@ -345,4 +349,3 @@ export const ServerAdminSection: React.FC = () => {
 };
 
 export default ServerAdminSection;
-

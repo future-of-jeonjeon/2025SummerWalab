@@ -1,72 +1,96 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.user.schemas import UserData, SubUserData
-from app.user.models import UserData
-import app.user.repository as repo
+from app.exception import handlers
 from app.user import exceptions
+from app.user.models import UserData as UserDataEntity
+from app.user.schemas import UserProfile, UserProfileResponse, UpdateUserProfileRequest
+import app.user.repository as repo
 
 
-async def check_user_data(user_data: UserData, db: AsyncSession):
-    sub_userdata = await repo.find_sub_userdata_by_user_id(user_data.user_id, db)
+async def check_user_data(user_profile: UserProfile, db: AsyncSession):
+    sub_userdata = await repo.find_sub_userdata_by_user_id(user_profile.user_id, db)
     if not sub_userdata:
         exceptions.user_data_not_found()
     return True
 
 
-async def save_user_data(sub_user_data: SubUserData, user_data: UserData, db: AsyncSession) -> SubUserData:
-    check_data = await repo.find_sub_userdata_by_user_id(user_data.user_id, db)
+async def save_user_data(user_profile_payload: UpdateUserProfileRequest, user_profile: UserProfile, db: AsyncSession) -> UserProfileResponse:
+    _validate_user_profile_payload(user_profile_payload)
+
+    check_data = await repo.find_sub_userdata_by_user_id(user_profile.user_id, db)
     if check_data:
         exceptions.user_data_conflict()
 
-    user = await repo.find_user_by_id(user_data.user_id, db)
+    user = await repo.find_user_by_id(user_profile.user_id, db)
     if not user:
         exceptions.user_not_found()
 
-    entity = _create_user_data_from_schema(sub_user_data)
+    entity = _create_user_data_from_schema(user_profile_payload, user_profile.user_id)
     saved_entity = await repo.save_user_data(entity, db)
-    return _create_sub_user_data_from_entity(saved_entity)
+    return _create_user_profile_response(saved_entity, user_profile)
 
 
-async def get_user_data(user_data: UserData, db: AsyncSession) -> SubUserData:
-    data = await repo.find_sub_userdata_by_user_id(user_data.user_id, db)
+async def get_user_data(user_profile: UserProfile, db: AsyncSession) -> UserProfileResponse:
+    data = await repo.find_sub_userdata_by_user_id(user_profile.user_id, db)
     if not data:
         exceptions.user_data_not_found()
-    return _create_sub_user_data_from_entity(data)
+    return _create_user_profile_response(data, user_profile)
 
 
-async def get_user_data_by_id(user_id: int, db: AsyncSession) -> SubUserData:
+async def get_user_data_by_id(user_id: int, db: AsyncSession) -> UserProfileResponse:
     data = await repo.find_sub_userdata_by_user_id(user_id, db)
     if not data:
         exceptions.user_data_not_found()
-    return _create_sub_user_data_from_entity(data)
+    return _create_user_profile_response(data)
 
 
-async def update_user_data(sub_user_data: SubUserData, user_data: UserData, db: AsyncSession) -> SubUserData:
-    entity = await repo.find_sub_userdata_by_user_id(user_data.user_id, db)
+async def update_user_data(user_profile_payload: UpdateUserProfileRequest, user_profile: UserProfile, db: AsyncSession) -> UserProfileResponse:
+    _validate_user_profile_payload(user_profile_payload)
+
+    entity = await repo.find_sub_userdata_by_user_id(user_profile.user_id, db)
     if not entity:
         exceptions.user_data_not_found()
 
-    entity.name = sub_user_data.name
-    entity.student_id = sub_user_data.student_id
-    entity.major_id = sub_user_data.major_id
+    entity.name = user_profile_payload.name
+    entity.student_id = user_profile_payload.student_id
+    entity.major_id = user_profile_payload.major_id
+    if user_profile_payload.dark_mode_enabled is not None:
+        entity.dark_mode_enabled = user_profile_payload.dark_mode_enabled
+    if user_profile_payload.language_preferences is not None:
+        entity.language_preferences = user_profile_payload.language_preferences
 
     saved_entity = await repo.save_user_data(entity, db)
-    return _create_sub_user_data_from_entity(saved_entity)
+    return _create_user_profile_response(saved_entity, user_profile)
 
 
-def _create_sub_user_data_from_entity(entity: UserData) -> SubUserData:
-    return SubUserData(
-        user_id=entity.user_id,
-        name=entity.name,
+def _create_user_profile_response(entity: UserDataEntity, user_profile: UserProfile = None) -> UserProfileResponse:
+    username = user_profile.username if user_profile else (entity.user.username if getattr(entity, 'user', None) else None)
+    avatar = user_profile.avatar if user_profile else None
+    return UserProfileResponse(
+        username=username,
+        avatar=avatar,
         student_id=entity.student_id,
         major_id=entity.major_id,
+        name=entity.name,
+        dark_mode_enabled=entity.dark_mode_enabled,
+        language_preferences=entity.language_preferences
     )
 
 
-def _create_user_data_from_schema(schema: SubUserData) -> UserData:
-    return UserData(
-        user_id=schema.user_id,
+def _create_user_data_from_schema(schema: UpdateUserProfileRequest, user_id: int) -> UserDataEntity:
+    entity = UserDataEntity(
+        user_id=user_id,
         name=schema.name,
         student_id=schema.student_id,
         major_id=schema.major_id,
     )
+    if schema.dark_mode_enabled is not None:
+        entity.dark_mode_enabled = schema.dark_mode_enabled
+    if schema.language_preferences is not None:
+        entity.language_preferences = schema.language_preferences
+    return entity
+
+
+def _validate_user_profile_payload(schema: UpdateUserProfileRequest):
+    if not schema.name or not schema.student_id or schema.major_id is None:
+        handlers.bad_request("name, student_id, major_id are required")

@@ -104,7 +104,12 @@ export const useContestAnnouncementsManager = ({ contestId, canFetch, onSuccess 
       event.preventDefault();
       const title = formState.title.trim();
       const content = formState.content.trim();
-      if (!title || !content) {
+      const plainTextContent = content
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/&nbsp;/gi, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+      if (!title || !plainTextContent) {
         setFormError('제목과 내용을 모두 입력해주세요.');
         return;
       }

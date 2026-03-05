@@ -11,7 +11,7 @@ import {
   RankingTable,
   RankingTableColumn,
 } from '../components/ranking/RankingTable';
-import { RankingPagination } from '../components/ranking/RankingPagination';
+import CommonPagination from '../components/common/CommonPagination';
 
 
 const RankBadge = ({ rank }: { rank: number }) => {
@@ -209,40 +209,24 @@ export const RankingPage: React.FC = () => {
   const queryError = error instanceof Error ? error.message : undefined;
   const organizationErrorMessage = organizationError instanceof Error ? organizationError.message : undefined;
 
-  const handlePreviousPage = () => {
-    setPage((prev) => Math.max(1, prev - 1));
-  };
-
-  const handleNextPage = () => {
-    setPage((prev) => Math.min(totalPages, prev + 1));
-  };
-
-  const handleOrganizationPrevious = () => {
-    setOrganizationPage((prev) => Math.max(1, prev - 1));
-  };
-
-  const handleOrganizationNext = () => {
-    setOrganizationPage((prev) => Math.min(organizationTotalPages, prev + 1));
-  };
-
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
       <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 2xl:max-w-screen-2xl 2xl:px-10 flex flex-col md:flex-row gap-8">
         {/* Sidebar */}
         <div className="w-full md:w-64 flex-shrink-0">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden sticky top-24">
-            <div className="p-6 border-b border-gray-100 bg-gray-50">
-              <h2 className="text-lg font-bold text-gray-900">랭킹</h2>
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden sticky top-24">
+            <div className="p-6 border-b border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-800">
+              <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">랭킹</h2>
             </div>
             <nav className="p-2 space-y-1">
               <button
                 onClick={() => setActiveView('user')}
                 className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeView === 'user'
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-gray-700 hover:bg-gray-50'
+                  ? 'bg-blue-50 text-blue-700 dark:bg-sky-900/30 dark:text-sky-300'
+                  : 'text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800'
                   }`}
               >
-                <svg className="mr-3 h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="mr-3 h-5 w-5 text-gray-400 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                 </svg>
                 유저 랭킹
@@ -250,11 +234,11 @@ export const RankingPage: React.FC = () => {
               <button
                 onClick={() => setActiveView('organization')}
                 className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeView === 'organization'
-                  ? 'bg-blue-50 text-blue-700'
-                  : 'text-gray-700 hover:bg-gray-50'
+                  ? 'bg-blue-50 text-blue-700 dark:bg-sky-900/30 dark:text-sky-300'
+                  : 'text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800'
                   }`}
               >
-                <svg className="mr-3 h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="mr-3 h-5 w-5 text-gray-400 dark:text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                 </svg>
                 단체 랭킹
@@ -266,52 +250,56 @@ export const RankingPage: React.FC = () => {
         {/* Main Content */}
         <div className="flex-1 min-w-0">
           <div className="mb-6">
-            <nav className="flex text-sm text-gray-500 mb-2">
-              <span className="cursor-pointer hover:text-gray-900" onClick={() => setActiveView('user')}>Ranking</span>
+            <nav className="flex text-sm text-gray-500 dark:text-slate-400 mb-2">
+              <span className="cursor-pointer hover:text-gray-900 dark:hover:text-slate-100" onClick={() => setActiveView('user')}>Ranking</span>
               <span className="mx-2">/</span>
-              <span className="font-medium text-gray-900">{activeView === 'user' ? 'User' : 'Organization'}</span>
+              <span className="font-medium text-gray-900 dark:text-slate-100">{activeView === 'user' ? 'User' : 'Organization'}</span>
             </nav>
           </div>
 
           <div className="space-y-8">
             {activeView === 'user' && (
-              <RankingSection title="">
-                <RankingTable
-                  columns={userColumns}
-                  data={userRankings}
-                  loading={isLoading}
-                  error={queryError}
-                  skeletonRowCount={10}
-                />
-                <RankingPagination
+              <div className="space-y-4">
+                <RankingSection title="">
+                  <RankingTable
+                    columns={userColumns}
+                    data={userRankings}
+                    loading={isLoading}
+                    error={queryError}
+                    skeletonRowCount={10}
+                  />
+                </RankingSection>
+                <CommonPagination
                   page={page}
+                  pageSize={USER_RANKING_PAGE_SIZE}
                   totalPages={totalPages}
                   totalItems={totalItems}
-                  pageSize={USER_RANKING_PAGE_SIZE}
-                  onPrevious={handlePreviousPage}
-                  onNext={handleNextPage}
+                  onChangePage={(nextPage) => setPage(nextPage)}
+                  unit="명"
                 />
-              </RankingSection>
+              </div>
             )}
 
             {activeView === 'organization' && (
-              <RankingSection title="">
-                <RankingTable
-                  columns={organizationColumns}
-                  data={organizationRankings}
-                  loading={isOrganizationLoading}
-                  error={organizationErrorMessage}
-                  skeletonRowCount={8}
-                />
-                <RankingPagination
+              <div className="space-y-4">
+                <RankingSection title="">
+                  <RankingTable
+                    columns={organizationColumns}
+                    data={organizationRankings}
+                    loading={isOrganizationLoading}
+                    error={organizationErrorMessage}
+                    skeletonRowCount={8}
+                  />
+                </RankingSection>
+                <CommonPagination
                   page={organizationPage}
+                  pageSize={ORGANIZATION_RANKING_PAGE_SIZE}
                   totalPages={organizationTotalPages}
                   totalItems={organizationTotalItems}
-                  pageSize={ORGANIZATION_RANKING_PAGE_SIZE}
-                  onPrevious={handleOrganizationPrevious}
-                  onNext={handleOrganizationNext}
+                  onChangePage={(nextPage) => setOrganizationPage(nextPage)}
+                  unit="명"
                 />
-              </RankingSection>
+              </div>
             )}
           </div>
         </div>

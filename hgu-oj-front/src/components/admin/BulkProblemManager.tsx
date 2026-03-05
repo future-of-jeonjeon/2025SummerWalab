@@ -56,10 +56,11 @@ export const BulkProblemManager: React.FC = () => {
   const pollImportStatus = async (pollingKey: string) => {
     try {
       const status = await adminProblemBulkService.getImportPollingStatus(pollingKey);
+      const processedProblem = status.processed_problem ?? status.imported_problem ?? 0;
 
       if (status.status === 'done') {
         setIsImporting(false);
-        setImportMessage({ success: `총 ${status.imported_problem}개의 문제를 처리했습니다.` });
+        setImportMessage({ success: `총 ${processedProblem}개의 문제를 처리했습니다.` });
         setImportStatus(null);
         setImportFile(null);
         // Reset file input
@@ -68,9 +69,10 @@ export const BulkProblemManager: React.FC = () => {
       } else if (status.status === 'error') {
         setIsImporting(false);
         setImportStatus(null);
-        setImportMessage({ error: status.message || `문제 등록 중 오류가 발생했습니다. 에러코드: ${status.error_code}` });
+        const errorDetail = status.error_message ? `\n상세 정보: ${status.error_message}` : `에러코드: ${status.error_code}`;
+        setImportMessage({ error: status.message || `문제 등록 중 오류가 발생했습니다. ${errorDetail}` });
       } else {
-        setImportStatus(`처리 중... (${status.imported_problem} / ${status.all_problem})`);
+        setImportStatus(`처리 중... (${processedProblem} / ${status.all_problem})`);
         setTimeout(() => pollImportStatus(pollingKey), 1000);
       }
     } catch (error) {
@@ -142,23 +144,21 @@ export const BulkProblemManager: React.FC = () => {
           <div className="space-y-6">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="space-y-1">
-                <h2 className="text-xl font-semibold text-gray-900">문제 등록</h2>
-                <p className="text-sm text-gray-500">새로운 문제를 개별적으로 등록합니다.</p>
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 dark:text-slate-100">문제 등록</h2>
               </div>
               <Button onClick={() => setIsProblemModalOpen(true)}>문제 등록</Button>
             </div>
           </div>
         </div>
 
-        <div className="border-t border-gray-200 pt-8">
+        <div className="border-t border-gray-200 dark:border-slate-700 pt-8">
           <form onSubmit={handleImportSubmit} className="space-y-6">
             <div className="space-y-1">
-              <h2 className="text-xl font-semibold text-gray-900">문제 불러오기</h2>
-              <p className="text-sm text-gray-500">OJ 백엔드 JSON ZIP 포맷을 업로드하여 여러 문제를 한 번에 등록합니다.</p>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 dark:text-slate-100">문제 불러오기</h2>
             </div>
 
             {importMessage.error && (
-              <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-600">{importMessage.error}</div>
+              <div className="rounded-md bg-red-50 px-4 py-3 text-sm text-red-600 whitespace-pre-wrap"><span className="font-semibold block mb-1">에러 발생:</span>{importMessage.error}</div>
             )}
             {importMessage.success && (
               <div className="rounded-md bg-green-50 px-4 py-3 text-sm text-green-600">{importMessage.success}</div>
@@ -180,7 +180,7 @@ export const BulkProblemManager: React.FC = () => {
                 onChange={(event) => setImportFile(event.target.files?.[0] ?? null)}
                 className="text-sm"
               />
-              {importFile && <span className="text-sm text-gray-600">선택된 파일: {importFile.name}</span>}
+              {importFile && <span className="text-sm text-gray-600 dark:text-slate-400">선택된 파일: {importFile.name}</span>}
             </div>
 
             <div className="flex justify-end">
@@ -191,13 +191,10 @@ export const BulkProblemManager: React.FC = () => {
           </form>
         </div>
 
-        <div className="border-t border-gray-200 pt-8">
+        <div className="border-t border-gray-200 dark:border-slate-700 pt-8">
           <form onSubmit={handleExportSubmit} className="space-y-6">
             <div className="space-y-1">
-              <h2 className="text-xl font-semibold text-gray-900">문제 내보내기</h2>
-              <p className="text-sm text-gray-500">
-                내보낼 문제의 내부 ID를 쉼표 또는 줄바꿈으로 구분해 입력하면 ZIP 파일로 다운로드됩니다.
-              </p>
+              <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 dark:text-slate-100">문제 내보내기</h2>
             </div>
 
             {exportMessage.error && (
@@ -218,7 +215,7 @@ export const BulkProblemManager: React.FC = () => {
               emptySelectionText="내보낼 문제를 추가하세요."
             />
 
-            <div className="flex justify-between items-center text-sm text-gray-500">
+            <div className="flex justify-between items-center text-sm text-gray-500 dark:text-slate-400">
               <span>선택된 문제 수: {selectedExportProblems.length}</span>
               <Button type="submit" variant="outline" loading={isExporting}>문제 내보내기</Button>
             </div>

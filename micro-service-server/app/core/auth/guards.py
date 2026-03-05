@@ -31,7 +31,12 @@ def require_role(*allowed: str):
         @wraps(fn)
         async def wrapper(*args, **kwargs):
             bound = fn_signature.bind_partial(*args, **kwargs)
-            user = bound.arguments.get("userdata")
+            user = bound.arguments.get("userdata") or bound.arguments.get("user_profile")
+            if user is None:
+                for arg_val in bound.arguments.values():
+                    if hasattr(arg_val, "admin_type"):
+                        user = arg_val
+                        break
             if user is None:
                 exceptions.unauthorized_access()
 

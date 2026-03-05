@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, Navigate } from 'react-router-dom';
 import { Card } from '../components/atoms/Card';
 import { ProblemProgressCard } from '../components/molecules/ProblemProgressCard';
@@ -9,7 +9,6 @@ import { myPageService, ContestHistoryEntry } from '../services/myPageService';
 import { userService, DEPARTMENTS } from '../services/userService';
 import { submissionService } from '../services/submissionService';
 import { MyProfile, MySolvedProblem, MyWrongProblem } from '../types';
-import { UserInfoModal } from '../components/organisms/UserInfoModal';
 import { ContributionGraph } from '../components/molecules/ContributionGraph';
 import { GoalConfigModal } from '../components/organisms/GoalConfigModal';
 import { todoService, GoalRecommendation } from '../services/todoService';
@@ -24,8 +23,7 @@ import { todoService, GoalRecommendation } from '../services/todoService';
 
 export const MyPage: React.FC = () => {
   const { isAuthenticated } = useAuthStore();
-  const [isModalOpen, setIsModalOpen] = useState(false);
-
+  const queryClient = useQueryClient();
 
 
   const {
@@ -93,6 +91,13 @@ export const MyPage: React.FC = () => {
   } = useProblemCount();
 
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
+
+  const handleUserUpdateSuccess = async () => {
+    await Promise.all([
+      refetchUserData(),
+      queryClient.invalidateQueries({ queryKey: ['mypage', 'profile'] }),
+    ]);
+  };
 
   const { data: myTodo } = useQuery({
     queryKey: ['todo', 'my'],
@@ -215,7 +220,7 @@ export const MyPage: React.FC = () => {
 
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
       <div className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 2xl:max-w-screen-2xl 2xl:px-10 space-y-8">
         <section aria-labelledby="mypage-top-section" className="bg-white rounded-2xl p-8 shadow-sm border border-gray-100 dark:bg-slate-800 dark:border-slate-700">
           <h1 id="mypage-top-section" className="sr-only">마이페이지 상단 정보</h1>
@@ -246,15 +251,6 @@ export const MyPage: React.FC = () => {
                 <span className="px-2.5 py-0.5 bg-gray-100 text-gray-600 text-sm rounded-full font-medium dark:bg-slate-700 dark:text-slate-300">
                   @{profile?.username || 'root'}
                 </span>
-                <button
-                  onClick={() => setIsModalOpen(true)}
-                  className="ml-1 text-gray-400 hover:text-blue-600 transition-colors"
-                  title="프로필 수정"
-                >
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-                  </svg>
-                </button>
               </div>
 
               <div className="flex items-center gap-4 text-sm text-gray-500 dark:text-slate-400 mb-8">
@@ -281,14 +277,14 @@ export const MyPage: React.FC = () => {
                 <div className="flex flex-col items-end gap-2">
                   <button
                     onClick={() => setIsGoalModalOpen(true)}
-                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-sm font-bold shadow-sm transition-all active:scale-95"
+                    className="inline-flex items-center justify-center text-gray-400 hover:text-blue-600 transition-colors"
+                    title="설정"
                   >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     </svg>
-                    목표 관리하기
                   </button>
-                  <span className="text-xs text-gray-400">최근 업데이트: {new Date().toLocaleTimeString()}</span>
                 </div>
               </div>
 
@@ -347,7 +343,7 @@ export const MyPage: React.FC = () => {
             <h2 id="mypage-contribution" className="sr-only">활동 그래프</h2>
             <Card className="h-full flex flex-col justify-center">
               {contributionLoading ? (
-                <div className="flex justify-center items-center h-40 text-gray-500">
+                <div className="flex justify-center items-center h-40 text-gray-500 dark:text-slate-400">
                   활동 데이터를 불러오는 중...
                 </div>
               ) : (
@@ -368,54 +364,47 @@ export const MyPage: React.FC = () => {
           </section>
         </div>
 
-        <UserInfoModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          initialData={userData}
-          onSuccess={() => {
-            refetchUserData();
-          }}
-        />
-
         <GoalConfigModal
           isOpen={isGoalModalOpen}
           onClose={() => setIsGoalModalOpen(false)}
           currentTodo={myTodo || null}
+          initialUserData={userData || null}
+          onUserUpdateSuccess={handleUserUpdateSuccess}
         />
 
         <section aria-labelledby="mypage-contests">
-          <h2 id="mypage-contests" className="text-lg font-semibold text-gray-900 mb-4">참여한 대회</h2>
+          <h2 id="mypage-contests" className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">참여한 대회</h2>
           <Card className="overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="text-left text-gray-500 border-b bg-gray-50">
+                  <tr className="text-left text-gray-500 dark:text-slate-400 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800">
                     <th scope="col" className="py-3 px-4 font-medium">대회명</th>
                     <th scope="col" className="py-3 px-4 text-right font-medium">날짜</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-100">
+                <tbody className="divide-y divide-gray-100 dark:divide-slate-700">
                   {contestHistoryLoading ? (
                     <tr>
-                      <td colSpan={2} className="py-4 text-center text-gray-500">
+                      <td colSpan={2} className="py-4 text-center text-gray-500 dark:text-slate-400">
                         대회 기록을 불러오는 중...
                       </td>
                     </tr>
                   ) : (contestHistory ?? []).length === 0 ? (
                     <tr>
-                      <td colSpan={2} className="py-4 text-center text-gray-500">
+                      <td colSpan={2} className="py-4 text-center text-gray-500 dark:text-slate-400">
                         참여한 대회가 없습니다.
                       </td>
                     </tr>
                   ) : (
                     (contestHistory ?? []).map((contest) => (
-                      <tr key={contest.id} className="hover:bg-gray-50 transition-colors">
-                        <td className="py-3 px-4 font-medium text-gray-900">
+                      <tr key={contest.id} className="hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
+                        <td className="py-3 px-4 font-medium text-gray-900 dark:text-slate-100">
                           <Link to={`/contests/${contest.id}`} className="hover:text-blue-600 hover:underline">
                             {contest.title}
                           </Link>
                         </td>
-                        <td className="py-3 px-4 text-right text-gray-600">
+                        <td className="py-3 px-4 text-right text-gray-600 dark:text-slate-300">
                           {contest.startTime ? new Date(contest.startTime).toLocaleDateString() : '-'}
                         </td>
                       </tr>
@@ -429,18 +418,18 @@ export const MyPage: React.FC = () => {
 
         <section aria-labelledby="mypage-problem-lists" className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div>
-            <h2 id="mypage-problem-lists" className="text-lg font-semibold text-gray-900 mb-4">푼 문제</h2>
+            <h2 id="mypage-problem-lists" className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">푼 문제</h2>
             <Card>
               {solvedLoading ? (
-                <div className="text-gray-500">푼 문제를 불러오는 중입니다...</div>
+                <div className="text-gray-500 dark:text-slate-400">푼 문제를 불러오는 중입니다...</div>
               ) : solvedError ? (
                 <div className="text-red-500">
                   목록을 불러오지 못했습니다: {solvedError instanceof Error ? solvedError.message : '알 수 없는 오류'}
                 </div>
               ) : (solvedResponse?.items ?? []).length === 0 ? (
-                <div className="text-gray-500">아직 푼 문제가 없습니다.</div>
+                <div className="text-gray-500 dark:text-slate-400">아직 푼 문제가 없습니다.</div>
               ) : (
-                <div className="leading-relaxed text-gray-700">
+                <div className="leading-relaxed text-gray-700 dark:text-slate-300">
                   {solvedResponse?.items.map((item, index, array) => (
                     <React.Fragment key={item.id}>
                       <Link
@@ -458,14 +447,14 @@ export const MyPage: React.FC = () => {
           </div>
 
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">틀린 문제</h2>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">틀린 문제</h2>
             <Card>
               {wrongLoading ? (
-                <div className="text-gray-500">틀린 문제를 불러오는 중입니다...</div>
+                <div className="text-gray-500 dark:text-slate-400">틀린 문제를 불러오는 중입니다...</div>
               ) : (wrongResponse?.items ?? []).length === 0 ? (
-                <div className="text-gray-500">틀린 문제가 없습니다.</div>
+                <div className="text-gray-500 dark:text-slate-400">틀린 문제가 없습니다.</div>
               ) : (
-                <div className="leading-relaxed text-gray-700">
+                <div className="leading-relaxed text-gray-700 dark:text-slate-300">
                   {wrongResponse?.items.map((item, index, array) => (
                     <React.Fragment key={item.id}>
                       <Link

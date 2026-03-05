@@ -1,13 +1,13 @@
 from typing import Optional
 from pydantic import BaseModel
 from app.organization.models import OrganizationRole, Organization, OrganizationMember
-from app.user.schemas import UserData
+from app.user.schemas import UserProfile
 
 
 class OrganizationMemberResponse(BaseModel):
     id: int
     organization_id: int
-    user: UserData
+    user: UserProfile
     role: OrganizationRole
 
     class Config:
@@ -18,7 +18,7 @@ class OrganizationMemberResponse(BaseModel):
         return cls(
             id=entity.id,
             organization_id=entity.organization_id,
-            user=UserData(
+            user=UserProfile(
                 user_id=entity.user.user.id,
                 username=entity.user.user.username,
                 avatar="",

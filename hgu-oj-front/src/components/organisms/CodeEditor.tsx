@@ -31,7 +31,26 @@ const languageOptions: LanguageOption[] = [
   { value: 'java', label: 'Java', extension: 'java', monacoLanguage: 'java' },
   { value: 'cpp', label: 'C++', extension: 'cpp', monacoLanguage: 'cpp' },
   { value: 'c', label: 'C', extension: 'c', monacoLanguage: 'c' },
+  { value: 'go', label: 'Golang', extension: 'go', monacoLanguage: 'go' },
 ];
+const EDITOR_LANGUAGE_ORDER_KEY = 'oj:editorLanguageOrder';
+
+const normalizeEditorLanguageOrder = (input: string[] | null | undefined): string[] => {
+  const all = languageOptions.map((opt) => opt.value);
+  const valid = new Set(all);
+  const unique: string[] = [];
+  for (const item of input ?? []) {
+    if (valid.has(item) && !unique.includes(item)) {
+      unique.push(item);
+    }
+  }
+  for (const item of all) {
+    if (!unique.includes(item)) {
+      unique.push(item);
+    }
+  }
+  return unique;
+};
 
 const defaultCode: Record<string, string> = codeTemplates as Record<string, string>;
 
@@ -123,6 +142,24 @@ const clearCodeCacheForPrefix = (prefix: string) => {
   keysToRemove.forEach((key) => storage.removeItem(key));
 };
 
+const resolveInitialEditorTheme = (preferredTheme?: 'light' | 'dark'): 'light' | 'dark' => {
+  if (preferredTheme) {
+    return preferredTheme;
+  }
+  if (typeof window === 'undefined') {
+    return 'light';
+  }
+  const savedEditorTheme = localStorage.getItem('oj:editorTheme');
+  if (savedEditorTheme === 'light' || savedEditorTheme === 'dark') {
+    return savedEditorTheme;
+  }
+  const savedAppTheme = localStorage.getItem('theme');
+  if (savedAppTheme === 'light' || savedAppTheme === 'dark') {
+    return savedAppTheme;
+  }
+  return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
+};
+
 type PendingSaveRequest = {
   force: boolean;
   indicator: 'auto' | 'manual';
@@ -149,8 +186,22 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const autoSaveCacheTtlMs = useMemo(() => resolveAutoSaveCacheTtlMs(), []);
 
   const availableLanguageOptions = useMemo(() => {
+    const ordered = [...languageOptions];
+    if (typeof window !== 'undefined') {
+      const raw = localStorage.getItem(EDITOR_LANGUAGE_ORDER_KEY);
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw) as string[];
+          const order = normalizeEditorLanguageOrder(parsed);
+          const rank = new Map(order.map((lang, idx) => [lang, idx]));
+          ordered.sort((a, b) => (rank.get(a.value) ?? 999) - (rank.get(b.value) ?? 999));
+        } catch {
+          // Ignore malformed localStorage value and fallback to default order.
+        }
+      }
+    }
     if (!allowedLanguages || allowedLanguages.length === 0) {
-      return languageOptions;
+      return ordered;
     }
     const normalized = new Set(allowedLanguages.map((lang) => String(lang).trim().toLowerCase()));
     const matchMap: Record<string, string[]> = {
@@ -159,12 +210,13 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       java: ['java'],
       cpp: ['cpp', 'c++'],
       c: ['c'],
+      go: ['go', 'golang'],
     };
-    const filtered = languageOptions.filter((opt) => {
+    const filtered = ordered.filter((opt) => {
       const candidates = matchMap[opt.value] ?? [opt.value];
       return candidates.some((c) => normalized.has(c));
     });
-    return filtered.length > 0 ? filtered : languageOptions;
+    return filtered.length > 0 ? filtered : ordered;
   }, [allowedLanguages]);
   // Storage keys
   const codeKey = useMemo(() => `oj:code:${problemId ?? 'global'}:`, [problemId]);
@@ -173,7 +225,8 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 
   const [language, setLanguage] = useState(() => {
     const saved = localStorage.getItem(langKey);
-    const initial = saved || initialLanguage;
+    const preferredDefault = availableLanguageOptions[0]?.value;
+    const initial = saved || preferredDefault || initialLanguage;
     const allowedValues = availableLanguageOptions.map((opt) => opt.value);
     if (allowedValues.length > 0 && !allowedValues.includes(initial)) {
       return allowedValues[0];
@@ -195,11 +248,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   }, [availableLanguageOptions, language, initialCode]);
 
   const [input, setInput] = useState('');
-  const [editorTheme, setEditorTheme] = useState<'light' | 'dark'>(() => {
-    if (preferredTheme) return preferredTheme;
-    const saved = localStorage.getItem(themeKey);
-    return saved === 'light' || saved === 'dark' ? saved : 'dark';
-  });
+  const [editorTheme, setEditorTheme] = useState<'light' | 'dark'>(() => resolveInitialEditorTheme(preferredTheme));
 
   // Layout: vertical split top (editor) / bottom (IO)
   const [ioHeightPct, setIoHeightPct] = useState<number>(() => {
@@ -346,7 +395,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
 
     clearCodeCacheForPrefix(codeKey);
     purgeExpiredCodeCache(codeKey);
-    const savedLanguage = localStorage.getItem(langKey) || initialLanguage;
+    const savedLanguage = localStorage.getItem(langKey) || availableLanguageOptions[0]?.value || initialLanguage;
     languageRef.current = savedLanguage;
     setLanguage((prev) => (prev === savedLanguage ? prev : savedLanguage));
     const baseCode = initialCode || defaultCode[savedLanguage] || '';
@@ -356,7 +405,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     }
     userEditedRef.current = false;
     lastAutoSavedRef.current = '';
-  }, [codeKey, langKey, initialCode, initialLanguage]);
+  }, [codeKey, langKey, initialCode, initialLanguage, availableLanguageOptions]);
 
   useEffect(() => {
     if (typeof window === 'undefined') {
@@ -637,6 +686,22 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     ? 'bg-slate-900 border border-slate-600 text-slate-100'
     : 'bg-white border border-gray-300 text-gray-900';
 
+  const outlineButtonClass = isDarkTheme
+    ? 'border-slate-600 text-slate-200 hover:bg-slate-800'
+    : 'border-blue-600 text-blue-600 hover:bg-blue-50 dark:!border-blue-600 dark:!text-blue-600 dark:hover:!bg-blue-50';
+
+  const executeButtonClass = isDarkTheme
+    ? 'bg-sky-900/40 text-sky-200 hover:bg-sky-900'
+    : 'bg-sky-100 text-blue-700 hover:bg-sky-200 dark:!bg-sky-100 dark:!text-blue-700 dark:hover:!bg-sky-200';
+
+  const submitButtonClass = isDarkTheme
+    ? 'bg-blue-500 text-white hover:bg-blue-400'
+    : 'bg-blue-600 text-white hover:bg-blue-700 dark:!bg-blue-600 dark:!text-white dark:hover:!bg-blue-700';
+
+  const outputCardForceClass = isDarkTheme
+    ? ''
+    : 'dark:!bg-white dark:!border-gray-200 dark:!text-gray-900';
+
 
 
   return (
@@ -679,19 +744,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           <Button
             variant="outline"
             size="sm"
-            className={isDarkTheme ? 'border-slate-600 text-slate-200 hover:bg-slate-800' : ''}
-            onClick={() => {
-              if (confirm('현재 언어의 기본 템플릿으로 초기화할까요?')) {
-                const def = defaultCode[language] || '';
-                codeRef.current = def;
-                setCode(def);
-              }
-            }}
-          >초기화</Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className={isDarkTheme ? 'border-slate-600 text-slate-200 hover:bg-slate-800' : ''}
+            className={outlineButtonClass}
             onClick={handleManualSave}
             title="Ctrl/Cmd+S"
           >
@@ -700,6 +753,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           <Button
             variant="secondary"
             size="sm"
+            className={executeButtonClass}
             onClick={handleExecute}
             disabled={isExecuting}
             loading={isExecuting}
@@ -709,6 +763,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           <Button
             variant="primary"
             size="sm"
+            className={submitButtonClass}
             onClick={handleSubmit}
             disabled={isSubmitting}
             loading={isSubmitting}
@@ -794,7 +849,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
                     <Button
                       variant="outline"
                       size="sm"
-                      className={`px-2 py-1 text-xs ${isDarkTheme ? 'border-slate-600 text-slate-200 hover:bg-slate-800' : ''}`}
+                      className={`px-2 py-1 text-xs ${outlineButtonClass}`}
                       onClick={() => setInput('')}
                     >
                       지우기
@@ -802,7 +857,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
                     <Button
                       variant="outline"
                       size="sm"
-                      className={`px-2 py-1 text-xs ${isDarkTheme ? 'border-slate-600 text-slate-200 hover:bg-slate-800' : ''}`}
+                      className={`px-2 py-1 text-xs ${outlineButtonClass}`}
                       onClick={() => navigator.clipboard.writeText(input)}
                     >
                       복사
@@ -834,14 +889,14 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
                     <Button
                       variant="outline"
                       size="sm"
-                      className={`px-2 py-1 text-xs ${isDarkTheme ? 'border-slate-600 text-slate-200 hover:bg-slate-800' : ''}`}
+                      className={`px-2 py-1 text-xs ${outlineButtonClass}`}
                       onClick={() => navigator.clipboard.writeText(`${executionResult?.output || ''}${executionResult?.error ? `\n${executionResult.error}` : ''}`)}
                     >
                       복사
                     </Button>
                   </div>
                 </div>
-                <Card className="flex-1" appearance={isDarkTheme ? 'inverted' : 'default'}>
+                <Card className={`flex-1 ${outputCardForceClass}`} appearance={isDarkTheme ? 'inverted' : 'default'}>
                   <div className="h-full overflow-auto space-y-2">
                     {executionResult ? (
                       <>

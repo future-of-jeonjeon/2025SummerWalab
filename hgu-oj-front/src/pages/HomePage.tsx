@@ -8,7 +8,8 @@ import { rankingService } from '../services/rankingService';
 import { useAuthStore } from '../stores/authStore';
 import { userService } from '../services/userService';
 import { problemService } from '../services/problemService';
-import { getDifficultyMeta, normalizeDifficulty } from '../lib/difficulty';
+import { getDifficultyMeta } from '../lib/difficulty';
+import { ProblemList } from '../components/organisms/ProblemList';
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -126,58 +127,20 @@ export const HomePage: React.FC = () => {
                 전체 보기 &gt;
               </Link>
             </div>
-            <div className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-slate-200 dark:bg-slate-900/60 dark:ring-slate-800">
-              <div className="w-full text-left text-sm text-slate-600 dark:text-slate-400">
-                <div className="border-b border-slate-200 bg-slate-50 text-slate-500 dark:border-slate-800 dark:bg-slate-800/50 px-6 py-4">
-                  <div className="grid grid-cols-[minmax(0,1fr)_100px_100px] items-center gap-4">
-                    <div className="flex h-full items-center font-medium whitespace-nowrap">제목</div>
-                    <div className="flex h-full items-center justify-center font-medium whitespace-nowrap w-32">난이도</div>
-                    <div className="flex h-full items-center justify-end font-medium whitespace-nowrap w-24 text-right">정답률</div>
-                  </div>
-                </div>
-
-                <div className="divide-y divide-slate-200 dark:divide-slate-800 bg-white dark:bg-transparent">
-                  {recentProblemsLoading ? (
-                    <div className="px-6 py-8 flex justify-center items-center">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-                    </div>
-                  ) : recentProblems.length === 0 ? (
-                    <div className="px-6 py-8 text-center text-slate-500 dark:text-slate-400">
-                      최근 문제가 없습니다.
-                    </div>
-                  ) : (
-                    recentProblems.map((problem) => (
-                      <div key={problem.id} className="transition-colors hover:bg-slate-50 dark:hover:bg-slate-800/40 cursor-pointer px-6 py-4" onClick={() => navigate(`/problems/${problem.id}`)}>
-                        <div className="grid grid-cols-[minmax(0,1fr)_100px_100px] items-center gap-4">
-                          <div className="font-semibold text-slate-900 dark:text-slate-100 truncate">{problem.title}</div>
-                          <div className="flex justify-center text-center">
-                            {(() => {
-                              const rawDiff = problem.difficulty ?? (problem as any).level ?? (problem as any).difficulty_level;
-                              const meta = getDifficultyMeta(normalizeDifficulty(rawDiff) ?? 0);
-                              return meta ? <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-semibold ${meta.className}`}>{meta.label}</span> : null;
-                            })()}
-                          </div>
-                          <div className="flex justify-end text-right text-sm text-slate-600 dark:text-slate-400 font-medium">
-                            {problem.acceptedNumber && problem.submissionNumber
-                              ? `${Math.round((problem.acceptedNumber / problem.submissionNumber) * 100)}%`
-                              : '0%'}
-                          </div>
-                        </div>
-                      </div>
-                    ))
-                  )}
-                </div>
-              </div>
-            </div>
+            <ProblemList
+              problems={recentProblems}
+              isLoading={recentProblemsLoading}
+              onProblemClick={(problemKey) => navigate(`/problems/${encodeURIComponent(problemKey)}`)}
+            />
           </div>
 
           {/* Right Sidebar */}
           <div className="w-full lg:w-[22rem] xl:w-96 shrink-0 flex flex-col gap-6">
             {/* 오늘의 도전 과제 */}
             <div className="relative overflow-hidden rounded-2xl bg-[#1A1F36] text-white shadow-xl">
-              <div className="absolute top-4 right-4 opacity-5 pointer-events-none">
+              <div className="absolute top-4 right-4 opacity-10 pointer-events-none">
                 <svg width="120" height="120" viewBox="0 0 24 24" fill="currentColor">
-                  <path d="M12 2l2.4 7.4h7.6l-6 4.6 2.3 7.4-6.3-4.8-6.3 4.8 2.3-7.4-6-4.6h7.6z" />
+                  <path d="M18 4V2H6v2H2v3c0 2.62 1.91 4.78 4.41 4.97A6.02 6.02 0 0011 15.92V19H8v2h8v-2h-3v-3.08a6.02 6.02 0 004.59-3.95C20.09 11.78 22 9.62 22 7V4h-4zm-2 2v3a4 4 0 11-8 0V6h8zM4 7V6h2v3.53A2.99 2.99 0 014 7zm16 0a2.99 2.99 0 01-2 2.83V6h2v1z" />
                 </svg>
               </div>
               <div className="relative p-6">
@@ -193,7 +156,6 @@ export const HomePage: React.FC = () => {
                       {meta.label}
                     </span> : null;
                   })()}
-                  <span className="text-xs text-slate-400">ID: 102</span>
                 </div>
 
                 <div className="flex items-center justify-between text-sm mb-4">
@@ -201,7 +163,6 @@ export const HomePage: React.FC = () => {
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
                     12k 해결됨
                   </span>
-                  <span className="text-slate-300 font-semibold">+15 XP</span>
                 </div>
 
                 <button
@@ -221,32 +182,30 @@ export const HomePage: React.FC = () => {
 
               <div className="space-y-5">
                 {userRanking.loading ? (
-                  Array.from({ length: 3 }).map((_, i) => (
-                    <div key={i} className="flex items-center gap-3 animate-pulse">
-                      <div className="w-4 h-4 bg-slate-200 rounded"></div>
-                      <div className="w-10 h-10 bg-slate-200 rounded-full"></div>
-                      <div className="flex-1 space-y-2">
-                        <div className="h-3 w-20 bg-slate-200 rounded"></div>
-                        <div className="h-2 w-16 bg-slate-200 rounded"></div>
+                  <div className="animate-pulse space-y-4">
+                    {Array.from({ length: 3 }).map((_, i) => (
+                      <div key={i} className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-slate-200 dark:bg-slate-700 shrink-0" />
+                        <div className="flex-1 space-y-2">
+                          <div className="h-3 w-24 rounded bg-slate-200 dark:bg-slate-700" />
+                          <div className="h-2.5 w-16 rounded bg-slate-100 dark:bg-slate-800" />
+                        </div>
                       </div>
-                    </div>
-                  ))
+                    ))}
+                  </div>
                 ) : userRanking.items.length > 0 ? (
                   userRanking.items.slice(0, 3).map((user, idx) => (
-                    <div key={user.rank} className="flex items-center gap-3">
-                      <span className="w-5 text-center text-sm font-bold text-slate-400">{user.rank}</span>
+                    <div key={user.rank ?? idx} className="flex items-center gap-3">
                       <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden shrink-0">
-                        <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${user.username}`} alt="avatar" className="w-full h-full object-cover" />
+                        {user.avatarUrl ? (
+                          <img
+                            src={user.avatarUrl}
+                            alt={`${user.username} avatar`}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : null}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">{user.username}</p>
-                          <span className={`text-[10px] font-bold ${idx === 0 ? 'text-blue-600 dark:text-blue-400' : 'text-red-500 dark:text-red-400'}`}>
-                            {idx === 0 ? 'Grandmaster' : 'International Master'}
-                          </span>
-                        </div>
-                        <p className="text-xs text-slate-500">Rating: {user.solvedCount ? 2000 + user.solvedCount * 10 : 2500}</p>
-                      </div>
+                      <p className="text-sm font-bold text-slate-900 dark:text-slate-100 truncate">{user.username}</p>
                     </div>
                   ))
                 ) : (

@@ -1,16 +1,13 @@
 import React from 'react';
 import { Problem } from '../../types';
-import { Button } from '../atoms/Button';
 import { resolveProblemStatus } from '../../utils/problemStatus';
 import { PROBLEM_STATUS_LABELS } from '../../constants/problemStatus';
 
 interface ProblemListProps {
   problems: Problem[];
   onProblemClick: (problemKey: string) => void;
+  onTagClick?: (tag: string) => void;
   isLoading?: boolean;
-  totalPages?: number;
-  currentPage?: number;
-  onPageChange?: (page: number) => void;
   onSortChange?: (field: 'number' | 'title' | 'submission' | 'accuracy') => void;
   sortField?: 'number' | 'title' | 'submission' | 'accuracy';
   sortOrder?: 'asc' | 'desc';
@@ -22,10 +19,8 @@ interface ProblemListProps {
 export const ProblemList: React.FC<ProblemListProps> = ({
   problems,
   onProblemClick,
+  onTagClick,
   isLoading = false,
-  totalPages = 1,
-  currentPage = 1,
-  onPageChange,
   onSortChange,
   sortField,
   sortOrder,
@@ -81,13 +76,19 @@ export const ProblemList: React.FC<ProblemListProps> = ({
     if (state === 'solved') {
       return {
         label: PROBLEM_STATUS_LABELS.solved,
-        className: 'bg-green-100 text-green-700 border border-green-200',
+        className: 'rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300',
       };
     }
     if (state === 'wrong') {
       return {
         label: PROBLEM_STATUS_LABELS.wrong,
-        className: 'bg-red-100 text-red-600 border border-red-200',
+        className: 'rounded-md border border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300',
+      };
+    }
+    if (state === 'attempted') {
+      return {
+        label: PROBLEM_STATUS_LABELS.wrong,
+        className: 'rounded-md border border-rose-200/80 bg-rose-50/70 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-300',
       };
     }
     return undefined;
@@ -104,19 +105,19 @@ export const ProblemList: React.FC<ProblemListProps> = ({
 
     // Display raw number if available, otherwise '-'
     if (rawDifficulty === undefined || rawDifficulty === null || rawDifficulty === '') {
-      return <span className="text-sm text-gray-400">-</span>;
+      return <span className="text-sm text-gray-400 dark:text-slate-500">-</span>;
     }
 
     const displayDifficulty = String(rawDifficulty).replace(/^Lv\.\s*/i, '');
     const level = Number(displayDifficulty);
-    let badgeClass = 'bg-slate-100 text-slate-700'; // Default
+    let badgeClass = 'bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-100 dark:ring-1 dark:ring-slate-500/60'; // Default
 
     if (!Number.isNaN(level)) {
-      if (level === 1) badgeClass = 'bg-blue-100 text-blue-700';
-      else if (level === 2) badgeClass = 'bg-green-100 text-green-700';
-      else if (level === 3) badgeClass = 'bg-orange-100 text-orange-700';
-      else if (level === 4) badgeClass = 'bg-red-100 text-red-700';
-      else if (level >= 5) badgeClass = 'bg-purple-100 text-purple-700';
+      if (level === 1) badgeClass = 'bg-blue-100 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300';
+      else if (level === 2) badgeClass = 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300';
+      else if (level === 3) badgeClass = 'bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300';
+      else if (level === 4) badgeClass = 'bg-rose-100 text-rose-700 dark:bg-rose-500/10 dark:text-rose-300';
+      else if (level >= 5) badgeClass = 'bg-violet-100 text-violet-700 dark:bg-violet-500/10 dark:text-violet-300';
     }
 
     return (
@@ -126,20 +127,32 @@ export const ProblemList: React.FC<ProblemListProps> = ({
     );
   };
 
+  const getDisplayTags = (problem: Problem): string[] => {
+    const tags = [
+      ...(Array.isArray((problem as any).tags) ? (problem as any).tags : []),
+      ...(Array.isArray((problem as any).tagNames) ? (problem as any).tagNames : []),
+      ...(Array.isArray((problem as any).tag_list) ? (problem as any).tag_list : []),
+    ]
+      .map((tag) => (typeof tag === 'string' ? tag.trim() : ''))
+      .filter((tag) => tag.length > 0);
+
+    return Array.from(new Set(tags));
+  };
+
   if (isLoading) {
     return (
       <div className="space-y-4">
         <div className="animate-pulse">
-          <div className="h-10 bg-gray-200 rounded mb-4"></div>
-          <div className="bg-white rounded-lg shadow-sm">
-            <div className="p-4 border-b">
-              <div className="h-6 bg-gray-200 rounded w-1/4"></div>
+          <div className="h-10 bg-gray-200 dark:bg-slate-700 rounded mb-4"></div>
+          <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm">
+            <div className="p-4 border-b border-gray-200 dark:border-slate-700">
+              <div className="h-6 bg-gray-200 dark:bg-slate-700 rounded w-1/4"></div>
             </div>
             {[...Array(5)].map((_, i) => (
-              <div key={i} className="p-4 border-b last:border-b-0">
+              <div key={i} className="p-4 border-b border-gray-200 dark:border-slate-700 last:border-b-0">
                 <div className="flex items-center justify-between">
-                  <div className="h-4 bg-gray-200 rounded w-1/3"></div>
-                  <div className="h-4 bg-gray-200 rounded w-1/6"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-slate-700 rounded w-1/3"></div>
+                  <div className="h-4 bg-gray-200 dark:bg-slate-700 rounded w-1/6"></div>
                 </div>
               </div>
             ))}
@@ -152,16 +165,16 @@ export const ProblemList: React.FC<ProblemListProps> = ({
   if (problems.length === 0) {
     return (
       <div className="text-center py-12">
-        <div className="text-gray-600 text-lg mb-4">문제가 없습니다</div>
-        <p className="text-gray-500">다른 검색어를 시도해보세요</p>
+        <div className="text-gray-600 dark:text-slate-400 text-lg mb-4">문제가 없습니다</div>
+        <p className="text-gray-500 dark:text-slate-400">다른 검색어를 시도해보세요</p>
       </div>
     );
   }
 
   return (
     <div className="space-y-6">
-      <div className="bg-white rounded-lg shadow-sm overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-200 bg-gray-50">
+      <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm overflow-hidden">
+        <div className="px-6 py-4 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800">
           <div className="grid grid-cols-[minmax(0,1fr)_100px_100px] items-center gap-4">
             <div className="flex h-full items-center">
               {renderSortableHeader('제목', 'title', 'left')}
@@ -174,40 +187,56 @@ export const ProblemList: React.FC<ProblemListProps> = ({
             </div>
           </div>
         </div>
-        <div className="divide-y divide-gray-200">
+        <div className="divide-y divide-gray-200 dark:divide-slate-700">
           {problems.map((problem) => {
             const badge = getStatusBadge(problem);
+            const tags = getDisplayTags(problem);
+            const problemKey = String(problem.displayId ?? problem.id);
 
             return (
               <div
                 key={problem.id}
-                className="px-6 py-4 transition-colors hover:bg-gray-50 hover:shadow-sm"
+                className="px-6 py-4 transition-colors hover:bg-gray-50 dark:hover:bg-slate-800 hover:shadow-sm"
               >
                 <div className="grid grid-cols-[minmax(0,1fr)_100px_100px] items-center gap-4">
-                  <div className="flex h-full items-center justify-start gap-2 text-left">
-                    <button
-                      type="button"
-                      onClick={(event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        // Use displayId or ID for navigation key if needed, or just ID
-                        const key = String(problem.displayId ?? problem.id);
-                        onProblemClick(key);
-                      }}
-                      className="text-base font-semibold text-gray-800 hover:text-blue-600 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
-                    >
-                      {problem.title}
-                    </button>
-                    {badge && (
-                      <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold tracking-tight uppercase ${badge.className}`}>
-                        {badge.label}
-                      </span>
+                  <div className="flex h-full flex-col items-start justify-center gap-2 text-left">
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          onProblemClick(problemKey);
+                        }}
+                        className="text-base font-semibold text-gray-800 dark:text-slate-100 hover:text-blue-600 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
+                      >
+                        {problem.title}
+                      </button>
+                      {badge && (
+                        <span className={`inline-flex items-center px-2 py-0.5 text-[10px] font-bold tracking-tight uppercase ${badge.className}`}>
+                          {badge.label}
+                        </span>
+                      )}
+                    </div>
+                    {tags.length > 0 && (
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {tags.map((tag) => (
+                          <button
+                            key={tag}
+                            type="button"
+                            onClick={() => onTagClick?.(tag)}
+                            className="inline-flex items-center rounded-md bg-slate-100 px-2 py-1 text-[11px] font-medium text-slate-700 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                          >
+                            #{tag}
+                          </button>
+                        ))}
+                      </div>
                     )}
                   </div>
                   <div className="flex h-full items-center justify-center">
                     {renderDifficultyBadge(problem)}
                   </div>
-                  <div className="flex h-full items-center justify-end text-sm text-gray-600 font-medium">
+                  <div className="flex h-full items-center justify-end text-sm text-gray-600 dark:text-slate-300 font-medium">
                     {problem.acceptedNumber && problem.submissionNumber
                       ? `${Math.round((problem.acceptedNumber / problem.submissionNumber) * 100)}%`
                       : '0%'
@@ -218,85 +247,6 @@ export const ProblemList: React.FC<ProblemListProps> = ({
             );
           })}
         </div>
-
-        {/* 페이지네이션 */}
-        {totalPages > 0 && onPageChange && (
-          <div className="flex items-center justify-between p-4 bg-white border-t border-gray-200">
-            <Button
-              onClick={() => onPageChange(currentPage - 1)}
-              disabled={currentPage <= 1}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              이전
-            </Button>
-
-            <div className="flex hidden sm:flex space-x-1 sm:space-x-2">
-              {(() => {
-                // 화면 중앙에 보여줄 페이지 번호 개수 (ex: 5개)
-                const maxVisible = 5;
-                let start = Math.max(1, currentPage - Math.floor(maxVisible / 2));
-                let end = start + maxVisible - 1;
-
-                if (end > totalPages) {
-                  end = totalPages;
-                  start = Math.max(1, end - maxVisible + 1);
-                }
-
-                const renderPage = (page: number) => (
-                  <Button
-                    key={page}
-                    onClick={() => onPageChange(page)}
-                    className={`min-w-[36px] px-3 py-2 rounded-lg text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${currentPage === page
-                      ? 'bg-blue-600 text-white border border-blue-600 hover:bg-blue-700'
-                      : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                      }`}
-                  >
-                    {page}
-                  </Button>
-                );
-
-                const items = [];
-
-                if (start > 1) {
-                  items.push(renderPage(1));
-                  if (start > 2) {
-                    items.push(<span key="start-dots" className="px-2 py-2 text-gray-500">...</span>);
-                  }
-                }
-
-                for (let i = start; i <= end; i++) {
-                  items.push(renderPage(i));
-                }
-
-                if (end < totalPages) {
-                  if (end < totalPages - 1) {
-                    items.push(<span key="end-dots" className="px-2 py-2 text-gray-500">...</span>);
-                  }
-                  items.push(renderPage(totalPages));
-                }
-
-                if (items.length === 0 && totalPages > 0) {
-                  items.push(renderPage(1));
-                }
-
-                return items;
-              })()}
-            </div>
-
-            {/* 모바일 환경에서는 페이지 번호를 줄여서 보여줌 */}
-            <div className="sm:hidden text-sm text-gray-600 font-medium">
-              {currentPage} / {totalPages}
-            </div>
-
-            <Button
-              onClick={() => onPageChange(currentPage + 1)}
-              disabled={currentPage >= totalPages}
-              className="px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-            >
-              다음
-            </Button>
-          </div>
-        )}
       </div>
     </div>
   );

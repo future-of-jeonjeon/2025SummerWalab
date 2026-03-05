@@ -12,6 +12,8 @@ from app.common.base_entity import BaseEntity
 if TYPE_CHECKING:
     from app.problem.models import Problem
 
+DEFAULT_LANGUAGE_PREFERENCES = ["c", "cpp", "python", "java", "javascript", "go"]
+
 
 class User(Base):
     __tablename__ = "user"
@@ -46,3 +48,7 @@ class UserData(BaseEntity, Base):
     student_id: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
     major_id: Mapped[int] = mapped_column(Integer, nullable=False)
     user: Mapped["User"] = relationship("User", lazy="selectin")
+
+    dark_mode_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    language_preferences: Mapped[list[str]] = mapped_column(JSONB, nullable=False,
+                                                            default=lambda: DEFAULT_LANGUAGE_PREFERENCES.copy())

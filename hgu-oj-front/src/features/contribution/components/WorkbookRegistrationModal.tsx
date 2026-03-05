@@ -203,21 +203,21 @@ export const WorkbookRegistrationModal: React.FC<WorkbookRegistrationModalProps>
 
                 <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
 
-                <div className="inline-block align-bottom bg-white rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full border border-gray-100">
-                    <div className="px-8 pt-8 pb-4 border-b border-gray-100 bg-gray-50/50">
+                <div className="inline-block align-bottom bg-white dark:bg-slate-900 rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800">
+                    <div className="px-8 pt-8 pb-4 border-b border-gray-100 dark:border-slate-800 bg-gray-50/50 dark:bg-slate-800">
                         <div className="flex items-center justify-between">
-                            <h3 className="text-2xl font-bold leading-6 text-gray-900 tracking-tight" id="modal-title">
+                            <h3 className="text-2xl font-bold leading-6 text-gray-900 dark:text-slate-100 tracking-tight" id="modal-title">
                                 {initialData ? '문제집 수정' : '새 문제집 등록'}
                             </h3>
-                            <div className="flex space-x-1 bg-white p-1 rounded-lg border border-gray-200">
+                            <div className="flex space-x-1 bg-white dark:bg-slate-900 p-1 rounded-lg border border-gray-200 dark:border-slate-700">
                                 <button
-                                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${activeTab === 'basic' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-gray-500 hover:bg-gray-50'}`}
+                                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${activeTab === 'basic' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800'}`}
                                     onClick={() => setActiveTab('basic')}
                                 >
                                     기본 정보
                                 </button>
                                 <button
-                                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${activeTab === 'problems' ? 'bg-indigo-50 text-indigo-700 shadow-sm' : 'text-gray-500 hover:bg-gray-50'}`}
+                                    className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${activeTab === 'problems' ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300 shadow-sm' : 'text-gray-500 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800'}`}
                                     onClick={() => setActiveTab('problems')}
                                 >
                                     문제 관리
@@ -226,7 +226,7 @@ export const WorkbookRegistrationModal: React.FC<WorkbookRegistrationModalProps>
                         </div>
                     </div>
 
-                    <div className="bg-white px-8 py-6 min-h-[400px]">
+                    <div className="bg-white dark:bg-slate-900 px-8 py-6 min-h-[400px]">
                         {message.error && (
                             <div className="mb-6 bg-red-50 text-red-700 p-4 rounded-lg text-sm border border-red-100 flex items-center">
                                 <svg className="w-5 h-5 mr-2 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -251,26 +251,26 @@ export const WorkbookRegistrationModal: React.FC<WorkbookRegistrationModalProps>
                                     value={formState.title}
                                     onChange={e => setFormState({ ...formState, title: e.target.value })}
                                     required
-                                    className="bg-gray-50 focus:bg-white transition-colors"
+                                    className="bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-700 transition-colors"
                                 />
                                 <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">설명</label>
+                                    <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300 mb-1.5">설명</label>
                                     <textarea
-                                        className="block w-full border-gray-300 rounded-lg shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm py-2.5 px-3 bg-gray-50 focus:bg-white transition-colors resize-none"
+                                        className="block w-full border-gray-300 dark:border-slate-600 rounded-lg shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm py-2.5 px-3 bg-gray-50 dark:bg-slate-800 focus:bg-white dark:focus:bg-slate-700 transition-colors resize-none"
                                         rows={8}
                                         value={formState.description}
                                         onChange={e => setFormState({ ...formState, description: e.target.value })}
                                     />
                                 </div>
-                                <div className="flex items-center p-3 bg-gray-50 rounded-lg border border-gray-100 w-fit">
+                                <div className="flex items-center p-3 bg-gray-50 rounded-lg bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 w-fit">
                                     <input
                                         id="visible"
                                         type="checkbox"
                                         checked={formState.visible}
                                         onChange={e => setFormState({ ...formState, visible: e.target.checked })}
-                                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded transition-colors"
+                                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded transition-colors"
                                     />
-                                    <label htmlFor="visible" className="ml-2 block text-sm font-medium text-gray-900 cursor-pointer select-none">
+                                    <label htmlFor="visible" className="ml-2 block text-sm font-medium text-gray-900 dark:text-slate-100 cursor-pointer select-none">
                                         공개 설정
                                     </label>
                                 </div>
@@ -279,24 +279,24 @@ export const WorkbookRegistrationModal: React.FC<WorkbookRegistrationModalProps>
 
                         {activeTab === 'problems' && (
                             <div className="space-y-6 animate-fadeIn">
-                                <div className="flex gap-3 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                                <div className="flex gap-3 bg-gray-50 p-4 rounded-xl bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800">
                                     <div className="relative flex-1">
                                         <Input
                                             placeholder="문제 검색 (제목)"
                                             value={problemInput}
                                             onChange={e => handleSearchProblem(e.target.value)}
-                                            className="bg-white focus:ring-indigo-500"
+                                            className="bg-white dark:bg-slate-900 focus:ring-blue-500"
                                         />
                                         {problemSearch.results.length > 0 && (
-                                            <ul className="absolute z-10 mt-2 w-full max-h-60 overflow-auto rounded-xl border border-gray-100 bg-white shadow-xl ring-1 ring-black ring-opacity-5 focus:outline-none">
+                                            <ul className="absolute z-10 mt-2 w-full max-h-60 overflow-auto rounded-xl bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 bg-white shadow-xl ring-1 ring-black ring-opacity-5 focus:outline-none">
                                                 {problemSearch.results.map(p => (
                                                     <li
                                                         key={p.id}
-                                                        className="cursor-pointer select-none relative py-3 pl-4 pr-9 hover:bg-indigo-50 text-gray-900 transition-colors border-b border-gray-50 last:border-0"
+                                                        className="cursor-pointer select-none relative py-3 pl-4 pr-9 hover:bg-blue-50 dark:hover:bg-blue-900/30 text-gray-900 dark:text-slate-100 transition-colors border-b border-gray-50 last:border-0"
                                                         onClick={() => handleAddProblem(p)}
                                                     >
                                                         <div className="flex items-center">
-                                                            <span className="text-gray-900 truncate">{p.title}</span>
+                                                            <span className="text-gray-900 dark:text-slate-100 truncate">{p.title}</span>
                                                         </div>
                                                     </li>
                                                 ))}
@@ -306,19 +306,19 @@ export const WorkbookRegistrationModal: React.FC<WorkbookRegistrationModalProps>
 
                                 </div>
 
-                                <div className="rounded-xl border border-gray-200 overflow-hidden shadow-sm">
-                                    <table className="min-w-full divide-y divide-gray-200">
-                                        <thead className="bg-gray-50">
+                                <div className="rounded-xl border border-gray-200 dark:border-slate-700 overflow-hidden shadow-sm">
+                                    <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
+                                        <thead className="bg-gray-50 dark:bg-slate-800">
                                             <tr>
-                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">No.</th>
-                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
-                                                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Action</th>
+                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">No.</th>
+                                                <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Title</th>
+                                                <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">Action</th>
                                             </tr>
                                         </thead>
-                                        <tbody className="bg-white divide-y divide-gray-200">
+                                        <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-700 dark:divide-slate-700">
                                             {workbookProblems.items.length === 0 ? (
                                                 <tr>
-                                                    <td colSpan={3} className="px-6 py-10 text-center text-gray-500 text-sm">
+                                                    <td colSpan={3} className="px-6 py-10 text-center text-gray-500 dark:text-slate-400 text-sm">
                                                         등록된 문제가 없습니다.
                                                     </td>
                                                 </tr>
@@ -326,18 +326,18 @@ export const WorkbookRegistrationModal: React.FC<WorkbookRegistrationModalProps>
                                                 workbookProblems.items.map((p, index) => (
                                                     <tr
                                                         key={p.id}
-                                                        className="hover:bg-gray-50 transition-colors cursor-move"
+                                                        className="hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors cursor-move"
                                                         draggable
                                                         onDragStart={() => (dragItem.current = index)}
                                                         onDragEnter={() => (dragOverItem.current = index)}
                                                         onDragEnd={handleSort}
                                                         onDragOver={(e) => e.preventDefault()}
                                                     >
-                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{index + 1}</td>
-                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{p.title}</td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">{index + 1}</td>
+                                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-300">{p.title}</td>
                                                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm">
                                                             <button
-                                                                className="text-red-400 hover:text-red-600 font-medium transition-colors p-1 rounded-md hover:bg-red-50"
+                                                                className="text-red-400 hover:text-red-600 font-medium transition-colors p-1 rounded-md hover:bg-red-50 dark:hover:bg-red-900/20"
                                                                 onClick={() => handleRemoveProblem(p.id)}
                                                             >
                                                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -354,19 +354,11 @@ export const WorkbookRegistrationModal: React.FC<WorkbookRegistrationModalProps>
                             </div>
                         )}
                     </div>
-                    <div className="bg-gray-50/80 px-8 py-5 sm:flex sm:flex-row-reverse border-t border-gray-100">
-                        <Button
-                            onClick={handleSubmit}
-                            disabled={loading}
-                            className="w-full inline-flex justify-center rounded-lg border border-transparent shadow-sm px-5 py-2.5 bg-indigo-600 text-base font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:ml-3 sm:w-auto sm:text-sm transition-colors"
-                        >
+                    <div className="bg-gray-50/80 dark:bg-slate-800 px-8 py-5 sm:flex sm:flex-row-reverse border-t border-gray-100 dark:border-slate-800">
+                        <Button onClick={handleSubmit} disabled={loading} className="w-full sm:ml-3 sm:w-auto">
                             {loading ? '저장 중...' : (initialData ? '수정하기' : '등록하기')}
                         </Button>
-                        <Button
-                            onClick={onClose}
-                            variant="outline"
-                            className="mt-3 w-full inline-flex justify-center rounded-lg border border-gray-300 shadow-sm px-5 py-2.5 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm transition-colors"
-                        >
+                        <Button onClick={onClose} variant="outline" className="mt-3 w-full sm:mt-0 sm:ml-3 sm:w-auto">
                             취소
                         </Button>
                     </div>

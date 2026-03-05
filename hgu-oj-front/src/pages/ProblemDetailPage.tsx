@@ -342,8 +342,15 @@ export const ProblemDetailPage: React.FC = () => {
   const [submissionModalLoading, setSubmissionModalLoading] = useState(false);
   const [submissionModalError, setSubmissionModalError] = useState<string | null>(null);
   const [editorTheme, setEditorTheme] = useState<'light' | 'dark'>(() => {
-    const saved = localStorage.getItem('oj:editorTheme');
-    return saved === 'light' || saved === 'dark' ? saved : 'dark';
+    const savedEditorTheme = localStorage.getItem('oj:editorTheme');
+    if (savedEditorTheme === 'light' || savedEditorTheme === 'dark') {
+      return savedEditorTheme;
+    }
+    const savedAppTheme = localStorage.getItem('theme');
+    if (savedAppTheme === 'light' || savedAppTheme === 'dark') {
+      return savedAppTheme;
+    }
+    return document.documentElement.classList.contains('dark') ? 'dark' : 'light';
   });
   const { isAuthenticated, user: authUser } = useAuthStore();
   const submissionPollTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -587,6 +594,15 @@ export const ProblemDetailPage: React.FC = () => {
     return ['my-submissions', 'practice', submissionProblemKey] as const;
   }, [contestContextId, submissionProblemKey]);
 
+  const invalidateMyPageQueries = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['mypage'] });
+  }, [queryClient]);
+
+  const invalidateProblemStatusQueries = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['problem', 'status-map'] });
+    queryClient.invalidateQueries({ queryKey: ['problem-status-map'] });
+  }, [queryClient]);
+
   const startSubmissionPolling = useCallback((submissionId: number | string) => {
     if (!submissionId) return;
     if (typeof submissionId === 'number' && Number.isNaN(submissionId)) return;
@@ -620,6 +636,8 @@ export const ProblemDetailPage: React.FC = () => {
           if (submissionQueryKey) {
             queryClient.invalidateQueries({ queryKey: submissionQueryKey });
           }
+          invalidateProblemStatusQueries();
+          invalidateMyPageQueries();
           stopSubmissionPolling();
           return;
         }
@@ -630,6 +648,8 @@ export const ProblemDetailPage: React.FC = () => {
         if (submissionQueryKey) {
           queryClient.invalidateQueries({ queryKey: submissionQueryKey });
         }
+        invalidateProblemStatusQueries();
+        invalidateMyPageQueries();
         stopSubmissionPolling();
         return;
       }
@@ -637,7 +657,7 @@ export const ProblemDetailPage: React.FC = () => {
     };
 
     submissionPollTimerRef.current = setTimeout(poll, 1000);
-  }, [mapJudgeResult, problemIdentifier, queryClient, stopSubmissionPolling, submissionQueryKey]);
+  }, [invalidateMyPageQueries, invalidateProblemStatusQueries, mapJudgeResult, problemIdentifier, queryClient, stopSubmissionPolling, submissionQueryKey]);
 
   const handleExecute = async (code: string, language: string, input?: string) => {
     if (!requireAuthentication()) return;
@@ -718,8 +738,12 @@ export const ProblemDetailPage: React.FC = () => {
         if (submissionQueryKey) {
           queryClient.invalidateQueries({ queryKey: submissionQueryKey });
         }
+        invalidateProblemStatusQueries();
+        invalidateMyPageQueries();
       } else {
         setManualStatus('SUBMITTED');
+        invalidateProblemStatusQueries();
+        invalidateMyPageQueries();
       }
       setAlertModal({
         isOpen: true,
@@ -1109,7 +1133,9 @@ export const ProblemDetailPage: React.FC = () => {
     if (value == null || Number.isNaN(value)) return undefined;
     if (value === 0) return 0;
     const absValue = Math.abs(value);
-    const kb = absValue / 1024;
+    // Some APIs return bytes, others already return KB.
+    // Treat large values as bytes and smaller values as KB to avoid double conversion.
+    const kb = absValue >= 1024 * 1024 ? absValue / 1024 : absValue;
     if (!Number.isFinite(kb)) return undefined;
     const rounded = Math.max(1, Math.round(kb));
     return value < 0 ? -rounded : rounded;
@@ -1265,17 +1291,11 @@ export const ProblemDetailPage: React.FC = () => {
     if (!total) return null;
     return { passed, total };
   }, [modalSubmissionCombined]);
-  const modalProblemIdentifier = modalSubmissionCombined?.problem
-    ?? (modalSubmissionCombined as any)?.problem_id
-    ?? (modalSubmissionCombined as any)?.problemId
-    ?? '-';
-  const modalSubmissionIdDisplay = modalSubmissionCombined
-    ? resolveSubmissionId(modalSubmissionCombined)
-    : selectedSubmissionId;
   const modalCode = selectedSubmissionDetail?.code ?? (modalSubmissionCombined as any)?.code ?? null;
   const modalCodeDisplay = typeof modalCode === 'string' && modalCode.trim().length > 0
     ? modalCode
     : '코드를 불러올 수 없습니다.';
+  const problemAuthorName = problem?.createdBy?.username;
 
   useEffect(() => {
     if (!manualStatus) return;
@@ -1367,11 +1387,11 @@ export const ProblemDetailPage: React.FC = () => {
     return (
       <div className="max-w-7xl 2xl:max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 2xl:px-10 py-8">
         <div className="animate-pulse">
-          <div className="h-8 bg-gray-200 rounded mb-4"></div>
-          <div className="h-4 bg-gray-200 rounded mb-2"></div>
-          <div className="h-4 bg-gray-200 rounded mb-2"></div>
-          <div className="h-4 bg-gray-200 rounded mb-4"></div>
-          <div className="h-96 bg-gray-200 rounded"></div>
+          <div className="h-8 bg-gray-200 dark:bg-slate-700 rounded mb-4"></div>
+          <div className="h-4 bg-gray-200 dark:bg-slate-700 rounded mb-2"></div>
+          <div className="h-4 bg-gray-200 dark:bg-slate-700 rounded mb-2"></div>
+          <div className="h-4 bg-gray-200 dark:bg-slate-700 rounded mb-4"></div>
+          <div className="h-96 bg-gray-200 dark:bg-slate-700 rounded"></div>
         </div>
       </div>
     );
@@ -1410,19 +1430,19 @@ export const ProblemDetailPage: React.FC = () => {
                 <span className={`text-sm font-semibold ${isDarkTheme ? 'text-slate-100' : 'text-slate-900'}`}>{contestMeta.endTime ? formatDateTime(contestMeta.endTime) : '-'}</span>
               </div>
               <div className="flex flex-col items-end">
-                <span className="font-medium uppercase tracking-wide whitespace-nowrap text-blue-600 dark:text-blue-300">남은 시간</span>
+                <span className={`font-medium uppercase tracking-wide whitespace-nowrap ${isDarkTheme ? 'text-blue-300' : 'text-blue-600'}`}>남은 시간</span>
                 <span className={`w-[14ch] whitespace-nowrap text-right text-xl font-bold tabular-nums ${isDarkTheme ? 'text-blue-300' : 'text-blue-700'}`}>{contestTimeLeft ?? '-'}</span>
               </div>
               <div className={`flex items-center divide-x ${isDarkTheme ? 'divide-slate-700' : 'divide-slate-200'}`}>
                 <div className="px-4 text-right">
-                  <div className="text-[10px] font-medium uppercase tracking-wider text-emerald-600 dark:text-emerald-400">{PROBLEM_SUMMARY_LABELS.solved}</div>
-                  <div className="mt-0.5 w-[9ch] text-xl font-bold text-emerald-600 dark:text-emerald-400 tabular-nums">
+                  <div className={`text-[10px] font-medium uppercase tracking-wider ${isDarkTheme ? 'text-emerald-400' : 'text-emerald-600'}`}>{PROBLEM_SUMMARY_LABELS.solved}</div>
+                  <div className={`mt-0.5 w-[9ch] text-xl font-bold tabular-nums ${isDarkTheme ? 'text-emerald-400' : 'text-emerald-600'}`}>
                     {contestProblemStats?.solved ?? '-'} <span className={`text-xl ${isDarkTheme ? 'text-slate-500' : 'text-slate-400'}`}>/ {contestProblemStats?.total ?? '-'}</span>
                   </div>
                 </div>
                 <div className="px-4 text-right">
-                  <div className="text-[10px] font-medium uppercase tracking-wider text-blue-600 dark:text-blue-400">내 점수</div>
-                  <div className="mt-0.5 w-[8ch] text-xl font-bold text-blue-600 dark:text-blue-400 tabular-nums">
+                  <div className={`text-[10px] font-medium uppercase tracking-wider ${isDarkTheme ? 'text-blue-400' : 'text-blue-600'}`}>내 점수</div>
+                  <div className={`mt-0.5 w-[8ch] text-xl font-bold tabular-nums ${isDarkTheme ? 'text-blue-400' : 'text-blue-600'}`}>
                     {contestRankProgress?.totalScore ?? 0}<span className="text-xs font-normal ml-0.5">점</span>
                   </div>
                 </div>
@@ -1448,7 +1468,7 @@ export const ProblemDetailPage: React.FC = () => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className={`mt-1 ${isDarkTheme ? 'text-slate-200 hover:bg-slate-800' : ''}`}
+                    className={`mt-1 ${isDarkTheme ? 'text-slate-200 hover:bg-slate-800' : 'text-blue-600 hover:bg-blue-50 dark:!text-blue-600 dark:hover:!bg-blue-50'}`}
                     onClick={handleBackClick}
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -1466,6 +1486,7 @@ export const ProblemDetailPage: React.FC = () => {
                     </h1>
                     <div className={`flex flex-wrap items-center gap-3 text-xs ${subtleTextClass}`}>
                       <span>시간 {problem.timeLimit}ms · 메모리 {problem.memoryLimit}MB</span>
+                      {problemAuthorName && <span>작성자 {problemAuthorName}</span>}
                     </div>
                   </div>
                 </div>
@@ -1618,7 +1639,7 @@ export const ProblemDetailPage: React.FC = () => {
                               onClick={() => !isCurrentProblem && openProblemFromList(item)}
                               className={`w-full rounded-lg border px-3 py-2 text-left text-sm transition ${isCurrentProblem
                                 ? isDarkTheme
-                                  ? 'border-blue-500 bg-blue-900/40 text-blue-100'
+                                  ? 'border-sky-700 bg-sky-950/45 text-sky-100'
                                   : 'border-blue-500 bg-blue-50 text-blue-700'
                                 : isDarkTheme
                                   ? 'border-slate-700 bg-slate-900/70 hover:bg-slate-800'
@@ -1632,7 +1653,7 @@ export const ProblemDetailPage: React.FC = () => {
                                   </div>
                                 </div>
                                 {isCurrentProblem ? (
-                                  <span className={`text-xs font-semibold ${isDarkTheme ? 'text-blue-200' : 'text-blue-600'}`}>
+                                  <span className={`text-xs font-semibold ${isDarkTheme ? 'text-sky-300' : 'text-blue-600'}`}>
                                     현재 문제
                                   </span>
                                 ) : (
@@ -1711,9 +1732,7 @@ export const ProblemDetailPage: React.FC = () => {
               onClick={(event) => event.stopPropagation()}
             >
               <div className={`flex items-center justify-between border-b px-5 py-3 ${isDarkTheme ? 'border-slate-700' : 'border-gray-200'}`}>
-                <h3 className="text-lg font-semibold">
-                  {modalSubmissionIdDisplay ? `제출 ${modalSubmissionIdDisplay}` : '제출 상세'}
-                </h3>
+                <h3 className="text-lg font-semibold">제출 상세</h3>
                 <button
                   type="button"
                   onClick={closeSubmissionModal}
@@ -1747,8 +1766,6 @@ export const ProblemDetailPage: React.FC = () => {
                       </div>
                     </div>
                     <div className={`grid gap-3 text-sm ${isDarkTheme ? 'text-slate-200' : 'text-gray-700'} sm:grid-cols-2`}>
-                      <div><span className="font-semibold">제출 ID:</span> {modalSubmissionIdDisplay ?? '-'}</div>
-                      <div><span className="font-semibold">문제 ID:</span> {modalProblemIdentifier ?? '-'}</div>
                       <div><span className="font-semibold">언어:</span> {modalLanguage ?? '-'}</div>
                       <div><span className="font-semibold">제출 시각:</span> {modalSubmittedAt ? formatDateTime(modalSubmittedAt) : '-'}</div>
                       <div><span className="font-semibold">실행 시간:</span> {formatExecutionTimeValue(modalExecutionTime)}</div>

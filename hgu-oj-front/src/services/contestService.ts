@@ -129,6 +129,8 @@ const mapContest = (raw: any): Contest => ({
   languages: raw.languages ?? [],
   participants: raw.participants ?? 0,
   isOrganizationOnly: raw.is_organization_only ?? raw.isOrganizationOnly,
+  organization_id: raw.organization_id,
+  organization_name: raw.organization_name,
 });
 
 
@@ -223,7 +225,10 @@ export const contestService = {
 
   // 대회 상세 조회
   getContest: async (id: number): Promise<Contest> => {
-    const response = await api.get<any>('/contest/', { id });
+    if (!MICRO_API_BASE) {
+      throw new Error('MS_API_BASE not defined');
+    }
+    const response = await apiClient.get<any>(`${MICRO_API_BASE}/contest/${id}`);
     const contest = mapContest(response.data);
     if (contest.problemCount == null) {
       const microCount = await fetchContestProblemCount(id);

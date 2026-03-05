@@ -135,17 +135,17 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
   return (
     <div className={className}>
       {label && (
-        <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor={id}>
+        <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1" htmlFor={id}>
           {label}
         </label>
       )}
-      <div className="rounded-md border border-gray-300 bg-white">
-        <div className="flex flex-wrap gap-1 border-b border-gray-200 bg-gray-50 px-2 py-1.5">
+      <div className="rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900">
+        <div className="flex flex-wrap gap-1 border-b border-gray-200 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 px-2 py-1.5">
           {actions.map((action) => (
             <button
               key={action.key}
               type="button"
-              className={`rounded px-2 py-1 text-sm text-gray-600 hover:bg-gray-200 disabled:cursor-not-allowed disabled:opacity-60`}
+              className={`rounded px-2 py-1 text-sm text-gray-600 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700 disabled:cursor-not-allowed disabled:opacity-60`}
               onMouseDown={(event) => {
                 event.preventDefault();
                 handleAction(action);
@@ -159,12 +159,12 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         </div>
         <div className="relative">
           {(!value || value === '<p><br></p>' || value === '<br>') && !isFocused && placeholder && (
-            <span className="pointer-events-none absolute left-3 top-2.5 text-sm text-gray-400">{placeholder}</span>
+            <span className="pointer-events-none absolute left-3 top-2.5 text-sm text-gray-400 dark:text-slate-500">{placeholder}</span>
           )}
           <div
             id={id}
             ref={editorRef}
-            className="min-h-[160px] w-full rounded-b-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
+            className="min-h-[160px] w-full rounded-b-md px-3 py-2 text-sm text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
             contentEditable
             suppressContentEditableWarning
             onInput={handleInput}
@@ -184,7 +184,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({
         </div>
       </div>
       {(helperText || message) && (
-        <p className="mt-1 text-xs text-gray-500">
+        <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
           {message ?? helperText}
         </p>
       )}
