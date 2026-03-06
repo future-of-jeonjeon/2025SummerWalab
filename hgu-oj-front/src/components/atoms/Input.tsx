@@ -7,6 +7,8 @@ interface InputProps extends BaseComponentProps {
   value?: string;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
+  onCompositionStart?: (e: React.CompositionEvent<HTMLInputElement>) => void;
+  onCompositionEnd?: (e: React.CompositionEvent<HTMLInputElement>) => void;
   disabled?: boolean;
   error?: string;
   label?: string;
@@ -21,6 +23,8 @@ export const Input: React.FC<InputProps> = ({
   value,
   onChange,
   onKeyDown,
+  onCompositionStart,
+  onCompositionEnd,
   disabled = false,
   error,
   label,
@@ -49,6 +53,8 @@ export const Input: React.FC<InputProps> = ({
         value={value}
         onChange={onChange}
         onKeyDown={onKeyDown}
+        onCompositionStart={onCompositionStart}
+        onCompositionEnd={onCompositionEnd}
         disabled={disabled}
         required={required}
         maxLength={maxLength}
