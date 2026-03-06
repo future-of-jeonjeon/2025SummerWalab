@@ -280,6 +280,7 @@ async def get_contest_list_paginated(
 
 def _create_cloned_problem_entity(original_problem: Problem, contest_id: int, display_id: str, user_id: int,
                                   languages: List[str]) -> Problem:
+    now = datetime.now()
     return Problem(
         title=original_problem.title,
         description=original_problem.description,
@@ -310,7 +311,9 @@ def _create_cloned_problem_entity(original_problem: Problem, contest_id: int, di
         is_public=True,
         submission_number=0,
         accepted_number=0,
-        statistic_info={}
+        statistic_info={},
+        create_time=now,
+        last_update_time=now,
     )
 
 
