@@ -30,6 +30,16 @@ const languageMap: Record<string, string> = {
   go: 'Golang',
 };
 
+const DEFAULT_EXECUTION_TIMEOUT_MS = 5000;
+const resolveExecutionTimeoutMs = () => {
+  const raw = (import.meta.env.VITE_EXECUTION_TIMEOUT_MS as string | undefined);
+  const parsed = raw ? Number(raw) : NaN;
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return parsed;
+  }
+  return DEFAULT_EXECUTION_TIMEOUT_MS;
+};
+
 export const executionService = {
   run: async ({ language, code, input }: RunRequest): Promise<RawRunResult> => {
     const lang = languageMap[language.toLowerCase()] || language;
@@ -42,6 +52,8 @@ export const executionService = {
       language: lang,
       code,
       input: input ?? '',
+    }, {
+      timeout: resolveExecutionTimeoutMs(),
     });
     return resp.data;
   },

@@ -17,6 +17,24 @@ import { submissionService, SubmissionDetail, SubmissionListItem } from '../serv
 import { useAuthStore } from '../stores/authStore';
 import 'katex/dist/katex.min.css';
 
+const DEFAULT_EXECUTION_OUTPUT_LIMIT = 20000;
+const resolveExecutionOutputLimit = () => {
+  const raw = (import.meta.env.VITE_EXECUTION_OUTPUT_LIMIT as string | undefined);
+  const parsed = raw ? Number(raw) : NaN;
+  if (Number.isFinite(parsed) && parsed > 0) {
+    return Math.floor(parsed);
+  }
+  return DEFAULT_EXECUTION_OUTPUT_LIMIT;
+};
+
+const EXECUTION_OUTPUT_LIMIT = resolveExecutionOutputLimit();
+
+const truncateExecutionText = (value?: string) => {
+  if (!value) return '';
+  if (value.length <= EXECUTION_OUTPUT_LIMIT) return value;
+  return `${value.slice(0, EXECUTION_OUTPUT_LIMIT)}\n\n... (출력 ${value.length - EXECUTION_OUTPUT_LIMIT}자 생략)`;
+};
+
 const HtmlWithMath = React.memo(({ html, className }: { html?: string | null; className?: string }) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -684,21 +702,26 @@ export const ProblemDetailPage: React.FC = () => {
       const memoryUsageKb = normalizeMemoryToKB(Number.isFinite(memoryRaw) ? memoryRaw : 0) ?? 0;
       const status: ExecutionResult['status'] = errorMsg ? 'ERROR' : ((last?.exit_code ?? 0) === 0 ? 'SUCCESS' : 'ERROR');
       // Don't render raw response when there is no stdout; show nothing on success+empty output
-      const finalOutput = output || '';
+      const finalOutput = truncateExecutionText(output || '');
+      const finalError = truncateExecutionText(errorMsg);
       setExecutionResult({
         output: finalOutput,
-        error: errorMsg,
+        error: finalError,
         executionTime: executionTimeMs,
         memoryUsage: Math.max(0, memoryUsageKb),
         status,
       });
     } catch (err: any) {
+      const normalizedMessage = String(err?.message ?? '');
+      const isTimeout =
+        err?.code === 'ECONNABORTED' ||
+        normalizedMessage.toLowerCase().includes('timeout');
       setExecutionResult({
         output: '',
-        error: err?.message || '실행 중 오류가 발생했습니다.',
+        error: isTimeout ? '실행 시간이 제한을 초과했습니다. 무한 루프 여부를 확인해 주세요.' : (err?.message || '실행 중 오류가 발생했습니다.'),
         executionTime: 0,
         memoryUsage: 0,
-        status: 'ERROR',
+        status: isTimeout ? 'TIMEOUT' : 'ERROR',
       });
     } finally {
       setIsExecuting(false);
