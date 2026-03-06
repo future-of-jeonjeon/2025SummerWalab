@@ -141,7 +141,11 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
         const fetchProblems = async () => {
             try {
                 const problems = await adminService.getContestProblems(contestId);
-                const normalized = Array.isArray(problems) ? problems : [];
+                const normalized = (Array.isArray(problems) ? problems : []).sort((a, b) => {
+                    const aId = Number(a.displayId) || 0;
+                    const bId = Number(b.displayId) || 0;
+                    return aId - bId;
+                });
                 setContestProblems(normalized);
             } catch {
                 setProblemMessage({ error: '대회 문제를 불러오지 못했습니다.' });
@@ -567,32 +571,32 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                                             </thead>
                                                             <tbody className="divide-y divide-gray-100 dark:divide-slate-700 bg-white dark:bg-slate-900">
                                                                 {contestProblems.map((problem, index) => (
-                                                                        <tr
-                                                                            key={`contest-problem-${problem.id}-${problem.displayId || ''}`}
-                                                                            className="cursor-move hover:bg-gray-50 dark:hover:bg-slate-800"
-                                                                            draggable
-                                                                            onDragStart={() => {
-                                                                                dragItemRef.current = index;
-                                                                            }}
-                                                                            onDragEnter={() => {
-                                                                                dragOverItemRef.current = index;
-                                                                            }}
-                                                                            onDragEnd={handleSortProblems}
-                                                                            onDragOver={(event) => event.preventDefault()}
-                                                                        >
-                                                                            <td className="px-3 py-2 text-sm text-gray-700 dark:text-slate-300">{index + 1}</td>
-                                                                            <td className="px-3 py-2 text-sm text-gray-800 dark:text-slate-100">{problem.title}</td>
-                                                                            <td className="px-3 py-2 text-right">
-                                                                                <button
-                                                                                    type="button"
-                                                                                    className="text-xs font-medium text-red-600 hover:text-red-700"
-                                                                                    onClick={() => void handleDeleteProblem(problem.id)}
-                                                                                >
-                                                                                    삭제
-                                                                                </button>
-                                                                            </td>
-                                                                        </tr>
-                                                                    ))}
+                                                                    <tr
+                                                                        key={`contest-problem-${problem.id}-${problem.displayId || ''}`}
+                                                                        className="cursor-move hover:bg-gray-50 dark:hover:bg-slate-800"
+                                                                        draggable
+                                                                        onDragStart={() => {
+                                                                            dragItemRef.current = index;
+                                                                        }}
+                                                                        onDragEnter={() => {
+                                                                            dragOverItemRef.current = index;
+                                                                        }}
+                                                                        onDragEnd={handleSortProblems}
+                                                                        onDragOver={(event) => event.preventDefault()}
+                                                                    >
+                                                                        <td className="px-3 py-2 text-sm text-gray-700 dark:text-slate-300">{index + 1}</td>
+                                                                        <td className="px-3 py-2 text-sm text-gray-800 dark:text-slate-100">{problem.title}</td>
+                                                                        <td className="px-3 py-2 text-right">
+                                                                            <button
+                                                                                type="button"
+                                                                                className="text-xs font-medium text-red-600 hover:text-red-700"
+                                                                                onClick={() => void handleDeleteProblem(problem.id)}
+                                                                            >
+                                                                                삭제
+                                                                            </button>
+                                                                        </td>
+                                                                    </tr>
+                                                                ))}
                                                             </tbody>
                                                         </table>
                                                     </div>
@@ -641,7 +645,12 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                             if (isEditMode && contestId) {
                                 await adminService.addContestProblemFromPublic(contestId, created.problemId, getNextDisplayId(contestProblems));
                                 const refreshed = await adminService.getContestProblems(contestId);
-                                setContestProblems(normalizeContestProblemOrder(Array.isArray(refreshed) ? refreshed : []));
+                                const sorted = (Array.isArray(refreshed) ? refreshed : []).sort((a, b) => {
+                                    const aId = Number(a.displayId) || 0;
+                                    const bId = Number(b.displayId) || 0;
+                                    return aId - bId;
+                                });
+                                setContestProblems(sorted);
                             } else {
                                 const normalizedProblem: Problem = {
                                     id: newProblemDetail.id,

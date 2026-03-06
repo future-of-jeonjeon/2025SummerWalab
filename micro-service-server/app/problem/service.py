@@ -40,6 +40,8 @@ async def create_problem(
             display_id = str(uuid.uuid4())
             problem = utils.create_problem_from_data(create_data, display_id, request_data.test_case_id, info_list)
             problem.created_by_id = user_profile.user_id
+            if not is_admin:
+                problem.visible = False
             if request_data.tags:
                 problem.tags = await _process_tags(db, request_data.tags)
             await problem_repository.create_problem(db, problem)

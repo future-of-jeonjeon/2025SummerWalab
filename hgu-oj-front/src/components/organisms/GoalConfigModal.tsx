@@ -93,6 +93,8 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
   const [avatarUploadError, setAvatarUploadError] = useState<string | null>(null);
 
   const [preferredTheme, setPreferredTheme] = useState<'light' | 'dark'>('light');
+  const [themeSaving, setThemeSaving] = useState(false);
+  const [themeError, setThemeError] = useState<string | null>(null);
   const [editorLanguageOrder, setEditorLanguageOrder] = useState<string[]>(DEFAULT_EDITOR_LANGUAGE_ORDER);
   const [draggingLanguage, setDraggingLanguage] = useState<string | null>(null);
   const [dragOverLanguage, setDragOverLanguage] = useState<string | null>(null);
@@ -132,6 +134,9 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
         studentId: initialUserData.student_id,
         department: DEPARTMENTS[initialUserData.major_id] || '',
       });
+      if (typeof initialUserData.dark_mode_enabled === 'boolean') {
+        setPreferredTheme(initialUserData.dark_mode_enabled ? 'dark' : 'light');
+      }
     }
   }, [initialUserData]);
 
@@ -271,10 +276,29 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
     }
   };
 
-  const applyTheme = (theme: 'light' | 'dark') => {
+  const applyTheme = async (theme: 'light' | 'dark') => {
+    if (!user || themeSaving) return;
+
+    const prevTheme = preferredTheme;
+    setThemeError(null);
+    setThemeSaving(true);
     setPreferredTheme(theme);
     localStorage.setItem('theme', theme);
     document.documentElement.classList.toggle('dark', theme === 'dark');
+
+    try {
+      await userService.patchUserData({
+        dark_mode_enabled: theme === 'dark',
+      });
+      onUserUpdateSuccess?.();
+    } catch (err: any) {
+      setPreferredTheme(prevTheme);
+      localStorage.setItem('theme', prevTheme);
+      document.documentElement.classList.toggle('dark', prevTheme === 'dark');
+      setThemeError(err.response?.data?.message || err.message || '테마 저장에 실패했습니다.');
+    } finally {
+      setThemeSaving(false);
+    }
   };
 
   const moveEditorLanguage = (index: number, direction: 'up' | 'down') => {
@@ -675,6 +699,7 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
                     <button
                       type="button"
                       onClick={() => applyTheme('light')}
+                      disabled={themeSaving}
                       className={`px-4 py-2 rounded-lg border ${preferredTheme === 'light' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white dark:bg-slate-700 text-gray-700 dark:text-slate-200 border-gray-200 dark:border-slate-600'}`}
                     >
                       화이트 모드
@@ -682,11 +707,13 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
                     <button
                       type="button"
                       onClick={() => applyTheme('dark')}
+                      disabled={themeSaving}
                       className={`px-4 py-2 rounded-lg border ${preferredTheme === 'dark' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white dark:bg-slate-700 text-gray-700 dark:text-slate-200 border-gray-200 dark:border-slate-600'}`}
                     >
                       다크 모드
                     </button>
                   </div>
+                  {themeError && <p className="text-sm text-red-600">{themeError}</p>}
                 </section>
               )}
 

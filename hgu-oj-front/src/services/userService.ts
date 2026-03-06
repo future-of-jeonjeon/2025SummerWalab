@@ -51,6 +51,12 @@ export const userService = {
         return response.data;
     },
 
+    patchUserData: async (data: Partial<UserDetail>) => {
+        if (!MS_API_BASE) throw new Error('MS_API_BASE not configured');
+        const response = await apiClient.patch(`${MS_API_BASE}/user/data`, data);
+        return response.data;
+    },
+
     uploadAvatar: async (file: File) => {
         const formData = new FormData();
         formData.append('image', file);
