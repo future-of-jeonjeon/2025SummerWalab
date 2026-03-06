@@ -49,3 +49,11 @@ async def update_user_data(
         user_profile: UserProfile = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)) -> UserProfileResponse:
     return await serv.update_user_data(user_profile_payload, user_profile, db)
+
+
+@router.patch("/data", response_model=UserProfileResponse)
+async def patch_user_data(
+        user_profile_payload: UpdateUserProfileRequest,
+        user_profile: UserProfile = Depends(get_userdata),
+        db: AsyncSession = Depends(get_database)) -> UserProfileResponse:
+    return await serv.patch_user_data(user_profile_payload, user_profile, db)

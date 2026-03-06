@@ -63,6 +63,26 @@ async def update_user_data(user_profile_payload: UpdateUserProfileRequest, user_
     return _create_user_profile_response(saved_entity, user_profile)
 
 
+async def patch_user_data(payload: UpdateUserProfileRequest, user_profile: UserProfile, db: AsyncSession) -> UserProfileResponse:
+    entity = await repo.find_sub_userdata_by_user_id(user_profile.user_id, db)
+    if not entity:
+        exceptions.user_data_not_found()
+
+    if payload.name is not None:
+        entity.name = payload.name
+    if payload.student_id is not None:
+        entity.student_id = payload.student_id
+    if payload.major_id is not None:
+        entity.major_id = payload.major_id
+    if payload.dark_mode_enabled is not None:
+        entity.dark_mode_enabled = payload.dark_mode_enabled
+    if payload.language_preferences is not None:
+        entity.language_preferences = payload.language_preferences
+
+    saved_entity = await repo.save_user_data(entity, db)
+    return _create_user_profile_response(saved_entity, user_profile)
+
+
 def _create_user_profile_response(entity: UserDataEntity, user_profile: UserProfile = None) -> UserProfileResponse:
     username = user_profile.username if user_profile else (entity.user.username if getattr(entity, 'user', None) else None)
     avatar = user_profile.avatar if user_profile else None
