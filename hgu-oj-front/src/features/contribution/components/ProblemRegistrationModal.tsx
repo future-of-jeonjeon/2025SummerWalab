@@ -58,6 +58,7 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
         { input: '', output: '' },
     ]);
     const [tagInput, setTagInput] = useState('');
+    const [isComposingTag, setIsComposingTag] = useState(false);
     const [testCaseFile, setTestCaseFile] = useState<File | null>(null);
     const [testCaseId, setTestCaseId] = useState('');
     const [isUploadingTestCases, setIsUploadingTestCases] = useState(false);
@@ -389,7 +390,12 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                                                         <Input
                                                             value={tagInput}
                                                             onChange={(e: React.ChangeEvent<HTMLInputElement>) => setTagInput(e.target.value)}
+                                                            onCompositionStart={() => setIsComposingTag(true)}
+                                                            onCompositionEnd={() => setIsComposingTag(false)}
                                                             onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                                                                if (isComposingTag || e.nativeEvent.isComposing) {
+                                                                    return;
+                                                                }
                                                                 if (e.key === 'Enter') {
                                                                     e.preventDefault();
                                                                     handleAddTag();
