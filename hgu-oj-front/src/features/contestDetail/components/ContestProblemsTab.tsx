@@ -28,7 +28,7 @@ interface ContestProblemsTabProps {
     handleSortToggle: (field: 'number' | 'submission' | 'accuracy') => void;
   };
   onProblemClick: (problem: Problem) => void;
-  myRankProgress: Record<number, string>;
+  myRankProgress: Record<string, string>;
 }
 
 export const ContestProblemsTab: React.FC<ContestProblemsTabProps> = ({

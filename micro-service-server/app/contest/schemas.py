@@ -85,6 +85,15 @@ class ReqAddContestProblemDTO(BaseModel):
     contest_id: int
     problem_id: int
     display_id: str
+
+
+class ContestProblemDTO(BaseModel):
+    id: int
+    _id: str
+    title: str
+    difficulty: Optional[str] = None
+    submission_number: int = 0
+    accepted_number: int = 0
     
 
 class PaginatedContestResponse(Page[ContestDataDTO]):
@@ -170,4 +179,3 @@ class ContestAnnouncementResponse(BaseModel):
             updated_at=entity.create_time,
             created_by=str
         )
-

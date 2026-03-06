@@ -7,7 +7,7 @@ interface ContestProblemListProps {
   problems: Problem[];
   onProblemClick?: (problem: Problem) => void;
   disabled?: boolean;
-  statusOverrides?: Record<number, string>;
+  statusOverrides?: Record<string, string>;
   onSortChange?: (field: 'number' | 'submission' | 'accuracy') => void;
   sortField?: 'number' | 'submission' | 'accuracy';
   sortOrder?: 'asc' | 'desc';
@@ -47,6 +47,24 @@ export const ContestProblemList: React.FC<ContestProblemListProps> = ({
   sortField,
   sortOrder,
 }) => {
+  const getProblemOverride = (problem: Problem) => {
+    if (!statusOverrides) return undefined;
+    const candidates = [
+      problem.displayId,
+      (problem as any)._id,
+      problem.id,
+    ];
+    for (const candidate of candidates) {
+      if (candidate == null) continue;
+      const key = String(candidate).trim();
+      if (!key) continue;
+      const exact = statusOverrides[key];
+      if (exact) return exact;
+      const lowered = statusOverrides[key.toLowerCase()];
+      if (lowered) return lowered;
+    }
+    return undefined;
+  };
 
   const renderSortableHeader = (label: string, field: 'number' | 'submission' | 'accuracy', align: 'left' | 'center' | 'right' = 'center') => {
     if (!onSortChange) {
@@ -119,7 +137,7 @@ export const ContestProblemList: React.FC<ContestProblemListProps> = ({
                   ? solvedUsers / submissions
                   : 0);
           const ratio = `${Math.round(accuracy * 100)}%`;
-          const overrideState = statusOverrides ? statusOverrides[problem.id] : undefined;
+          const overrideState = getProblemOverride(problem);
           const badge = getStatusBadge(problem, overrideState);
 
           return (

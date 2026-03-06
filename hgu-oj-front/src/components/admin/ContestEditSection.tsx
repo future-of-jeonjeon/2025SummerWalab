@@ -814,12 +814,12 @@ export const ContestEditSection: React.FC = () => {
                 </thead>
                 <tbody className="divide-y divide-gray-100 bg-white dark:divide-slate-700 dark:bg-slate-900">
                   {contestProblemsState.items.map((item, index) => {
-                    const problemId = Number(item.id);
+                    const contestProblemId = Number((item as any).contestProblemId ?? item.id);
                     const label = item.displayId ?? item.id;
-                    const isDeleting = Number.isFinite(problemId) && deletingContestProblemId === problemId;
+                    const isDeleting = Number.isFinite(contestProblemId) && deletingContestProblemId === contestProblemId;
                     return (
                       <tr
-                        key={`contest-problem-row-${problemId || item.id}`}
+                        key={`contest-problem-row-${contestProblemId || item.id}-${label}`}
                         className="cursor-move hover:bg-gray-50 dark:hover:bg-slate-800"
                         draggable
                         onDragStart={() => {
@@ -837,7 +837,7 @@ export const ContestEditSection: React.FC = () => {
                           <button
                             type="button"
                             className="text-xs text-red-600 hover:text-red-700"
-                            onClick={() => void handleRemoveContestProblem(problemId, String(label))}
+                            onClick={() => void handleRemoveContestProblem(contestProblemId, String(label))}
                             disabled={isDeleting}
                           >
                             {isDeleting ? '삭제중' : '삭제'}

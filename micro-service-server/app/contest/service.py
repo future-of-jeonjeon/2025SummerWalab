@@ -151,6 +151,22 @@ async def add_contest_problem(contest_problem_dto: ReqAddContestProblemDTO, user
     return None
 
 
+async def get_contest_problems(contest_id: int, user_profile: UserProfile, db: AsyncSession) -> List[ContestProblemDTO]:
+    await _ensure_contest_permission(contest_id, user_profile, db)
+    problems = await problem_repo.find_problems_by_contest_id(db, contest_id)
+    return [
+        ContestProblemDTO(
+            id=problem.id,
+            _id=problem._id,
+            title=problem.title,
+            difficulty=problem.difficulty,
+            submission_number=problem.submission_number or 0,
+            accepted_number=problem.accepted_number or 0,
+        )
+        for problem in problems
+    ]
+
+
 async def delete_contest(contest_id: int, user_profile: UserProfile, db: AsyncSession):
     contest = await contest_repo.find_contest_by_id(contest_id, db)
     if not contest:
@@ -346,11 +362,11 @@ async def join_contest(contest_id: int, user_profile: UserProfile, db: AsyncSess
     if not contest:
         contest_exception.contest_not_found()
     organization_contest = await contest_repo.find_organization_contest_by_contest_id(contest_id, db)
-    if not organization_contest:
-        contest_exception.contest_not_found()
-    is_admin_user = await organization_service.is_organization_admin(organization_contest.organization_id, user_profile, db)
+    is_admin_user = False
+    if organization_contest:
+        is_admin_user = await organization_service.is_organization_admin(organization_contest.organization_id, user_profile, db)
 
-    if organization_contest.is_organization_only:
+    if organization_contest and organization_contest.is_organization_only:
         is_member = await organization_repo.get_member_by_organization_id_and_user_id(
             organization_contest.organization_id, user_profile.user_id, db
         )

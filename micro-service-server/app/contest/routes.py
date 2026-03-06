@@ -76,6 +76,14 @@ async def add_contest_problem_from_public(
     return await serv.add_contest_problem(contest_problem_dto, user_profile, db)
 
 
+@router.get("/{contest_id}/problems", response_model=List[ContestProblemDTO])
+async def get_contest_problems(
+        contest_id: int,
+        user_profile: UserProfile = Depends(get_userdata),
+        db: AsyncSession = Depends(get_database)):
+    return await serv.get_contest_problems(contest_id, user_profile, db)
+
+
 @router.get("/participated", response_model=List[ContestDTO])
 async def get_participated_contest_by_user(
         user_profile: UserProfile = Depends(get_userdata),

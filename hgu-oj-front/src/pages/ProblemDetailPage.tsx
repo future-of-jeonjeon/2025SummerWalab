@@ -612,6 +612,18 @@ export const ProblemDetailPage: React.FC = () => {
     return ['my-submissions', 'practice', submissionProblemKey] as const;
   }, [contestContextId, submissionProblemKey]);
 
+  const { data: liveMySubmissions } = useQuery({
+    queryKey: ['my-submissions-live', contestContextId ?? 'practice', submissionProblemKey],
+    queryFn: () => (
+      submissionProblemKey
+        ? submissionService.getMySubmissions(submissionProblemKey, { contestId: contestContextId ?? undefined, limit: 20 })
+        : Promise.resolve({ items: [], total: 0 })
+    ),
+    enabled: isAuthenticated && !!submissionProblemKey,
+    staleTime: 3_000,
+    refetchInterval: 3_000,
+  });
+
   const invalidateMyPageQueries = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['mypage'] });
   }, [queryClient]);
@@ -620,6 +632,17 @@ export const ProblemDetailPage: React.FC = () => {
     queryClient.invalidateQueries({ queryKey: ['problem', 'status-map'] });
     queryClient.invalidateQueries({ queryKey: ['problem-status-map'] });
   }, [queryClient]);
+
+  const invalidateContestQueries = useCallback(() => {
+    if (!contestContextId) return;
+    queryClient.invalidateQueries({ queryKey: ['contest-rank', contestContextId] });
+    queryClient.invalidateQueries({ queryKey: ['contest-rank-progress', contestContextId] });
+    queryClient.invalidateQueries({ queryKey: ['contest-problems', contestContextId] });
+    queryClient.invalidateQueries({ queryKey: ['contest-problem-list', contestContextId] });
+    queryClient.invalidateQueries({
+      queryKey: ['contest-problem', contestContextId, contestProblemDisplayId ?? problemIdentifier],
+    });
+  }, [contestContextId, contestProblemDisplayId, problemIdentifier, queryClient]);
 
   const startSubmissionPolling = useCallback((submissionId: number | string) => {
     if (!submissionId) return;
@@ -655,11 +678,12 @@ export const ProblemDetailPage: React.FC = () => {
             queryClient.invalidateQueries({ queryKey: submissionQueryKey });
           }
           invalidateProblemStatusQueries();
+          invalidateContestQueries();
           invalidateMyPageQueries();
           stopSubmissionPolling();
           return;
         }
-      } catch (pollError) {
+      } catch {
         if (problemIdentifier) {
           queryClient.invalidateQueries({ queryKey: ['problem', problemIdentifier] });
         }
@@ -667,6 +691,7 @@ export const ProblemDetailPage: React.FC = () => {
           queryClient.invalidateQueries({ queryKey: submissionQueryKey });
         }
         invalidateProblemStatusQueries();
+        invalidateContestQueries();
         invalidateMyPageQueries();
         stopSubmissionPolling();
         return;
@@ -675,7 +700,7 @@ export const ProblemDetailPage: React.FC = () => {
     };
 
     submissionPollTimerRef.current = setTimeout(poll, 1000);
-  }, [invalidateMyPageQueries, invalidateProblemStatusQueries, mapJudgeResult, problemIdentifier, queryClient, stopSubmissionPolling, submissionQueryKey]);
+  }, [invalidateContestQueries, invalidateMyPageQueries, invalidateProblemStatusQueries, mapJudgeResult, problemIdentifier, queryClient, stopSubmissionPolling, submissionQueryKey]);
 
   const handleExecute = async (code: string, language: string, input?: string) => {
     if (!requireAuthentication()) return;
@@ -762,10 +787,12 @@ export const ProblemDetailPage: React.FC = () => {
           queryClient.invalidateQueries({ queryKey: submissionQueryKey });
         }
         invalidateProblemStatusQueries();
+        invalidateContestQueries();
         invalidateMyPageQueries();
       } else {
         setManualStatus('SUBMITTED');
         invalidateProblemStatusQueries();
+        invalidateContestQueries();
         invalidateMyPageQueries();
       }
       setAlertModal({
@@ -794,6 +821,28 @@ export const ProblemDetailPage: React.FC = () => {
   }, [problemIdentifier, stopSubmissionPolling]);
 
   const rawProblemStatus = useMemo(() => {
+    const latestSubmission = (() => {
+      const items = liveMySubmissions?.items ?? [];
+      if (!Array.isArray(items) || items.length === 0) return null;
+      const sorted = [...items].sort((a, b) => {
+        const ta = new Date((a.create_time ?? a.createTime ?? '') as string).getTime();
+        const tb = new Date((b.create_time ?? b.createTime ?? '') as string).getTime();
+        if (Number.isFinite(ta) && Number.isFinite(tb) && ta !== tb) return tb - ta;
+        const ia = Number(a.id ?? a.submissionId ?? 0);
+        const ib = Number(b.id ?? b.submissionId ?? 0);
+        return ib - ia;
+      });
+      return sorted[0];
+    })();
+
+    if (latestSubmission) {
+      const mapped = judgeResultToStatus[String(latestSubmission.result ?? '')];
+      if (mapped) return mapped;
+      if (latestSubmission.status != null && String(latestSubmission.status).trim().length > 0) {
+        return String(latestSubmission.status).trim().toUpperCase();
+      }
+    }
+
     if (!problem || !isAuthenticated) return undefined;
     const fromProblem = problem.myStatus ?? (problem as any).my_status;
     if (fromProblem != null && String(fromProblem).trim().length > 0) {
@@ -808,7 +857,12 @@ export const ProblemDetailPage: React.FC = () => {
       return 'AC';
     }
     return undefined;
-  }, [problem]);
+  }, [isAuthenticated, liveMySubmissions, problem]);
+
+  const isProblemSolved = useMemo(() => {
+    const normalized = String(rawProblemStatus ?? '').trim().toUpperCase();
+    return normalized === 'AC' || normalized === 'ACCEPTED' || normalized === '0' || Boolean(problem?.solved);
+  }, [rawProblemStatus, problem?.solved]);
 
   const isDarkTheme = editorTheme === 'dark';
 
@@ -951,41 +1005,120 @@ export const ProblemDetailPage: React.FC = () => {
     queryFn: async () => {
       if (!contestContextId || !authUser) return null;
       const result = await contestService.getContestRank(contestContextId, { limit: 200 });
-      return result.results.find((entry) => entry.user?.id === authUser.id) ?? null;
+      const normalizedAuthUserId = Number(authUser.id);
+      return result.results.find((entry) => Number(entry.user?.id) === normalizedAuthUserId) ?? null;
     },
     enabled: !!contestContextId && !!authUser,
     staleTime: 30_000,
   });
+
+  const { data: myContestSubmissions } = useQuery({
+    queryKey: ['my-contest-submissions', contestContextId, authUser?.id],
+    queryFn: () => {
+      if (!contestContextId || !authUser) return Promise.resolve({ data: [], total: 0 });
+      return contestService.getContestSubmissions(contestContextId, { userId: Number(authUser.id), limit: 2000 });
+    },
+    enabled: Boolean(contestContextId && authUser),
+    staleTime: 15_000,
+  });
+
+  const contestSubmissionOverrides = useMemo(() => {
+    const overrides = new Map<string, string>();
+    const submissionInfo = contestRankProgress?.submissionInfo as Record<string, any> | undefined;
+    if (!submissionInfo) return overrides;
+
+    const setOverride = (rawKey: string, value: string) => {
+      const key = rawKey.trim();
+      if (!key) return;
+      overrides.set(key, value);
+      overrides.set(key.toLowerCase(), value);
+    };
+
+    Object.entries(submissionInfo).forEach(([key, value]) => {
+      if (!key) return;
+      if (value && typeof value === 'object') {
+        if (value.is_ac) {
+          setOverride(key, 'AC');
+        } else if ((value.error_number ?? 0) > 0) {
+          setOverride(key, 'WA');
+        }
+      } else {
+        const numericValue = Number(value);
+        if (Number.isFinite(numericValue)) {
+          setOverride(key, numericValue > 0 ? 'TRIED' : '');
+        }
+      }
+    });
+    return overrides;
+  }, [contestRankProgress]);
+
+  const contestSubmissionProgress = useMemo(() => {
+    const overrides = new Map<string, string>();
+    const items = myContestSubmissions?.data ?? [];
+    if (!Array.isArray(items) || items.length === 0) return overrides;
+
+    const isAccepted = (raw: unknown) => {
+      if (raw == null) return false;
+      const normalized = String(raw).trim().toLowerCase();
+      return normalized === '0' || normalized === 'ac' || normalized === 'accepted';
+    };
+
+    const setOverride = (rawKey: unknown, status: 'AC' | 'TRIED') => {
+      if (rawKey == null) return;
+      const key = String(rawKey).trim();
+      if (!key) return;
+      const lowerKey = key.toLowerCase();
+      const prev = overrides.get(key) ?? overrides.get(lowerKey);
+      if (prev === 'AC') return;
+      overrides.set(key, status);
+      overrides.set(lowerKey, status);
+    };
+
+    items.forEach((item: any) => {
+      const status: 'AC' | 'TRIED' = isAccepted(item?.result ?? item?.status) ? 'AC' : 'TRIED';
+      const keys = [
+        item?.problem,
+        item?.problem_id,
+        item?.problemId,
+        item?.problem_pk,
+        item?.problemPk,
+      ];
+      keys.forEach((key) => setOverride(key, status));
+    });
+
+    return overrides;
+  }, [myContestSubmissions]);
+
+  const mergedContestSubmissionOverrides = useMemo(() => {
+    const merged = new Map<string, string>(contestSubmissionOverrides);
+    contestSubmissionProgress.forEach((status, key) => {
+      const prev = merged.get(key);
+      if (prev === 'AC') return;
+      merged.set(key, status);
+    });
+    return merged;
+  }, [contestSubmissionOverrides, contestSubmissionProgress]);
+
+  const getContestOverrideForProblem = useCallback((item: Problem) => {
+    const candidates = [item.id, item.displayId, (item as any)._id];
+    for (const candidate of candidates) {
+      if (candidate == null) continue;
+      const key = String(candidate).trim();
+      if (!key) continue;
+      const matched = mergedContestSubmissionOverrides.get(key) ?? mergedContestSubmissionOverrides.get(key.toLowerCase());
+      if (matched) return matched;
+    }
+    return undefined;
+  }, [mergedContestSubmissionOverrides]);
 
   const contestProblemStats = useMemo(() => {
     if (!contestContextId || problemListItems.length === 0) {
       return null;
     }
     const stats = { total: problemListItems.length, solved: 0, wrong: 0, untouched: 0 };
-    const overrides = new Map<number, string>();
-
-    const submissionInfo = contestRankProgress?.submissionInfo as Record<string, any> | undefined;
-    if (submissionInfo) {
-      Object.entries(submissionInfo).forEach(([key, value]) => {
-        const numericId = Number(key);
-        if (!Number.isFinite(numericId)) return;
-        if (value && typeof value === 'object') {
-          if (value.is_ac) {
-            overrides.set(numericId, 'AC');
-          } else if ((value.error_number ?? 0) > 0) {
-            overrides.set(numericId, 'WA');
-          }
-        } else {
-          const numericValue = Number(value);
-          if (Number.isFinite(numericValue)) {
-            overrides.set(numericId, numericValue > 0 ? 'TRIED' : '');
-          }
-        }
-      });
-    }
 
     problemListItems.forEach((item) => {
-      const override = overrides.get(item.id);
+      const override = getContestOverrideForProblem(item);
       const status = resolveProblemStatus(item, override ? { override } : undefined);
       if (status === 'solved') {
         stats.solved += 1;
@@ -1003,7 +1136,7 @@ export const ProblemDetailPage: React.FC = () => {
     }
 
     return stats;
-  }, [contestContextId, contestRankProgress, problemListItems]);
+  }, [contestContextId, problemListItems, getContestOverrideForProblem]);
 
   const { data: mySubmissionsResponse, isLoading: isLoadingSubmissions } = useQuery({
     queryKey: submissionQueryKey ?? ['my-submissions', 'idle'],
@@ -1322,10 +1455,10 @@ export const ProblemDetailPage: React.FC = () => {
 
   useEffect(() => {
     if (!manualStatus) return;
-    if ((rawProblemStatus && rawProblemStatus !== manualStatus) || problem?.solved) {
+    if ((rawProblemStatus && rawProblemStatus !== manualStatus) || isProblemSolved) {
       setManualStatus(undefined);
     }
-  }, [manualStatus, rawProblemStatus, problem?.solved]);
+  }, [isProblemSolved, manualStatus, rawProblemStatus]);
 
   useEffect(() => () => {
     stopSubmissionPolling();
@@ -1501,7 +1634,7 @@ export const ProblemDetailPage: React.FC = () => {
                   <div className="flex-1 flex flex-col gap-1">
                     <h1 className={`text-xl font-semibold flex items-center gap-2 ${headingTextClass}`}>
                       {problem.title}
-                      {isAuthenticated && problem.solved && (
+                      {isAuthenticated && isProblemSolved && (
                         <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded bg-green-100 text-green-700">
                           {PROBLEM_STATUS_LABELS.solved}
                         </span>

@@ -51,6 +51,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
 }) => {
     const isAdmin = context === 'admin';
     const isEditMode = Boolean(initialData);
+    const editContestId = contestId ?? initialData?.id ?? null;
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
@@ -134,13 +135,43 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
     }, [initialData, isOpen]);
 
     useEffect(() => {
-        if (!isOpen || !isAdmin || !isEditMode || !contestId) {
+        if (!isOpen || !isEditMode || !editContestId) {
             return;
         }
 
+        const fetchContestDetail = async () => {
+            try {
+                const detail = isAdmin
+                    ? await adminService.getContestDetail(editContestId)
+                    : await contestService.getContest(editContestId);
+                setFormData({
+                    title: detail.title || '',
+                    description: detail.description || '',
+                    start_time: toDatetimeLocal(detail.startTime),
+                    end_time: toDatetimeLocal(detail.endTime),
+                    rule_type: (detail.ruleType as 'ACM' | 'OI') || 'ACM',
+                    password: '',
+                    visible: detail.visible ?? true,
+                    real_time_rank:
+                        (detail as AdminContest).real_time_rank ??
+                        detail.realTimeRank ??
+                        true,
+                    allowed_ip_ranges: ((detail as AdminContest).allowed_ip_ranges ?? []).join(', '),
+                    languages: detail.languages && detail.languages.length > 0 ? detail.languages : SUPPORTED_LANGUAGES,
+                    requires_approval:
+                        (detail as AdminContest).requires_approval ??
+                        detail.requiresApproval ??
+                        false,
+                    is_organization_only: detail.isOrganizationOnly || false,
+                });
+            } catch {
+                setError('대회 상세 정보를 불러오지 못했습니다.');
+            }
+        };
+
         const fetchProblems = async () => {
             try {
-                const problems = await adminService.getContestProblems(contestId);
+                const problems = await adminService.getContestProblems(editContestId);
                 const normalized = (Array.isArray(problems) ? problems : []).sort((a, b) => {
                     const aId = Number(a.displayId) || 0;
                     const bId = Number(b.displayId) || 0;
@@ -152,8 +183,9 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
             }
         };
 
+        fetchContestDetail();
         fetchProblems();
-    }, [contestId, isAdmin, isEditMode, isOpen]);
+    }, [editContestId, isAdmin, isEditMode, isOpen]);
 
     useEffect(() => {
         return () => {
@@ -290,8 +322,8 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                     })),
                 };
 
-                if (isEditMode && contestId) {
-                    await adminService.updateContest({ ...payload, id: contestId, password: formData.password || null });
+                if (isEditMode && editContestId) {
+                    await adminService.updateContest({ ...payload, id: editContestId, password: formData.password || null });
                 } else {
                     await adminService.createContest(payload);
                 }
@@ -316,8 +348,8 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                     })),
                 };
 
-                if (isEditMode && initialData) {
-                    await contestService.update(initialData.id, dataToSubmit);
+                if (isEditMode && editContestId) {
+                    await contestService.update(editContestId, dataToSubmit);
                 } else {
                     await contestService.create(dataToSubmit);
                 }
@@ -642,9 +674,9 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                         try {
                             const newProblemDetail = await adminService.getAdminProblemDetail(created.problemId);
 
-                            if (isEditMode && contestId) {
-                                await adminService.addContestProblemFromPublic(contestId, created.problemId, getNextDisplayId(contestProblems));
-                                const refreshed = await adminService.getContestProblems(contestId);
+                            if (isEditMode && editContestId) {
+                                await adminService.addContestProblemFromPublic(editContestId, created.problemId, getNextDisplayId(contestProblems));
+                                const refreshed = await adminService.getContestProblems(editContestId);
                                 const sorted = (Array.isArray(refreshed) ? refreshed : []).sort((a, b) => {
                                     const aId = Number(a.displayId) || 0;
                                     const bId = Number(b.displayId) || 0;
