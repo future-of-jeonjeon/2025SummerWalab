@@ -113,7 +113,12 @@ export const ContestEditSection: React.FC = () => {
 
       try {
         const items = await adminService.getContestProblems(contestId);
-        setContestProblemsState({ items, loading: false, error: null });
+        const sorted = [...items].sort((a, b) => {
+          const aId = Number(a.displayId) || 0;
+          const bId = Number(b.displayId) || 0;
+          return aId - bId;
+        });
+        setContestProblemsState({ items: sorted, loading: false, error: null });
       } catch (error) {
         const message = error instanceof Error ? error.message : '대회 문제 목록을 불러오지 못했습니다.';
         setContestProblemsState({ items: [], loading: false, error: message });
@@ -438,7 +443,11 @@ export const ContestEditSection: React.FC = () => {
       return;
     }
 
-    const normalizedDisplayId = String((contestProblemsState.items?.length ?? 0) + 1);
+    const maxDisplayId = (contestProblemsState.items ?? []).reduce((max, item) => {
+      const parsed = Number(item.displayId);
+      return Number.isFinite(parsed) ? Math.max(max, parsed) : max;
+    }, 0);
+    const normalizedDisplayId = String(maxDisplayId + 1);
 
     const normalizedKey = normalizedDisplayId.toLowerCase();
     const duplicate = contestProblemsState.items.some((item) => {
@@ -851,18 +860,18 @@ export const ContestEditSection: React.FC = () => {
           >
             <div>
               <div>
-                  <Input
-                    label="문제 검색 또는 ID 입력"
-                    value={contestProblemInput}
-                    placeholder="예: 1001 또는 다익스트라"
-                    onChange={(e) => handleContestProblemInputChange(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        e.preventDefault();
-                        void handleAddContestProblem();
-                      }
-                    }}
-                  />
+                <Input
+                  label="문제 검색 또는 ID 입력"
+                  value={contestProblemInput}
+                  placeholder="예: 1001 또는 다익스트라"
+                  onChange={(e) => handleContestProblemInputChange(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      void handleAddContestProblem();
+                    }
+                  }}
+                />
                 {contestProblemSearch.error && (
                   <div className="rounded-md bg-red-50 px-3 py-2 text-xs text-red-600">{contestProblemSearch.error}</div>
                 )}
