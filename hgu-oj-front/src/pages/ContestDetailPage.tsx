@@ -156,13 +156,15 @@ export const ContestDetailPage: React.FC = () => {
 
   const myScore = useMemo(() => {
     if (!authUser?.id) return 0;
-    const myEntry = rankEntries.find((entry) => entry.user.id === authUser.id);
+    const normalizedAuthUserId = Number(authUser.id);
+    const myEntry = rankEntries.find((entry) => Number(entry.user.id) === normalizedAuthUserId);
     return myEntry?.totalScore ?? 0;
   }, [rankEntries, authUser?.id]);
 
   const myRank = useMemo(() => {
     if (!authUser?.id) return null;
-    const myEntry = rankEntries.find((entry) => entry.user.id === authUser.id);
+    const normalizedAuthUserId = Number(authUser.id);
+    const myEntry = rankEntries.find((entry) => Number(entry.user.id) === normalizedAuthUserId);
     return myEntry?.rank ?? null;
   }, [rankEntries, authUser?.id]);
 

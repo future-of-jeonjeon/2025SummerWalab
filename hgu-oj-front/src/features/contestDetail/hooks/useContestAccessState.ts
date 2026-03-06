@@ -22,7 +22,6 @@ export const useContestAccessState = ({
   contest,
   contestPhase,
   requiresPassword,
-  requiresApproval = false,
   isAuthenticated,
   hasContestAdminOverride,
   onProtectedAccessGranted,
@@ -176,9 +175,9 @@ export const useContestAccessState = ({
     mutationFn: () => contestUserService.join(contestId),
     onSuccess: (result) => {
       const pending =
-        (requiresApproval && contestPhase === 'running') ||
         result.status === 'pending' ||
-        (result as { requiresApproval?: boolean }).requiresApproval;
+        ((result as { requiresApproval?: boolean; joined?: boolean }).requiresApproval === true &&
+          (result as { joined?: boolean }).joined !== true);
       const needsPassword = requiresPassword === true;
       setJoinFeedback({
         type: 'success',

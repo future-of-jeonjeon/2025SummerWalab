@@ -83,7 +83,8 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                             !!backendTemplates[getLanguageBackendValue(lang)]
                         );
 
-                        const frontendLanguages = detail.languages.map((bl: string) => {
+                        const detailLanguages = Array.isArray(detail.languages) ? detail.languages : [];
+                        const frontendLanguages = detailLanguages.map((bl: string) => {
                             return availableLanguages.find((l: string) => getLanguageBackendValue(l) === bl) || bl;
                         }).filter((l: string) => availableLanguages.includes(l));
 
@@ -113,7 +114,8 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                             solutionCode: '',
                         });
 
-                        setSamples(detail.samples.length > 0 ? detail.samples : [{ input: '', output: '' }]);
+                        const detailSamples = Array.isArray(detail.samples) ? detail.samples : [];
+                        setSamples(detailSamples.length > 0 ? detailSamples : [{ input: '', output: '' }]);
                         setTestCaseId(detail.testCaseId || '');
                         setTestCaseFile(null);
                         setLoading(false);
