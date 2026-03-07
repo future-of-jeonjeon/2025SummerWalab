@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { api, MS_API_BASE } from './api';
+import { api, apiClient, MS_API_BASE } from './api';
 
 export interface SubmitSolutionRequest {
   problemId: string | number;
@@ -61,6 +61,9 @@ const languageMap: Record<string, string> = {
   c: 'C',
   go: 'Go',
 };
+const MICRO_SUBMISSION_ENDPOINT = MS_API_BASE
+  ? `${MS_API_BASE.replace(/\/$/, '')}/submission`
+  : undefined;
 
 const extractSubmissionId = (payload: any): number | string | undefined => {
   if (!payload) return undefined;
@@ -178,11 +181,16 @@ export const submissionService = {
       myself: '1',
     };
 
-    const basePath = options?.contestId != null ? '/contest_submissions' : '/submissions';
     if (options?.contestId != null) {
       params.contest_id = String(options.contestId);
     }
 
+    if (MICRO_SUBMISSION_ENDPOINT) {
+      const response = await apiClient.get<any>(MICRO_SUBMISSION_ENDPOINT, { params });
+      return normalizeSubmissionList(response.data);
+    }
+
+    const basePath = options?.contestId != null ? '/contest_submissions' : '/submissions';
     return requestSubmissionList(basePath, params);
   },
   getRecentSubmissions: async (options?: { limit?: number }): Promise<SubmissionListResponse> => {

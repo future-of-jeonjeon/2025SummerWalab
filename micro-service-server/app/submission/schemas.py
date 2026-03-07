@@ -1,5 +1,5 @@
-from datetime import date
-from typing import List
+from datetime import date, datetime
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -18,6 +18,14 @@ class ContestProblemStat(BaseModel):
     class Config:
         from_attributes = True
 
+
+class SubmissionListResponse(BaseModel):
+    id: str
+    create_time: datetime
+    result: int
+    contest_id: Optional[int] = None
+    problem_id: int
+    user_id: int
 
 class ContestProblemStatList(BaseModel):
     contest_id: int

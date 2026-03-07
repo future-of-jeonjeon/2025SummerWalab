@@ -156,7 +156,6 @@ export const WorkbookListPage: React.FC = () => {
                     />
                     <span className="ml-3 text-sm font-medium text-gray-700 dark:text-slate-300 group-hover:text-gray-900 dark:group-hover:text-slate-100">전체 보기</span>
                   </div>
-                  <span className="text-xs font-medium bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 py-1 px-2.5 rounded-full">{totalCount}</span>
                 </label>
 
                 {(tagStats || []).slice(0, showAllCategories ? undefined : 8).map((category) => (
@@ -170,7 +169,6 @@ export const WorkbookListPage: React.FC = () => {
                       />
                       <span className="ml-3 text-sm font-medium text-gray-700 dark:text-slate-300 group-hover:text-gray-900 dark:group-hover:text-slate-100">{category.name}</span>
                     </div>
-                    <span className="text-xs font-medium bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 py-1 px-2.5 rounded-full">{category.count}</span>
                   </label>
                 ))}
 

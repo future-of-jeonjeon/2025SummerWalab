@@ -277,17 +277,16 @@ export const ContestDetailPage: React.FC = () => {
   };
 
   const onProblemClick = useCallback(
-    (problem: { displayId?: string | number; _id?: string | number; id?: number }) => {
-      const displayId = problem.displayId ?? (problem as { _id?: string | number })._id ?? problem.id;
+    (problem: { id?: number; _id?: string }) => {
+      const problemKey = typeof problem._id === 'string' && problem._id.trim().length > 0
+        ? problem._id.trim()
+        : (Number.isFinite(Number(problem.id)) && Number(problem.id) > 0 ? String(problem.id) : null);
+      if (!problemKey) {
+        return;
+      }
       const query = new URLSearchParams();
       query.set('contestId', String(contestId));
-      if (displayId != null) {
-        query.set('displayId', String(displayId));
-      }
-      const externalId = String(problem._id ?? problem.displayId ?? problem.id ?? '').trim();
-      if (externalId) {
-        navigate(`/problems/${encodeURIComponent(externalId)}?${query.toString()}`);
-      }
+      navigate(`/problems/${encodeURIComponent(problemKey)}?${query.toString()}`);
     },
     [contestId, navigate],
   );

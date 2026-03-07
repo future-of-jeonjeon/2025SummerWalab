@@ -37,11 +37,11 @@ export const WorkbookDetailPage: React.FC = () => {
     return undefined;
   }, []);
 
-  const handleProblemClick = (problemKey: string) => {
+  const handleProblemClick = (problemId: number) => {
     const params = new URLSearchParams();
     params.set('workbookId', String(workbookId));
-    if (!problemKey) return;
-    navigate(`/problems/${encodeURIComponent(problemKey)}?${params.toString()}`);
+    if (!Number.isFinite(problemId) || problemId <= 0) return;
+    navigate(`/problems/${problemId}?${params.toString()}`);
   };
 
   const handleBackClick = () => {

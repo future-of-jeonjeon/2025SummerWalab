@@ -11,6 +11,7 @@ from app.user.repository import check_user_exists_by_username
 from app.security.security import get_user_session_data, sliding_session
 
 from app.core.settings import settings
+from fastapi import HTTPException
 
 TOKEN_NAME = settings.TOKEN_COOKIE_NAME
 
@@ -55,3 +56,13 @@ async def get_userdata(request: Request, db: AsyncSession = Depends(get_database
                 user_profile.admin_type)
     await sliding_session(token)
     return user_profile
+
+
+async def get_optional_userdata(
+        request: Request,
+        db: AsyncSession = Depends(get_database),
+) -> UserProfile | None:
+    try:
+        return await get_userdata(request, db)
+    except HTTPException:
+        return None

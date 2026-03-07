@@ -6,6 +6,9 @@ const MICRO_PROBLEM_TAG_COUNTS_ENDPOINT = MS_API_BASE
 const MICRO_PROBLEM_LIST_ENDPOINT = MS_API_BASE
   ? `${MS_API_BASE}/problem/list`
   : undefined;
+const MICRO_PROBLEM_DETAIL_ENDPOINT = MS_API_BASE
+  ? `${MS_API_BASE}/problem`
+  : undefined;
 const DEFAULT_PAGE_LIMIT = 50;
 
 const normalizeStatusValue = (status: any): string | undefined => {
@@ -134,6 +137,17 @@ const adaptProblem = (p: any): Problem => {
   const rawDisplayId = p?._id ?? p?.display_id ?? p?.displayId ?? p?.id;
   const { visible, isPublic } = extractVisibility(p);
   if (isMicro) {
+    const statusFromPayload = p?.my_status ?? p?.myStatus ?? p?.status;
+    let normalizedStatusFromPayload: string | undefined;
+    if (statusFromPayload === 2 || String(statusFromPayload).trim() === '2') {
+      normalizedStatusFromPayload = 'AC';
+    } else if (statusFromPayload === 1 || String(statusFromPayload).trim() === '1') {
+      normalizedStatusFromPayload = 'WA';
+    } else if (statusFromPayload === 0 || String(statusFromPayload).trim() === '0') {
+      normalizedStatusFromPayload = undefined;
+    } else {
+      normalizedStatusFromPayload = normalizeStatusValue(statusFromPayload);
+    }
     const rawDifficulty =
       p?.lv ??
       p?.level ??
@@ -166,8 +180,8 @@ const adaptProblem = (p: any): Problem => {
       ),
       languages: p.languages || undefined,
       createdBy: p.created_by || undefined,
-      myStatus: normalizeStatusValue(p.my_status ?? p.myStatus),
-      solved: isAcceptedStatus(p.my_status ?? p.myStatus),
+      myStatus: normalizedStatusFromPayload,
+      solved: isAcceptedStatus(normalizedStatusFromPayload),
       visible,
       isPublic: isPublic ?? visible,
     } as Problem;
@@ -331,6 +345,13 @@ const buildMicroProblemListParams = (filter: ProblemFilter) => {
     params.set('keyword', filter.search.trim());
   }
 
+  if (typeof filter.difficultyMin === 'number') {
+    params.set('difficulty_min', String(filter.difficultyMin));
+  }
+  if (typeof filter.difficultyMax === 'number') {
+    params.set('difficulty_max', String(filter.difficultyMax));
+  }
+
   if (filter.difficultyLevel && filter.difficultyLevel > 0) {
     params.set('difficulty', String(filter.difficultyLevel));
   }
@@ -394,46 +415,21 @@ export const problemService = {
   // 문제 상세 조회
   getProblem: async (identifier: string | number): Promise<Problem> => {
     const normalized = typeof identifier === 'string' ? identifier.trim() : String(identifier);
-    if (!normalized) {
-      throw new Error('문제를 찾기 위한 식별자가 필요합니다.');
+    const problemId = Number(normalized);
+    if (!Number.isFinite(problemId) || problemId <= 0) {
+      throw new Error('문제를 찾기 위한 유효한 problem id가 필요합니다.');
     }
-    const normalizedLower = normalized.toLowerCase();
-    const numericIdentifier = Number(normalized);
-    const hasNumericIdentifier = Number.isFinite(numericIdentifier);
-    const pageSize = 250;
-    let currentPage = 1;
-    let totalPages = 1;
 
-    do {
-      const { data, total } = await problemService.getProblems({ page: currentPage, limit: pageSize });
-      const match = data.find((item) => {
-        const candidateValues = [
-          (item as any)._id,
-          (item as any).displayId,
-          item.displayId,
-          item.id,
-        ];
-        for (const value of candidateValues) {
-          if (value == null) continue;
-          const valueString = String(value).trim();
-          if (!valueString) continue;
-          if (valueString === normalized || valueString.toLowerCase() === normalizedLower) {
-            return true;
-          }
-          if (hasNumericIdentifier && Number(value) === numericIdentifier) {
-            return true;
-          }
-        }
-        return false;
-      });
-      if (match) {
-        return match;
-      }
-      totalPages = Math.max(1, Math.ceil(total / pageSize));
-      currentPage += 1;
-    } while (currentPage <= totalPages);
+    if (MICRO_PROBLEM_DETAIL_ENDPOINT) {
+      const response = await apiClient.get<any>(`${MICRO_PROBLEM_DETAIL_ENDPOINT}/${problemId}`);
+      return adaptProblem(response.data);
+    }
 
-    throw new Error('문제를 찾을 수 없습니다.');
+    const response = await api.get<any>('/problem', { problem_id: String(problemId) });
+    if (!response.success) {
+      throw new Error(response.message || '문제를 불러오지 못했습니다.');
+    }
+    return adaptProblem(response.data);
   },
 
   // 문제 상태 맵 조회 (id -> Problem)
@@ -467,12 +463,7 @@ export const problemService = {
     while (currentPage <= totalPages && Object.keys(found).length < idSet.size) {
       const pageResult = await problemService.getProblems({ page: currentPage, limit: pageSize });
       pageResult.data.forEach((problem) => {
-        const candidateValues = [
-          (problem as any)._id,
-          (problem as any).displayId,
-          problem.displayId,
-          problem.id,
-        ];
+        const candidateValues = [problem.id];
         for (const value of candidateValues) {
           if (value == null) continue;
           const valueString = String(value).trim();
@@ -499,55 +490,18 @@ export const problemService = {
   },
 
   getContestProblem: async (contestId: number, identifier: string | number): Promise<Problem> => {
-    const params: Record<string, unknown> = {
-      contest_id: contestId,
-    };
-
-    if (typeof identifier === 'number' && Number.isFinite(identifier)) {
-      params.problem_id = String(identifier);
-    } else if (typeof identifier === 'string' && identifier.trim().length > 0) {
-      params.problem_id = identifier.trim();
+    const problemKey = String(identifier).trim();
+    if (!problemKey) {
+      throw new Error('대회 문제 조회에는 유효한 problem identifier가 필요합니다.');
     }
 
-    const response = await api.get<any>('/contest/problem', params);
-    if (!response.success) {
-      throw new Error(response.message || '대회 문제를 불러오지 못했습니다.');
+    if (!MS_API_BASE) {
+      throw new Error('MS_API_BASE is not defined');
     }
 
-    const body = response.data;
-    let rawProblem: any | undefined;
-
-    const matchFromCollection = (collection: any[]): any | undefined => {
-      const targetId = typeof identifier === 'number' ? identifier : undefined;
-      const targetDisplayId = typeof identifier === 'string' ? identifier.trim() : undefined;
-      return collection.find((item) => {
-        if (!item) return false;
-        if (targetId != null && Number(item.id) === Number(targetId)) {
-          return true;
-        }
-        if (targetDisplayId) {
-          const candidate = item.display_id ?? item._id ?? item.displayId ?? item.id;
-          if (candidate != null && String(candidate).trim() === targetDisplayId) {
-            return true;
-          }
-        }
-        return false;
-      }) ?? collection[0];
-    };
-
-    if (Array.isArray(body)) {
-      rawProblem = matchFromCollection(body);
-    } else if (body && Array.isArray(body.results)) {
-      rawProblem = matchFromCollection(body.results);
-    } else if (body && typeof body === 'object' && Object.keys(body).length) {
-      rawProblem = body;
-    }
-
-    if (!rawProblem) {
-      throw new Error('대회 문제를 찾을 수 없습니다.');
-    }
-
-    return adaptProblem(rawProblem);
+    const base = MS_API_BASE.replace(/\/$/, '');
+    const response = await apiClient.get<any>(`${base}/contest/${contestId}/problem/${encodeURIComponent(problemKey)}`);
+    return adaptProblem(response.data);
   },
 
   // 문제 생성 (관리자)

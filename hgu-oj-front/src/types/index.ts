@@ -302,6 +302,8 @@ export interface LanguageOption {
 export interface ProblemFilter {
   difficulty?: string | number;
   difficultyLevel?: number;
+  difficultyMin?: number;
+  difficultyMax?: number;
   search?: string;
   page?: number;
   limit?: number;
