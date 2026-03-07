@@ -323,7 +323,8 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                 };
 
                 if (isEditMode && editContestId) {
-                    await adminService.updateContest({ ...payload, id: editContestId, password: formData.password || null });
+                    const { problems, ...metaPayload } = payload;
+                    await adminService.updateContest({ ...metaPayload, id: editContestId, password: formData.password || null });
                 } else {
                     await adminService.createContest(payload);
                 }
@@ -349,7 +350,8 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                 };
 
                 if (isEditMode && editContestId) {
-                    await contestService.update(editContestId, dataToSubmit);
+                    const { problems, ...metaPayload } = dataToSubmit;
+                    await contestService.update(editContestId, metaPayload);
                 } else {
                     await contestService.create(dataToSubmit);
                 }

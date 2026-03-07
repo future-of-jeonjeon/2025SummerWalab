@@ -86,21 +86,38 @@ async def update_contest(update_contest_dto: ReqUpdateContestDTO, user_profile: 
     if update_contest_dto.requires_approval is not None:
         await contest_repo.upsert_policy(contest.id, update_contest_dto.requires_approval, db)
 
-    if update_contest_dto.problems is not None and len(update_contest_dto.problems) > 0:
-        existing_problems = await problem_repo.find_problems_by_contest_id(db, contest.id)
-        existing_display_ids = {p._id: p for p in existing_problems}
-        new_display_ids = {p.display_id for p in update_contest_dto.problems}
-
-        problems_to_delete = [p for p in existing_problems if p._id not in new_display_ids]
-        if problems_to_delete:
-            await problem_repo.delete_problems(db, problems_to_delete)
-
-        for p_input in update_contest_dto.problems:
-            if p_input.display_id not in existing_display_ids:
-                await _clone_and_add_problem(db, contest.id, p_input.problem_id, p_input.display_id,
-                                             user_profile.user_id, update_contest_dto.languages)
-
     return await _create_contest_data_dto_from_entity(contest, update_contest_dto.languages, 0, db)
+
+
+async def update_contest_problems(
+        contest_id: int,
+        problem_inputs: List[ContestProblemInputDTO],
+        user_profile: UserProfile,
+        db: AsyncSession,) -> None:
+    if not problem_inputs:
+        return
+
+    existing_problems = await problem_repo.find_problems_by_contest_id(db, contest_id)
+    existing_display_ids = {p._id: p for p in existing_problems}
+    new_display_ids = {p.display_id for p in problem_inputs}
+
+    problems_to_delete = [p for p in existing_problems if p._id not in new_display_ids]
+    if problems_to_delete:
+        await problem_repo.delete_problems(db, problems_to_delete)
+
+    contest_language = await contest_repo.find_contest_language_by_contest_id(contest_id, db)
+    languages = contest_language.languages if contest_language else []
+    for p_input in problem_inputs:
+        if p_input.display_id not in existing_display_ids:
+            await _clone_and_add_problem(
+                db,
+                contest_id,
+                p_input.problem_id,
+                p_input.display_id,
+                user_profile.user_id,
+                languages,
+            )
+    return
 
 
 def _update_contest_data(contest, update_contest_dto):
