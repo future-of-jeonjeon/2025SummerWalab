@@ -1,13 +1,12 @@
 from collections import defaultdict
 from datetime import datetime, timedelta
-from typing import Iterable, List
+from typing import Iterable, List, Optional
 
 from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.problem.models import Problem
 from app.submission.models import Submission
-
 JUDGE_STATUS_ACCEPTED = 0
 
 
@@ -161,3 +160,59 @@ async def get_user_submissions_by_year(user_id: int, db: AsyncSession):
         .group_by(func.date(Submission.create_time))
         .order_by(func.date(Submission.create_time)))
     return result.all()
+
+
+async def fetch_problem_submissions(
+        problem_id: int,
+        contest_id: Optional[int],
+        user_id: Optional[int],
+        limit: int,
+        offset: int,
+        db: AsyncSession, ) -> list[Submission]:
+    filters = [Submission.problem_id == problem_id]
+
+    if contest_id is None:
+        filters.append(Submission.contest_id.is_(None))
+    else:
+        filters.append(Submission.contest_id == contest_id)
+
+    if user_id is not None:
+        filters.append(Submission.user_id == user_id)
+
+    stmt = (
+        select(Submission)
+        .where(*filters)
+        .order_by(Submission.create_time.desc())
+        .offset(offset)
+        .limit(limit)
+    )
+
+    return (await db.execute(stmt)).scalars().all()
+
+
+async def count_solved_problem_by_contest_id_and_user_id(contest_id: int, user_id: int, db: AsyncSession) -> int:
+    stmt = (
+        select(func.count(func.distinct(Submission.problem_id)))
+        .where(Submission.contest_id == contest_id)
+        .where(Submission.user_id == user_id)
+        .where(Submission.result == JUDGE_STATUS_ACCEPTED)
+    )
+    result = await db.execute(stmt)
+    return int(result.scalar() or 0)
+
+
+async def get_score_by_contest_id_and_user_id(contest_id: int, user_id: int, db: AsyncSession) -> int:
+    scores = await fetch_contest_user_scores(db, contest_id)
+    target = next((item for item in scores if int(item.get("user_id", 0)) == user_id), None)
+    if not target:
+        return 0
+    return int(target.get("total_score", 0) or 0)
+
+async def count_problem_by_contest_id(contest_id: int, db: AsyncSession) -> int:
+    stmt = (
+        select(func.count(func.distinct(Problem.id)))
+        .where(Problem.contest_id == contest_id)
+        .where(Problem.visible.is_(True))
+    )
+    result = await db.execute(stmt)
+    return int(result.scalar() or 0)

@@ -3,7 +3,8 @@ from typing import Iterable, List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.submission import repository as submission_repo
-from app.submission.schemas import ContestProblemStat, ContestUserScore, SubmissionDailyCount
+from app.submission.models import Submission
+from app.submission.schemas import ContestProblemStat, ContestUserScore, SubmissionDailyCount, SubmissionListResponse
 from app.user.schemas import UserProfile
 from app.core.logger import logger
 
@@ -39,4 +40,32 @@ async def get_contribution_data(user_profile: UserProfile, db: AsyncSession) -> 
     return [
         SubmissionDailyCount(date=row.date, count=row.count)
         for row in rows
+    ]
+
+async def get_problem_submission(
+    problem_id: int,
+    limit: int,
+    offset: int,
+    contest_id: Optional[int],
+    user_id: Optional[int],
+    db: AsyncSession,) -> list[SubmissionListResponse]:
+    submission_list: list[Submission] = await submission_repo.fetch_problem_submissions(
+        problem_id=problem_id,
+        contest_id=contest_id,
+        user_id=user_id,
+        limit=limit,
+        offset=offset,
+        db=db,
+    )
+
+    return [
+        SubmissionListResponse(
+            id=submission.id,
+            create_time=submission.create_time,
+            result=submission.result,
+            contest_id=submission.contest_id,
+            problem_id=submission.problem_id,
+            user_id=submission.user_id,
+        )
+        for submission in submission_list
     ]

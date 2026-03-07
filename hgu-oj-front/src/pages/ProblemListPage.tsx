@@ -29,6 +29,8 @@ export const ProblemListPage: React.FC = () => {
   const [showAllTags, setShowAllTags] = useState(false);
   const [minDifficultyLevel, setMinDifficultyLevel] = useState(0);
   const [maxDifficultyLevel, setMaxDifficultyLevel] = useState(5);
+  const difficultyRangeLeft = (Math.min(minDifficultyLevel, maxDifficultyLevel) / 5) * 100;
+  const difficultyRangeWidth = ((Math.max(minDifficultyLevel, maxDifficultyLevel) - Math.min(minDifficultyLevel, maxDifficultyLevel)) / 5) * 100;
   const { isAuthenticated } = useAuthStore();
 
   const { data, isLoading, error } = useProblems(filter);
@@ -41,43 +43,9 @@ export const ProblemListPage: React.FC = () => {
     queryFn: ({ signal }) => problemService.getTagCounts({ signal }),
   });
 
-  const problemIdentifiers = useMemo(() => {
-    return microProblems
-      .map((problem) => problem.displayId ?? problem._id ?? problem.id)
-      .filter((value): value is string | number => value !== undefined && value !== null)
-      .map((value) => String(value).trim())
-      .filter((value) => value.length > 0);
-  }, [microProblems]);
-
-  const {
-    data: statusMap,
-  } = useQuery({
-    queryKey: ['problem', 'status-map', problemIdentifiers],
-    queryFn: () => problemService.getProblemStatusMap(problemIdentifiers),
-    enabled: isAuthenticated && problemIdentifiers.length > 0,
-  });
-
-  const normalizedStatusMap = useMemo(() => {
-    if (!statusMap) {
-      return {} as Record<string, Problem>;
-    }
-    return Object.entries(statusMap).reduce<Record<string, Problem>>((acc, [key, value]) => {
-      if (!value) return acc;
-      const candidates = [key, value.displayId, (value as any)._id, value.id];
-      candidates.forEach((candidate) => {
-        if (candidate === undefined || candidate === null) return;
-        const normalized = String(candidate).trim().toLowerCase();
-        if (normalized) {
-          acc[normalized] = value;
-        }
-      });
-      return acc;
-    }, {});
-  }, [statusMap]);
-
-  const handleProblemClick = (problemKey: string) => {
-    if (!problemKey) return;
-    navigate(`/problems/${encodeURIComponent(problemKey)}`);
+  const handleProblemClick = (problemId: number) => {
+    if (!Number.isFinite(problemId) || problemId <= 0) return;
+    navigate(`/problems/${problemId}`);
   };
 
   useEffect(() => {
@@ -85,6 +53,15 @@ export const ProblemListPage: React.FC = () => {
       setSearchQuery(filter.search ?? '');
     }
   }, [filter.search]);
+
+  useEffect(() => {
+    if (typeof filter.difficultyMin === 'number') {
+      setMinDifficultyLevel(filter.difficultyMin);
+    }
+    if (typeof filter.difficultyMax === 'number') {
+      setMaxDifficultyLevel(filter.difficultyMax);
+    }
+  }, [filter.difficultyMin, filter.difficultyMax]);
 
   const handleSearchChange = (query: string) => {
     setSearchQuery(query);
@@ -189,28 +166,7 @@ export const ProblemListPage: React.FC = () => {
     const compareStrings = (a: string, b: string) =>
       a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
 
-    const hydratedItems = items.map((problem) => {
-      if (!isAuthenticated) return problem;
-
-      const candidates = [problem.displayId, problem._id, (problem as any)._id, problem.id];
-      for (const candidate of candidates) {
-        if (candidate === undefined || candidate === null) continue;
-        const key = String(candidate).trim().toLowerCase();
-        if (!key) continue;
-
-        const statusSource = normalizedStatusMap[key];
-        if (statusSource) {
-          return {
-            ...problem,
-            myStatus: statusSource.myStatus ?? (statusSource as any).my_status ?? problem.myStatus,
-            solved: statusSource.solved ?? problem.solved,
-          };
-        }
-      }
-      return problem;
-    });
-
-    const filtered = hydratedItems
+    const filtered = items
       .filter(matchesSelectedTags)
       .filter(matchesQuery)
       .filter((problem) => {
@@ -247,7 +203,6 @@ export const ProblemListPage: React.FC = () => {
     filter.statusFilter,
     searchQuery,
     isAuthenticated,
-    normalizedStatusMap,
     selectedTags,
     minDifficultyLevel,
     maxDifficultyLevel,
@@ -337,7 +292,6 @@ export const ProblemListPage: React.FC = () => {
                     />
                     <span className="ml-3 text-sm font-medium text-gray-700 dark:text-slate-300 group-hover:text-gray-900 dark:group-hover:text-slate-100">전체 보기</span>
                   </div>
-                  <span className="text-xs font-medium bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 py-1 px-2.5 rounded-full">{data?.total || microProblems.length}</span>
                 </label>
                 {(tagStats || []).slice(0, showAllTags ? undefined : 8).map((tag) => (
                   <label key={tag.name} className="flex items-center justify-between cursor-pointer group">
@@ -351,7 +305,6 @@ export const ProblemListPage: React.FC = () => {
                       />
                       <span className="ml-3 text-sm font-medium text-gray-700 dark:text-slate-300 group-hover:text-gray-900 dark:group-hover:text-slate-100">{tag.name}</span>
                     </div>
-                    <span className="text-xs font-medium bg-gray-100 dark:bg-slate-800 text-gray-600 dark:text-slate-300 py-1 px-2.5 rounded-full">{tag.count}</span>
                   </label>
                 ))}
                 {(tagStats || []).length > 8 && (
@@ -375,6 +328,13 @@ export const ProblemListPage: React.FC = () => {
               <div className="px-2">
                 <div className="relative h-8">
                   <div className="absolute inset-x-0 top-3 h-2 rounded-lg bg-gray-200 dark:bg-slate-700" />
+                  <div
+                    className="absolute top-3 h-2 rounded-lg bg-blue-500/80 dark:bg-sky-400/85"
+                    style={{
+                      left: `${difficultyRangeLeft}%`,
+                      width: `${difficultyRangeWidth}%`,
+                    }}
+                  />
                   <input
                     type="range"
                     min="0"
@@ -384,8 +344,9 @@ export const ProblemListPage: React.FC = () => {
                     onChange={(e) => {
                       const next = parseInt(e.target.value, 10);
                       setMinDifficultyLevel(next);
+                      const nextMax = next > maxDifficultyLevel ? next : maxDifficultyLevel;
                       if (next > maxDifficultyLevel) setMaxDifficultyLevel(next);
-                      setFilter({ page: 1 });
+                      setFilter({ difficultyMin: next, difficultyMax: nextMax, page: 1 });
                     }}
                     className="dual-range dual-range-min absolute inset-x-0 top-3 w-full h-2 bg-transparent appearance-none cursor-pointer accent-blue-600"
                   />
@@ -398,8 +359,9 @@ export const ProblemListPage: React.FC = () => {
                     onChange={(e) => {
                       const next = parseInt(e.target.value, 10);
                       setMaxDifficultyLevel(next);
+                      const nextMin = next < minDifficultyLevel ? next : minDifficultyLevel;
                       if (next < minDifficultyLevel) setMinDifficultyLevel(next);
-                      setFilter({ page: 1 });
+                      setFilter({ difficultyMin: nextMin, difficultyMax: next, page: 1 });
                     }}
                     className="dual-range dual-range-max absolute inset-x-0 top-3 w-full h-2 bg-transparent appearance-none cursor-pointer accent-blue-600"
                   />
@@ -478,15 +440,17 @@ export const ProblemListPage: React.FC = () => {
               showStatus={isAuthenticated}
               getRowNumber={resolveProblemRowNumber}
             />
-            <div className="mt-6">
-              <CommonPagination
-                page={filter.page || 1}
-                pageSize={pageSize}
-                totalPages={data?.totalPages || 1}
-                totalItems={data?.total}
-                onChangePage={handlePageChange}
-              />
-            </div>
+            {processedProblems.length > 0 && (
+              <div className="mt-6">
+                <CommonPagination
+                  page={filter.page || 1}
+                  pageSize={pageSize}
+                  totalPages={data?.totalPages || 1}
+                  totalItems={data?.total}
+                  onChangePage={handlePageChange}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>

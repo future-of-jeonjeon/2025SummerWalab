@@ -21,28 +21,11 @@ type ContestProblemStat = {
   accuracy?: number;
 };
 
-
-
-const fetchContestProblemCount = async (contestId: number): Promise<number | undefined> => {
-  if (!MICRO_API_BASE) {
-    return undefined;
-  }
-  try {
-    const response = await apiClient.get<any>(`${MICRO_API_BASE}/problem/contest/${contestId}/count`);
-    const data = response.data;
-    const numeric = Number(
-      data?.count ??
-      data?.total ??
-      data?.problem_count ??
-      data?.problemCount ??
-      data,
-    );
-    return Number.isFinite(numeric) && numeric >= 0 ? numeric : undefined;
-  } catch {
-    return undefined;
-  }
-};
-
+export interface ContestMyProgressResponse {
+  total: number;
+  solved: number;
+  total_score: number;
+}
 const fetchContestProblemStats = async (contestId: number, problemIds: number[]): Promise<Map<number, ContestProblemStat>> => {
   const result = new Map<number, ContestProblemStat>();
   if (!MICRO_API_BASE || contestId <= 0 || problemIds.length === 0) {
@@ -229,14 +212,7 @@ export const contestService = {
       throw new Error('MS_API_BASE not defined');
     }
     const response = await apiClient.get<any>(`${MICRO_API_BASE}/contest/${id}`);
-    const contest = mapContest(response.data);
-    if (contest.problemCount == null) {
-      const microCount = await fetchContestProblemCount(id);
-      if (microCount !== undefined) {
-        contest.problemCount = microCount;
-      }
-    }
-    return contest;
+    return mapContest(response.data);
   },
 
   getContestAnnouncements: async (contestId: number): Promise<ContestAnnouncement[]> => {
@@ -378,6 +354,18 @@ export const contestService = {
     }
 
     return response.data;
+  },
+  getContestMyProgress: async (contestId: number): Promise<ContestMyProgressResponse> => {
+    if (!MICRO_API_BASE) {
+      throw new Error('MS_API_BASE not defined');
+    }
+    const response = await apiClient.get<any>(`${MICRO_API_BASE}/contest/${contestId}/me/progress`);
+    const payload = response.data ?? {};
+    return {
+      total: Number(payload.total ?? 0) || 0,
+      solved: Number(payload.solved ?? 0) || 0,
+      total_score: Number(payload.total_score ?? 0) || 0,
+    };
   },
   getContestRank: async (
     contestId: number,

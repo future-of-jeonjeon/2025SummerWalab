@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Query, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.problem.service as serv
-from app.api.deps import get_database, get_userdata
+from app.api.deps import get_database, get_userdata, get_database_readonly, get_optional_userdata
 from app.problem.schemas import *
 from app.core.auth.guards import require_role
 from app.user.schemas import UserProfile
@@ -27,7 +27,7 @@ async def update_problem_api(
         request_data: ProblemUpdateRequest,
         user_profile: UserProfile = Depends(get_userdata)):
     polling_key = await serv.setup_polling(problem_num=1)
-    asyncio.create_task(serv.update_problem(polling_key,problem_id, request_data, user_profile, is_admin=False))
+    asyncio.create_task(serv.update_problem(polling_key, problem_id, request_data, user_profile, is_admin=False))
     return {"polling_key": polling_key}
 
 
@@ -47,7 +47,8 @@ async def import_problem(
     polling_key = await serv.setup_polling(problem_num)
     file_contents = await file.read()
     filename = file.filename
-    asyncio.create_task(serv.import_problem_from_file(polling_key, file_contents, filename, user_profile, is_admin=False))
+    asyncio.create_task(
+        serv.import_problem_from_file(polling_key, file_contents, filename, user_profile, is_admin=False))
     return {"polling_key": polling_key}
 
 
@@ -86,11 +87,6 @@ async def get_tag_count(db: AsyncSession = Depends(get_database)):
     return await serv.get_tag_count(db)
 
 
-@router.get("/counts")
-async def get_tag_count(db: AsyncSession = Depends(get_database)):
-    return await serv.get_problem_count(db)
-
-
 @router.get("/contest/{contest_id}/count")
 async def get_contest_problem_count(contest_id: int, db: AsyncSession = Depends(get_database)):
     count = await serv.get_contest_problem_count(contest_id, db)
@@ -100,20 +96,27 @@ async def get_contest_problem_count(contest_id: int, db: AsyncSession = Depends(
 # 태그 필터링, 정렬 한번에 묶어서
 @router.get("/list", response_model=ProblemListResponse)
 async def get_filter_sorted_problems(
-        # 태그로 필털이할 때 태그값 받음
         tags: Optional[List[str]] = Query(None),
         keyword: Optional[str] = Query(None),
-        difficulty: Optional[int] = Query(None),
-        # 정렬옵션 넣을 때 받을 변수, 기본값 : id
+        difficulty_min: Optional[int] = Query(None),
+        difficulty_max: Optional[int] = Query(None),
         sort_option: Optional[str] = Query("id"),
-        # 오름, 내림차순 받을 변수, 기본은 오름차순
         order: Optional[str] = Query("asc"),
-        # 페이지네이션 관련
         page: int = Query(1, ge=1),
         size: int = Query(20, ge=1, le=250),
-        db: AsyncSession = Depends(get_database)
-):
-    return await serv.get_filter_sorted_problems(tags, keyword, difficulty, sort_option, order, page, size, db)
+        request_user: Optional[UserProfile] = Depends(get_optional_userdata),
+        db: AsyncSession = Depends(get_database)) -> ProblemListResponse:
+    return await serv.get_filter_sorted_problems(
+        tags,
+        keyword,
+        difficulty_min,
+        difficulty_max,
+        sort_option,
+        order,
+        page,
+        size,
+        request_user,
+        db)
 
 
 @router.get("/available", response_model=ProblemListResponse)
@@ -141,3 +144,10 @@ async def get_available_contest_problem(
                                                     keyword=keyword,
                                                     user_profile=user_profile,
                                                     db=db)
+
+
+@router.get("/{problem_id}", response_model=ProblemResponse)
+async def get_problem_by_id(
+        problem_id: int,
+        db: AsyncSession = Depends(get_database_readonly)):
+    return await serv.get_problem(problem_id, db)

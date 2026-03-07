@@ -40,6 +40,7 @@ class ContestDataDTO(BaseModel):
     createdBy: ContestCreatedByDTO
     participants: int
     languages: list[str]
+    problemCount: int = 0
     is_organization_only: bool = False
     requires_approval: bool = False
     organization_id: Optional[int] = None
@@ -143,6 +144,12 @@ class ContestUserDecisionRequest(BaseModel):
 
 class ContestUserDecisionUpdate(BaseModel):
     action: Literal["approve", "reject"]
+
+
+class ContestProgressResponse(BaseModel):
+    total: int = Field(..., ge=0)
+    solved: int = Field(..., ge=0)
+    total_score: int = Field(..., ge=0)
 
 
 class CreateContestAnnouncementRequest(BaseModel):
