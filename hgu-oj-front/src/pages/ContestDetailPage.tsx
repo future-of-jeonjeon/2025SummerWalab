@@ -291,13 +291,18 @@ export const ContestDetailPage: React.FC = () => {
 
   const onProblemClick = useCallback(
     (problem: Problem) => {
+      const normalizedDisplayId =
+        typeof problem.displayId === 'string' && problem.displayId.trim().length > 0
+          ? problem.displayId.trim()
+          : null;
       const normalizedObjectId =
         typeof problem._id === 'string' && problem._id.trim().length > 0
           ? problem._id.trim()
           : typeof problem._id === 'number' && Number.isFinite(problem._id) && problem._id > 0
             ? String(problem._id)
             : null;
-      const problemKey = normalizedObjectId
+      const problemKey = normalizedDisplayId
+        ?? normalizedObjectId
         ?? (Number.isFinite(Number(problem.id)) && Number(problem.id) > 0 ? String(problem.id) : null);
       if (!problemKey) {
         return;

@@ -90,12 +90,15 @@ class ReqAddContestProblemDTO(BaseModel):
 
 class ContestProblemDTO(BaseModel):
     id: int
-    _id: str
+    display_id: str = Field(..., alias="_id")
     title: str
     difficulty: Optional[str] = None
     submission_number: int = 0
     accepted_number: int = 0
     status: int = 0
+
+    class Config:
+        populate_by_name = True
     
 
 class PaginatedContestResponse(Page[ContestDataDTO]):

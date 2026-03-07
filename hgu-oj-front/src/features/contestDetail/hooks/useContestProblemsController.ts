@@ -40,12 +40,12 @@ export const useContestProblemsController = ({
   const [statusFilter, setStatusFilter] = useState<'all' | ProblemStatusKey>('all');
 
   const getOverrideStatus = useCallback((problem: Problem, progress: Record<string, string>) => (
-    progress[String(problem.id)]
-    ?? progress[String(problem.displayId ?? '').trim()]
+    progress[String(problem.displayId ?? '').trim()]
     ?? progress[String((problem as any)._id ?? '').trim()]
-    ?? progress[String(problem.id).toLowerCase()]
     ?? progress[String(problem.displayId ?? '').trim().toLowerCase()]
     ?? progress[String((problem as any)._id ?? '').trim().toLowerCase()]
+    ?? progress[String(problem.id)]
+    ?? progress[String(problem.id).toLowerCase()]
   ), []);
 
   const resolveContestOnlyStatus = useCallback((problem: Problem, progress: Record<string, string>): ProblemAttemptState => {
@@ -92,7 +92,7 @@ export const useContestProblemsController = ({
     const scoreLookup = new Map<string, number>();
     problems.forEach((problem) => {
       const fullScore = Number(problem.totalScore ?? 0);
-      const candidates = [problem.id, problem.displayId, (problem as any)._id];
+      const candidates = [problem.displayId, (problem as any)._id, problem.id];
       candidates.forEach((candidate) => {
         if (candidate == null) return;
         const key = String(candidate).trim();

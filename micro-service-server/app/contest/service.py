@@ -172,7 +172,7 @@ async def get_contest_problems(contest_id: int, user_profile: UserProfile, db: A
     return [
         ContestProblemDTO(
             id=problem.id,
-            _id=problem._id,
+            display_id=problem._id,
             title=problem.title,
             difficulty=problem.difficulty,
             submission_number=problem.submission_number or 0,
