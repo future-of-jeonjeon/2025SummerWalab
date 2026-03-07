@@ -296,7 +296,22 @@ export const contestService = {
       rawProblemList = Array.isArray(response.data) ? response.data : [];
     }
 
-    const problems = rawProblemList.map(mapProblem);
+    const problems = rawProblemList.map((raw) => {
+      const mapped = mapProblem(raw);
+      const hasContestStatus = raw && Object.prototype.hasOwnProperty.call(raw, 'status');
+      if (!hasContestStatus) {
+        return mapped;
+      }
+
+      const normalized = String(raw.status ?? '').trim();
+      if (normalized === '2') {
+        return { ...mapped, myStatus: 'AC', solved: true };
+      }
+      if (normalized === '1') {
+        return { ...mapped, myStatus: 'WA', solved: false };
+      }
+      return { ...mapped, myStatus: undefined, solved: false };
+    });
     const problemIds = problems
       .map((item) => {
         const candidates = [item.id, (item as any)._id, item.displayId];
