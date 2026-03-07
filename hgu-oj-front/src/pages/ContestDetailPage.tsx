@@ -17,6 +17,7 @@ import { ContestUserManagementTab } from '../features/contestDetail/components/C
 import { ContestSubmissionDetailsTab } from '../features/contestDetail/components/ContestSubmissionDetailsTab';
 
 import type { ContestTab } from '../features/contestDetail/types';
+import type { Problem } from '../types';
 
 // Removed status label
 
@@ -277,10 +278,15 @@ export const ContestDetailPage: React.FC = () => {
   };
 
   const onProblemClick = useCallback(
-    (problem: { id?: number; _id?: string }) => {
-      const problemKey = typeof problem._id === 'string' && problem._id.trim().length > 0
-        ? problem._id.trim()
-        : (Number.isFinite(Number(problem.id)) && Number(problem.id) > 0 ? String(problem.id) : null);
+    (problem: Problem) => {
+      const normalizedObjectId =
+        typeof problem._id === 'string' && problem._id.trim().length > 0
+          ? problem._id.trim()
+          : typeof problem._id === 'number' && Number.isFinite(problem._id) && problem._id > 0
+            ? String(problem._id)
+            : null;
+      const problemKey = normalizedObjectId
+        ?? (Number.isFinite(Number(problem.id)) && Number(problem.id) > 0 ? String(problem.id) : null);
       if (!problemKey) {
         return;
       }
