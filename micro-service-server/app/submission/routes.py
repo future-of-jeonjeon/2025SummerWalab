@@ -28,7 +28,7 @@ async def get_contest_problem_stats(
 
 
 
-@router.get("/", response_model=List[SubmissionListResponse])
+@router.get("", response_model=List[SubmissionListResponse])
 async def get_problem_submission(
     problem_id: int = Query(..., ge=1),
     limit: int = Query(20, ge=1, le=200),

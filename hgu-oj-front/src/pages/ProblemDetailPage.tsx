@@ -589,7 +589,7 @@ export const ProblemDetailPage: React.FC = () => {
         ? submissionService.getMySubmissions(submissionProblemKey, { contestId: contestContextId ?? undefined, limit: 20 })
         : Promise.resolve({ items: [], total: 0 })
     ),
-    enabled: isAuthenticated && !!submissionProblemKey,
+    enabled: activeSection === 'submissions' && isAuthenticated && !!submissionProblemKey,
     staleTime: 3_000,
     refetchInterval: 3_000,
   });
