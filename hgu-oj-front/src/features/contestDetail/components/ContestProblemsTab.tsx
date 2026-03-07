@@ -28,7 +28,6 @@ interface ContestProblemsTabProps {
     handleSortToggle: (field: 'number' | 'submission' | 'accuracy') => void;
   };
   onProblemClick: (problem: Problem) => void;
-  myRankProgress: Record<string, string>;
 }
 
 export const ContestProblemsTab: React.FC<ContestProblemsTabProps> = ({
@@ -43,7 +42,6 @@ export const ContestProblemsTab: React.FC<ContestProblemsTabProps> = ({
   statusFilter,
   handlers,
   onProblemClick,
-  myRankProgress,
   canViewProtectedContent: _canViewProtectedContent,
 }) => {
   if (lockState.locked) {
@@ -149,7 +147,6 @@ export const ContestProblemsTab: React.FC<ContestProblemsTabProps> = ({
         problems={processedContestProblems}
         onProblemClick={onProblemClick}
         disabled={lockState.locked}
-        statusOverrides={myRankProgress}
         onSortChange={handlers.handleSortToggle}
         sortField={sortState.field}
         sortOrder={sortState.order}

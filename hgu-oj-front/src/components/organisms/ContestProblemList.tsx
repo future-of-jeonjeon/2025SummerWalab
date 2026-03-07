@@ -29,17 +29,17 @@ const getStatusBadge = (problem: Problem, overrideState?: string): { label: stri
     case 'solved':
       return {
         label: PROBLEM_STATUS_LABELS.solved,
-        className: 'bg-green-100 text-green-700 border border-green-200',
+        className: 'rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300',
       };
     case 'wrong':
       return {
         label: PROBLEM_STATUS_LABELS.wrong,
-        className: 'bg-red-100 text-red-600 border border-red-200',
+        className: 'rounded-md border border-rose-200 bg-rose-50 text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300',
       };
     case 'attempted':
       return {
-        label: PROBLEM_STATUS_LABELS.attempted,
-        className: 'bg-amber-100 text-amber-700 border border-amber-200',
+        label: PROBLEM_STATUS_LABELS.wrong,
+        className: 'rounded-md border border-rose-200/80 bg-rose-50/70 text-rose-700 dark:border-rose-500/25 dark:bg-rose-500/10 dark:text-rose-300',
       };
     case 'untouched':
       return null;
@@ -119,12 +119,11 @@ export const ContestProblemList: React.FC<ContestProblemListProps> = ({
   return (
     <div className="bg-white dark:bg-slate-900 rounded-lg shadow-sm overflow-hidden">
       <div className="px-5 py-3 border-b border-gray-200 bg-slate-100 dark:bg-slate-800/70">
-        <div className="grid grid-cols-[120px_minmax(0,1fr)_160px_120px_120px] items-center gap-3 text-xs font-medium uppercase tracking-wider text-gray-600 dark:text-slate-200">
+        <div className="grid grid-cols-[120px_minmax(0,1fr)_120px_120px] items-center gap-3 text-xs font-medium uppercase tracking-wider text-gray-600 dark:text-slate-200">
           <div className="flex justify-center">
-            {renderSortableHeader('문제 번호', 'number')}
+            {renderSortableHeader('#', 'number')}
           </div>
           <div className="text-left">제목</div>
-          <div className="flex justify-center">상태</div>
           <div className="flex justify-center">
             {renderSortableHeader('제출수', 'submission')}
           </div>
@@ -168,19 +167,14 @@ export const ContestProblemList: React.FC<ContestProblemListProps> = ({
                 }
               }}
             >
-              <div className="grid grid-cols-[120px_minmax(0,1fr)_160px_120px_120px] items-center gap-3">
+              <div className="grid grid-cols-[120px_minmax(0,1fr)_120px_120px] items-center gap-3">
                 <div className="text-sm font-medium text-gray-900 dark:text-slate-100 text-center">
                   {problem.displayId ?? problem.id}
                 </div>
-                <div>
-                  <div className="text-sm font-medium text-gray-900 dark:text-slate-100">{problem.title}</div>
-                  <p className="text-xs text-gray-500 dark:text-slate-400 line-clamp-2 mt-1">
-                    {problem.description?.replace(/<[^>]*>/g, '') || '설명이 없습니다.'}
-                  </p>
-                </div>
-                <div className="flex justify-center">
+                <div className="flex items-center gap-2 min-w-0">
+                  <div className="text-sm font-medium text-gray-900 dark:text-slate-100 truncate">{problem.title}</div>
                   {badge && (
-                    <span className={`inline-flex items-center px-2.5 py-0.5 text-[11px] font-semibold rounded-full ${badge.className}`}>
+                    <span className={`inline-flex items-center px-2 py-0.5 text-[10px] font-bold tracking-tight uppercase ${badge.className}`}>
                       {badge.label}
                     </span>
                   )}

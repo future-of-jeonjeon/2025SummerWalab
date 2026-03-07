@@ -237,3 +237,23 @@ async def find_solved_problem_ids_by_contest_and_user(
     )
     result = await db.execute(stmt)
     return [int(pid) for pid in result.scalars().all()]
+
+
+async def find_attempted_problem_ids_by_contest_and_user(
+        contest_id: int,
+        user_id: int,
+        problem_ids: Iterable[int],
+        db: AsyncSession,
+) -> List[int]:
+    problem_id_list = [int(pid) for pid in problem_ids if pid is not None]
+    if not problem_id_list:
+        return []
+
+    stmt = (
+        select(func.distinct(Submission.problem_id))
+        .where(Submission.contest_id == contest_id)
+        .where(Submission.user_id == user_id)
+        .where(Submission.problem_id.in_(problem_id_list))
+    )
+    result = await db.execute(stmt)
+    return [int(pid) for pid in result.scalars().all()]
