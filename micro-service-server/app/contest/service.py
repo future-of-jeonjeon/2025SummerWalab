@@ -160,6 +160,15 @@ async def add_contest_problem(contest_problem_dto: ReqAddContestProblemDTO, user
 async def get_contest_problems(contest_id: int, user_profile: UserProfile, db: AsyncSession) -> List[ContestProblemDTO]:
     await _ensure_contest_permission(contest_id, user_profile, db)
     problems = await problem_repo.find_problems_by_contest_id(db, contest_id)
+    problem_ids = [problem.id for problem in problems]
+    solved_problem_ids = await submission_repo.find_solved_problem_ids_by_contest_and_user(
+        contest_id=contest_id,
+        user_id=user_profile.user_id,
+        problem_ids=problem_ids,
+        db=db,
+    )
+    solved_set = set(solved_problem_ids)
+
     return [
         ContestProblemDTO(
             id=problem.id,
@@ -168,6 +177,7 @@ async def get_contest_problems(contest_id: int, user_profile: UserProfile, db: A
             difficulty=problem.difficulty,
             submission_number=problem.submission_number or 0,
             accepted_number=problem.accepted_number or 0,
+            status=2 if problem.id in solved_set else 0,
         )
         for problem in problems
     ]
@@ -643,4 +653,3 @@ async def get_contest_progress(contest_id, user_profile, db) -> ContestProgressR
         total=total,
         total_score=score
     )
-

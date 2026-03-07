@@ -266,12 +266,37 @@ export const contestService = {
   },
 
   getContestProblems: async (contestId: number): Promise<Problem[]> => {
-    const response = await api.get<any[]>('/contest/problem', { contest_id: contestId });
-    if (!response.success) {
-      throw new Error(response.message || '문제 목록을 불러오지 못했습니다.');
+    let rawProblemList: any[] = [];
+    let baseErrorMessage = '문제 목록을 불러오지 못했습니다.';
+
+    // Prefer MS contest-problems API, fallback to legacy OJ endpoint.
+    if (MICRO_API_BASE) {
+      try {
+        const response = await apiClient.get<any>(`${MICRO_API_BASE}/contest/${contestId}/problems`);
+        const payload = response.data;
+        if (Array.isArray(payload)) {
+          rawProblemList = payload;
+        } else if (Array.isArray(payload?.items)) {
+          rawProblemList = payload.items;
+        } else if (Array.isArray(payload?.problems)) {
+          rawProblemList = payload.problems;
+        } else if (Array.isArray(payload?.results)) {
+          rawProblemList = payload.results;
+        }
+      } catch (error: any) {
+        baseErrorMessage = error?.message || baseErrorMessage;
+      }
     }
 
-    const problems = (response.data || []).map(mapProblem);
+    if (!Array.isArray(rawProblemList) || rawProblemList.length === 0) {
+      const response = await api.get<any[]>('/contest/problem', { contest_id: contestId });
+      if (!response.success) {
+        throw new Error(response.message || baseErrorMessage);
+      }
+      rawProblemList = Array.isArray(response.data) ? response.data : [];
+    }
+
+    const problems = rawProblemList.map(mapProblem);
     const problemIds = problems
       .map((item) => {
         const candidates = [item.id, (item as any)._id, item.displayId];

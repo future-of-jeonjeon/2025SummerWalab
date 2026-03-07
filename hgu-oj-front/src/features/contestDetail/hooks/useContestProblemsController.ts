@@ -50,7 +50,8 @@ export const useContestProblemsController = ({
 
   const resolveContestOnlyStatus = useCallback((problem: Problem, progress: Record<string, string>): ProblemAttemptState => {
     const override = getOverrideStatus(problem, progress);
-    const normalized = normalizeProblemStatus(override);
+    const fallback = problem.myStatus ?? (problem as any).status ?? (problem as any).my_status;
+    const normalized = normalizeProblemStatus(override ?? fallback);
     if (!normalized || normalized === 'UNATTEMPTED' || normalized === 'NONE') {
       return 'untouched';
     }

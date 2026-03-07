@@ -95,6 +95,7 @@ class ContestProblemDTO(BaseModel):
     difficulty: Optional[str] = None
     submission_number: int = 0
     accepted_number: int = 0
+    status: int = 0
     
 
 class PaginatedContestResponse(Page[ContestDataDTO]):

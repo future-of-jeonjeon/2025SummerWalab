@@ -30,6 +30,8 @@ export const normalizeProblemStatus = (value: unknown): string => {
   const normalized = String(value).trim();
   if (!normalized) return '';
   if (normalized === '0') return 'AC';
+  if (normalized === '2') return 'AC';
+  if (normalized === '1') return 'WA';
   return normalized.toUpperCase();
 };
 

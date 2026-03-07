@@ -55,7 +55,7 @@ export const mapProblem = (raw: any): Problem => ({
         realName: raw.created_by.real_name ?? raw.created_by.realName,
       }
     : raw.createdBy,
-  myStatus: raw.my_status ?? raw.myStatus,
+  myStatus: raw.my_status ?? raw.myStatus ?? raw.status,
   solved: raw.solved,
   submissionNumber: raw.submission_number ?? raw.submissionNumber,
   acceptedNumber: raw.accepted_number ?? raw.acceptedNumber,

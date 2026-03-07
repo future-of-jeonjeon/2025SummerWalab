@@ -14,12 +14,17 @@ interface ContestProblemListProps {
 }
 
 const getStatusBadge = (problem: Problem, overrideState?: string): { label: string; className: string } | null => {
-  if (!overrideState || String(overrideState).trim().length === 0) {
+  const normalizedOverride = typeof overrideState === 'string' ? overrideState.trim() : '';
+  const fallbackStatus = problem.myStatus != null ? String(problem.myStatus).trim() : '';
+  if (!normalizedOverride && !fallbackStatus) {
     return null;
   }
-  // Contest list status must follow contest progress only, not global problem status.
-  const contestScopedProblem: Problem = { ...problem, myStatus: undefined, solved: false };
-  const state = resolveProblemStatus(contestScopedProblem, { override: overrideState });
+
+  // Prefer contest progress override, fallback to contest-problems API status.
+  const contestScopedProblem: Problem = { ...problem, solved: false };
+  const state = resolveProblemStatus(contestScopedProblem, {
+    override: normalizedOverride || undefined,
+  });
   switch (state) {
     case 'solved':
       return {
