@@ -12,3 +12,7 @@ def user_data_not_found():
 
 def user_data_conflict():
     handlers.conflict("User data already exists", ErrorCode.USER_ALREADY_EXISTS)
+
+
+def student_id_conflict():
+    handlers.conflict("이미 사용중인 학번입니다.", ErrorCode.STUDENT_ID_ALREADY_EXISTS)

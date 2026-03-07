@@ -21,6 +21,12 @@ const UserInfoPage: React.FC = () => {
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
+    const getErrorMessage = (err: any, fallback: string) =>
+        err?.response?.data?.detail?.message ||
+        err?.response?.data?.message ||
+        err?.message ||
+        fallback;
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!user) {
@@ -46,7 +52,7 @@ const UserInfoPage: React.FC = () => {
             navigate('/');
         } catch (err: any) {
             console.error('Failed to save user info:', err);
-            setError(err.response?.data?.message || err.message || '정보 저장에 실패했습니다.');
+            setError(getErrorMessage(err, '정보 저장에 실패했습니다.'));
         } finally {
             setLoading(false);
         }
