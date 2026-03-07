@@ -42,6 +42,12 @@ export const UserInfoModal: React.FC<UserInfoModalProps> = ({
         setLoading(true);
         setError(null);
 
+        const getErrorMessage = (err: any, fallback: string) =>
+            err?.response?.data?.detail?.message ||
+            err?.response?.data?.message ||
+            err?.message ||
+            fallback;
+
         try {
             const majorId = DEPARTMENTS.indexOf(formData.department);
             if (majorId === -1) {
@@ -58,7 +64,7 @@ export const UserInfoModal: React.FC<UserInfoModalProps> = ({
             onClose();
         } catch (err: any) {
             console.error('Failed to update user info:', err);
-            setError(err.response?.data?.message || err.message || '정보 수정에 실패했습니다.');
+            setError(getErrorMessage(err, '정보 수정에 실패했습니다.'));
         } finally {
             setLoading(false);
         }

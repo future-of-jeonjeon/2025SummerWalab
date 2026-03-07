@@ -35,6 +35,12 @@ async def find_sub_userdata_by_user_id(user_id: int, db: AsyncSession):
     return result.scalar_one_or_none()
 
 
+async def find_userdata_by_student_id(student_id: str, db: AsyncSession):
+    stmt = select(UserData).where(UserData.student_id == student_id)
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()
+
+
 async def save_user_data(user_data: UserData, db) -> UserData:
     db.add(user_data)
     await db.flush()
