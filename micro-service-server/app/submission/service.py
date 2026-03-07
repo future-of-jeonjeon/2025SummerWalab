@@ -66,6 +66,8 @@ async def get_problem_submission(
             contest_id=submission.contest_id,
             problem_id=submission.problem_id,
             user_id=submission.user_id,
+            execution_time=submission.statistic_info.get("time_cost"),
+            memory=submission.statistic_info.get("memory_cost"),
         )
         for submission in submission_list
     ]

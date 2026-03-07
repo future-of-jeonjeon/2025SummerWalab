@@ -266,34 +266,27 @@ export const contestService = {
   },
 
   getContestProblems: async (contestId: number): Promise<Problem[]> => {
-    let rawProblemList: any[] = [];
-    let baseErrorMessage = '문제 목록을 불러오지 못했습니다.';
-
-    // Prefer MS contest-problems API, fallback to legacy OJ endpoint.
-    if (MICRO_API_BASE) {
-      try {
-        const response = await apiClient.get<any>(`${MICRO_API_BASE}/contest/${contestId}/problems`);
-        const payload = response.data;
-        if (Array.isArray(payload)) {
-          rawProblemList = payload;
-        } else if (Array.isArray(payload?.items)) {
-          rawProblemList = payload.items;
-        } else if (Array.isArray(payload?.problems)) {
-          rawProblemList = payload.problems;
-        } else if (Array.isArray(payload?.results)) {
-          rawProblemList = payload.results;
-        }
-      } catch (error: any) {
-        baseErrorMessage = error?.message || baseErrorMessage;
-      }
+    if (!MICRO_API_BASE) {
+      throw new Error('MS_API_BASE not defined');
     }
 
-    if (!Array.isArray(rawProblemList) || rawProblemList.length === 0) {
-      const response = await api.get<any[]>('/contest/problem', { contest_id: contestId });
-      if (!response.success) {
-        throw new Error(response.message || baseErrorMessage);
-      }
-      rawProblemList = Array.isArray(response.data) ? response.data : [];
+    const response = await apiClient.get<any>(`${MICRO_API_BASE}/contest/${contestId}/problems`);
+    const wrapped = response.data;
+    const payload = wrapped && typeof wrapped === 'object' && Object.prototype.hasOwnProperty.call(wrapped, 'error')
+      ? wrapped.data
+      : wrapped;
+
+    let rawProblemList: any[] = [];
+    if (Array.isArray(payload)) {
+      rawProblemList = payload;
+    } else if (Array.isArray(payload?.items)) {
+      rawProblemList = payload.items;
+    } else if (Array.isArray(payload?.problems)) {
+      rawProblemList = payload.problems;
+    } else if (Array.isArray(payload?.results)) {
+      rawProblemList = payload.results;
+    } else if (Array.isArray(payload?.data)) {
+      rawProblemList = payload.data;
     }
 
     const problems = rawProblemList.map((raw) => {

@@ -6,6 +6,7 @@ import { problemService } from '../services/problemService';
 import { contestService } from '../services/contestService';
 import { workbookService } from '../services/workbookService';
 import { PROBLEM_STATUS_LABELS, PROBLEM_SUMMARY_LABELS } from '../constants/problemStatus';
+import { resolveProblemStatus } from '../utils/problemStatus';
 import { CodeEditor } from '../components/organisms/CodeEditor';
 import { Button } from '../components/atoms/Button';
 import { AlertModal } from '../components/molecules/AlertModal';
@@ -292,6 +293,20 @@ export const ProblemDetailPage: React.FC = () => {
     return undefined;
   }, []);
 
+  const getContestProblemSubmissionIdentifier = useCallback((source?: Problem | null): string | undefined => {
+    if (!source) return undefined;
+
+    const candidates = [source.id, source._id, source.displayId];
+    for (const candidate of candidates) {
+      if (candidate === null || candidate === undefined) continue;
+      const normalized = String(candidate).trim();
+      if (normalized.length > 0) {
+        return normalized;
+      }
+    }
+    return undefined;
+  }, []);
+
   const {
     data: fallbackProblem,
     isLoading: regularProblemLoading,
@@ -554,7 +569,7 @@ export const ProblemDetailPage: React.FC = () => {
 
   const submissionProblemKey = useMemo(() => {
     if (contestContextId) {
-      const contestKey = getContestProblemExternalIdentifier(contestProblem);
+      const contestKey = getContestProblemSubmissionIdentifier(contestProblem);
       if (contestKey) {
         return contestKey;
       }
@@ -569,6 +584,7 @@ export const ProblemDetailPage: React.FC = () => {
     contestContextId,
     contestProblem,
     getContestProblemExternalIdentifier,
+    getContestProblemSubmissionIdentifier,
     getProblemExternalIdentifier,
     problem,
     problemIdentifier,
@@ -589,7 +605,7 @@ export const ProblemDetailPage: React.FC = () => {
         ? submissionService.getMySubmissions(submissionProblemKey, { contestId: contestContextId ?? undefined, limit: 20 })
         : Promise.resolve({ items: [], total: 0 })
     ),
-    enabled: isAuthenticated && !!submissionProblemKey,
+    enabled: activeSection === 'submissions' && isAuthenticated && !!submissionProblemKey,
     staleTime: 3_000,
     refetchInterval: 3_000,
   });
@@ -728,7 +744,7 @@ export const ProblemDetailPage: React.FC = () => {
     setIsSubmitting(true);
     try {
       const targetProblemId = contestContextId
-        ? getContestProblemExternalIdentifier(contestProblem) ?? problemIdentifier
+        ? getContestProblemSubmissionIdentifier(contestProblem) ?? problemIdentifier
         : getProblemExternalIdentifier(problem) ?? problemIdentifier;
 
       if (!targetProblemId) {
@@ -1611,6 +1627,16 @@ export const ProblemDetailPage: React.FC = () => {
                           const displayIdentifier = contestContextId
                             ? getContestProblemExternalIdentifier(item) ?? item.id
                             : item.id;
+                          const attemptState = resolveProblemStatus(item);
+                          const statusLabel = PROBLEM_STATUS_LABELS[attemptState];
+                          const statusClass = attemptState === 'solved'
+                            ? (isDarkTheme ? 'bg-emerald-900/40 text-emerald-300 border-emerald-700' : 'bg-emerald-50 text-emerald-700 border-emerald-200')
+                            : attemptState === 'wrong'
+                              ? (isDarkTheme ? 'bg-red-900/40 text-red-300 border-red-700' : 'bg-red-50 text-red-700 border-red-200')
+                              : attemptState === 'attempted'
+                                ? (isDarkTheme ? 'bg-amber-900/40 text-amber-300 border-amber-700' : 'bg-amber-50 text-amber-700 border-amber-200')
+                                : (isDarkTheme ? 'bg-slate-800 text-slate-300 border-slate-700' : 'bg-slate-50 text-slate-600 border-slate-200');
+                          const shouldShowStatusBadge = attemptState !== 'untouched';
                           return (
                             <button
                               key={`${itemKey ?? displayIdentifier}-${item.id}`}
@@ -1631,15 +1657,18 @@ export const ProblemDetailPage: React.FC = () => {
                                     {displayIdentifier} · {item.title}
                                   </div>
                                 </div>
-                                {isCurrentProblem ? (
-                                  <span className={`text-xs font-semibold ${isDarkTheme ? 'text-sky-300' : 'text-blue-600'}`}>
-                                    현재 문제
-                                  </span>
-                                ) : (
-                                  <span className={`text-xs font-medium ${isDarkTheme ? 'text-slate-300' : 'text-gray-500'}`}>
-                                    이동
-                                  </span>
-                                )}
+                                <div className="flex items-center gap-2">
+                                  {shouldShowStatusBadge && (
+                                    <span className={`inline-flex items-center rounded border px-2 py-0.5 text-[11px] font-semibold ${statusClass}`}>
+                                      {statusLabel}
+                                    </span>
+                                  )}
+                                  {!isCurrentProblem && (
+                                    <span className={`text-xs font-medium ${isDarkTheme ? 'text-slate-300' : 'text-gray-500'}`}>
+                                      이동
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                             </button>
                           );
