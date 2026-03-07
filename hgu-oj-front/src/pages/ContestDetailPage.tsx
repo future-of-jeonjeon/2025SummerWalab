@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useContest, useContestRank } from '../hooks/useContests';
 import { useAuthStore } from '../stores/authStore';
@@ -18,6 +19,7 @@ import { ContestSubmissionDetailsTab } from '../features/contestDetail/component
 
 import type { ContestTab } from '../features/contestDetail/types';
 import type { Problem } from '../types';
+import { contestService } from '../services/contestService';
 
 // Removed status label
 
@@ -130,6 +132,14 @@ export const ContestDetailPage: React.FC = () => {
     getContestLockMessage,
   } = accessState;
 
+  const { data: contestMyProgress } = useQuery({
+    queryKey: ['contest-my-progress', contestId, authUser?.id],
+    queryFn: () => contestService.getContestMyProgress(contestId),
+    enabled: Boolean(contestId && authUser?.id && canViewProtectedContent),
+    staleTime: 10_000,
+    refetchInterval: 10_000,
+  });
+
   const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
 
   const canFetchAnnouncements = canManageAnnouncements || (!contestLockedForUser && (hasAccess || hasContestAdminOverride));
@@ -183,6 +193,8 @@ export const ContestDetailPage: React.FC = () => {
 
   const { refetchProblems, processedContestProblems, myRankProgress, totalProblems, solvedProblems } =
     problemsController;
+  const overviewSolvedProblems = contestMyProgress?.solved ?? solvedProblems;
+  const overviewTotalProblems = contestMyProgress?.total ?? totalProblems;
 
   useEffect(() => {
     protectedContentRef.current = () => {
@@ -420,7 +432,7 @@ export const ContestDetailPage: React.FC = () => {
               <ContestOverviewTab
                 contest={contest}
                 timeData={{ startTimeDisplay, endTimeDisplay, timeLeftDisplay: timeLeft || '-', timeTextClass }}
-                stats={{ solvedProblems, totalProblems, myScore, myRank, totalParticipants }}
+                stats={{ solvedProblems: overviewSolvedProblems, totalProblems: overviewTotalProblems, myScore, myRank, totalParticipants }}
                 joinState={overviewJoinState}
                 accessState={overviewAccessState}
                 announcementsNode={announcementsNode}

@@ -14,7 +14,12 @@ interface ContestProblemListProps {
 }
 
 const getStatusBadge = (problem: Problem, overrideState?: string): { label: string; className: string } | null => {
-  const state = resolveProblemStatus(problem, { override: overrideState });
+  if (!overrideState || String(overrideState).trim().length === 0) {
+    return null;
+  }
+  // Contest list status must follow contest progress only, not global problem status.
+  const contestScopedProblem: Problem = { ...problem, myStatus: undefined, solved: false };
+  const state = resolveProblemStatus(contestScopedProblem, { override: overrideState });
   switch (state) {
     case 'solved':
       return {

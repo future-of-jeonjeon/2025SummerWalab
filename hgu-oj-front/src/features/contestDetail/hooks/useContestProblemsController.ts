@@ -2,7 +2,8 @@ import { useCallback, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import type { ContestRankEntry, Problem } from '../../../types';
 import { useContestProblems } from '../../../hooks/useContests';
-import { resolveProblemStatus } from '../../../utils/problemStatus';
+import { normalizeProblemStatus, WRONG_STATUS_VALUES } from '../../../utils/problemStatus';
+import type { ProblemAttemptState } from '../../../utils/problemStatus';
 import { ProblemStatusKey, isProblemStatusKey } from '../../../constants/problemStatus';
 import { contestService } from '../../../services/contestService';
 
@@ -37,6 +38,33 @@ export const useContestProblemsController = ({
   const [sortField, setSortField] = useState<'number' | 'submission' | 'accuracy'>('number');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [statusFilter, setStatusFilter] = useState<'all' | ProblemStatusKey>('all');
+
+  const getOverrideStatus = useCallback((problem: Problem, progress: Record<string, string>) => (
+    progress[String(problem.id)]
+    ?? progress[String(problem.displayId ?? '').trim()]
+    ?? progress[String((problem as any)._id ?? '').trim()]
+    ?? progress[String(problem.id).toLowerCase()]
+    ?? progress[String(problem.displayId ?? '').trim().toLowerCase()]
+    ?? progress[String((problem as any)._id ?? '').trim().toLowerCase()]
+  ), []);
+
+  const resolveContestOnlyStatus = useCallback((problem: Problem, progress: Record<string, string>): ProblemAttemptState => {
+    const override = getOverrideStatus(problem, progress);
+    const normalized = normalizeProblemStatus(override);
+    if (!normalized || normalized === 'UNATTEMPTED' || normalized === 'NONE') {
+      return 'untouched';
+    }
+    if (normalized === 'AC' || normalized === 'ACCEPTED') {
+      return 'solved';
+    }
+    if (WRONG_STATUS_VALUES.has(normalized)) {
+      return 'wrong';
+    }
+    if (normalized === 'TRIED' || normalized === 'ATTEMPTED') {
+      return 'attempted';
+    }
+    return 'attempted';
+  }, [getOverrideStatus]);
 
   const { data: myContestSubmissions } = useQuery({
     queryKey: ['my-contest-submissions', contestId, authUserId],
@@ -180,13 +208,7 @@ export const useContestProblemsController = ({
     };
 
     const matchesStatus = (problem: Problem) => {
-      const override = mergedProgress?.[String(problem.id)]
-        ?? mergedProgress?.[String(problem.displayId ?? '').trim()]
-        ?? mergedProgress?.[String((problem as any)._id ?? '').trim()]
-        ?? mergedProgress?.[String(problem.id).toLowerCase()]
-        ?? mergedProgress?.[String(problem.displayId ?? '').trim().toLowerCase()]
-        ?? mergedProgress?.[String((problem as any)._id ?? '').trim().toLowerCase()];
-      const status = resolveProblemStatus(problem, { override });
+      const status = resolveContestOnlyStatus(problem, mergedProgress);
       if (statusFilter === 'all') return true;
       return status === statusFilter;
     };
@@ -236,7 +258,7 @@ export const useContestProblemsController = ({
     });
 
     return sorted;
-  }, [canViewProtectedContent, isLoading, problems, searchQuery, searchField, statusFilter, sortField, sortOrder, mergedProgress]);
+  }, [canViewProtectedContent, isLoading, problems, searchQuery, searchField, statusFilter, sortField, sortOrder, mergedProgress, resolveContestOnlyStatus]);
 
   const stats = useMemo(() => {
     if (!canViewProtectedContent || isLoading) {
@@ -244,13 +266,7 @@ export const useContestProblemsController = ({
     }
     return (problems ?? []).reduce(
       (acc, problem) => {
-        const override = mergedProgress?.[String(problem.id)]
-          ?? mergedProgress?.[String(problem.displayId ?? '').trim()]
-          ?? mergedProgress?.[String((problem as any)._id ?? '').trim()]
-          ?? mergedProgress?.[String(problem.id).toLowerCase()]
-          ?? mergedProgress?.[String(problem.displayId ?? '').trim().toLowerCase()]
-          ?? mergedProgress?.[String((problem as any)._id ?? '').trim().toLowerCase()];
-        const status = resolveProblemStatus(problem, { override });
+        const status = resolveContestOnlyStatus(problem, mergedProgress);
         if (status === 'solved') {
           acc.solved += 1;
         } else if (status === 'wrong') {
@@ -265,7 +281,7 @@ export const useContestProblemsController = ({
       },
       { total: 0, solved: 0, wrong: 0, untouched: 0, attempted: 0 },
     );
-  }, [canViewProtectedContent, isLoading, problems, mergedProgress]);
+  }, [canViewProtectedContent, isLoading, problems, mergedProgress, resolveContestOnlyStatus]);
 
   const totalProblems = useMemo(() => {
     if (stats.total > 0) {
