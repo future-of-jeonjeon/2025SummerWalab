@@ -1,8 +1,11 @@
 import { useCallback, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import type { ContestRankEntry, Problem } from '../../../types';
 import { useContestProblems } from '../../../hooks/useContests';
-import { resolveProblemStatus } from '../../../utils/problemStatus';
+import { normalizeProblemStatus, WRONG_STATUS_VALUES } from '../../../utils/problemStatus';
+import type { ProblemAttemptState } from '../../../utils/problemStatus';
 import { ProblemStatusKey, isProblemStatusKey } from '../../../constants/problemStatus';
+import { contestService } from '../../../services/contestService';
 
 interface UseContestProblemsControllerOptions {
   contestId: number;
@@ -36,10 +39,46 @@ export const useContestProblemsController = ({
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [statusFilter, setStatusFilter] = useState<'all' | ProblemStatusKey>('all');
 
+  const getOverrideStatus = useCallback((problem: Problem, progress: Record<string, string>) => (
+    progress[String(problem.displayId ?? '').trim()]
+    ?? progress[String((problem as any)._id ?? '').trim()]
+    ?? progress[String(problem.displayId ?? '').trim().toLowerCase()]
+    ?? progress[String((problem as any)._id ?? '').trim().toLowerCase()]
+    ?? progress[String(problem.id)]
+    ?? progress[String(problem.id).toLowerCase()]
+  ), []);
+
+  const resolveContestOnlyStatus = useCallback((problem: Problem, progress: Record<string, string>): ProblemAttemptState => {
+    const override = getOverrideStatus(problem, progress);
+    const fallback = problem.myStatus ?? (problem as any).status ?? (problem as any).my_status;
+    const normalized = normalizeProblemStatus(override ?? fallback);
+    if (!normalized || normalized === 'UNATTEMPTED' || normalized === 'NONE') {
+      return 'untouched';
+    }
+    if (normalized === 'AC' || normalized === 'ACCEPTED') {
+      return 'solved';
+    }
+    if (WRONG_STATUS_VALUES.has(normalized)) {
+      return 'wrong';
+    }
+    if (normalized === 'TRIED' || normalized === 'ATTEMPTED') {
+      return 'attempted';
+    }
+    return 'attempted';
+  }, [getOverrideStatus]);
+
+  const { data: myContestSubmissions } = useQuery({
+    queryKey: ['my-contest-submissions', contestId, authUserId],
+    queryFn: () => contestService.getContestSubmissions(contestId, { userId: authUserId, limit: 2000 }),
+    enabled: Boolean(contestId && authUserId && canViewProtectedContent),
+    staleTime: 15_000,
+  });
+
   const myRankProgress = useMemo(() => {
-    if (!authUserId) return {} as Record<number, string>;
-    const entry = rankEntries.find((item) => item.user?.id === authUserId);
-    if (!entry || !entry.submissionInfo) return {} as Record<number, string>;
+    if (!authUserId) return {} as Record<string, string>;
+    const normalizedAuthUserId = Number(authUserId);
+    const entry = rankEntries.find((item) => Number(item.user?.id) === normalizedAuthUserId);
+    if (!entry || !entry.submissionInfo) return {} as Record<string, string>;
 
     type AcmSubmissionDetail = {
       is_ac?: boolean;
@@ -48,44 +87,106 @@ export const useContestProblemsController = ({
       is_first_ac?: boolean;
     };
 
-    const result: Record<number, string> = {};
+    const result: Record<string, string> = {};
     const submissionInfo = entry.submissionInfo ?? {};
-    const scoreLookup = new Map<number, number>(problems.map((problem) => [problem.id, problem.totalScore ?? 0]));
+    const scoreLookup = new Map<string, number>();
+    problems.forEach((problem) => {
+      const fullScore = Number(problem.totalScore ?? 0);
+      const candidates = [problem.displayId, (problem as any)._id, problem.id];
+      candidates.forEach((candidate) => {
+        if (candidate == null) return;
+        const key = String(candidate).trim();
+        if (!key) return;
+        scoreLookup.set(key, fullScore);
+        scoreLookup.set(key.toLowerCase(), fullScore);
+      });
+    });
     const normalizedRule = (ruleType ?? '').toUpperCase();
+
+    const setProgress = (problemKey: string, status: string) => {
+      const key = String(problemKey).trim();
+      if (!key) return;
+      result[key] = status;
+      result[key.toLowerCase()] = status;
+    };
 
     if (normalizedRule === 'ACM') {
       Object.entries(submissionInfo).forEach(([problemKey, info]) => {
-        const numericId = Number(problemKey);
-        if (!Number.isFinite(numericId)) return;
         const detail = (typeof info === 'object' && info !== null ? info : {}) as AcmSubmissionDetail;
         if (detail.is_ac) {
-          result[numericId] = 'AC';
+          setProgress(problemKey, 'AC');
           return;
         }
         const errorCount = typeof detail.error_number === 'number' ? detail.error_number : Number(detail.error_number ?? 0);
         if (errorCount > 0) {
-          result[numericId] = 'WA';
+          setProgress(problemKey, 'WA');
         }
       });
     } else {
       Object.entries(submissionInfo).forEach(([problemKey, scoreValue]) => {
-        const numericId = Number(problemKey);
-        if (!Number.isFinite(numericId)) return;
         const score = Number(scoreValue);
         if (!Number.isFinite(score)) return;
-        const fullScore = scoreLookup.get(numericId) ?? 0;
+        const fullScore = scoreLookup.get(problemKey) ?? scoreLookup.get(problemKey.toLowerCase()) ?? 0;
         if (fullScore > 0 && score >= fullScore) {
-          result[numericId] = 'AC';
+          setProgress(problemKey, 'AC');
         } else if (score > 0) {
-          result[numericId] = 'TRIED';
+          setProgress(problemKey, 'TRIED');
         } else {
-          result[numericId] = 'WA';
+          setProgress(problemKey, 'WA');
         }
       });
     }
 
     return result;
   }, [authUserId, rankEntries, problems, ruleType]);
+
+  const mySubmissionProgress = useMemo(() => {
+    const progress: Record<string, string> = {};
+    const items = myContestSubmissions?.data ?? [];
+    if (!Array.isArray(items) || items.length === 0) return progress;
+
+    const isAccepted = (raw: unknown) => {
+      if (raw == null) return false;
+      const normalized = String(raw).trim().toLowerCase();
+      return normalized === '0' || normalized === 'ac' || normalized === 'accepted';
+    };
+
+    const setProgress = (rawKey: unknown, status: 'AC' | 'TRIED') => {
+      if (rawKey == null) return;
+      const key = String(rawKey).trim();
+      if (!key) return;
+      const lower = key.toLowerCase();
+      const prev = progress[key] ?? progress[lower];
+      if (prev === 'AC') return;
+      progress[key] = status;
+      progress[lower] = status;
+    };
+
+    items.forEach((item: any) => {
+      const accepted = isAccepted(item?.result ?? item?.status);
+      const nextStatus: 'AC' | 'TRIED' = accepted ? 'AC' : 'TRIED';
+      const keys = [
+        item?.problem,
+        item?.problem_id,
+        item?.problemId,
+        item?.problem_pk,
+        item?.problemPk,
+      ];
+      keys.forEach((k) => setProgress(k, nextStatus));
+    });
+
+    return progress;
+  }, [myContestSubmissions]);
+
+  const mergedProgress = useMemo(() => {
+    const merged: Record<string, string> = { ...myRankProgress };
+    Object.entries(mySubmissionProgress).forEach(([key, status]) => {
+      const prev = merged[key];
+      if (prev === 'AC') return;
+      merged[key] = status;
+    });
+    return merged;
+  }, [myRankProgress, mySubmissionProgress]);
 
   const processedContestProblems = useMemo(() => {
     if (!canViewProtectedContent || isLoading) {
@@ -108,7 +209,7 @@ export const useContestProblemsController = ({
     };
 
     const matchesStatus = (problem: Problem) => {
-      const status = resolveProblemStatus(problem, { override: myRankProgress?.[problem.id] });
+      const status = resolveContestOnlyStatus(problem, mergedProgress);
       if (statusFilter === 'all') return true;
       return status === statusFilter;
     };
@@ -158,7 +259,7 @@ export const useContestProblemsController = ({
     });
 
     return sorted;
-  }, [canViewProtectedContent, isLoading, problems, searchQuery, searchField, statusFilter, sortField, sortOrder, myRankProgress]);
+  }, [canViewProtectedContent, isLoading, problems, searchQuery, searchField, statusFilter, sortField, sortOrder, mergedProgress, resolveContestOnlyStatus]);
 
   const stats = useMemo(() => {
     if (!canViewProtectedContent || isLoading) {
@@ -166,7 +267,7 @@ export const useContestProblemsController = ({
     }
     return (problems ?? []).reduce(
       (acc, problem) => {
-        const status = resolveProblemStatus(problem, { override: myRankProgress?.[problem.id] });
+        const status = resolveContestOnlyStatus(problem, mergedProgress);
         if (status === 'solved') {
           acc.solved += 1;
         } else if (status === 'wrong') {
@@ -181,7 +282,7 @@ export const useContestProblemsController = ({
       },
       { total: 0, solved: 0, wrong: 0, untouched: 0, attempted: 0 },
     );
-  }, [canViewProtectedContent, isLoading, problems, myRankProgress]);
+  }, [canViewProtectedContent, isLoading, problems, mergedProgress, resolveContestOnlyStatus]);
 
   const totalProblems = useMemo(() => {
     if (stats.total > 0) {
@@ -253,7 +354,7 @@ export const useContestProblemsController = ({
     problemsError: error,
     refetchProblems: refetch,
     processedContestProblems,
-    myRankProgress,
+    myRankProgress: mergedProgress,
     stats,
     totalProblems,
     solvedProblems,

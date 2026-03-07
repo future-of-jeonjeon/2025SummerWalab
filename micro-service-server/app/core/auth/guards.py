@@ -5,8 +5,9 @@ from app.security import exceptions
 from functools import wraps
 from typing import Any, Callable, Coroutine
 
-from fastapi import Request
-from app.api.deps import get_userdata, get_database
+from fastapi import Request, Depends
+from app.api.deps import get_userdata, get_database, get_optional_userdata
+from app.user.schemas import UserProfile
 
 
 def required_login():
@@ -22,6 +23,14 @@ def required_login():
 
         return wrapper
     return decorator
+
+
+async def required_login_guard(user_profile: UserProfile = Depends(get_userdata)) -> UserProfile:
+    return user_profile
+
+
+async def optional_login_guard(user_profile: UserProfile | None = Depends(get_optional_userdata)) -> UserProfile | None:
+    return user_profile
 
 
 def require_role(*allowed: str):

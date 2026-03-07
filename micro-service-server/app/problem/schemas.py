@@ -75,10 +75,23 @@ class ProblemSchema(BaseModel):
     submission_number: int
     accepted_number: int
     test_case_score: Optional[List[Dict[str, Any]]] = []
+    status: Optional[int] = None
     tags: List[ProblemTagSchema] = []
 
     class Config:
         from_attributes = True  
+
+
+class ProblemResponse(ProblemSchema):
+    input_description: str
+    output_description: str
+    samples: List[Dict[str, str]] = []
+    languages: List[str] = []
+    template: Dict[str, str] = {}
+    hint: Optional[str] = None
+    source: Optional[str] = None
+    io_mode: Dict[str, str] = {}
+    is_public: bool = True
 
 class ProblemListResponse(Page[ProblemSchema]):
     problems: List[ProblemSchema] = Field(..., alias="items")

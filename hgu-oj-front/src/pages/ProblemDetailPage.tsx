@@ -5,7 +5,6 @@ import { useProblem } from '../hooks/useProblems';
 import { problemService } from '../services/problemService';
 import { contestService } from '../services/contestService';
 import { workbookService } from '../services/workbookService';
-import { resolveProblemStatus } from '../utils/problemStatus';
 import { PROBLEM_STATUS_LABELS, PROBLEM_SUMMARY_LABELS } from '../constants/problemStatus';
 import { CodeEditor } from '../components/organisms/CodeEditor';
 import { Button } from '../components/atoms/Button';
@@ -253,13 +252,6 @@ export const ProblemDetailPage: React.FC = () => {
     return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
   }, [location.search]);
 
-  const contestProblemDisplayId = useMemo(() => {
-    const searchParams = new URLSearchParams(location.search);
-    const raw = searchParams.get('displayId');
-    if (!raw) return undefined;
-    return raw.trim();
-  }, [location.search]);
-
   const workbookContextId = useMemo(() => {
     const searchParams = new URLSearchParams(location.search);
     const raw = searchParams.get('workbookId');
@@ -276,43 +268,25 @@ export const ProblemDetailPage: React.FC = () => {
   const getProblemExternalIdentifier = useCallback((source?: Problem | null): string | undefined => {
     if (!source) return undefined;
 
-    const rawId = (source as any).id ?? source.id;
+    const rawId = source.id;
     if (rawId !== null && rawId !== undefined) {
       const idString = String(rawId).trim();
       if (idString.length > 0) {
         return idString;
       }
     }
-
-    const fallbackCandidates = [
-      source.displayId,
-      (source as any)._id ?? source._id,
-    ];
-
-    for (const candidate of fallbackCandidates) {
-      if (candidate === null || candidate === undefined) continue;
-      const key = String(candidate).trim();
-      if (key.length > 0) {
-        return key;
-      }
-    }
     return undefined;
   }, []);
 
-  const getProblemLegacyIdentifier = useCallback((source?: Problem | null): string | undefined => {
+  const getContestProblemExternalIdentifier = useCallback((source?: Problem | null): string | undefined => {
     if (!source) return undefined;
 
-    const candidates = [
-      (source as any)._id ?? source._id,
-      source.displayId,
-      (source as any).id ?? source.id,
-    ];
-
+    const candidates = [source._id, source.displayId, source.id];
     for (const candidate of candidates) {
       if (candidate === null || candidate === undefined) continue;
-      const key = String(candidate).trim();
-      if (key.length > 0) {
-        return key;
+      const normalized = String(candidate).trim();
+      if (normalized.length > 0) {
+        return normalized;
       }
     }
     return undefined;
@@ -329,15 +303,14 @@ export const ProblemDetailPage: React.FC = () => {
     isLoading: contestProblemLoading,
     error: contestProblemError,
   } = useQuery({
-    queryKey: ['contest-problem', contestContextId, contestProblemDisplayId ?? problemIdentifier],
+    queryKey: ['contest-problem', contestContextId, problemIdentifier],
     queryFn: () => {
       if (!contestContextId) {
         throw new Error('contestId is required');
       }
-      const identifier = contestProblemDisplayId ?? problemIdentifier;
-      return problemService.getContestProblem(contestContextId, identifier);
+      return problemService.getContestProblem(contestContextId, problemIdentifier);
     },
-    enabled: !!contestContextId && (!!contestProblemDisplayId || !!problemIdentifier),
+    enabled: !!contestContextId && !!problemIdentifier,
   });
 
   const problem = contestContextId ? contestProblem : fallbackProblem;
@@ -581,16 +554,13 @@ export const ProblemDetailPage: React.FC = () => {
 
   const submissionProblemKey = useMemo(() => {
     if (contestContextId) {
-      const contestKey = getProblemLegacyIdentifier(contestProblem);
+      const contestKey = getContestProblemExternalIdentifier(contestProblem);
       if (contestKey) {
         return contestKey;
       }
-      if (contestProblemDisplayId && contestProblemDisplayId.trim().length > 0) {
-        return contestProblemDisplayId.trim();
-      }
       return problemIdentifier || undefined;
     }
-    const practiceKey = getProblemLegacyIdentifier(problem);
+    const practiceKey = getProblemExternalIdentifier(problem);
     if (practiceKey) {
       return practiceKey;
     }
@@ -598,8 +568,8 @@ export const ProblemDetailPage: React.FC = () => {
   }, [
     contestContextId,
     contestProblem,
-    contestProblemDisplayId,
-    getProblemLegacyIdentifier,
+    getContestProblemExternalIdentifier,
+    getProblemExternalIdentifier,
     problem,
     problemIdentifier,
   ]);
@@ -612,6 +582,18 @@ export const ProblemDetailPage: React.FC = () => {
     return ['my-submissions', 'practice', submissionProblemKey] as const;
   }, [contestContextId, submissionProblemKey]);
 
+  const { data: liveMySubmissions } = useQuery({
+    queryKey: ['my-submissions-live', contestContextId ?? 'practice', submissionProblemKey],
+    queryFn: () => (
+      submissionProblemKey
+        ? submissionService.getMySubmissions(submissionProblemKey, { contestId: contestContextId ?? undefined, limit: 20 })
+        : Promise.resolve({ items: [], total: 0 })
+    ),
+    enabled: isAuthenticated && !!submissionProblemKey,
+    staleTime: 3_000,
+    refetchInterval: 3_000,
+  });
+
   const invalidateMyPageQueries = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['mypage'] });
   }, [queryClient]);
@@ -620,6 +602,17 @@ export const ProblemDetailPage: React.FC = () => {
     queryClient.invalidateQueries({ queryKey: ['problem', 'status-map'] });
     queryClient.invalidateQueries({ queryKey: ['problem-status-map'] });
   }, [queryClient]);
+
+  const invalidateContestQueries = useCallback(() => {
+    if (!contestContextId) return;
+    queryClient.invalidateQueries({ queryKey: ['contest-rank', contestContextId] });
+    queryClient.invalidateQueries({ queryKey: ['contest-rank-progress', contestContextId] });
+    queryClient.invalidateQueries({ queryKey: ['contest-problems', contestContextId] });
+    queryClient.invalidateQueries({ queryKey: ['contest-problem-list', contestContextId] });
+    queryClient.invalidateQueries({
+      queryKey: ['contest-problem', contestContextId, problemIdentifier],
+    });
+  }, [contestContextId, problemIdentifier, queryClient]);
 
   const startSubmissionPolling = useCallback((submissionId: number | string) => {
     if (!submissionId) return;
@@ -655,11 +648,12 @@ export const ProblemDetailPage: React.FC = () => {
             queryClient.invalidateQueries({ queryKey: submissionQueryKey });
           }
           invalidateProblemStatusQueries();
+          invalidateContestQueries();
           invalidateMyPageQueries();
           stopSubmissionPolling();
           return;
         }
-      } catch (pollError) {
+      } catch {
         if (problemIdentifier) {
           queryClient.invalidateQueries({ queryKey: ['problem', problemIdentifier] });
         }
@@ -667,6 +661,7 @@ export const ProblemDetailPage: React.FC = () => {
           queryClient.invalidateQueries({ queryKey: submissionQueryKey });
         }
         invalidateProblemStatusQueries();
+        invalidateContestQueries();
         invalidateMyPageQueries();
         stopSubmissionPolling();
         return;
@@ -675,7 +670,7 @@ export const ProblemDetailPage: React.FC = () => {
     };
 
     submissionPollTimerRef.current = setTimeout(poll, 1000);
-  }, [invalidateMyPageQueries, invalidateProblemStatusQueries, mapJudgeResult, problemIdentifier, queryClient, stopSubmissionPolling, submissionQueryKey]);
+  }, [invalidateContestQueries, invalidateMyPageQueries, invalidateProblemStatusQueries, mapJudgeResult, problemIdentifier, queryClient, stopSubmissionPolling, submissionQueryKey]);
 
   const handleExecute = async (code: string, language: string, input?: string) => {
     if (!requireAuthentication()) return;
@@ -733,7 +728,7 @@ export const ProblemDetailPage: React.FC = () => {
     setIsSubmitting(true);
     try {
       const targetProblemId = contestContextId
-        ? getProblemExternalIdentifier(contestProblem) ?? problemIdentifier
+        ? getContestProblemExternalIdentifier(contestProblem) ?? problemIdentifier
         : getProblemExternalIdentifier(problem) ?? problemIdentifier;
 
       if (!targetProblemId) {
@@ -762,10 +757,12 @@ export const ProblemDetailPage: React.FC = () => {
           queryClient.invalidateQueries({ queryKey: submissionQueryKey });
         }
         invalidateProblemStatusQueries();
+        invalidateContestQueries();
         invalidateMyPageQueries();
       } else {
         setManualStatus('SUBMITTED');
         invalidateProblemStatusQueries();
+        invalidateContestQueries();
         invalidateMyPageQueries();
       }
       setAlertModal({
@@ -794,6 +791,28 @@ export const ProblemDetailPage: React.FC = () => {
   }, [problemIdentifier, stopSubmissionPolling]);
 
   const rawProblemStatus = useMemo(() => {
+    const latestSubmission = (() => {
+      const items = liveMySubmissions?.items ?? [];
+      if (!Array.isArray(items) || items.length === 0) return null;
+      const sorted = [...items].sort((a, b) => {
+        const ta = new Date((a.create_time ?? a.createTime ?? '') as string).getTime();
+        const tb = new Date((b.create_time ?? b.createTime ?? '') as string).getTime();
+        if (Number.isFinite(ta) && Number.isFinite(tb) && ta !== tb) return tb - ta;
+        const ia = Number(a.id ?? a.submissionId ?? 0);
+        const ib = Number(b.id ?? b.submissionId ?? 0);
+        return ib - ia;
+      });
+      return sorted[0];
+    })();
+
+    if (latestSubmission) {
+      const mapped = judgeResultToStatus[String(latestSubmission.result ?? '')];
+      if (mapped) return mapped;
+      if (latestSubmission.status != null && String(latestSubmission.status).trim().length > 0) {
+        return String(latestSubmission.status).trim().toUpperCase();
+      }
+    }
+
     if (!problem || !isAuthenticated) return undefined;
     const fromProblem = problem.myStatus ?? (problem as any).my_status;
     if (fromProblem != null && String(fromProblem).trim().length > 0) {
@@ -808,7 +827,12 @@ export const ProblemDetailPage: React.FC = () => {
       return 'AC';
     }
     return undefined;
-  }, [problem]);
+  }, [isAuthenticated, liveMySubmissions, problem]);
+
+  const isProblemSolved = useMemo(() => {
+    const normalized = String(rawProblemStatus ?? '').trim().toUpperCase();
+    return normalized === 'AC' || normalized === 'ACCEPTED' || normalized === '0' || Boolean(problem?.solved);
+  }, [rawProblemStatus, problem?.solved]);
 
   const isDarkTheme = editorTheme === 'dark';
 
@@ -946,64 +970,18 @@ export const ProblemDetailPage: React.FC = () => {
         ? isLoadingGlobalProblemList
         : false;
 
-  const { data: contestRankProgress } = useQuery({
-    queryKey: ['contest-rank-progress', contestContextId, authUser?.id],
-    queryFn: async () => {
-      if (!contestContextId || !authUser) return null;
-      const result = await contestService.getContestRank(contestContextId, { limit: 200 });
-      return result.results.find((entry) => entry.user?.id === authUser.id) ?? null;
-    },
-    enabled: !!contestContextId && !!authUser,
-    staleTime: 30_000,
-  });
-
-  const contestProblemStats = useMemo(() => {
-    if (!contestContextId || problemListItems.length === 0) {
-      return null;
-    }
-    const stats = { total: problemListItems.length, solved: 0, wrong: 0, untouched: 0 };
-    const overrides = new Map<number, string>();
-
-    const submissionInfo = contestRankProgress?.submissionInfo as Record<string, any> | undefined;
-    if (submissionInfo) {
-      Object.entries(submissionInfo).forEach(([key, value]) => {
-        const numericId = Number(key);
-        if (!Number.isFinite(numericId)) return;
-        if (value && typeof value === 'object') {
-          if (value.is_ac) {
-            overrides.set(numericId, 'AC');
-          } else if ((value.error_number ?? 0) > 0) {
-            overrides.set(numericId, 'WA');
-          }
-        } else {
-          const numericValue = Number(value);
-          if (Number.isFinite(numericValue)) {
-            overrides.set(numericId, numericValue > 0 ? 'TRIED' : '');
-          }
-        }
-      });
-    }
-
-    problemListItems.forEach((item) => {
-      const override = overrides.get(item.id);
-      const status = resolveProblemStatus(item, override ? { override } : undefined);
-      if (status === 'solved') {
-        stats.solved += 1;
-      } else if (status === 'untouched') {
-        stats.untouched += 1;
-      } else {
-        stats.wrong += 1;
+  const { data: contestMyProgress } = useQuery({
+    queryKey: ['contest-my-progress', contestContextId, authUser?.id],
+    queryFn: () => {
+      if (!contestContextId || !authUser) {
+        return Promise.resolve({ total: 0, solved: 0, total_score: 0 });
       }
-    });
-
-    // Ensure counts sum to total
-    const assigned = stats.solved + stats.wrong + stats.untouched;
-    if (assigned !== stats.total) {
-      stats.untouched += stats.total - assigned;
-    }
-
-    return stats;
-  }, [contestContextId, contestRankProgress, problemListItems]);
+      return contestService.getContestMyProgress(contestContextId);
+    },
+    enabled: Boolean(contestContextId && authUser),
+    staleTime: 10_000,
+    refetchInterval: 10_000,
+  });
 
   const { data: mySubmissionsResponse, isLoading: isLoadingSubmissions } = useQuery({
     queryKey: submissionQueryKey ?? ['my-submissions', 'idle'],
@@ -1290,30 +1268,6 @@ export const ProblemDetailPage: React.FC = () => {
   const modalLanguage = modalSubmissionCombined?.language
     ?? (modalSubmissionCombined as any)?.language_name
     ?? '-';
-  const modalCaseStats = useMemo(() => {
-    const data =
-      (modalSubmissionCombined as any)?.info?.data ??
-      (modalSubmissionCombined as any)?.statistic_info?.data;
-    if (!Array.isArray(data)) return null;
-    let total = 0;
-    let passed = 0;
-    data.forEach((item) => {
-      if (!item || typeof item !== 'object') return;
-      total += 1;
-      const record = item as Record<string, unknown>;
-      const rawResult = record.result ?? record.error ?? record.status;
-      const numeric = typeof rawResult === 'number' ? rawResult : Number(rawResult);
-      const success =
-        numeric === 0 ||
-        (typeof rawResult === 'string' &&
-          ['0', 'ac', 'accepted', 'success', 'ok'].includes(rawResult.trim().toLowerCase()));
-      if (success) {
-        passed += 1;
-      }
-    });
-    if (!total) return null;
-    return { passed, total };
-  }, [modalSubmissionCombined]);
   const modalCode = selectedSubmissionDetail?.code ?? (modalSubmissionCombined as any)?.code ?? null;
   const modalCodeDisplay = typeof modalCode === 'string' && modalCode.trim().length > 0
     ? modalCode
@@ -1322,10 +1276,10 @@ export const ProblemDetailPage: React.FC = () => {
 
   useEffect(() => {
     if (!manualStatus) return;
-    if ((rawProblemStatus && rawProblemStatus !== manualStatus) || problem?.solved) {
+    if ((rawProblemStatus && rawProblemStatus !== manualStatus) || isProblemSolved) {
       setManualStatus(undefined);
     }
-  }, [manualStatus, rawProblemStatus, problem?.solved]);
+  }, [isProblemSolved, manualStatus, rawProblemStatus]);
 
   useEffect(() => () => {
     stopSubmissionPolling();
@@ -1382,16 +1336,14 @@ export const ProblemDetailPage: React.FC = () => {
 
   const openProblemFromList = useCallback((target: Problem) => {
     if (!target) return;
-    const targetKey = getProblemExternalIdentifier(target);
+    const targetKey = contestContextId
+      ? getContestProblemExternalIdentifier(target)
+      : getProblemExternalIdentifier(target);
     if (!targetKey || targetKey === problemIdentifier) return;
 
     if (contestContextId) {
       const params = new URLSearchParams();
       params.set('contestId', String(contestContextId));
-      const displayValue = target.displayId ?? target.id ?? targetKey;
-      if (displayValue !== undefined && displayValue !== null) {
-        params.set('displayId', String(displayValue));
-      }
       navigate(`/problems/${encodeURIComponent(targetKey)}?${params.toString()}`);
       return;
     }
@@ -1404,7 +1356,7 @@ export const ProblemDetailPage: React.FC = () => {
     }
 
     navigate(`/problems/${encodeURIComponent(targetKey)}`);
-  }, [contestContextId, getProblemExternalIdentifier, problemIdentifier, workbookContextId, navigate]);
+  }, [contestContextId, getContestProblemExternalIdentifier, getProblemExternalIdentifier, problemIdentifier, workbookContextId, navigate]);
 
   if (isLoading) {
     return (
@@ -1460,13 +1412,13 @@ export const ProblemDetailPage: React.FC = () => {
                 <div className="px-4 text-right">
                   <div className={`text-[10px] font-medium uppercase tracking-wider ${isDarkTheme ? 'text-emerald-400' : 'text-emerald-600'}`}>{PROBLEM_SUMMARY_LABELS.solved}</div>
                   <div className={`mt-0.5 w-[9ch] text-xl font-bold tabular-nums ${isDarkTheme ? 'text-emerald-400' : 'text-emerald-600'}`}>
-                    {contestProblemStats?.solved ?? '-'} <span className={`text-xl ${isDarkTheme ? 'text-slate-500' : 'text-slate-400'}`}>/ {contestProblemStats?.total ?? '-'}</span>
+                    {contestMyProgress?.solved ?? '-'} <span className={`text-xl ${isDarkTheme ? 'text-slate-500' : 'text-slate-400'}`}>/ {contestMyProgress?.total ?? '-'}</span>
                   </div>
                 </div>
                 <div className="px-4 text-right">
                   <div className={`text-[10px] font-medium uppercase tracking-wider ${isDarkTheme ? 'text-blue-400' : 'text-blue-600'}`}>내 점수</div>
                   <div className={`mt-0.5 w-[8ch] text-xl font-bold tabular-nums ${isDarkTheme ? 'text-blue-400' : 'text-blue-600'}`}>
-                    {contestRankProgress?.totalScore ?? 0}<span className="text-xs font-normal ml-0.5">점</span>
+                    {contestMyProgress?.total_score ?? 0}<span className="text-xs font-normal ml-0.5">점</span>
                   </div>
                 </div>
               </div>
@@ -1501,7 +1453,7 @@ export const ProblemDetailPage: React.FC = () => {
                   <div className="flex-1 flex flex-col gap-1">
                     <h1 className={`text-xl font-semibold flex items-center gap-2 ${headingTextClass}`}>
                       {problem.title}
-                      {isAuthenticated && problem.solved && (
+                      {isAuthenticated && isProblemSolved && (
                         <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded bg-green-100 text-green-700">
                           {PROBLEM_STATUS_LABELS.solved}
                         </span>
@@ -1652,9 +1604,13 @@ export const ProblemDetailPage: React.FC = () => {
                     ) : (
                       <div className="space-y-2">
                         {problemListItems.map((item) => {
-                          const itemKey = getProblemExternalIdentifier(item);
+                          const itemKey = contestContextId
+                            ? getContestProblemExternalIdentifier(item)
+                            : getProblemExternalIdentifier(item);
                           const isCurrentProblem = itemKey ? itemKey === problemIdentifier : false;
-                          const displayIdentifier = item.displayId ?? (item as any)._id ?? item.id;
+                          const displayIdentifier = contestContextId
+                            ? getContestProblemExternalIdentifier(item) ?? item.id
+                            : item.id;
                           return (
                             <button
                               key={`${itemKey ?? displayIdentifier}-${item.id}`}
@@ -1793,7 +1749,6 @@ export const ProblemDetailPage: React.FC = () => {
                       <div><span className="font-semibold">제출 시각:</span> {modalSubmittedAt ? formatDateTime(modalSubmittedAt) : '-'}</div>
                       <div><span className="font-semibold">실행 시간:</span> {formatExecutionTimeValue(modalExecutionTime)}</div>
                       <div><span className="font-semibold">메모리:</span> {formatMemoryUsageValue(modalMemoryUsage)}</div>
-                      <div><span className="font-semibold">테스트 케이스:</span> {modalCaseStats ? `${modalCaseStats.passed}/${modalCaseStats.total}` : '-'}</div>
                     </div>
                     <div>
                       <h4 className={`mb-2 font-semibold ${isDarkTheme ? 'text-slate-100' : 'text-gray-900'}`}>소스 코드</h4>

@@ -67,7 +67,7 @@ async def update_problem(
                 await _set_redis_polling_state(polling_key, "error", 0, 1, 1)
                 problem_exceptions.problem_not_found()
             await _validate_problem_request(request_data, db, problem)
-            await _apply_problem_updates(problem, request_data, db)            
+            await _apply_problem_updates(problem, request_data, db)
         await _set_redis_polling_state(polling_key, "done", 1, 0, 1, problem_id=problem.id)
     except Exception as e:
         logger.error(f"Failed to update problem: {e}")
@@ -77,7 +77,8 @@ async def update_problem(
         await _set_redis_polling_state(polling_key, "error", 0, 1, 1, error_code)
 
 
-async def _validate_problem_request(request_data: Union[ProblemCreateRequest, ProblemUpdateRequest], db: AsyncSession, problem: Optional[Problem] = None):
+async def _validate_problem_request(request_data: Union[ProblemCreateRequest, ProblemUpdateRequest], db: AsyncSession,
+                                    problem: Optional[Problem] = None):
     if not request_data.solution_code or not request_data.solution_code_language:
         return
 
@@ -103,43 +104,44 @@ async def _validate_problem_request(request_data: Union[ProblemCreateRequest, Pr
                 validation_cases.append(s)
 
     await _validate_solution_code(
-        solution_code=request_data.solution_code, 
-        solution_code_language=request_data.solution_code_language, 
-        test_case=validation_cases, 
+        solution_code=request_data.solution_code,
+        solution_code_language=request_data.solution_code_language,
+        test_case=validation_cases,
         db=db
     )
 
 
 async def _apply_problem_updates(problem: Problem, request_data: ProblemUpdateRequest, db: AsyncSession):
     from datetime import datetime
-    
-    for field in ["title", "description", "input_description", "output_description", 
+
+    for field in ["title", "description", "input_description", "output_description",
                   "time_limit", "memory_limit", "template", "difficulty", "hint"]:
         val = getattr(request_data, field)
         if val is not None:
             setattr(problem, field, val)
-    
+
     if request_data.samples is not None:
         problem.samples = [s.model_dump() for s in request_data.samples]
-        
+
     if request_data.languages is not None:
         problem.languages = utils.normalize_languages(request_data.languages)
-        
+
     if request_data.tags is not None:
         problem.tags = await _process_tags(db, request_data.tags)
-        
+
     if request_data.test_case_id and request_data.test_case_id != problem.test_case_id:
         problem.test_case_id = request_data.test_case_id
         info_json = utils.load_test_case_info(request_data.test_case_id)
         test_cases_info = info_json.get("test_cases", {})
         sorted_keys = sorted(test_cases_info.keys(), key=lambda x: int(x) if x.isdigit() else x)
         info_list = [test_cases_info[key] for key in sorted_keys]
-        
-        raw_test_case_scores = [{"input_name": item["input_name"], "output_name": item.get("output_name"), "score": 0} for item in info_list]
+
+        raw_test_case_scores = [{"input_name": item["input_name"], "output_name": item.get("output_name"), "score": 0}
+                                for item in info_list]
         problem.test_case_score = utils.calculate_test_case_score(raw_test_case_scores)
         if problem.rule_type == "OI":
             problem.total_score = sum([item.get("score", 0) for item in problem.test_case_score])
-            
+
     problem.last_update_time = datetime.now()
 
 
@@ -260,7 +262,8 @@ async def import_problem_from_file(
         status.error_code = getattr(e, "detail", {}).get("code") if hasattr(e, "detail") else "unknown_error"
         status.error_message = getattr(e, "detail", {}).get("message") if hasattr(e, "detail") else str(e)
         await _set_redis_polling_state(polling_key, "error", status.processed_problem, status.left_problem,
-                                       status.all_problem, error_code=status.error_code, error_message=status.error_message)
+                                       status.all_problem, error_code=status.error_code,
+                                       error_message=status.error_message)
         utils.remove_test_case_directory(testcase_list)
         return None
 
@@ -341,108 +344,57 @@ async def _validate_solution_code(
     return True
 
 
-async def _process_tags(db: AsyncSession, tags: List[str]) -> list:
-    tag_objects = []
-    for tag in tags:
-        tag_obj = await problem_repository.get_or_create_tag(db, tag)
-        tag_objects.append(tag_obj)
-    return tag_objects
-
-
-async def _process_tags(db: AsyncSession, tags: List[str]):
-    tag_objects = []
-    for tag in tags:
-        tag_obj = await problem_repository.get_or_create_tag(db, tag)
-        tag_objects.append(tag_obj)
-    return tag_objects
-
-
-async def get_all_problems(db: AsyncSession) -> List[Problem]:
-    return await problem_repository.fetch_all_problems(db)
-
-
-async def get_tag_count(db: AsyncSession):
-    rows = await problem_repository.fetch_tag_counts(db)
-    return [{"tag": name, "count": count} for name, count in rows]
-
-
 async def get_filter_sorted_problems(
         tags: Optional[List[str]],
         keyword: Optional[str],
-        difficulty: Optional[int],
+        difficulty_min: Optional[int],
+        difficulty_max: Optional[int],
         sort_option: Optional[str],
         order: Optional[str],
         page: int,
         page_size: int,
+        request_user: Optional[UserProfile],
         db: AsyncSession,
 ) -> ProblemListResponse:
-    accuracy_expression = case(
-        (Problem.submission_number == 0, 0.0),
-        else_=cast(Problem.accepted_number, Float) / cast(Problem.submission_number, Float)
-    )
-
-    valid_columns = {
-        "id": Problem._id,
-        "title": Problem.title,
-        "difficulty": Problem.difficulty,
-        "total_score": Problem.total_score,
-        "create_time": Problem.create_time,
-        "last_update_time": Problem.last_update_time,
-        "submission": Problem.submission_number,
-        "submission_count": Problem.submission_number,
-        "accuracy": accuracy_expression,
-        "accuracy_rate": accuracy_expression,
-    }
-
-    column = valid_columns.get(sort_option)
-    if column is None:
-        problem_exceptions.invalid_sort_parameter(sort_option)
-
-    direction = (order or "asc").lower()
-    ordering = desc(column) if direction == "desc" else asc(column)
-
-    problem_page = await problem_repository.fetch_filtered_problems(
-        db,
+    problems = await problem_repository.find_filtered_problems(
         tags=tags,
         keyword=keyword,
-        difficulty=difficulty,
-        ordering=ordering,
+        difficulty_min=difficulty_min,
+        difficulty_max=difficulty_max,
+        sort_option=sort_option,
+        order=order,
         page=page,
         page_size=page_size,
+        db=db,
     )
 
-    serialized = [_serialize_problem(problem) for problem in problem_page.items]
+    items: List[ProblemSchema] = [
+        ProblemSchema.model_validate(problem, from_attributes=True)
+        for problem in problems.items
+    ]
+
+    if request_user:
+        problem_ids = [problem.id for problem in problems.items]
+        solved_problem_ids = await problem_repository.find_solved_problems_user_id(
+            request_user.user_id,
+            problem_ids,
+            db,
+        )
+        solved_set = set(solved_problem_ids)
+
+        items = [
+            ProblemSchema.model_validate(problem, from_attributes=True).model_copy(
+                update={"status": 2 if problem.id in solved_set else 0}
+            )
+            for problem in problems.items
+        ]
 
     return ProblemListResponse(
-        total=problem_page.total,
-        page=problem_page.page,
-        size=problem_page.size,
-        items=serialized,
+        total=problems.total,
+        page=problems.page,
+        size=problems.size,
+        items=items,
     )
-
-
-def _serialize_problem(problem: Problem) -> Dict[str, object]:
-    tags = [{"id": tag.id, "name": tag.name} for tag in (problem.tags or [])]
-
-    return {
-        "id": problem.id,
-        "_id": problem._id,
-        "title": problem.title,
-        "description": problem.description,
-        "time_limit": problem.time_limit,
-        "memory_limit": problem.memory_limit,
-        "create_time": problem.create_time,
-        "last_update_time": problem.last_update_time,
-        "created_by_id": problem.created_by_id,
-        "rule_type": problem.rule_type,
-        "visible": problem.visible,
-        "difficulty": problem.difficulty,
-        "total_score": problem.total_score,
-        "test_case_score": problem.test_case_score,
-        "submission_number": problem.submission_number,
-        "accepted_number": problem.accepted_number,
-        "tags": tags,
-    }
 
 
 async def get_contest_problem_count(contest_id: int, db: AsyncSession) -> int:
@@ -484,7 +436,7 @@ async def get_available_contest_problem(
         keyword=keyword,
         db=db)
 
-    serialized = [_serialize_problem(problem) for problem in page_data.items]
+    serialized = [ProblemSchema.model_validate(problem, from_attributes=True) for problem in page_data.items]
 
     return ProblemListResponse(
         total=page_data.total,
@@ -492,3 +444,10 @@ async def get_available_contest_problem(
         size=page_data.size,
         items=serialized,
     )
+
+
+async def get_problem(problem_id, db) -> ProblemResponse:
+    problem = await problem_repository.find_problem_with_tags_by_id(problem_id, db)
+    if not problem or problem.visible == False:
+        problem_exceptions.problem_not_found()
+    return ProblemResponse.model_validate(problem)

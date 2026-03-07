@@ -3,9 +3,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
 import app.contest.service as serv
-from app.api.deps import get_database
+from app.api.deps import get_database, get_database_readonly
 from app.contest.schemas import *
 from app.api.deps import get_userdata
+from app.problem.schemas import ProblemResponse
 from app.user.schemas import UserProfile
 from app.core.auth.guards import require_role
 
@@ -74,6 +75,14 @@ async def add_contest_problem_from_public(
         user_profile: UserProfile = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)):
     return await serv.add_contest_problem(contest_problem_dto, user_profile, db)
+
+
+@router.get("/{contest_id}/problems", response_model=List[ContestProblemDTO])
+async def get_contest_problems(
+        contest_id: int,
+        user_profile: UserProfile = Depends(get_userdata),
+        db: AsyncSession = Depends(get_database)):
+    return await serv.get_contest_problems(contest_id, user_profile, db)
 
 
 @router.get("/participated", response_model=List[ContestDTO])
@@ -170,3 +179,20 @@ async def delete_announcement(
         user_profile: UserProfile = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)):
     return await serv.delete_announcement(contest_id, announcement_id, user_profile, db)
+
+
+@router.get("/{contest_id}/problem/{problem_id}", response_model=ProblemResponse)
+async def get_contest_problem_api(
+        contest_id: int,
+        problem_id: int,
+        user_profile: UserProfile = Depends(get_userdata),
+        db: AsyncSession = Depends(get_database_readonly)) -> ProblemResponse:
+    return await serv.get_contest_problem(contest_id, problem_id, user_profile, db)
+
+
+@router.get("/{contest_id}/me/progress", response_model=ContestProgressResponse)
+async def get_contest_progress_api(
+        contest_id: int,
+        user_profile: UserProfile = Depends(get_userdata),
+        db: AsyncSession = Depends(get_database_readonly)) -> ContestProgressResponse:
+    return await serv.get_contest_progress(contest_id, user_profile, db)

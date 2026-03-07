@@ -40,6 +40,7 @@ class ContestDataDTO(BaseModel):
     createdBy: ContestCreatedByDTO
     participants: int
     languages: list[str]
+    problemCount: int = 0
     is_organization_only: bool = False
     requires_approval: bool = False
     organization_id: Optional[int] = None
@@ -85,6 +86,19 @@ class ReqAddContestProblemDTO(BaseModel):
     contest_id: int
     problem_id: int
     display_id: str
+
+
+class ContestProblemDTO(BaseModel):
+    id: int
+    display_id: str = Field(..., alias="_id")
+    title: str
+    difficulty: Optional[str] = None
+    submission_number: int = 0
+    accepted_number: int = 0
+    status: int = 0
+
+    class Config:
+        populate_by_name = True
     
 
 class PaginatedContestResponse(Page[ContestDataDTO]):
@@ -136,6 +150,12 @@ class ContestUserDecisionUpdate(BaseModel):
     action: Literal["approve", "reject"]
 
 
+class ContestProgressResponse(BaseModel):
+    total: int = Field(..., ge=0)
+    solved: int = Field(..., ge=0)
+    total_score: int = Field(..., ge=0)
+
+
 class CreateContestAnnouncementRequest(BaseModel):
     title: str
     content: str
@@ -170,4 +190,3 @@ class ContestAnnouncementResponse(BaseModel):
             updated_at=entity.create_time,
             created_by=str
         )
-

@@ -1,10 +1,9 @@
-from sqlalchemy import select, desc, func, update
+from sqlalchemy import select, desc, update
 from sqlalchemy.orm.attributes import flag_modified
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
-from typing import List, Optional, Tuple
-from datetime import datetime
-
+from typing import List, Tuple
+from sqlalchemy import and_
 from app.contest.models import *
 
 from app.user.models import User, UserData
@@ -303,3 +302,13 @@ async def delete_contest_announcement_by_announcement_id(announcement_id, db):
     stmt = delete(ContestAnnouncement).where(ContestAnnouncement.id == announcement_id)
     await db.execute(stmt)
     return
+
+
+async def find_contest_user_by_contest_id_and_user_id(contest_id, user_id, db):
+    stmt = select(ContestUser).where(
+        and_(ContestUser.contest_id == contest_id,
+             ContestUser.user_id == user_id
+             )
+    )
+    result = await db.execute(stmt)
+    return result.scalar_one_or_none()

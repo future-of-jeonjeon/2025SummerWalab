@@ -49,5 +49,14 @@ def cannot_participate_in_organization_contest():
     handlers.bad_request("Cannot join an organization contest", ErrorCode.CONTEST_USER_NOT_IN_ORGANIZATION)
 
 
+def contest_access_forbidden():
+    handlers.forbidden("Contest access denied", ErrorCode.CONTEST_ACCESS_DENIED)
+
+
+def contest_announcement_not_found():
+    handlers.not_found("Contest announcement not found", ErrorCode.CONTEST_ANNOUNCEMENT_NOT_FOUND)
+
+
+
 def contest_announcement_not_found():
     handlers.not_found("Contest announcement not found", ErrorCode.CONTEST_ANNOUNCEMENT_NOT_FOUND)

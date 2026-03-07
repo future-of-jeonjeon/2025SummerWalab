@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useContest, useContestRank } from '../hooks/useContests';
 import { useAuthStore } from '../stores/authStore';
@@ -17,6 +18,8 @@ import { ContestUserManagementTab } from '../features/contestDetail/components/C
 import { ContestSubmissionDetailsTab } from '../features/contestDetail/components/ContestSubmissionDetailsTab';
 
 import type { ContestTab } from '../features/contestDetail/types';
+import type { Problem } from '../types';
+import { contestService } from '../services/contestService';
 
 // Removed status label
 
@@ -129,6 +132,14 @@ export const ContestDetailPage: React.FC = () => {
     getContestLockMessage,
   } = accessState;
 
+  const { data: contestMyProgress } = useQuery({
+    queryKey: ['contest-my-progress', contestId, authUser?.id],
+    queryFn: () => contestService.getContestMyProgress(contestId),
+    enabled: Boolean(contestId && authUser?.id && canViewProtectedContent),
+    staleTime: 10_000,
+    refetchInterval: 10_000,
+  });
+
   const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
 
   const canFetchAnnouncements = canManageAnnouncements || (!contestLockedForUser && (hasAccess || hasContestAdminOverride));
@@ -156,13 +167,15 @@ export const ContestDetailPage: React.FC = () => {
 
   const myScore = useMemo(() => {
     if (!authUser?.id) return 0;
-    const myEntry = rankEntries.find((entry) => entry.user.id === authUser.id);
+    const normalizedAuthUserId = Number(authUser.id);
+    const myEntry = rankEntries.find((entry) => Number(entry.user.id) === normalizedAuthUserId);
     return myEntry?.totalScore ?? 0;
   }, [rankEntries, authUser?.id]);
 
   const myRank = useMemo(() => {
     if (!authUser?.id) return null;
-    const myEntry = rankEntries.find((entry) => entry.user.id === authUser.id);
+    const normalizedAuthUserId = Number(authUser.id);
+    const myEntry = rankEntries.find((entry) => Number(entry.user.id) === normalizedAuthUserId);
     return myEntry?.rank ?? null;
   }, [rankEntries, authUser?.id]);
 
@@ -180,6 +193,8 @@ export const ContestDetailPage: React.FC = () => {
 
   const { refetchProblems, processedContestProblems, myRankProgress, totalProblems, solvedProblems } =
     problemsController;
+  const overviewSolvedProblems = contestMyProgress?.solved ?? solvedProblems;
+  const overviewTotalProblems = contestMyProgress?.total ?? totalProblems;
 
   useEffect(() => {
     protectedContentRef.current = () => {
@@ -275,17 +290,26 @@ export const ContestDetailPage: React.FC = () => {
   };
 
   const onProblemClick = useCallback(
-    (problem: { displayId?: string | number; _id?: string | number; id?: number }) => {
-      const displayId = problem.displayId ?? (problem as { _id?: string | number })._id ?? problem.id;
+    (problem: Problem) => {
+      const normalizedDisplayId =
+        typeof problem.displayId === 'string' && problem.displayId.trim().length > 0
+          ? problem.displayId.trim()
+          : null;
+      const normalizedObjectId =
+        typeof problem._id === 'string' && problem._id.trim().length > 0
+          ? problem._id.trim()
+          : typeof problem._id === 'number' && Number.isFinite(problem._id) && problem._id > 0
+            ? String(problem._id)
+            : null;
+      const problemKey = normalizedDisplayId
+        ?? normalizedObjectId
+        ?? (Number.isFinite(Number(problem.id)) && Number(problem.id) > 0 ? String(problem.id) : null);
+      if (!problemKey) {
+        return;
+      }
       const query = new URLSearchParams();
       query.set('contestId', String(contestId));
-      if (displayId != null) {
-        query.set('displayId', String(displayId));
-      }
-      const externalId = String(problem._id ?? problem.displayId ?? problem.id ?? '').trim();
-      if (externalId) {
-        navigate(`/problems/${encodeURIComponent(externalId)}?${query.toString()}`);
-      }
+      navigate(`/problems/${encodeURIComponent(problemKey)}?${query.toString()}`);
     },
     [contestId, navigate],
   );
@@ -413,7 +437,7 @@ export const ContestDetailPage: React.FC = () => {
               <ContestOverviewTab
                 contest={contest}
                 timeData={{ startTimeDisplay, endTimeDisplay, timeLeftDisplay: timeLeft || '-', timeTextClass }}
-                stats={{ solvedProblems, totalProblems, myScore, myRank, totalParticipants }}
+                stats={{ solvedProblems: overviewSolvedProblems, totalProblems: overviewTotalProblems, myScore, myRank, totalParticipants }}
                 joinState={overviewJoinState}
                 accessState={overviewAccessState}
                 announcementsNode={announcementsNode}

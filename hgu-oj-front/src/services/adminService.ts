@@ -150,13 +150,6 @@ export type UpdateContestPayload = CreateContestPayload & {
   password?: string | null;
 };
 
-interface ContestProblemListPayload {
-  results: any[];
-  total: number;
-  offset: number;
-  limit: number;
-}
-
 interface ContestListParams {
   page?: number;
   limit?: number;
@@ -480,28 +473,50 @@ export const adminService = {
 
 
   getContestProblems: async (contestId: number): Promise<Problem[]> => {
-    const response = await api.get<any>('/admin/contest/problem', {
-      contest_id: contestId,
-      limit: 1000,
-      offset: 0,
-    });
-    const data = unwrap(response);
-    const list: any[] = Array.isArray(data)
-      ? data
-      : Array.isArray((data as ContestProblemListPayload)?.results)
-        ? (data as ContestProblemListPayload).results
-        : [];
+    const baseUrl = getMsBaseUrl();
+    const adaptContestProblemList = (list: any[]) => list.map((entry: any) => {
+      const source = entry?.problem && typeof entry.problem === 'object' ? entry.problem : entry;
+      const adapted = adaptProblem(source) as Problem & { contestProblemId?: number };
 
-    return list.map(adaptProblem);
+      const contestProblemId = Number(entry?.id);
+      if (Number.isFinite(contestProblemId) && contestProblemId > 0) {
+        adapted.contestProblemId = contestProblemId;
+      }
+
+      if ((adapted.displayId == null || String(adapted.displayId).trim() === '') && entry?.display_id != null) {
+        adapted.displayId = String(entry.display_id);
+      }
+      if ((!adapted.title || adapted.title === '제목 없음') && typeof entry?.title === 'string') {
+        adapted.title = entry.title;
+      }
+      return adapted;
+    });
+
+    const msResponse = await apiClient.get<any[]>(`${baseUrl}/contest/${contestId}/problems`);
+    const msData = msResponse.data;
+    if (!Array.isArray(msData)) {
+      throw new Error('대회 문제 API 응답 형식이 올바르지 않습니다.');
+    }
+    return adaptContestProblemList(msData);
   },
 
   addContestProblemFromPublic: async (contestId: number, problemId: number, displayId: string): Promise<void> => {
-    const response = await api.post('/admin/contest/add_problem_from_public', {
-      contest_id: contestId,
-      problem_id: problemId,
-      display_id: displayId,
-    });
-    unwrap(response);
+    const baseUrl = getMsBaseUrl();
+    try {
+      await apiClient.post(`${baseUrl}/contest/add_problem_from_public`, {
+        contest_id: contestId,
+        problem_id: problemId,
+        display_id: displayId,
+      });
+      return;
+    } catch {
+      const response = await api.post('/admin/contest/add_problem_from_public', {
+        contest_id: contestId,
+        problem_id: problemId,
+        display_id: displayId,
+      });
+      unwrap(response);
+    }
   },
 
   deleteContestProblem: async (id: number): Promise<void> => {

@@ -1,9 +1,16 @@
 from typing import List, Optional, Sequence, Tuple
+
 from sqlalchemy import Select, func, select, update, or_, union
+from sqlalchemy import and_
+from sqlalchemy import asc
+from sqlalchemy import desc
+from sqlalchemy import Integer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import ColumnElement
+
 from app.problem.models import Problem, ProblemTag, problem_tags_association_table
+from app.submission.models import Submission
 
 
 def _public_problem_filter() -> ColumnElement:
@@ -113,8 +120,6 @@ async def get_or_create_tag(session: AsyncSession, tag_name: str) -> ProblemTag:
 
 async def create_problems(session: AsyncSession, problems: List[Problem]) -> List[Problem]:
     session.add_all(problems)
-    await session.commit()
-    await session.commit()
 
     # Re-fetch problems with tags loaded to avoid MissingGreenlet error
     ids = [p.id for p in problems]
@@ -216,3 +221,85 @@ def _apply_keyword(keyword, stmt):
         Problem.title.ilike(term),
         Problem._id.ilike(term),
     ))
+
+
+async def find_problems_by_contest_id_and_problem_id(contest_id, problem_id, db):
+    problem_display_id = str(problem_id)
+    stmt = select(Problem).options(selectinload(Problem.tags)).where(
+        and_(Problem.contest_id == contest_id, Problem._id == problem_display_id)
+    )
+    result = await db.execute(stmt)
+    return result.scalar()
+
+
+async def find_filtered_problems(
+        tags: Optional[List[str]],
+        keyword: Optional[str],
+        difficulty_min: Optional[int],
+        difficulty_max: Optional[int],
+        sort_option: Optional[str],
+        order: Optional[str],
+        page: int,
+        page_size: int,
+        db: AsyncSession,
+) -> Page[Problem]:
+    stmt: Select = select(Problem).options(selectinload(Problem.tags)).where(_public_problem_filter())
+
+    if tags:
+        tag_ids = (
+            select(problem_tags_association_table.c.problem_id)
+            .join(ProblemTag, ProblemTag.id == problem_tags_association_table.c.problemtag_id)
+            .where(ProblemTag.name.in_(tags))
+        )
+        stmt = stmt.where(Problem.id.in_(tag_ids))
+
+    if keyword:
+        term = f"%{keyword}%"
+        stmt = stmt.where(or_(Problem.title.ilike(term), Problem._id.ilike(term)))
+
+    if difficulty_min is not None or difficulty_max is not None:
+        lo, hi = sorted((difficulty_min if difficulty_min is not None else 0, difficulty_max if difficulty_max is not None else 5))
+        # difficulty is stored as text (e.g. "Lv.3"), so extract numeric part before range comparison.
+        difficulty_num = func.cast(
+            func.nullif(func.regexp_replace(Problem.difficulty, r"[^0-9]", "", "g"), ""),
+            Integer,
+        )
+        stmt = stmt.where(difficulty_num >= lo, difficulty_num <= hi)
+
+    sort_col = {
+        "title": Problem.title,
+        "number": Problem._id,
+        "submission": Problem.submission_number,
+        "accuracy": (Problem.accepted_number * 1.0) / func.nullif(Problem.submission_number, 0),
+        "id": Problem._id,
+        "submission_count": Problem.submission_number,
+        "accuracy_rate": (Problem.accepted_number * 1.0) / func.nullif(Problem.submission_number, 0),
+    }.get(sort_option or "title", Problem.title)
+
+    is_desc = (order or "asc").lower() == "desc"
+
+    if is_desc:
+        stmt = stmt.order_by(desc(sort_col))
+    else:
+        stmt = stmt.order_by(asc(sort_col))
+
+    return await paginate(db, stmt, page, page_size)
+
+async def find_solved_problems_user_id(
+    user_id: int,
+    problem_ids: List[int],
+    db: AsyncSession,
+) -> List[int]:
+    if not problem_ids:
+        return []
+
+    stmt = (
+        select(Submission.problem_id)
+        .where(Submission.user_id == user_id)
+        .where(Submission.contest_id.is_(None))
+        .where(Submission.result == 0)
+        .where(Submission.problem_id.in_(problem_ids))
+        .distinct()
+    )
+    result = await db.execute(stmt)
+    return [int(problem_id) for problem_id in result.scalars().all()]

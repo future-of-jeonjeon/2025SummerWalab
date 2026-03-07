@@ -21,28 +21,11 @@ type ContestProblemStat = {
   accuracy?: number;
 };
 
-
-
-const fetchContestProblemCount = async (contestId: number): Promise<number | undefined> => {
-  if (!MICRO_API_BASE) {
-    return undefined;
-  }
-  try {
-    const response = await apiClient.get<any>(`${MICRO_API_BASE}/problem/contest/${contestId}/count`);
-    const data = response.data;
-    const numeric = Number(
-      data?.count ??
-      data?.total ??
-      data?.problem_count ??
-      data?.problemCount ??
-      data,
-    );
-    return Number.isFinite(numeric) && numeric >= 0 ? numeric : undefined;
-  } catch {
-    return undefined;
-  }
-};
-
+export interface ContestMyProgressResponse {
+  total: number;
+  solved: number;
+  total_score: number;
+}
 const fetchContestProblemStats = async (contestId: number, problemIds: number[]): Promise<Map<number, ContestProblemStat>> => {
   const result = new Map<number, ContestProblemStat>();
   if (!MICRO_API_BASE || contestId <= 0 || problemIds.length === 0) {
@@ -229,14 +212,7 @@ export const contestService = {
       throw new Error('MS_API_BASE not defined');
     }
     const response = await apiClient.get<any>(`${MICRO_API_BASE}/contest/${id}`);
-    const contest = mapContest(response.data);
-    if (contest.problemCount == null) {
-      const microCount = await fetchContestProblemCount(id);
-      if (microCount !== undefined) {
-        contest.problemCount = microCount;
-      }
-    }
-    return contest;
+    return mapContest(response.data);
   },
 
   getContestAnnouncements: async (contestId: number): Promise<ContestAnnouncement[]> => {
@@ -290,12 +266,52 @@ export const contestService = {
   },
 
   getContestProblems: async (contestId: number): Promise<Problem[]> => {
-    const response = await api.get<any[]>('/contest/problem', { contest_id: contestId });
-    if (!response.success) {
-      throw new Error(response.message || '문제 목록을 불러오지 못했습니다.');
+    let rawProblemList: any[] = [];
+    let baseErrorMessage = '문제 목록을 불러오지 못했습니다.';
+
+    // Prefer MS contest-problems API, fallback to legacy OJ endpoint.
+    if (MICRO_API_BASE) {
+      try {
+        const response = await apiClient.get<any>(`${MICRO_API_BASE}/contest/${contestId}/problems`);
+        const payload = response.data;
+        if (Array.isArray(payload)) {
+          rawProblemList = payload;
+        } else if (Array.isArray(payload?.items)) {
+          rawProblemList = payload.items;
+        } else if (Array.isArray(payload?.problems)) {
+          rawProblemList = payload.problems;
+        } else if (Array.isArray(payload?.results)) {
+          rawProblemList = payload.results;
+        }
+      } catch (error: any) {
+        baseErrorMessage = error?.message || baseErrorMessage;
+      }
     }
 
-    const problems = (response.data || []).map(mapProblem);
+    if (!Array.isArray(rawProblemList) || rawProblemList.length === 0) {
+      const response = await api.get<any[]>('/contest/problem', { contest_id: contestId });
+      if (!response.success) {
+        throw new Error(response.message || baseErrorMessage);
+      }
+      rawProblemList = Array.isArray(response.data) ? response.data : [];
+    }
+
+    const problems = rawProblemList.map((raw) => {
+      const mapped = mapProblem(raw);
+      const hasContestStatus = raw && Object.prototype.hasOwnProperty.call(raw, 'status');
+      if (!hasContestStatus) {
+        return mapped;
+      }
+
+      const normalized = String(raw.status ?? '').trim();
+      if (normalized === '2') {
+        return { ...mapped, myStatus: 'AC', solved: true };
+      }
+      if (normalized === '1') {
+        return { ...mapped, myStatus: 'WA', solved: false };
+      }
+      return { ...mapped, myStatus: undefined, solved: false };
+    });
     const problemIds = problems
       .map((item) => {
         const candidates = [item.id, (item as any)._id, item.displayId];
@@ -378,6 +394,18 @@ export const contestService = {
     }
 
     return response.data;
+  },
+  getContestMyProgress: async (contestId: number): Promise<ContestMyProgressResponse> => {
+    if (!MICRO_API_BASE) {
+      throw new Error('MS_API_BASE not defined');
+    }
+    const response = await apiClient.get<any>(`${MICRO_API_BASE}/contest/${contestId}/me/progress`);
+    const payload = response.data ?? {};
+    return {
+      total: Number(payload.total ?? 0) || 0,
+      solved: Number(payload.solved ?? 0) || 0,
+      total_score: Number(payload.total_score ?? 0) || 0,
+    };
   },
   getContestRank: async (
     contestId: number,

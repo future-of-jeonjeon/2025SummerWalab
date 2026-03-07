@@ -5,7 +5,7 @@ import { PROBLEM_STATUS_LABELS } from '../../constants/problemStatus';
 
 interface ProblemListProps {
   problems: Problem[];
-  onProblemClick: (problemKey: string) => void;
+  onProblemClick: (problemId: number) => void;
   onTagClick?: (tag: string) => void;
   isLoading?: boolean;
   onSortChange?: (field: 'number' | 'title' | 'submission' | 'accuracy') => void;
@@ -191,7 +191,7 @@ export const ProblemList: React.FC<ProblemListProps> = ({
           {problems.map((problem) => {
             const badge = getStatusBadge(problem);
             const tags = getDisplayTags(problem);
-            const problemKey = String(problem.displayId ?? problem.id);
+            const problemId = Number(problem.id);
 
             return (
               <div
@@ -206,7 +206,9 @@ export const ProblemList: React.FC<ProblemListProps> = ({
                         onClick={(event) => {
                           event.preventDefault();
                           event.stopPropagation();
-                          onProblemClick(problemKey);
+                          if (Number.isFinite(problemId) && problemId > 0) {
+                            onProblemClick(problemId);
+                          }
                         }}
                         className="text-base font-semibold text-gray-800 dark:text-slate-100 hover:text-blue-600 hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
                       >

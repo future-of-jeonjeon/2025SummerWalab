@@ -130,7 +130,7 @@ export const HomePage: React.FC = () => {
             <ProblemList
               problems={recentProblems}
               isLoading={recentProblemsLoading}
-              onProblemClick={(problemKey) => navigate(`/problems/${encodeURIComponent(problemKey)}`)}
+              onProblemClick={(problemId) => navigate(`/problems/${problemId}`)}
             />
           </div>
 
