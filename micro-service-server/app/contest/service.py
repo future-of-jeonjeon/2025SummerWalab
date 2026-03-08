@@ -94,6 +94,17 @@ async def update_contest_problems(
         problem_inputs: List[ContestProblemInputDTO],
         user_profile: UserProfile,
         db: AsyncSession,) -> None:
+    contest = await contest_repo.find_contest_by_id(contest_id, db)
+    if not contest:
+        contest_exception.contest_not_found()
+
+    organization_contest = await contest_repo.find_organization_contest_by_contest_id(contest_id, db)
+    if organization_contest:
+        organization = await organization_repo.find_by_id(organization_contest.organization_id, db)
+        if not organization:
+            organization_exception.organization_not_found()
+        await organization_service.check_organization_admin(organization.id, user_profile, db)
+
     if not problem_inputs:
         return
 
@@ -103,6 +114,11 @@ async def update_contest_problems(
 
     problems_to_delete = [p for p in existing_problems if p._id not in new_display_ids]
     if problems_to_delete:
+        submission_count = await submission_repo.count_submissions_for_contest_problems(
+            db, contest_id, [p.id for p in problems_to_delete]
+        )
+        if submission_count > 0:
+            contest_exception.contest_problem_has_submissions()
         await problem_repo.delete_problems(db, problems_to_delete)
 
     contest_language = await contest_repo.find_contest_language_by_contest_id(contest_id, db)
