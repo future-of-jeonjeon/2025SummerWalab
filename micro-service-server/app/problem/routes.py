@@ -78,6 +78,14 @@ async def problem_polling(key: str):
     return await serv.import_problem_polling(key)
 
 
+@router.get("/{problem_id}", response_model=ProblemDetailResponse)
+async def get_problem_detail_api(
+        problem_id: int,
+        db: AsyncSession = Depends(get_database),
+        user_profile: UserProfile = Depends(get_optional_userdata)):
+    return await serv.get_problem_detail(problem_id, db)
+
+
 # =======================================================================================================================
 # 문제 필터 및 카운트에 필요한 api들
 
@@ -132,7 +140,6 @@ async def get_available_problems(
 
 
 @router.get("/contest/search", response_model=ProblemListResponse)
-@require_role("Admin", "OrganizationAdmin", "User")
 async def get_available_contest_problem(
         page: int = Query(1, ge=1),
         size: int = Query(20, ge=1, le=250),

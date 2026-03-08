@@ -86,21 +86,54 @@ async def update_contest(update_contest_dto: ReqUpdateContestDTO, user_profile: 
     if update_contest_dto.requires_approval is not None:
         await contest_repo.upsert_policy(contest.id, update_contest_dto.requires_approval, db)
 
-    if update_contest_dto.problems is not None and len(update_contest_dto.problems) > 0:
-        existing_problems = await problem_repo.find_problems_by_contest_id(db, contest.id)
-        existing_display_ids = {p._id: p for p in existing_problems}
-        new_display_ids = {p.display_id for p in update_contest_dto.problems}
-
-        problems_to_delete = [p for p in existing_problems if p._id not in new_display_ids]
-        if problems_to_delete:
-            await problem_repo.delete_problems(db, problems_to_delete)
-
-        for p_input in update_contest_dto.problems:
-            if p_input.display_id not in existing_display_ids:
-                await _clone_and_add_problem(db, contest.id, p_input.problem_id, p_input.display_id,
-                                             user_profile.user_id, update_contest_dto.languages)
-
     return await _create_contest_data_dto_from_entity(contest, update_contest_dto.languages, 0, db)
+
+
+async def update_contest_problems(
+        contest_id: int,
+        problem_inputs: List[ContestProblemInputDTO],
+        user_profile: UserProfile,
+        db: AsyncSession,) -> None:
+    contest = await contest_repo.find_contest_by_id(contest_id, db)
+    if not contest:
+        contest_exception.contest_not_found()
+
+    organization_contest = await contest_repo.find_organization_contest_by_contest_id(contest_id, db)
+    if organization_contest:
+        organization = await organization_repo.find_by_id(organization_contest.organization_id, db)
+        if not organization:
+            organization_exception.organization_not_found()
+        await organization_service.check_organization_admin(organization.id, user_profile, db)
+
+    if not problem_inputs:
+        return
+
+    existing_problems = await problem_repo.find_problems_by_contest_id(db, contest_id)
+    existing_display_ids = {p._id: p for p in existing_problems}
+    new_display_ids = {p.display_id for p in problem_inputs}
+
+    problems_to_delete = [p for p in existing_problems if p._id not in new_display_ids]
+    if problems_to_delete:
+        submission_count = await submission_repo.count_submissions_for_contest_problems(
+            db, contest_id, [p.id for p in problems_to_delete]
+        )
+        if submission_count > 0:
+            contest_exception.contest_problem_has_submissions()
+        await problem_repo.delete_problems(db, problems_to_delete)
+
+    contest_language = await contest_repo.find_contest_language_by_contest_id(contest_id, db)
+    languages = contest_language.languages if contest_language else []
+    for p_input in problem_inputs:
+        if p_input.display_id not in existing_display_ids:
+            await _clone_and_add_problem(
+                db,
+                contest_id,
+                p_input.problem_id,
+                p_input.display_id,
+                user_profile.user_id,
+                languages,
+            )
+    return
 
 
 def _update_contest_data(contest, update_contest_dto):
@@ -158,7 +191,7 @@ async def add_contest_problem(contest_problem_dto: ReqAddContestProblemDTO, user
 
 
 async def get_contest_problems(contest_id: int, user_profile: UserProfile, db: AsyncSession) -> List[ContestProblemDTO]:
-    await _ensure_contest_permission(contest_id, user_profile, db)
+    # await _ensure_contest_permission(contest_id, user_profile, db)
     problems = await problem_repo.find_problems_by_contest_id(db, contest_id)
     problem_ids = [problem.id for problem in problems]
     solved_problem_ids = await submission_repo.find_solved_problem_ids_by_contest_and_user(
@@ -167,7 +200,14 @@ async def get_contest_problems(contest_id: int, user_profile: UserProfile, db: A
         problem_ids=problem_ids,
         db=db,
     )
+    attempted_problem_ids = await submission_repo.find_attempted_problem_ids_by_contest_and_user(
+        contest_id=contest_id,
+        user_id=user_profile.user_id,
+        problem_ids=problem_ids,
+        db=db,
+    )
     solved_set = set(solved_problem_ids)
+    attempted_set = set(attempted_problem_ids)
 
     return [
         ContestProblemDTO(
@@ -177,7 +217,7 @@ async def get_contest_problems(contest_id: int, user_profile: UserProfile, db: A
             difficulty=problem.difficulty,
             submission_number=problem.submission_number or 0,
             accepted_number=problem.accepted_number or 0,
-            status=2 if problem.id in solved_set else 0,
+            status=2 if problem.id in solved_set else (1 if problem.id in attempted_set else 0),
         )
         for problem in problems
     ]

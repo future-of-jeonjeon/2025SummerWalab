@@ -26,6 +26,8 @@ class SubmissionListResponse(BaseModel):
     contest_id: Optional[int] = None
     problem_id: int
     user_id: int
+    execution_time: Optional[int] = None
+    memory: Optional[int] = None
 
 class ContestProblemStatList(BaseModel):
     contest_id: int

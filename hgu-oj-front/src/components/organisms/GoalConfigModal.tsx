@@ -216,6 +216,12 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
     setUserSaving(true);
     setUserError(null);
 
+    const getErrorMessage = (err: any, fallback: string) =>
+      err?.response?.data?.detail?.message ||
+      err?.response?.data?.message ||
+      err?.message ||
+      fallback;
+
     try {
       const majorId = DEPARTMENTS.indexOf(userForm.department);
       if (majorId === -1) {
@@ -231,7 +237,7 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
 
       onUserUpdateSuccess?.();
     } catch (err: any) {
-      setUserError(err.response?.data?.message || err.message || '정보 수정에 실패했습니다.');
+      setUserError(getErrorMessage(err, '정보 수정에 실패했습니다.'));
     } finally {
       setUserSaving(false);
     }

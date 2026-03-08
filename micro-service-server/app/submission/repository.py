@@ -218,6 +218,22 @@ async def count_problem_by_contest_id(contest_id: int, db: AsyncSession) -> int:
     return int(result.scalar() or 0)
 
 
+async def count_submissions_for_contest_problems(
+        db: AsyncSession,
+        contest_id: int,
+        problem_ids: list[int],
+) -> int:
+    if not problem_ids:
+        return 0
+    stmt = (
+        select(func.count(Submission.id))
+        .where(Submission.contest_id == contest_id)
+        .where(Submission.problem_id.in_(problem_ids))
+    )
+    result = await db.execute(stmt)
+    return int(result.scalar() or 0)
+
+
 async def find_solved_problem_ids_by_contest_and_user(
         contest_id: int,
         user_id: int,
@@ -233,6 +249,26 @@ async def find_solved_problem_ids_by_contest_and_user(
         .where(Submission.contest_id == contest_id)
         .where(Submission.user_id == user_id)
         .where(Submission.result == JUDGE_STATUS_ACCEPTED)
+        .where(Submission.problem_id.in_(problem_id_list))
+    )
+    result = await db.execute(stmt)
+    return [int(pid) for pid in result.scalars().all()]
+
+
+async def find_attempted_problem_ids_by_contest_and_user(
+        contest_id: int,
+        user_id: int,
+        problem_ids: Iterable[int],
+        db: AsyncSession,
+) -> List[int]:
+    problem_id_list = [int(pid) for pid in problem_ids if pid is not None]
+    if not problem_id_list:
+        return []
+
+    stmt = (
+        select(func.distinct(Submission.problem_id))
+        .where(Submission.contest_id == contest_id)
+        .where(Submission.user_id == user_id)
         .where(Submission.problem_id.in_(problem_id_list))
     )
     result = await db.execute(stmt)

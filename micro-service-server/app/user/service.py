@@ -21,6 +21,8 @@ async def save_user_data(user_profile_payload: UpdateUserProfileRequest, user_pr
     if check_data:
         exceptions.user_data_conflict()
 
+    await _ensure_student_id_available(user_profile_payload.student_id, db)
+
     user = await repo.find_user_by_id(user_profile.user_id, db)
     if not user:
         exceptions.user_not_found()
@@ -51,6 +53,8 @@ async def update_user_data(user_profile_payload: UpdateUserProfileRequest, user_
     if not entity:
         exceptions.user_data_not_found()
 
+    await _ensure_student_id_available(user_profile_payload.student_id, db, exclude_user_id=user_profile.user_id)
+
     entity.name = user_profile_payload.name
     entity.student_id = user_profile_payload.student_id
     entity.major_id = user_profile_payload.major_id
@@ -67,6 +71,9 @@ async def patch_user_data(payload: UpdateUserProfileRequest, user_profile: UserP
     entity = await repo.find_sub_userdata_by_user_id(user_profile.user_id, db)
     if not entity:
         exceptions.user_data_not_found()
+
+    if payload.student_id is not None:
+        await _ensure_student_id_available(payload.student_id, db, exclude_user_id=user_profile.user_id)
 
     if payload.name is not None:
         entity.name = payload.name
@@ -114,3 +121,9 @@ def _create_user_data_from_schema(schema: UpdateUserProfileRequest, user_id: int
 def _validate_user_profile_payload(schema: UpdateUserProfileRequest):
     if not schema.name or not schema.student_id or schema.major_id is None:
         handlers.bad_request("name, student_id, major_id are required")
+
+
+async def _ensure_student_id_available(student_id: str, db: AsyncSession, exclude_user_id: int | None = None):
+    existing = await repo.find_userdata_by_student_id(student_id, db)
+    if existing and existing.user_id != exclude_user_id:
+        exceptions.student_id_conflict()

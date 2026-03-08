@@ -135,9 +135,8 @@ export const ContestDetailPage: React.FC = () => {
   const { data: contestMyProgress } = useQuery({
     queryKey: ['contest-my-progress', contestId, authUser?.id],
     queryFn: () => contestService.getContestMyProgress(contestId),
-    enabled: Boolean(contestId && authUser?.id && canViewProtectedContent),
+    enabled: Boolean(contestId && authUser?.id && canViewProtectedContent && activeTab === 'overview'),
     staleTime: 10_000,
-    refetchInterval: 10_000,
   });
 
   const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
@@ -149,7 +148,7 @@ export const ContestDetailPage: React.FC = () => {
     onSuccess: () => setIsAnnouncementModalOpen(false),
   });
 
-  const shouldLoadRank = canViewProtectedContent;
+  const shouldLoadRank = canViewProtectedContent && (activeTab === 'rank' || (isAdminUser && activeTab === 'submission-details'));
   const {
     data: publicRankData,
     isLoading: publicRankLoading,
@@ -186,12 +185,9 @@ export const ContestDetailPage: React.FC = () => {
     canFetch: contestId > 0,
     canViewProtectedContent,
     fallbackProblemCount: contest?.problemCount,
-    rankEntries,
-    authUserId: authUser?.id,
-    ruleType: contest?.ruleType,
   });
 
-  const { refetchProblems, processedContestProblems, myRankProgress, totalProblems, solvedProblems } =
+  const { refetchProblems, processedContestProblems, totalProblems, solvedProblems } =
     problemsController;
   const overviewSolvedProblems = contestMyProgress?.solved ?? solvedProblems;
   const overviewTotalProblems = contestMyProgress?.total ?? totalProblems;
@@ -200,19 +196,20 @@ export const ContestDetailPage: React.FC = () => {
     protectedContentRef.current = () => {
       refetchAnnouncements();
       refetchProblems();
-      refetchPublicRank();
-      if (isAdminUser) {
+      if (activeTab === 'rank') {
+        refetchPublicRank();
+      }
+      if (isAdminUser && activeTab === 'submission-details') {
         refetchAdminRank();
       }
     };
-  }, [refetchAnnouncements, refetchProblems, refetchPublicRank, refetchAdminRank, isAdminUser]);
+  }, [refetchAnnouncements, refetchProblems, refetchPublicRank, refetchAdminRank, isAdminUser, activeTab]);
 
   useEffect(() => {
     if (activeTab === 'problems' && canViewProtectedContent) {
       refetchProblems();
-      refetchPublicRank();
     }
-  }, [activeTab, canViewProtectedContent, refetchProblems, refetchPublicRank]);
+  }, [activeTab, canViewProtectedContent, refetchProblems]);
 
   const shouldLoadUserManagement = isAdminUser && activeTab === 'user-management';
   const userManagement = useContestUserManagement({
@@ -462,7 +459,6 @@ export const ContestDetailPage: React.FC = () => {
                 statusFilter={problemsController.statusFilter}
                 handlers={problemsController.handlers}
                 onProblemClick={onProblemClick}
-                myRankProgress={myRankProgress}
               />
             )}
 

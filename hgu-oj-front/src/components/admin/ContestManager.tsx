@@ -6,7 +6,6 @@ import { AdminContest } from '../../types';
 import { formatDateTime } from '../../lib/date';
 import { CreateContestModal } from '../../features/organization/components/CreateContestModal';
 import { VisibilityBadge } from '../common/VisibilityBadge';
-import { ActionIconButtons } from '../../features/contribution/components/ActionIconButtons';
 import CommonPagination from '../common/CommonPagination';
 
 export const ContestManager: React.FC = () => {
@@ -19,6 +18,8 @@ export const ContestManager: React.FC = () => {
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [selectedContest, setSelectedContest] = useState<AdminContest | undefined>(undefined);
+    const [initialTab, setInitialTab] = useState<'basic' | 'problems'>('basic');
+    const [lockTab, setLockTab] = useState(false);
 
     const fetchContests = useCallback(async (p: number = 1, k: string = '') => {
         setLoading(true);
@@ -45,8 +46,10 @@ export const ContestManager: React.FC = () => {
         setTimeout(() => fetchContests(1, val), 300);
     };
 
-    const openModal = (contest?: AdminContest) => {
+    const openModal = (contest?: AdminContest, tab: 'basic' | 'problems' = 'basic', lock: boolean = false) => {
         setSelectedContest(contest);
+        setInitialTab(tab);
+        setLockTab(lock);
         setIsModalOpen(true);
     };
 
@@ -120,12 +123,53 @@ export const ContestManager: React.FC = () => {
                                             <VisibilityBadge visible={Boolean(contest.visible)} />
                                         </td>
                                         <td className="px-4 py-3 text-sm">
-                                            <ActionIconButtons
-                                                onEdit={() => openModal(contest)}
-                                                onDelete={() => handleDelete(contest.id, contest.title)}
-                                                editTitle={`대회 ${contest.title} 수정`}
-                                                deleteTitle={`대회 ${contest.title} 삭제`}
-                                            />
+                                            <div className="flex justify-end items-center gap-2">
+                                                <div className="relative group/tooltip">
+                                                    <button
+                                                        type="button"
+                                                        className="rounded-full p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-colors"
+                                                        aria-label="대회 정보 수정"
+                                                        onClick={() => openModal(contest, 'basic', true)}
+                                                    >
+                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                        </svg>
+                                                    </button>
+                                                    <span className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 text-white text-xs px-2 py-1 opacity-0 group-hover/tooltip:opacity-100 transition-opacity shadow-lg">
+                                                        대회 정보 수정
+                                                    </span>
+                                                </div>
+                                                <div className="relative group/tooltip">
+                                                    <button
+                                                        type="button"
+                                                        className="rounded-full p-2 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors"
+                                                        aria-label="대회 문제 수정"
+                                                        onClick={() => openModal(contest, 'problems', true)}
+                                                    >
+                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h8M8 11h8M8 15h5M5 7h.01M5 11h.01M5 15h.01" />
+                                                        </svg>
+                                                    </button>
+                                                    <span className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 text-white text-xs px-2 py-1 opacity-0 group-hover/tooltip:opacity-100 transition-opacity shadow-lg">
+                                                        대회 문제 수정
+                                                    </span>
+                                                </div>
+                                                <div className="relative group/tooltip">
+                                                    <button
+                                                        type="button"
+                                                        className="rounded-full p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                                        aria-label={`대회 ${contest.title} 삭제`}
+                                                        onClick={() => handleDelete(contest.id, contest.title)}
+                                                    >
+                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                        </svg>
+                                                    </button>
+                                                    <span className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 text-white text-xs px-2 py-1 opacity-0 group-hover/tooltip:opacity-100 transition-opacity shadow-lg">
+                                                        삭제
+                                                    </span>
+                                                </div>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))
@@ -147,13 +191,19 @@ export const ContestManager: React.FC = () => {
                 onClose={() => {
                     setIsModalOpen(false);
                     setSelectedContest(undefined);
+                    setInitialTab('basic');
+                    setLockTab(false);
                 }}
                 context="admin"
                 contestId={selectedContest?.id ?? null}
                 initialData={selectedContest}
+                initialTab={initialTab}
+                lockTab={lockTab}
                 onSuccess={() => {
                     setIsModalOpen(false);
                     setSelectedContest(undefined);
+                    setInitialTab('basic');
+                    setLockTab(false);
                     fetchContests(page, keyword);
                 }}
             />
