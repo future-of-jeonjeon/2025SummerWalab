@@ -51,7 +51,6 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
     context = 'organization',
     contestId,
     initialTab = 'basic',
-    lockTab = false,
 }) => {
     const isAdmin = context === 'admin';
     const isEditMode = Boolean(initialData);
@@ -763,7 +762,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                 };
                                 setContestProblems((prev) => {
                                     if (prev.some((p) => p.id === normalizedProblem.id)) return prev;
-                                    return normalizeContestProblemOrder([...prev, normalizedProblem]);
+                                    return ensureDisplayIds([...prev, normalizedProblem]);
                                 });
                             }
 
