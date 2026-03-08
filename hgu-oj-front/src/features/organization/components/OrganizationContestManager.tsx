@@ -21,6 +21,8 @@ export const OrganizationContestManager: React.FC = () => {
 
     // Edit state
     const [selectedContest, setSelectedContest] = useState<Contest | undefined>(undefined);
+    const [initialTab, setInitialTab] = useState<'basic' | 'problems'>('basic');
+    const [lockTab, setLockTab] = useState(false);
 
     const fetchContests = async () => {
         if (!organizationId) return;
@@ -61,13 +63,17 @@ export const OrganizationContestManager: React.FC = () => {
         }
     };
 
-    const handleEditClick = (contest: Contest) => {
+    const handleEditClick = (contest: Contest, tab: 'basic' | 'problems') => {
         setSelectedContest(contest);
+        setInitialTab(tab);
+        setLockTab(true);
         setIsCreateModalOpen(true);
     };
 
     const handleCreateClick = () => {
         setSelectedContest(undefined);
+        setInitialTab('basic');
+        setLockTab(false);
         setIsCreateModalOpen(true);
     };
 
@@ -209,24 +215,48 @@ export const OrganizationContestManager: React.FC = () => {
                                             </td>
                                             <td className="px-6 py-5 whitespace-nowrap text-right text-sm font-medium">
                                                 <div className="flex justify-end items-center gap-2">
-                                                    <button
-                                                        onClick={() => handleEditClick(contest)}
-                                                        className="text-gray-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-300 transition-colors p-2 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/30"
-                                                        title="대회 수정"
-                                                    >
-                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-                                                        </svg>
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDelete(contest.id)}
-                                                        className="text-gray-400 dark:text-slate-500 hover:text-red-600 transition-colors p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20"
-                                                        title="대회 삭제"
-                                                    >
-                                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                        </svg>
-                                                    </button>
+                                                    <div className="relative group/tooltip">
+                                                        <button
+                                                            onClick={() => handleEditClick(contest, 'basic')}
+                                                            className="text-gray-400 dark:text-slate-500 hover:text-blue-600 dark:hover:text-blue-300 transition-colors p-2 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                                                            aria-label="대회 정보 수정"
+                                                        >
+                                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                                            </svg>
+                                                        </button>
+                                                        <span className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 text-white text-xs px-2 py-1 opacity-0 group-hover/tooltip:opacity-100 transition-opacity shadow-lg">
+                                                            대회 정보 수정
+                                                        </span>
+                                                    </div>
+                                                    <div className="relative group/tooltip">
+                                                        <button
+                                                            onClick={() => handleEditClick(contest, 'problems')}
+                                                            className="text-gray-400 dark:text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-300 transition-colors p-2 rounded-full hover:bg-indigo-50 dark:hover:bg-indigo-900/30"
+                                                            aria-label="대회 문제 수정"
+                                                        >
+                                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h8M8 11h8M8 15h5M5 7h.01M5 11h.01M5 15h.01" />
+                                                            </svg>
+                                                        </button>
+                                                        <span className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 text-white text-xs px-2 py-1 opacity-0 group-hover/tooltip:opacity-100 transition-opacity shadow-lg">
+                                                            대회 문제 수정
+                                                        </span>
+                                                    </div>
+                                                    <div className="relative group/tooltip">
+                                                        <button
+                                                            onClick={() => handleDelete(contest.id)}
+                                                            className="text-gray-400 dark:text-slate-500 hover:text-red-600 transition-colors p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20"
+                                                            aria-label="대회 삭제"
+                                                        >
+                                                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                            </svg>
+                                                        </button>
+                                                        <span className="pointer-events-none absolute -top-9 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 text-white text-xs px-2 py-1 opacity-0 group-hover/tooltip:opacity-100 transition-opacity shadow-lg">
+                                                            대회 삭제
+                                                        </span>
+                                                    </div>
                                                 </div>
                                             </td>
                                         </tr>
@@ -272,10 +302,14 @@ export const OrganizationContestManager: React.FC = () => {
                     onClose={() => {
                         setIsCreateModalOpen(false);
                         setSelectedContest(undefined);
+                        setLockTab(false);
+                        setInitialTab('basic');
                     }}
                     organizationId={organizationId}
                     onSuccess={handleCreateSuccess}
                     initialData={selectedContest}
+                    initialTab={initialTab}
+                    lockTab={lockTab}
                 />
             )}
         </div>

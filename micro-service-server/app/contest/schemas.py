@@ -79,7 +79,6 @@ class ReqUpdateContestDTO(BaseModel):
     is_organization_only: Optional[bool] = None
     languages: list[str]
     organization_id: int
-    problems: Optional[List[ContestProblemInputDTO]] = []
 
 
 class ReqAddContestProblemDTO(BaseModel):

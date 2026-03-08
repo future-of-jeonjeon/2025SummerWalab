@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette import status
 
@@ -83,6 +83,15 @@ async def get_contest_problems(
         user_profile: UserProfile = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)):
     return await serv.get_contest_problems(contest_id, user_profile, db)
+
+@router.put("/{contest_id}/problems", status_code=status.HTTP_204_NO_CONTENT)
+async def update_contest_problems(
+        contest_id: int,
+        payload: List[ContestProblemInputDTO],
+        user_profile: UserProfile = Depends(get_userdata),
+        db: AsyncSession = Depends(get_database)):
+    await serv.update_contest_problems(contest_id, payload, user_profile, db)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/participated", response_model=List[ContestDTO])

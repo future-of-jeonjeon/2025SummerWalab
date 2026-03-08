@@ -93,6 +93,10 @@ class ProblemResponse(ProblemSchema):
     io_mode: Dict[str, str] = {}
     is_public: bool = True
 
+class ProblemDetailResponse(ProblemResponse):
+    test_case_id: Optional[str] = None
+    test_case_score: Optional[List[Dict[str, Any]]] = []
+
 class ProblemListResponse(Page[ProblemSchema]):
     problems: List[ProblemSchema] = Field(..., alias="items")
 
