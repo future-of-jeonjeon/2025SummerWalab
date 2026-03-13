@@ -1,18 +1,16 @@
 from datetime import datetime
-from typing import Any, Dict, Optional
-
 from pydantic import BaseModel, ConfigDict
 
+from app.notification.models import NotificationCategory
 
 class NotificationPayload(BaseModel):
-    title: str
     message: str
-    link: Optional[str] = None
 
 
 class NotificationResponse(BaseModel):
     id: int
     payload: NotificationPayload
+    category: NotificationCategory
     created_time: datetime
     is_checked: bool = False
     model_config = ConfigDict(from_attributes=True)
@@ -21,6 +19,7 @@ class NotificationResponse(BaseModel):
 class NotificationCreateData(BaseModel):
     user_id: int
     payload: NotificationPayload
+    category: NotificationCategory
 
 
 class NotificationCheckResponse(BaseModel):

@@ -170,7 +170,7 @@ async def _clone_and_add_problem(db: AsyncSession, contest_id: int, problem_id: 
         contest_exception.display_id_conflict()
     new_problem = _create_cloned_problem_entity(problem, contest_id, display_id, user_id, languages)
     new_problem.tags = list(problem.tags)
-    return await problem_repo.create_problem(session=db, problem=new_problem)
+    return await problem_repo.save(session=db, problem=new_problem)
 
 
 async def add_contest_problem(contest_problem_dto: ReqAddContestProblemDTO, user_profile: UserProfile,

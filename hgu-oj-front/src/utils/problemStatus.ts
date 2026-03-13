@@ -53,7 +53,12 @@ export const resolveProblemStatus = (problem: Problem, options?: { override?: st
     }
   }
 
-  const normalizedStatus = normalizeProblemStatus(problem.myStatus ?? (problem as any).my_status);
+  const normalizedStatus = normalizeProblemStatus(
+    problem.myStatus ??
+      (problem as any).my_status ??
+      (problem as any).status ??
+      (problem as any).result
+  );
 
   if (problem.solved || normalizedStatus === 'AC' || normalizedStatus === 'ACCEPTED') {
     return 'solved';

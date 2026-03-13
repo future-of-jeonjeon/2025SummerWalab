@@ -70,8 +70,15 @@ async def delete_by_id(organization_id: int, db: AsyncSession) -> None:
     stmt = delete(Organization).where(Organization.id == organization_id)
     await db.execute(stmt)
 
-async def get_organizations(page: int, size: int, db: AsyncSession) -> Page[Organization]:
-    stmt = select(Organization).order_by(Organization.id.desc())
+async def get_organizations(
+        page: int,
+        size: int,
+        db: AsyncSession,
+        visible_only: bool = True) -> Page[Organization]:
+    stmt = select(Organization)
+    if visible_only:
+        stmt = stmt.where(Organization.visible == True)
+    stmt = stmt.order_by(Organization.id.desc())
     return await paginate(db, stmt, page, size)
 
 async def get_organization_members(
@@ -85,3 +92,16 @@ async def get_organization_members(
     )
     return await paginate(db, stmt, page, size)
 
+
+async def remove_organization_all_members(organization_id, db):
+    result = await db.execute(
+        select(OrganizationMember)
+        .where(OrganizationMember.organization_id == organization_id)
+        .options(selectinload(OrganizationMember.user))
+    )
+    members = result.scalars().all()
+
+    for m in members:
+        await db.delete(m)
+
+    return
