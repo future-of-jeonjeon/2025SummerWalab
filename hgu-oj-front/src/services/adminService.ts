@@ -413,14 +413,30 @@ export const adminService = {
   },
 
   getAdminProblemDetail: async (problemId: number): Promise<AdminProblemDetail> => {
-    const response = await api.get<any>('/admin/problem', { id: problemId });
-    const data = unwrap(response);
-    return adaptAdminProblemDetail(data);
+    try {
+      const response = await api.get<any>('/admin/problem', { id: problemId });
+      const data = unwrap(response);
+      return adaptAdminProblemDetail(data);
+    } catch (err: any) {
+      try {
+        const baseUrl = getMsBaseUrl();
+        const res = await apiClient.get<any>(`${baseUrl}/problem/${problemId}`);
+        return adaptAdminProblemDetail(res.data);
+      } catch (fallbackErr: any) {
+        throw err || fallbackErr;
+      }
+    }
   },
 
   updateAdminProblem: async (payload: UpdateProblemPayload): Promise<AdminProblemDetail> => {
     const baseUrl = getMsBaseUrl();
-    const response = await apiClient.put<any>(`${baseUrl}/problem/${payload.id}`, payload);
+    let response;
+    try {
+      response = await apiClient.put<any>(`${baseUrl}/problem/${payload.id}`, payload);
+    } catch (err: any) {
+      // if forbidden, rethrow; if other errors, bubble up
+      throw err;
+    }
     const data = response.data;
     const pollingKey =
       typeof data?.polling_key === 'string'
@@ -523,6 +539,15 @@ export const adminService = {
       });
       unwrap(response);
     }
+  },
+
+  updateContestProblems: async (contestId: number, problems: Problem[]): Promise<void> => {
+    const baseUrl = getMsBaseUrl();
+    const payload = problems.map((p, index) => ({
+      problem_id: p.id,
+      display_id: p.displayId ?? (p as any)._id ?? String(index + 1),
+    }));
+    await apiClient.put(`${baseUrl}/contest/${contestId}/problems`, payload);
   },
 
   deleteContestProblem: async (id: number): Promise<void> => {
@@ -813,6 +838,9 @@ const mapAdminContest = (raw: any): AdminContest => {
     createdBy,
     now: raw?.now,
     languages: Array.isArray(raw?.languages) ? raw.languages : [],
+    organization_id: Number(raw?.organization_id ?? raw?.organizationId ?? 0) || 0,
+    organization_name: raw?.organization_name ?? raw?.organizationName ?? null,
+    isOrganizationOnly: raw?.is_organization_only ?? raw?.isOrganizationOnly ?? false,
   } as AdminContest;
 };
 

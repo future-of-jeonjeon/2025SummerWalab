@@ -57,6 +57,9 @@ def contest_announcement_not_found():
     handlers.not_found("Contest announcement not found", ErrorCode.CONTEST_ANNOUNCEMENT_NOT_FOUND)
 
 
-
 def contest_announcement_not_found():
     handlers.not_found("Contest announcement not found", ErrorCode.CONTEST_ANNOUNCEMENT_NOT_FOUND)
+
+
+def contest_problem_has_submissions():
+    handlers.conflict("Cannot delete contest problem that already has submissions", ErrorCode.CONFLICT)

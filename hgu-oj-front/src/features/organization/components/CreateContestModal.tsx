@@ -17,6 +17,8 @@ interface CreateContestModalProps {
     initialData?: ContestLike;
     context?: ModalContext;
     contestId?: number | null;
+    initialTab?: 'basic' | 'problems';
+    lockTab?: boolean;
 }
 
 const SUPPORTED_LANGUAGES = ['C', 'C++', 'Java', 'Python3', 'JavaScript', 'Golang'];
@@ -48,6 +50,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
     initialData,
     context = 'organization',
     contestId,
+    initialTab = 'basic',
 }) => {
     const isAdmin = context === 'admin';
     const isEditMode = Boolean(initialData);
@@ -55,7 +58,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    const [activeTab, setActiveTab] = useState<'basic' | 'problems'>('basic');
+    const [activeTab, setActiveTab] = useState<'basic' | 'problems'>(initialTab);
     const [problemMessage, setProblemMessage] = useState<{ success?: string; error?: string }>({});
     const [isProblemCreateModalOpen, setIsProblemCreateModalOpen] = useState(false);
 
@@ -73,6 +76,11 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
         requires_approval: false,
         is_organization_only: false,
     });
+    const [resolvedOrganizationId, setResolvedOrganizationId] = useState<number | null>(
+        (initialData as AdminContest | undefined)?.organization_id ??
+        organizationId ??
+        null
+    );
 
     const [contestProblems, setContestProblems] = useState<Problem[]>([]);
     const [problemInput, setProblemInput] = useState('');
@@ -84,6 +92,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
     const problemSearchTimerRef = useRef<number | null>(null);
     const dragItemRef = useRef<number | null>(null);
     const dragOverItemRef = useRef<number | null>(null);
+    const [editingProblemId, setEditingProblemId] = useState<number | undefined>(undefined);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -125,6 +134,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                 is_organization_only: false,
             });
             setContestProblems([]);
+            setResolvedOrganizationId(organizationId ?? null);
         }
 
         setError('');
@@ -132,7 +142,8 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
         setProblemInput('');
         setProblemSearch({ results: [], loading: false, error: null });
         setActiveTab('basic');
-    }, [initialData, isOpen]);
+        setActiveTab(initialTab);
+    }, [initialData, initialTab, isOpen]);
 
     useEffect(() => {
         if (!isOpen || !isEditMode || !editContestId) {
@@ -164,6 +175,10 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                         false,
                     is_organization_only: detail.isOrganizationOnly || false,
                 });
+                const orgId = (detail as any)?.organization_id ?? (detail as any)?.organizationId ?? null;
+                if (orgId != null) {
+                    setResolvedOrganizationId(orgId);
+                }
             } catch {
                 setError('대회 상세 정보를 불러오지 못했습니다.');
             }
@@ -233,12 +248,24 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
         }, 300);
     };
 
-    const normalizeContestProblemOrder = (items: Problem[]) => (
-        items.map((problem, index) => ({
-            ...problem,
-            displayId: String(index + 1),
-        }))
-    );
+    const ensureDisplayIds = (items: Problem[]) => {
+        const used = new Set<string>();
+        const nextId = () => {
+            let i = 1;
+            while (used.has(String(i))) i += 1;
+            return String(i);
+        };
+        return items.map((problem) => {
+            const current = (problem as any).displayId ?? (problem as any)._id;
+            if (current && !used.has(String(current))) {
+                used.add(String(current));
+                return { ...problem, displayId: String(current) };
+            }
+            const assigned = nextId();
+            used.add(assigned);
+            return { ...problem, displayId: assigned };
+        });
+    };
 
     const handleAddProblem = (problem: Problem) => {
         if (contestProblems.some((p) => p.id === problem.id)) {
@@ -246,15 +273,28 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
             return;
         }
 
-        setContestProblems((prev) => normalizeContestProblemOrder([...prev, problem]));
+        setContestProblems((prev) => ensureDisplayIds([...prev, problem]));
         setProblemInput('');
         setProblemSearch({ results: [], loading: false, error: null });
         setProblemMessage({ success: '문제를 추가했습니다.' });
     };
 
-    const handleDeleteProblem = (problemId: number) => {
+    const handleDeleteProblem = async (problemId: number) => {
+        if (isEditMode && editContestId) {
+            try {
+                const hasSubmission = await contestService.hasContestProblemSubmission(editContestId, problemId);
+                if (hasSubmission) {
+                    setProblemMessage({ error: '제출 기록이 있는 문제는 삭제할 수 없습니다.' });
+                    return;
+                }
+            } catch (err: any) {
+                setProblemMessage({ error: err?.message || '문제 삭제 가능 여부를 확인하지 못했습니다.' });
+                return;
+            }
+        }
+
         const updated = contestProblems.filter((p) => p.id !== problemId);
-        setContestProblems(normalizeContestProblemOrder(updated));
+        setContestProblems(updated);
         setProblemMessage({ success: '문제를 삭제했습니다.' });
     };
 
@@ -273,11 +313,17 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
 
         dragItemRef.current = null;
         dragOverItemRef.current = null;
-        setContestProblems(normalizeContestProblemOrder(next));
+        setContestProblems(next);
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        const extractErrorMessage = (err: any, fallback: string) =>
+            err?.response?.data?.detail?.message ||
+            err?.response?.data?.message ||
+            err?.message ||
+            fallback;
 
         if (!formData.start_time || !formData.end_time) {
             setError('시작 시간과 종료 시간을 입력해주세요.');
@@ -302,6 +348,18 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                 ? formData.allowed_ip_ranges.split(',').map((ip) => ip.trim()).filter((ip) => ip.length > 0)
                 : [];
 
+            const organizationIdForPayload =
+                resolvedOrganizationId ??
+                (initialData as AdminContest | undefined)?.organization_id ??
+                organizationId ??
+                null;
+
+            if (isAdmin && (!organizationIdForPayload || organizationIdForPayload <= 0)) {
+                setError('organization_id를 확인할 수 없습니다. 다시 시도해주세요.');
+                setLoading(false);
+                return;
+            }
+
             if (isAdmin) {
                 const payload = {
                     title: formData.title,
@@ -318,12 +376,20 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                     languages: formData.languages,
                     problems: contestProblems.map((p, index) => ({
                         problem_id: p.id,
-                        display_id: String(index + 1),
+                        display_id: (p as any).displayId ?? (p as any)._id ?? String(index + 1),
                     })),
+                    organization_id: organizationIdForPayload!,
                 };
 
                 if (isEditMode && editContestId) {
-                    await adminService.updateContest({ ...payload, id: editContestId, password: formData.password || null });
+                    const { problems, ...metaPayload } = payload;
+                    await adminService.updateContest({
+                        ...metaPayload,
+                        id: editContestId,
+                        password: formData.password || null,
+                        organization_id: organizationIdForPayload!,
+                    });
+                    await adminService.updateContestProblems(editContestId, contestProblems);
                 } else {
                     await adminService.createContest(payload);
                 }
@@ -344,12 +410,14 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                     organization_id: organizationId!,
                     problems: contestProblems.map((p, index) => ({
                         problem_id: p.id,
-                        display_id: String(index + 1),
+                        display_id: (p as any).displayId ?? (p as any)._id ?? String(index + 1),
                     })),
                 };
 
                 if (isEditMode && editContestId) {
-                    await contestService.update(editContestId, dataToSubmit);
+                    const { problems, ...metaPayload } = dataToSubmit;
+                    await contestService.update(editContestId, metaPayload);
+                    await contestService.updateContestProblems(editContestId, contestProblems);
                 } else {
                     await contestService.create(dataToSubmit);
                 }
@@ -357,7 +425,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
 
             onSuccess();
         } catch (err: any) {
-            setError(err?.message || (isEditMode ? '대회 수정에 실패했습니다.' : '대회 생성에 실패했습니다.'));
+            setError(extractErrorMessage(err, isEditMode ? '대회 수정에 실패했습니다.' : '대회 생성에 실패했습니다.'));
         } finally {
             setLoading(false);
         }
@@ -381,27 +449,8 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                 <h3 className="text-2xl font-bold leading-6 tracking-tight text-gray-900 dark:text-slate-100" id="modal-title">
                                     {isEditMode ? '대회 수정' : '새 대회 생성'}
                                 </h3>
-                                <div className="mt-5 flex gap-2 border-b border-gray-100 dark:border-slate-700">
-                                    <button
-                                        type="button"
-                                        className={`border-b-2 px-1 py-2 text-sm font-semibold ${activeTab === 'basic'
-                                            ? 'border-blue-600 text-blue-700 dark:text-blue-400'
-                                            : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-                                            }`}
-                                        onClick={() => setActiveTab('basic')}
-                                    >
-                                        기본 정보
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className={`border-b-2 px-1 py-2 text-sm font-semibold ${activeTab === 'problems'
-                                            ? 'border-blue-600 text-blue-700 dark:text-blue-400'
-                                            : 'border-transparent text-gray-500 dark:text-slate-400 hover:text-gray-700 dark:hover:text-slate-200'
-                                            }`}
-                                        onClick={() => setActiveTab('problems')}
-                                    >
-                                        문제 관리
-                                    </button>
+                                <div className="mt-5 mb-4 text-sm text-gray-500 dark:text-slate-400">
+                                    {activeTab === 'basic' ? '대회 기본 정보를 수정합니다.' : '대회에 포함될 문제를 관리합니다.'}
                                 </div>
 
                                 {error && (
@@ -617,7 +666,18 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                                                         onDragOver={(event) => event.preventDefault()}
                                                                     >
                                                                         <td className="px-3 py-2 text-sm text-gray-700 dark:text-slate-300">{index + 1}</td>
-                                                                        <td className="px-3 py-2 text-sm text-gray-800 dark:text-slate-100">{problem.title}</td>
+                                                                        <td className="px-3 py-2 text-sm text-gray-800 dark:text-slate-100">
+                                                                            <button
+                                                                                type="button"
+                                                                                className="text-left w-full hover:text-blue-600 dark:hover:text-blue-300 underline underline-offset-2 decoration-dashed"
+                                                                                onClick={() => {
+                                                                                    setEditingProblemId(problem.id);
+                                                                                    setIsProblemCreateModalOpen(true);
+                                                                                }}
+                                                                            >
+                                                                                {problem.title}
+                                                                            </button>
+                                                                        </td>
                                                                         <td className="px-3 py-2 text-right">
                                                                             <button
                                                                                 type="button"
@@ -666,9 +726,14 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
             </div>
             <ProblemRegistrationModal
                 isOpen={isProblemCreateModalOpen}
-                onClose={() => setIsProblemCreateModalOpen(false)}
+                editProblemId={editingProblemId}
+                onClose={() => {
+                    setIsProblemCreateModalOpen(false);
+                    setEditingProblemId(undefined);
+                }}
                 onSuccess={async (created?: { problemId: number; title?: string }) => {
                     setIsProblemCreateModalOpen(false);
+                    setEditingProblemId(undefined);
                     if (created && created.problemId) {
                         setProblemMessage({ success: '문제를 생성했습니다. 대회에 자동 추가 중입니다...' });
                         try {
@@ -697,7 +762,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                 };
                                 setContestProblems((prev) => {
                                     if (prev.some((p) => p.id === normalizedProblem.id)) return prev;
-                                    return normalizeContestProblemOrder([...prev, normalizedProblem]);
+                                    return ensureDisplayIds([...prev, normalizedProblem]);
                                 });
                             }
 
@@ -705,6 +770,20 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                             setProblemMessage({ success: `'${newProblemDetail.title}' 문제를 자동으로 추가했습니다.` });
                         } catch {
                             setProblemMessage({ error: '문제 생성 후 자동 추가에 실패했습니다.' });
+                        }
+                    } else if (editingProblemId && isEditMode && editContestId) {
+                        // 문제 수정 후 리스트 새로고침
+                        try {
+                            const refreshed = await adminService.getContestProblems(editContestId);
+                            const sorted = (Array.isArray(refreshed) ? refreshed : []).sort((a, b) => {
+                                const aId = Number(a.displayId) || 0;
+                                const bId = Number(b.displayId) || 0;
+                                return aId - bId;
+                            });
+                            setContestProblems(sorted);
+                            setProblemMessage({ success: '문제 정보를 업데이트했습니다.' });
+                        } catch {
+                            setProblemMessage({ error: '문제 수정 후 목록 갱신에 실패했습니다.' });
                         }
                     } else {
                         setProblemMessage({ success: '문제가 등록/수정되었습니다.' });

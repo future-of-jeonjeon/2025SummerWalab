@@ -63,7 +63,18 @@ const fetchContestProblemStats = async (contestId: number, problemIds: number[])
   return result;
 };
 
-
+const getSubmissionCount = (stat: ContestProblemStat | undefined) => {
+  if (!stat) return 0;
+  const candidates = [
+    stat.submission_count,
+    stat.submissionCount,
+  ];
+  for (const v of candidates) {
+    const n = Number(v);
+    if (Number.isFinite(n)) return n;
+  }
+  return 0;
+};
 
 const mapContest = (raw: any): Contest => ({
   id: raw.id,
@@ -140,6 +151,23 @@ export const contestService = {
       throw new Error('MS_API_BASE not defined');
     }
     await apiClient.delete(`${MICRO_API_BASE}/contest/${contestId}`);
+  },
+
+  updateContestProblems: async (contestId: number, problems: Problem[]): Promise<void> => {
+    if (!MICRO_API_BASE) {
+      throw new Error('MS_API_BASE not defined');
+    }
+    const payload = problems.map((p, index) => ({
+      problem_id: p.id,
+      display_id: p.displayId ?? (p as any)._id ?? String(index + 1),
+    }));
+    await apiClient.put(`${MICRO_API_BASE}/contest/${contestId}/problems`, payload);
+  },
+
+  hasContestProblemSubmission: async (contestId: number, problemId: number): Promise<boolean> => {
+    const stats = await fetchContestProblemStats(contestId, [problemId]);
+    const entry = stats.get(problemId);
+    return getSubmissionCount(entry) > 0;
   },
   // 대회 목록 조회
   getContests: async (params?: {

@@ -10,10 +10,11 @@ from app.core.logger import logger
 from app.core.redis import get_polling_task
 from app.execution.schemas import RunCodeRequest
 from app.pending.models import PendingTargetType
-from app.problem.models import Problem
+from app.problem.models import Problem, ProblemTag
 from app.problem.schemas import *
 from app.user.schemas import UserProfile
 from app.problem import utils
+from app.problem.schemas import ProblemDetailResponse
 
 import app.execution.service as execution_service
 import app.pending.service as pending_service
@@ -367,6 +368,66 @@ async def _validate_solution_code(
         if user_output.strip() != expected_output.strip():
             problem_exceptions.test_case_not_match(cases.get("input", ""), cases.get("output", ""), user_output)
     return True
+
+
+async def get_problem_detail(problem_id: int, db: AsyncSession) -> ProblemDetailResponse:
+    problem = await problem_repository.find_problem_with_tags_by_id(problem_id, db)
+    if not problem:
+        problem_exceptions.problem_not_found()
+
+    tags = problem.tags or []
+    tag_payload = [{"id": t.id, "name": t.name} for t in tags]
+    io_mode = problem.io_mode if isinstance(problem.io_mode, dict) else {"io_mode": "standard", "input": "input.txt", "output": "output.txt"}
+    template = problem.template if isinstance(problem.template, dict) else {}
+    samples = problem.samples or []
+
+    return ProblemDetailResponse(
+        id=problem.id,
+        _id=problem._id,
+        title=problem.title,
+        description=problem.description,
+        time_limit=problem.time_limit,
+        memory_limit=problem.memory_limit,
+        create_time=problem.create_time,
+        last_update_time=problem.last_update_time,
+        created_by_id=problem.created_by_id,
+        rule_type=problem.rule_type,
+        visible=problem.visible,
+        difficulty=problem.difficulty,
+        total_score=problem.total_score or 0,
+        submission_number=problem.submission_number or 0,
+        accepted_number=problem.accepted_number or 0,
+        test_case_score=problem.test_case_score or [],
+        status=None,
+        tags=tag_payload,
+        input_description=problem.input_description,
+        output_description=problem.output_description,
+        samples=samples,
+        languages=problem.languages or [],
+        template=template,
+        hint=problem.hint,
+        source=problem.source,
+        io_mode=io_mode,
+        is_public=problem.visible,
+        test_case_id=problem.test_case_id
+    )
+
+
+async def _process_tags(db: AsyncSession, tags: list[str]) -> list[ProblemTag]:
+    processed: list[ProblemTag] = []
+    seen = set()
+    for raw in tags or []:
+        if not isinstance(raw, str):
+            continue
+        name = raw.strip()
+        if not name:
+            continue
+        if name in seen:
+            continue
+        seen.add(name)
+        tag = await problem_repository.get_or_create_tag(db, name)
+        processed.append(tag)
+    return processed
 
 
 async def get_filter_sorted_problems(
