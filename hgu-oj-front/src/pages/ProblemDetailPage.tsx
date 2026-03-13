@@ -51,6 +51,12 @@ const HtmlWithMath = React.memo(({ html, className }: { html?: string | null; cl
             ],
             throwOnError: false
           });
+          // 모든 링크를 새 창에서 열리도록 처리
+          const anchors = containerRef.current.querySelectorAll('a[href]');
+          anchors.forEach((a) => {
+            a.setAttribute('target', '_blank');
+            a.setAttribute('rel', 'noopener noreferrer');
+          });
         }
       }).catch(err => {
         console.error("Failed to load katex auto-render", err);
@@ -365,6 +371,11 @@ export const ProblemDetailPage: React.FC = () => {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const contestTimeOffsetRef = useRef(0);
+
+  // 다른 문제로 이동 시 항상 문제 설명 탭으로 리셋
+  useEffect(() => {
+    setActiveSection('description');
+  }, [problem?.id]);
 
   const [alertModal, setAlertModal] = useState<{
     isOpen: boolean;
