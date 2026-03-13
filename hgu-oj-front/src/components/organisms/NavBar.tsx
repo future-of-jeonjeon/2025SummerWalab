@@ -16,6 +16,27 @@ const formatTimeAgo = (dateString: string) => {
   return `${Math.floor(diffInSeconds / 86400)}일 전`;
 };
 
+const getCategoryPath = (category: string, payload?: any) => {
+  if (payload?.link) return payload.link;
+  switch (category) {
+    case 'ORGANIZATION': return '/organizations';
+    case 'WORKBOOK': return '/workbooks';
+    case 'PROBLEM': return '/problems';
+    case 'SYSTEM':
+    default: return '/';
+  }
+};
+
+const getCategoryLabel = (category: string) => {
+  switch (category) {
+    case 'ORGANIZATION': return '단체';
+    case 'WORKBOOK': return '문제집';
+    case 'PROBLEM': return '문제';
+    case 'SYSTEM': return '시스템';
+    default: return '알림';
+  }
+};
+
 export const NavBar: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
@@ -164,7 +185,19 @@ export const NavBar: React.FC = () => {
                 </span>
                 <div className="relative" ref={dropdownRef}>
                   <button
-                    onClick={() => setIsNotificationOpen(!isNotificationOpen)}
+                    onClick={async () => {
+                      const newIsOpen = !isNotificationOpen;
+                      setIsNotificationOpen(newIsOpen);
+                      if (newIsOpen && unreadCount > 0) {
+                        try {
+                          await notificationService.markAllAsRead();
+                          setUnreadCount(0);
+                          setNotifications(notifications.map(n => ({ ...n, is_checked: true })));
+                        } catch (error) {
+                          console.error('Failed to mark notifications as read', error);
+                        }
+                      }
+                    }}
                     className="relative p-2 text-gray-400 hover:text-gray-500 dark:text-slate-400 dark:hover:text-slate-200 transition-colors focus:outline-none"
                   >
                     <span className="sr-only">알림 보기</span>
@@ -191,27 +224,36 @@ export const NavBar: React.FC = () => {
                         {notifications.length > 0 ? (
                           <ul className="divide-y divide-gray-100 dark:divide-slate-800 w-full">
                             {notifications.map(notification => (
-                              <li
-                                key={notification.id}
-                                className={`p-4 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors cursor-pointer ${!notification.is_checked ? 'bg-blue-50/30 dark:bg-blue-900/20' : ''}`}
-                                onClick={() => {
-                                  setIsNotificationOpen(false);
-                                  if (notification.payload?.link) {
-                                    navigate(notification.payload.link);
-                                  }
-                                }}
-                              >
-                                <div className="flex gap-3">
-                                  <div className="flex-1 space-y-1">
-                                    <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{notification.payload?.title || '알림'}</p>
-                                    <p className="text-xs text-gray-500 dark:text-slate-400">{notification.payload?.message || ''}</p>
-                                    <p className="text-[10px] text-gray-400 dark:text-slate-500 mt-1">{formatTimeAgo(notification.created_time)}</p>
+                                <li
+                                  key={notification.id}
+                                  className={`p-4 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors cursor-pointer ${!notification.is_checked ? 'bg-blue-50/30 dark:bg-blue-900/20' : ''}`}
+                                  onClick={() => {
+                                    setIsNotificationOpen(false);
+                                    const path = getCategoryPath(notification.category, notification.payload);
+                                    if (path) {
+                                      navigate(path);
+                                    }
+                                  }}
+                                >
+                                  <div className="flex gap-3">
+                                    <div className="flex-1 space-y-1">
+                                      <div className="flex justify-between items-start">
+                                        <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 tracking-wider">
+                                          {getCategoryLabel(notification.category)}
+                                        </span>
+                                        <span className="text-[10px] text-gray-400 dark:text-slate-500">
+                                          {formatTimeAgo(notification.created_time)}
+                                        </span>
+                                      </div>
+                                      <p className="text-sm font-medium text-gray-900 dark:text-slate-100 mt-1">
+                                        {notification.payload?.message || notification.payload?.title || '새 알림이 있습니다.'}
+                                      </p>
+                                    </div>
+                                    {!notification.is_checked && (
+                                      <div className="w-2 h-2 rounded-full bg-blue-600 mt-1.5 flex-shrink-0"></div>
+                                    )}
                                   </div>
-                                  {!notification.is_checked && (
-                                    <div className="w-2 h-2 rounded-full bg-blue-600 mt-1.5 flex-shrink-0"></div>
-                                  )}
-                                </div>
-                              </li>
+                                </li>
                             ))}
                           </ul>
                         ) : (

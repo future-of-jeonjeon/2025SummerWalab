@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.notification.models import NotificationCategory
 from app.organization.models import Organization
 from app.organization.schemas import OrganizationResponse
 from app.pending.models import PendingStatus, Pending, PendingTargetType
@@ -15,6 +16,7 @@ import app.problem.repository as problem_repo
 import app.pending.repository as pending_repo
 import app.user.repository as user_repo
 import app.workbook.service as workbook_service
+import app.notification.service as notification_service
 import app.workbook.repository as workbook_repo
 import app.organization.repository as organization_repo
 import app.pending.exceptions as pending_exception
@@ -54,10 +56,18 @@ async def process_pending(
         pending_exception.pending_has_expired()
     pending.status = status
     if status == PendingStatus.DONE:
-        await _pending_pipeline(pending.target_type, pending.target_id, db)
+        target_name = await _pending_pipeline(pending.target_type, pending.target_id, db)
         pending.completed_at = datetime.now(timezone.utc)
         pending.completed_user_id = request_user.user_id
 
+        message = f"[{target_name}] 승인 완료" if target_name else f"{korean_target} 승인 완료"
+
+        await notification_service.create_notification(
+            message=message,
+            user_id=pending.created_user_id,
+            category=_notification_category_from_target(pending.target_type),
+            db=db,
+        )
     return None
 
 
@@ -83,7 +93,6 @@ async def get_pending(
                 completed_user_id=pending.completed_user_id,
             )
         )
-
     return PendingPaginationResponse(
         items=items,
         total=data.total,
@@ -95,14 +104,32 @@ async def get_pending(
 ########################################################################################################################
 # pending process
 
+def _notification_category_from_target(target_type: PendingTargetType) -> NotificationCategory:
+    if target_type == PendingTargetType.PROBLEM:
+        return NotificationCategory.PROBLEM
+    if target_type == PendingTargetType.WORKBOOK:
+        return NotificationCategory.WORKBOOK
+    if target_type == PendingTargetType.Organization:
+        return NotificationCategory.ORGANIZATION
+    return NotificationCategory.SYSTEM
+
+def _get_korean_target_name(target_type: PendingTargetType) -> str:
+    if target_type == PendingTargetType.PROBLEM:
+        return "문제"
+    if target_type == PendingTargetType.WORKBOOK:
+        return "문제집"
+    if target_type == PendingTargetType.Organization:
+        return "단체"
+    return str(target_type.value)
+
 async def _pending_pipeline(target_type: PendingTargetType, target_id: int, db: AsyncSession):
     if target_type == PendingTargetType.PROBLEM:
-        await _problem_pending_pass(target_id, db)
+        return await _problem_pending_pass(target_id, db)
     if target_type == PendingTargetType.WORKBOOK:
-        await _workbook_pending_pass(target_id, db)
+        return await _workbook_pending_pass(target_id, db)
     if target_type == PendingTargetType.Organization:
-        await _organization_pending_pass(target_id, db)
-    return
+        return await _organization_pending_pass(target_id, db)
+    return None
 
 
 async def _problem_pending_pass(problem_id: int, db: AsyncSession):
@@ -110,14 +137,15 @@ async def _problem_pending_pass(problem_id: int, db: AsyncSession):
     if not problem:
         problem_exception.problem_not_found()
     problem.visible = True
-    return
+    return problem.title
+
 
 async def _organization_pending_pass(organization_id: int, db: AsyncSession):
-    organization: Organization = await organization_repo.find_by_id (organization_id, db)
+    organization: Organization = await organization_repo.find_by_id(organization_id, db)
     if not organization:
         organization_exception.organization_not_found()
     organization.visible = True
-    return
+    return organization.name
 
 
 async def _workbook_pending_pass(workbook_id: int, db: AsyncSession):
@@ -125,7 +153,8 @@ async def _workbook_pending_pass(workbook_id: int, db: AsyncSession):
     if not workbook:
         workbook_exception.workbook_not_found()
     workbook.is_public = True
-    return
+    return workbook.title
+
 
 ########################################################################################################################
 

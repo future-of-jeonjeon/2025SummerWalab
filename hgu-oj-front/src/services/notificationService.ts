@@ -7,6 +7,7 @@ export interface NotificationResponse {
     message?: string;
     [key: string]: any;
   };
+  category: string;
   created_time: string;
   is_checked: boolean;
 }
@@ -21,4 +22,7 @@ export const notificationService = {
 
   getUnreadCount: () =>
     api.get<NotificationCheckResponse>(`${MS_API_BASE}/notification/check`),
+
+  markAllAsRead: () =>
+    api.post(`${MS_API_BASE}/notification/read`),
 };
