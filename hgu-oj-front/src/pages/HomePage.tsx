@@ -50,7 +50,13 @@ export const HomePage: React.FC = () => {
     isLoading: recentProblemsLoading,
   } = useQuery({
     queryKey: ['home', 'recent-problems'],
-    queryFn: () => problemService.getProblems({ page: 1, limit: 5 }),
+    queryFn: () =>
+      problemService.getMicroProblemList({
+        page: 1,
+        limit: 5,
+        sortField: 'number',
+        sortOrder: 'desc',
+      }),
     staleTime: 60 * 1000,
   });
 

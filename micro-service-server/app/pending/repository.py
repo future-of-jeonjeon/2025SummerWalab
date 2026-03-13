@@ -13,3 +13,10 @@ async def find_by_id(pending_id: int, db: AsyncSession):
 async def find_all_by_type(target_type: PendingTargetType, db: AsyncSession, page: int = 1, size: int = 20):
     stmt = select(Pending).where(Pending.target_type == target_type)
     return await paginate(db, stmt, page, size)
+
+
+async def save(entity:Pending, db:AsyncSession):
+    db.add(entity)
+    await db.flush()
+    await db.refresh(entity)
+    return entity

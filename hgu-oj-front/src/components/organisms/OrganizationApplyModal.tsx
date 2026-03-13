@@ -4,7 +4,7 @@ import { useMutation } from '@tanstack/react-query';
 import { organizationService } from '../../services/organizationService';
 import { uploadService } from '../../services/uploadService';
 import { Button } from '../atoms/Button';
-import { OrganizationApplicationPayload } from '../../types';
+import { OrganizationPayload } from '../../types';
 
 interface OrganizationApplyModalProps {
     isOpen: boolean;
@@ -12,7 +12,7 @@ interface OrganizationApplyModalProps {
 }
 
 export const OrganizationApplyModal: React.FC<OrganizationApplyModalProps> = ({ isOpen, onClose }) => {
-    const [formData, setFormData] = useState<OrganizationApplicationPayload>({
+    const [formData, setFormData] = useState<OrganizationPayload>({
         name: '',
         description: '',
         img_url: '',
@@ -21,7 +21,7 @@ export const OrganizationApplyModal: React.FC<OrganizationApplyModalProps> = ({ 
     const [uploadingLogo, setUploadingLogo] = useState(false);
 
     const mutation = useMutation({
-        mutationFn: organizationService.createApply,
+        mutationFn: organizationService.create,
         onSuccess: () => {
             alert('단체 신청이 완료되었습니다. 관리자 승인 후 생성됩니다.');
             onClose();

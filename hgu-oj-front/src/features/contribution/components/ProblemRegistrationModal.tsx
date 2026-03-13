@@ -12,6 +12,7 @@ interface ProblemRegistrationModalProps {
     onClose: () => void;
     onSuccess: (created?: { problemId: number; title?: string }) => void;
     editProblemId?: number;
+    readOnly?: boolean;
 }
 
 type ProblemFormState = {
@@ -51,7 +52,7 @@ const initialFormState: ProblemFormState = {
 };
 
 export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> = ({
-    isOpen, onClose, onSuccess, editProblemId
+    isOpen, onClose, onSuccess, editProblemId, readOnly = false
 }) => {
     const [formState, setFormState] = useState<ProblemFormState>(initialFormState);
     const [samples, setSamples] = useState<Array<{ input: string; output: string }>>([
@@ -209,6 +210,7 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (readOnly) return;
         setMessage({});
 
         if (!testCaseId) {
@@ -316,7 +318,7 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                         <div className="sm:flex sm:items-start">
                             <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
                                 <h3 className="text-2xl font-bold leading-6 text-gray-900 dark:text-slate-100 tracking-tight mb-6" id="modal-title">
-                                    {editProblemId ? '문제 수정' : '새 문제 등록'}
+                                    {readOnly ? '문제 정보' : (editProblemId ? '문제 수정' : '새 문제 등록')}
                                 </h3>
 
                                 {message.error && (
@@ -337,6 +339,7 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                                 )}
 
                                 <form onSubmit={handleSubmit} className="space-y-6">
+                                    <fieldset disabled={readOnly} className="space-y-6 disabled:opacity-90">
                                     <div className="space-y-6">
                                         {/* Title Section */}
                                         <Input
@@ -668,16 +671,19 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                                             업로드 완료 (ID: {testCaseId})
                                         </div>}
                                     </div>
+                                    </fieldset>
                                 </form>
                             </div>
                         </div>
                     </div>
                     <div className="bg-gray-50/80 dark:bg-slate-800 px-8 py-5 sm:flex sm:flex-row-reverse border-t border-gray-100 dark:border-slate-800">
-                        <Button onClick={handleSubmit} disabled={loading} className="w-full sm:ml-3 sm:w-auto">
-                            {loading ? (editProblemId ? '수정 중...' : '등록 중...') : (editProblemId ? '수정하기' : '등록하기')}
-                        </Button>
+                        {!readOnly && (
+                            <Button onClick={handleSubmit} disabled={loading} className="w-full sm:ml-3 sm:w-auto">
+                                {loading ? (editProblemId ? '수정 중...' : '등록 중...') : (editProblemId ? '수정하기' : '등록하기')}
+                            </Button>
+                        )}
                         <Button onClick={onClose} variant="outline" className="mt-3 w-full sm:mt-0 sm:ml-3 sm:w-auto">
-                            취소
+                            {readOnly ? '닫기' : '취소'}
                         </Button>
                     </div>
                 </div>

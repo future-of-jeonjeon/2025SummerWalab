@@ -18,6 +18,7 @@ from app.user.routes import router as user_router
 from app.rank.routes import router as rank_router
 from app.todo.routes import router as todo_router
 from app.contribute.routes import router as contribute_router
+from app.pending.routes import router as pending_router
 
 api_router = APIRouter()
 
@@ -38,3 +39,4 @@ api_router.include_router(rank_router)
 api_router.include_router(todo_router)
 api_router.include_router(contribute_router)
 api_router.include_router(notification_router)
+api_router.include_router(pending_router)

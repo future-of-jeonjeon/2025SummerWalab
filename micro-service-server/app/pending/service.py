@@ -1,10 +1,12 @@
 from datetime import datetime, timezone
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.organization.models import Organization
+from app.organization.schemas import OrganizationResponse
 from app.pending.models import PendingStatus, Pending, PendingTargetType
 from app.pending.schemas import PendingResponse, PendingPaginationResponse
 from app.problem.models import Problem
 from app.problem.schemas import ProblemResponse
-from app.user.models import DEFAULT_LANGUAGE_PREFERENCES
 from app.user.schemas import UserProfile, UserProfileResponse
 from app.workbook.models import Workbook
 from app.workbook.schemas import WorkbookResponse
@@ -14,10 +16,26 @@ import app.pending.repository as pending_repo
 import app.user.repository as user_repo
 import app.workbook.service as workbook_service
 import app.workbook.repository as workbook_repo
+import app.organization.repository as organization_repo
 import app.pending.exceptions as pending_exception
 import app.problem.exceptions as problem_exception
 import app.workbook.exceptions as workbook_exception
+import app.organization.exceptions as organization_exception
 import app.user.exceptions as user_exception
+
+
+async def create_pending(
+        target_type: PendingTargetType,
+        target_id: int,
+        request_user: UserProfile,
+        db: AsyncSession):
+    entity = Pending(
+        status=PendingStatus.IN_PROGRESS,
+        target_type=target_type,
+        target_id=target_id,
+        created_user_id=request_user.user_id,
+    )
+    return await pending_repo.save(entity, db)
 
 
 async def process_pending(
@@ -54,10 +72,10 @@ async def get_pending(
         created_user_data = await _to_user_profile_response(pending.created_user_id, db)
         items.append(
             PendingResponse(
+                pending_id=pending.id,
                 status=pending.status,
                 target_type=pending.target_type,
                 target_id=pending.target_id,
-                title=pending.title,
                 due_at=pending.due_at,
                 created_user_data=created_user_data,
                 target_data=await _to_target_data(pending.target_type, pending.target_id, db),
@@ -82,6 +100,8 @@ async def _pending_pipeline(target_type: PendingTargetType, target_id: int, db: 
         await _problem_pending_pass(target_id, db)
     if target_type == PendingTargetType.WORKBOOK:
         await _workbook_pending_pass(target_id, db)
+    if target_type == PendingTargetType.Organization:
+        await _organization_pending_pass(target_id, db)
     return
 
 
@@ -92,14 +112,22 @@ async def _problem_pending_pass(problem_id: int, db: AsyncSession):
     problem.visible = True
     return
 
+async def _organization_pending_pass(organization_id: int, db: AsyncSession):
+    organization: Organization = await organization_repo.find_by_id (organization_id, db)
+    if not organization:
+        organization_exception.organization_not_found()
+    organization.visible = True
+    return
+
 
 async def _workbook_pending_pass(workbook_id: int, db: AsyncSession):
     workbook: Workbook = await workbook_repo.find_by_id(workbook_id, db)
     if not workbook:
         workbook_exception.workbook_not_found()
-    workbook.visible = True
+    workbook.is_public = True
     return
 
+########################################################################################################################
 
 async def _to_user_profile_response(user_id: int, db: AsyncSession) -> UserProfileResponse:
     user = await user_repo.find_user_by_id(user_id, db)
@@ -134,5 +162,11 @@ async def _to_target_data(target_type: PendingTargetType, target_id: int, db: As
         if user:
             await workbook_service._enrich_workbook(workbook, user.username)
         return WorkbookResponse.model_validate(workbook)
+
+    if target_type == PendingTargetType.Organization:
+        organization = await organization_repo.find_by_id(target_id, db)
+        if not organization:
+            return None
+        return OrganizationResponse.from_orm(organization)
 
     return None

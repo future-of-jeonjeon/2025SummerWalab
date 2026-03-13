@@ -326,6 +326,12 @@ export const adminService = {
     };
   },
 
+  getWorkbook: async (id: number): Promise<Workbook> => {
+    const response = await apiClient.get<Workbook | { data: Workbook }>(buildWorkbookUrl(`/${id}`));
+    const payload: any = response.data;
+    return (payload && typeof payload === 'object' && 'data' in payload ? payload.data : payload) as Workbook;
+  },
+
   deleteWorkbook: async (id: number): Promise<void> => {
     await apiClient.delete(buildWorkbookUrl(`/${id}`));
   },
@@ -388,7 +394,7 @@ export const adminService = {
   searchAdminProblems: async ({ keyword, limit = 20, offset = 0 }: AdminProblemListParams = {}): Promise<Problem[]> => {
     const page = Math.floor(offset / limit) + 1;
     const baseUrl = getMsBaseUrl();
-    const response = await apiClient.get<any>(`${baseUrl}/problem/contest/search`, {
+    const response = await apiClient.get<any>(`${baseUrl}/problem/available`, {
       params: {
         page,
         size: limit,

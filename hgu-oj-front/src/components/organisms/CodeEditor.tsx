@@ -900,11 +900,19 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
                   <div className="h-full overflow-auto space-y-2">
                     {executionResult ? (
                       <>
-                        <div className={`text-sm ${isDarkTheme ? 'text-slate-200' : 'text-gray-700'}`}>
-                          <span className="mr-3">상태: <span className={`font-mono ${executionResult.status === 'SUCCESS' ? 'text-green-500' : executionResult.status === 'TIMEOUT' ? 'text-orange-500' : 'text-red-500'}`}>{executionResult.status}</span></span>
-                          <span className="mr-3">시간: <span className="font-mono">{executionResult.executionTime}ms</span></span>
-                          <span>메모리: <span className="font-mono">{executionResult.memoryUsage}KB</span></span>
-                        </div>
+                        {(() => {
+                          const kb = executionResult.memoryUsage;
+                          if (kb == null || Number.isNaN(kb)) return null;
+                          const mb = kb / 1024;
+                          const rounded = Number.isFinite(mb) ? Math.round(mb * 10) / 10 : mb;
+                          return (
+                            <div className={`text-sm ${isDarkTheme ? 'text-slate-200' : 'text-gray-700'}`}>
+                              <span className="mr-3">상태: <span className={`font-mono ${executionResult.status === 'SUCCESS' ? 'text-green-500' : executionResult.status === 'TIMEOUT' ? 'text-orange-500' : 'text-red-500'}`}>{executionResult.status}</span></span>
+                              <span className="mr-3">시간: <span className="font-mono">{executionResult.executionTime}ms</span></span>
+                              <span>메모리: <span className="font-mono">{rounded}MB</span></span>
+                            </div>
+                          );
+                        })()}
                         {executionResult.output && (
                           <div>
                             <div className="text-sm font-medium mb-1">stdout</div>

@@ -543,7 +543,7 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
     );
   }
   // 제출 상세 테이블 레이아웃 설정
-  const baseColumnsPx = [64, 90, 56, 56]; // 순위, 유저(전체 이름 표시 위해 확대), 해결, 점수
+  const baseColumnsPx = [64, 140, 56, 56]; // 순위, 유저(이름/학번), 해결, 점수
   const problemColumnWidth = 58;
   const gapPx = 8;
   const TABLE_OUTER_MAX = 1000; // 표 전체 컨테이너 고정폭
@@ -642,12 +642,16 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
                       }}
                       className={`text-center w-full focus:outline-none ${hoveredRow === index ? 'bg-gray-50 dark:bg-slate-800/60' : 'bg-white dark:bg-slate-900'}`}
                     >
-                      <div className="text-sm font-medium text-gray-900 hover:underline dark:text-slate-100">
-                        {entry.user.realName || entry.user.username}
+                      <div className="flex flex-col items-center leading-tight">
+                        <div className="text-sm font-medium text-gray-900 hover:underline dark:text-slate-100 whitespace-nowrap truncate max-w-[120px]">
+                          {entry.user.realName || entry.user.username}
+                        </div>
+                        {entry.user.studentId && (
+                          <div className="text-xs text-gray-500 dark:text-slate-400 whitespace-nowrap truncate max-w-[120px]">
+                            {entry.user.studentId}
+                          </div>
+                        )}
                       </div>
-                      {entry.user.studentId && (
-                        <div className="text-xs text-gray-500 dark:text-slate-400">{entry.user.studentId}</div>
-                      )}
                     </button>
                     <div className="text-center text-sm text-gray-700 dark:text-slate-300">
                       {(entry.acceptedNumber ?? 0)}/{problemList.length}

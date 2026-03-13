@@ -1,13 +1,11 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import { useProblems } from '../hooks/useProblems';
 import { Problem, ProblemFilter } from '../types';
 import { ProblemList } from '../components/organisms/ProblemList';
 import { useProblemStore } from '../stores/problemStore';
 import { useAuthStore } from '../stores/authStore';
 import { PROBLEM_STATUS_LABELS } from '../constants/problemStatus';
-import { problemService } from '../services/problemService';
 import CommonPagination from '../components/common/CommonPagination';
 import { normalizeDifficulty } from '../lib/difficulty';
 import { resolveProblemStatus } from '../utils/problemStatus';
@@ -35,13 +33,6 @@ export const ProblemListPage: React.FC = () => {
 
   const { data, isLoading, error } = useProblems(filter);
   const microProblems = useMemo(() => (data?.data ?? []) as Problem[], [data?.data]);
-  const {
-    data: tagCountsData,
-    isLoading: isTagCountsLoading,
-  } = useQuery({
-    queryKey: ['problem', 'tag-counts'],
-    queryFn: ({ signal }) => problemService.getTagCounts({ signal }),
-  });
 
   const handleProblemClick = (problemId: number) => {
     if (!Number.isFinite(problemId) || problemId <= 0) return;
@@ -158,6 +149,9 @@ export const ProblemListPage: React.FC = () => {
     };
 
     const getNumericOrder = (problem: Problem) => {
+      if (Number.isFinite(problem.id)) {
+        return Number(problem.id);
+      }
       const identifier = String(problem.displayId ?? problem._id ?? problem.id ?? '');
       const numericOnly = identifier.replace(/[^0-9]/g, '');
       return numericOnly ? Number(numericOnly) : Number.MAX_SAFE_INTEGER;
@@ -209,13 +203,20 @@ export const ProblemListPage: React.FC = () => {
   ]);
 
   const tagStats = useMemo(() => {
-    return (tagCountsData ?? [])
-      .map(({ tag, count }) => ({
-        name: tag,
-        count,
-      }))
+    const counts = new Map<string, number>();
+    for (const problem of microProblems) {
+      const tags = extractProblemTags(problem);
+      for (const tag of tags) {
+        const normalized = tag.trim();
+        if (!normalized) continue;
+        counts.set(normalized, (counts.get(normalized) ?? 0) + 1);
+      }
+    }
+
+    return Array.from(counts.entries())
+      .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
-  }, [tagCountsData]);
+  }, [microProblems]);
 
   const handlePageChange = (page: number) => {
     setFilter({ page });
@@ -277,9 +278,6 @@ export const ProblemListPage: React.FC = () => {
                 <svg className="w-5 h-5 text-gray-500 dark:text-slate-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"></path></svg>
                 카테고리
               </h3>
-              {isTagCountsLoading && (
-                <div className="text-sm text-gray-500 dark:text-slate-400 mb-3">태그를 불러오는 중입니다...</div>
-              )}
               <div className="space-y-3">
                 <label className="flex items-center justify-between cursor-pointer group">
                   <div className="flex items-center">

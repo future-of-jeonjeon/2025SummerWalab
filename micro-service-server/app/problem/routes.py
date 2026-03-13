@@ -120,7 +120,6 @@ async def get_filter_sorted_problems(
 
 
 @router.get("/available", response_model=ProblemListResponse)
-@require_role("Admin", "OrganizationAdmin", "User")
 async def get_available_problems(
         keyword: Optional[str] = Query(None),
         page: int = Query(1, ge=1),

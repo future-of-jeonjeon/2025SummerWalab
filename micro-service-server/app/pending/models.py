@@ -28,8 +28,6 @@ class Pending(Base, BaseEntity):
     status: Mapped[PendingStatus] = mapped_column(SAEnum(PendingStatus), index=True)
     target_type: Mapped[PendingTargetType] = mapped_column(SAEnum(PendingTargetType), index=True)
     target_id: Mapped[int] = mapped_column(BigInteger, index=True)
-
-    title: Mapped[str] = mapped_column(String(200))
     due_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
 
     created_user_id: Mapped[int] = mapped_column(BigInteger, index=True)

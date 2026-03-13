@@ -139,7 +139,7 @@ async def find_problem_by_id(problem_id: int, session: AsyncSession) -> Optional
     return await session.get(Problem, problem_id)
 
 
-async def create_problem(session: AsyncSession, problem: Problem) -> Problem:
+async def save(session: AsyncSession, problem: Problem) -> Problem:
     session.add(problem)
     await session.flush()
     await session.refresh(problem)
@@ -276,7 +276,7 @@ async def find_filtered_problems(
         "number": Problem._id,
         "submission": Problem.submission_number,
         "accuracy": (Problem.accepted_number * 1.0) / func.nullif(Problem.submission_number, 0),
-        "id": Problem._id,
+        "id": Problem.id,
         "submission_count": Problem.submission_number,
         "accuracy_rate": (Problem.accepted_number * 1.0) / func.nullif(Problem.submission_number, 0),
     }.get(sort_option or "title", Problem.title)
@@ -304,6 +304,25 @@ async def find_solved_problems_user_id(
         .where(Submission.contest_id.is_(None))
         .where(Submission.result == 0)
         .where(Submission.problem_id.in_(problem_ids))
+        .distinct()
+    )
+    result = await db.execute(stmt)
+    return [int(problem_id) for problem_id in result.scalars().all()]
+
+async def find_attempted_problems_user_id(
+    user_id: int,
+    problem_ids: List[int],
+    db: AsyncSession,
+) -> List[int]:
+    if not problem_ids:
+        return []
+
+    stmt = (
+        select(Submission.problem_id)
+        .where(Submission.user_id == user_id)
+        .where(Submission.contest_id.is_(None))
+        .where(Submission.problem_id.in_(problem_ids))
+        .where(or_(Submission.result.is_(None), Submission.result != 0))
         .distinct()
     )
     result = await db.execute(stmt)
