@@ -98,7 +98,7 @@ class ProblemDetailResponse(ProblemResponse):
     test_case_score: Optional[List[Dict[str, Any]]] = []
 
 class ProblemListResponse(Page[ProblemSchema]):
-    problems: List[ProblemSchema] = Field(..., alias="items")
+    pass
 
 
 class ImportProblemSerializer(BaseModel):

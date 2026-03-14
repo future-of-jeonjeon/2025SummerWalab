@@ -11,6 +11,7 @@ type WorkbookModalProps = {
     mode: 'create' | 'edit';
     workbookId: number | null;
     onSuccess: () => void;
+    readOnly?: boolean;
 };
 
 type WorkbookFormState = {
@@ -42,7 +43,7 @@ type WorkbookProblemsState = {
     error: string | null;
 };
 
-export const WorkbookModal: React.FC<WorkbookModalProps> = ({ isOpen, onClose, mode, workbookId, onSuccess }) => {
+export const WorkbookModal: React.FC<WorkbookModalProps> = ({ isOpen, onClose, mode, workbookId, onSuccess, readOnly = false }) => {
     const [formState, setFormState] = useState<WorkbookFormState>(initialWorkbookForm);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{ success?: string; error?: string }>({});
@@ -60,31 +61,12 @@ export const WorkbookModal: React.FC<WorkbookModalProps> = ({ isOpen, onClose, m
     const loadWorkbookDetail = useCallback(async (id: number) => {
         setLoading(true);
         try {
-            // Assuming getWorkbookDetail exists or we use getWorkbooks and filter?
-            // adminService.getWorkbooks returns list. adminService.getWorkbookDetail might not exist?
-            // Let's check adminService.ts content.
-            // It seems getWorkbookDetail is not explicitly in the snippets I saw.
-            // But WorkbookManageSection used `loadWorkbooks` and then `fetchWorkbookProblems`.
-            // It seems I might need to fetch the list and find the item, or add getWorkbookDetail.
-            // For now, I'll assume I can get the detail from the list or I'll implement a fetch.
-            // Actually, let's just fetch the list and find it for now if API is missing, or better, add it.
-            // But I can't easily add API without backend.
-            // Let's look at WorkbookManageSection.tsx again.
-            // It iterates `workbookList` to find the selected one.
-            // So I might need to do the same or just pass the data if I had it.
-            // But `ContestModal` fetches detail.
-            // Let's assume I can fetch it. If not, I'll use a workaround.
-            // Wait, `adminService.getWorkbooks` returns `AdminWorkbook[]`.
-            // I'll use that for now.
-            const { results } = await adminService.getWorkbooks({ limit: 1000, page: 1 });
-            const workbook = results.find(w => w.id === id);
-            if (workbook) {
-                setFormState({
-                    title: workbook.title,
-                    description: workbook.description || '',
-                    visible: workbook.is_public,
-                });
-            }
+            const workbook = await adminService.getWorkbook(id);
+            setFormState({
+                title: workbook.title,
+                description: workbook.description || '',
+                visible: workbook.is_public,
+            });
 
             // Load problems
             const workbookProblems = await adminService.getWorkbookProblems(id);
@@ -111,6 +93,7 @@ export const WorkbookModal: React.FC<WorkbookModalProps> = ({ isOpen, onClose, m
     }, [isOpen, mode, workbookId, loadWorkbookDetail]);
 
     const handleSearchProblem = (keyword: string) => {
+        if (readOnly) return;
         setProblemInput(keyword);
         if (problemSearchTimerRef.current) clearTimeout(problemSearchTimerRef.current);
 
@@ -131,6 +114,7 @@ export const WorkbookModal: React.FC<WorkbookModalProps> = ({ isOpen, onClose, m
     };
 
     const handleAddProblem = () => {
+        if (readOnly) return;
         if (!selectedProblem) return;
         const normalizedDisplayId = (problemDisplayId.trim() || getNextDisplayId(workbookProblems.items)).trim();
         if (!normalizedDisplayId) return;
@@ -157,6 +141,7 @@ export const WorkbookModal: React.FC<WorkbookModalProps> = ({ isOpen, onClose, m
     };
 
     const handleRemoveProblem = (problemId: number) => {
+        if (readOnly) return;
         setWorkbookProblems(prev => ({
             ...prev,
             items: prev.items.filter(p => p.id !== problemId)
@@ -165,6 +150,7 @@ export const WorkbookModal: React.FC<WorkbookModalProps> = ({ isOpen, onClose, m
 
     const handleSubmit = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
+        if (readOnly) return;
         if (!formState.title.trim()) {
             setMessage({ error: '제목을 입력해주세요.' });
             return;
@@ -212,7 +198,7 @@ export const WorkbookModal: React.FC<WorkbookModalProps> = ({ isOpen, onClose, m
             <div className="flex h-[90vh] w-full max-w-4xl flex-col rounded-lg bg-white dark:bg-slate-900 shadow-xl border border-gray-200 dark:border-slate-700">
                 <div className="flex items-center justify-between border-b border-gray-200 dark:border-slate-700 px-6 py-4">
                     <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100">
-                        {mode === 'create' ? '문제집 등록' : '문제집 수정'}
+                        {readOnly ? '문제집 정보' : (mode === 'create' ? '문제집 등록' : '문제집 수정')}
                     </h2>
                     <button onClick={onClose} className="text-gray-400 dark:text-slate-500 hover:text-gray-500 dark:hover:text-slate-300">
                         <span className="sr-only">Close</span>
@@ -243,72 +229,75 @@ export const WorkbookModal: React.FC<WorkbookModalProps> = ({ isOpen, onClose, m
 
                     {activeTab === 'basic' && (
                         <form id="workbook-form" onSubmit={handleSubmit} className="space-y-4">
-                            <Input label="제목" value={formState.title} onChange={e => setFormState({ ...formState, title: e.target.value })} required />
-                            <div>
-                                <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">설명</label>
-                                <textarea className="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 px-3 py-2" rows={5} value={formState.description} onChange={e => setFormState({ ...formState, description: e.target.value })} />
-                            </div>
-                            <label className="flex items-center gap-2 text-gray-900 dark:text-slate-100"><input type="checkbox" checked={formState.visible} onChange={e => setFormState({ ...formState, visible: e.target.checked })} /> 공개</label>
+                            <fieldset disabled={readOnly} className="space-y-4 disabled:opacity-90">
+                                <Input label="제목" value={formState.title} onChange={e => setFormState({ ...formState, title: e.target.value })} required />
+                                <div>
+                                    <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">설명</label>
+                                    <textarea className="w-full rounded-md border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 text-gray-900 dark:text-slate-100 px-3 py-2" rows={5} value={formState.description} onChange={e => setFormState({ ...formState, description: e.target.value })} />
+                                </div>
+                            </fieldset>
                         </form>
                     )}
 
                     {activeTab === 'problems' && (
                         <div className="space-y-4">
-                            <div className="flex gap-2">
-                                <div className="relative flex-1">
-                                    <Input
-                                        placeholder="문제 검색 (제목)"
-                                        value={problemInput}
-                                        onChange={e => handleSearchProblem(e.target.value)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                e.preventDefault();
-                                                handleAddProblem();
-                                            }
-                                        }}
-                                    />
-                                    {problemSearch.results.length > 0 && (
-                                        <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg">
-                                            {problemSearch.results.map(p => (
-                                                <li key={p.id} className="cursor-pointer px-4 py-2 text-sm text-gray-900 dark:text-slate-100 hover:bg-gray-100 dark:hover:bg-slate-800" onClick={() => {
-                                                    setSelectedProblem(p);
-                                                    setProblemInput(p.title);
-                                                    setProblemDisplayId(problemDisplayId.trim() || getNextDisplayId(workbookProblems.items));
-                                                    setProblemSearch({ results: [], loading: false, error: null });
-                                                }}>
-                                                    {p.title}
-                                                </li>
-                                            ))}
-                                        </ul>
-                                    )}
+                            {!readOnly && (
+                                <div className="flex gap-2">
+                                    <div className="relative flex-1">
+                                        <Input
+                                            placeholder="문제 검색 (제목)"
+                                            value={problemInput}
+                                            onChange={e => handleSearchProblem(e.target.value)}
+                                            onKeyDown={(e) => {
+                                                if (e.key === 'Enter') {
+                                                    e.preventDefault();
+                                                    handleAddProblem();
+                                                }
+                                            }}
+                                        />
+                                        {problemSearch.results.length > 0 && (
+                                            <ul className="absolute z-10 mt-1 max-h-48 w-full overflow-auto rounded-md border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-lg">
+                                                {problemSearch.results.map(p => (
+                                                    <li key={p.id} className="cursor-pointer px-4 py-2 text-sm text-gray-900 dark:text-slate-100 hover:bg-gray-100 dark:hover:bg-slate-800" onClick={() => {
+                                                        setSelectedProblem(p);
+                                                        setProblemInput(p.title);
+                                                        setProblemDisplayId(problemDisplayId.trim() || getNextDisplayId(workbookProblems.items));
+                                                        setProblemSearch({ results: [], loading: false, error: null });
+                                                    }}>
+                                                        {p.title}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                    </div>
+                                    <div className="w-32">
+                                        <Input
+                                            placeholder="표시 ID"
+                                            value={problemDisplayId}
+                                            onChange={e => setProblemDisplayId(e.target.value)}
+                                        />
+                                    </div>
+                                    <Button onClick={handleAddProblem} disabled={!selectedProblem}>추가</Button>
                                 </div>
-                                <div className="w-32">
-                                    <Input
-                                        placeholder="표시 ID"
-                                        value={problemDisplayId}
-                                        onChange={e => setProblemDisplayId(e.target.value)}
-                                    />
-                                </div>
-                                <Button onClick={handleAddProblem} disabled={!selectedProblem}>추가</Button>
-                            </div>
+                            )}
 
                             <div className="rounded-md border border-gray-200 dark:border-slate-700">
                                 <table className="min-w-full divide-y divide-gray-200 dark:divide-slate-700">
                                     <thead className="bg-gray-50 dark:bg-slate-800">
                                         <tr>
-                                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400">ID</th>
                                             <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-slate-400">Title</th>
-                                            <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-slate-400">Action</th>
+                                            {!readOnly && <th className="px-4 py-2 text-right text-xs font-medium text-gray-500 dark:text-slate-400">Action</th>}
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-gray-200 dark:divide-slate-700 bg-white dark:bg-slate-900">
                                         {workbookProblems.items.map(p => (
                                             <tr key={p.id}>
-                                                <td className="px-4 py-2 text-sm text-gray-700 dark:text-slate-300">{p.displayId ?? p.id}</td>
                                                 <td className="px-4 py-2 text-sm text-gray-700 dark:text-slate-300">{p.title}</td>
-                                                <td className="px-4 py-2 text-right text-sm">
-                                                    <ActionIconButtons onDelete={() => handleRemoveProblem(p.id)} deleteTitle={`문제 ${p.id} 삭제`} />
-                                                </td>
+                                                {!readOnly && (
+                                                    <td className="px-4 py-2 text-right text-sm">
+                                                        <ActionIconButtons onDelete={() => handleRemoveProblem(p.id)} deleteTitle={`문제 ${p.id} 삭제`} />
+                                                    </td>
+                                                )}
                                             </tr>
                                         ))}
                                     </tbody>
@@ -319,10 +308,12 @@ export const WorkbookModal: React.FC<WorkbookModalProps> = ({ isOpen, onClose, m
                 </div>
 
                 <div className="border-t border-gray-200 dark:border-slate-700 px-6 py-4 text-right bg-white dark:bg-slate-900">
-                    <Button variant="outline" onClick={onClose} className="mr-2">취소</Button>
-                    <Button onClick={handleSubmit} loading={loading}>
-                        {mode === 'create' ? '등록' : '저장'}
-                    </Button>
+                    <Button variant="outline" onClick={onClose} className="mr-2">{readOnly ? '닫기' : '취소'}</Button>
+                    {!readOnly && (
+                        <Button onClick={handleSubmit} loading={loading}>
+                            {mode === 'create' ? '등록' : '저장'}
+                        </Button>
+                    )}
                 </div>
             </div>
         </div>

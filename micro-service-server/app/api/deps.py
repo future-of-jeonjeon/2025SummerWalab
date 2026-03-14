@@ -1,5 +1,6 @@
 import os
 from typing import AsyncGenerator
+from contextlib import asynccontextmanager
 
 from app.core.logger import logger
 from fastapi import Request, Depends
@@ -25,6 +26,7 @@ async def get_database() -> AsyncGenerator[AsyncSession, None]:
             await session.rollback()
             raise
 
+@asynccontextmanager
 async def get_background_database() -> AsyncGenerator[AsyncSession, None]:
     async with SessionLocal() as session:
         try:

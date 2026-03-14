@@ -7,6 +7,7 @@ import { contestService } from '../services/contestService';
 import { workbookService } from '../services/workbookService';
 import { PROBLEM_STATUS_LABELS, PROBLEM_SUMMARY_LABELS } from '../constants/problemStatus';
 import { resolveProblemStatus } from '../utils/problemStatus';
+import { getDifficultyMeta } from '../lib/difficulty';
 import { CodeEditor } from '../components/organisms/CodeEditor';
 import { Button } from '../components/atoms/Button';
 import { AlertModal } from '../components/molecules/AlertModal';
@@ -50,6 +51,12 @@ const HtmlWithMath = React.memo(({ html, className }: { html?: string | null; cl
               { left: "\\[", right: "\\]", display: true }
             ],
             throwOnError: false
+          });
+          // 모든 링크를 새 창에서 열리도록 처리
+          const anchors = containerRef.current.querySelectorAll('a[href]');
+          anchors.forEach((a) => {
+            a.setAttribute('target', '_blank');
+            a.setAttribute('rel', 'noopener noreferrer');
           });
         }
       }).catch(err => {
@@ -365,6 +372,11 @@ export const ProblemDetailPage: React.FC = () => {
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
 
   const contestTimeOffsetRef = useRef(0);
+
+  // 다른 문제로 이동 시 항상 문제 설명 탭으로 리셋
+  useEffect(() => {
+    setActiveSection('description');
+  }, [problem?.id]);
 
   const [alertModal, setAlertModal] = useState<{
     isOpen: boolean;
@@ -850,6 +862,22 @@ export const ProblemDetailPage: React.FC = () => {
     return normalized === 'AC' || normalized === 'ACCEPTED' || normalized === '0' || Boolean(problem?.solved);
   }, [rawProblemStatus, problem?.solved]);
 
+  const headerAttemptState = useMemo(() => {
+    if (isProblemSolved) return 'solved' as const;
+    if (rawProblemStatus && String(rawProblemStatus).trim().length > 0) return 'wrong' as const;
+    return 'untouched' as const;
+  }, [isProblemSolved, rawProblemStatus]);
+
+  const difficultyMeta = useMemo(() => {
+    if (!problem) return null;
+    const raw =
+      (problem as any).difficulty ??
+      (problem as any).difficultyLevel ??
+      (problem as any).difficulty_level ??
+      (problem as any).level;
+    return getDifficultyMeta(raw);
+  }, [problem]);
+
   const isDarkTheme = editorTheme === 'dark';
 
   const contentPanelClasses = isDarkTheme
@@ -1168,7 +1196,9 @@ export const ProblemDetailPage: React.FC = () => {
     if (value == null || Number.isNaN(value)) return '-';
     const normalized = normalizeMemoryToKB(value);
     if (normalized == null || Number.isNaN(normalized)) return '-';
-    return `${normalized}KB`;
+    const mb = normalized / 1024;
+    const rounded = Number.isFinite(mb) ? Math.round(mb * 10) / 10 : mb;
+    return `${rounded}MB`;
   };
 
   const submissionListContent = !isAuthenticated ? (
@@ -1469,14 +1499,24 @@ export const ProblemDetailPage: React.FC = () => {
                   <div className="flex-1 flex flex-col gap-1">
                     <h1 className={`text-xl font-semibold flex items-center gap-2 ${headingTextClass}`}>
                       {problem.title}
-                      {isAuthenticated && isProblemSolved && (
-                        <span className="inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded bg-green-100 text-green-700">
-                          {PROBLEM_STATUS_LABELS.solved}
+                      {isAuthenticated && headerAttemptState !== 'untouched' && (
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded ${headerAttemptState === 'solved'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-red-100 text-red-700'
+                            }`}
+                        >
+                          {headerAttemptState === 'solved' ? PROBLEM_STATUS_LABELS.solved : PROBLEM_STATUS_LABELS.wrong}
                         </span>
                       )}
                     </h1>
                     <div className={`flex flex-wrap items-center gap-3 text-xs ${subtleTextClass}`}>
                       <span>시간 {problem.timeLimit}ms · 메모리 {problem.memoryLimit}MB</span>
+                      {!contestContextId && difficultyMeta && (
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold ${difficultyMeta.className}`}>
+                          {difficultyMeta.label}
+                        </span>
+                      )}
                       {problemAuthorName && <span>작성자 {problemAuthorName}</span>}
                     </div>
                   </div>
@@ -1733,7 +1773,6 @@ export const ProblemDetailPage: React.FC = () => {
         isSubmissionModalOpen && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
-            onClick={closeSubmissionModal}
           >
             <div
               className={`max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-lg shadow-xl ${isDarkTheme ? 'bg-slate-900 text-slate-100 border border-slate-700' : 'bg-white text-gray-900'}`}

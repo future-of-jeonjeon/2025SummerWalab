@@ -61,6 +61,9 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
     const [activeTab, setActiveTab] = useState<'basic' | 'problems'>(initialTab);
     const [problemMessage, setProblemMessage] = useState<{ success?: string; error?: string }>({});
     const [isProblemCreateModalOpen, setIsProblemCreateModalOpen] = useState(false);
+    const [problemImportLoading, setProblemImportLoading] = useState(false);
+    const [problemImportProgress, setProblemImportProgress] = useState<{ processed: number; total: number } | null>(null);
+    const problemImportFileRef = useRef<HTMLInputElement | null>(null);
 
     const [formData, setFormData] = useState({
         title: '',
@@ -390,6 +393,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                         organization_id: organizationIdForPayload!,
                     });
                     await adminService.updateContestProblems(editContestId, contestProblems);
+                    await adminService.reindexContestProblems(editContestId, contestProblems);
                 } else {
                     await adminService.createContest(payload);
                 }
@@ -418,6 +422,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                     const { problems, ...metaPayload } = dataToSubmit;
                     await contestService.update(editContestId, metaPayload);
                     await contestService.updateContestProblems(editContestId, contestProblems);
+                    await contestService.reindexContestProblems(editContestId, contestProblems);
                 } else {
                     await contestService.create(dataToSubmit);
                 }
@@ -437,7 +442,6 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                 <div
                     className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm transition-opacity"
                     aria-hidden="true"
-                    onClick={onClose}
                 />
 
                 <span className="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true">&#8203;</span>
@@ -588,7 +592,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
 
                                     {activeTab === 'problems' && (
                                         <div className="space-y-3 rounded-xl border border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-4">
-                                            <div className="flex items-center justify-between">
+                                            <div className="flex flex-wrap items-center justify-between gap-2">
                                                 <h4 className="text-sm font-semibold text-gray-800 dark:text-slate-200">문제 추가</h4>
                                                 <div className="flex items-center gap-2">
                                                     <Button
@@ -599,14 +603,102 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                                     >
                                                         문제 생성
                                                     </Button>
+                                                    <Button
+                                                        type="button"
+                                                        variant="ghost"
+                                                        className="text-xs"
+                                                        disabled={!isEditMode || !editContestId || problemImportLoading}
+                                                        onClick={() => {
+                                                            if (!isEditMode || !editContestId) {
+                                                                setProblemMessage({ error: '대회 생성 후에 문제를 불러올 수 있습니다.' });
+                                                                return;
+                                                            }
+                                                            problemImportFileRef.current?.click();
+                                                        }}
+                                                    >
+                                                        {problemImportLoading ? '불러오는 중...' : '문제 불러오기'}
+                                                    </Button>
+                                                    <input
+                                                        ref={problemImportFileRef}
+                                                        type="file"
+                                                        accept=".zip"
+                                                        className="hidden"
+                                                        onChange={async (event) => {
+                                                            const file = event.target.files?.[0];
+                                                            if (!file) return;
+                                                            if (!editContestId) {
+                                                                setProblemMessage({ error: '대회를 먼저 생성해야 합니다.' });
+                                                                return;
+                                                            }
+                                                            setProblemImportLoading(true);
+                                                            setProblemImportProgress({ processed: 0, total: 0 });
+                                                            setProblemMessage({});
+                                                            try {
+                                                                const displayIdStartPoint = contestProblems.reduce((max, item) => {
+                                                                    const candidate = Number(item.displayId ?? item.id);
+                                                                    if (!Number.isFinite(candidate)) return max;
+                                                                    return Math.max(max, candidate);
+                                                                }, 0) + 1;
+                                                                const { polling_key } = await adminService.importContestProblems(
+                                                                    editContestId,
+                                                                    file,
+                                                                    displayIdStartPoint,
+                                                                );
+                                                                let isPolling = true;
+                                                                while (isPolling) {
+                                                                    const status = await adminService.getProblemImportPolling(polling_key);
+                                                                    if (status.status === 'done') {
+                                                                        setProblemImportProgress({
+                                                                            processed: status.processed_problem ?? status.all_problem ?? 0,
+                                                                            total: status.all_problem ?? 0,
+                                                                        });
+                                                                        const refreshed = await adminService.getContestProblems(editContestId);
+                                                                        const sorted = (Array.isArray(refreshed) ? refreshed : []).sort((a, b) => {
+                                                                            const aId = Number(a.displayId) || 0;
+                                                                            const bId = Number(b.displayId) || 0;
+                                                                            return aId - bId;
+                                                                        });
+                                                                        setContestProblems(sorted);
+                                                                        setProblemMessage({ success: '문제를 불러왔습니다.' });
+                                                                        isPolling = false;
+                                                                    } else if (status.status === 'error') {
+                                                                        throw new Error(status.error_message || `문제 불러오기 실패: ${status.error_code || '알 수 없는 오류'}`);
+                                                                    } else {
+                                                                        setProblemImportProgress({
+                                                                            processed: status.processed_problem ?? 0,
+                                                                            total: status.all_problem ?? 0,
+                                                                        });
+                                                                        await new Promise((resolve) => setTimeout(resolve, 1000));
+                                                                    }
+                                                                }
+                                                            } catch (error) {
+                                                                const message = error instanceof Error ? error.message : '문제 불러오기에 실패했습니다.';
+                                                                setProblemMessage({ error: message });
+                                                                if (typeof window !== 'undefined') {
+                                                                    window.alert(message);
+                                                                }
+                                                            } finally {
+                                                                setProblemImportLoading(false);
+                                                                setProblemImportProgress(null);
+                                                                if (problemImportFileRef.current) {
+                                                                    problemImportFileRef.current.value = '';
+                                                                }
+                                                            }
+                                                        }}
+                                                    />
                                                 </div>
                                             </div>
                                             <>
 
                                                 {problemMessage.error && <div className="rounded-md bg-red-50 dark:bg-red-900/20 px-3 py-2 text-xs text-red-600 dark:text-red-300">{problemMessage.error}</div>}
                                                 {problemMessage.success && <div className="rounded-md bg-green-50 dark:bg-emerald-900/20 px-3 py-2 text-xs text-green-600 dark:text-emerald-300">{problemMessage.success}</div>}
+                                                {problemImportLoading && problemImportProgress && (
+                                                    <div className="rounded-md bg-blue-50 dark:bg-blue-900/20 px-3 py-2 text-xs text-blue-700 dark:text-blue-300">
+                                                        문제 불러오는 중... {problemImportProgress.processed}/{problemImportProgress.total}
+                                                    </div>
+                                                )}
 
-                                                <div className="grid gap-2 sm:grid-cols-[1fr_160px_auto]">
+                                                <div className="grid gap-2 sm:grid-cols-[1fr]">
                                                     <div className="relative">
                                                         <input
                                                             type="text"
@@ -633,10 +725,10 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                                             </ul>
                                                         )}
                                                     </div>
-                                                    <div className="text-xs text-gray-500 dark:text-slate-400 sm:col-span-2 sm:text-right">
-                                                        문제를 추가한 뒤 드래그해서 순서 배열 가능
-                                                    </div>
                                                 </div>
+                                                <p className="text-xs text-gray-500 dark:text-slate-400">
+                                                    문제를 추가한 뒤 드래그해서 순서 배열 가능
+                                                </p>
 
                                                 {contestProblems.length === 0 ? (
                                                     <p className="text-xs text-gray-500 dark:text-slate-400">등록된 문제가 없습니다.</p>

@@ -1,11 +1,14 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.common.page import Page
+from app.pending.models import PendingTargetType
 from app.user.schemas import UserProfile
 from app.workbook.models import Workbook, WorkbookProblem
 from app.workbook.schemas import WorkbookCreate, WorkbookUpdate, WorkbookResponse as WorkbookSchema, WorkbookResponse
 from typing import List, Optional
 from app.user import exceptions as user_exceptions
 from app.workbook import exceptions
+
+import app.pending.service as pending_service
 import app.user.repository as user_repo
 import app.workbook.repository as workbook_repo
 
@@ -15,21 +18,26 @@ async def create_workbook(
         user_profile: UserProfile,
         db: AsyncSession,
         problems_data: Optional[list[int]] = None,
-) -> Workbook:
-    user = await user_repo.find_user_by_username(db, user_profile.username)
+        is_admin: bool = False) -> WorkbookResponse:
+    user = await user_repo.find_user_by_id(user_profile.user_id, db)
     if not user:
         user_exceptions.user_not_found()
-    workbook = _create_workbook_by_data(workbook_data, user.id)
-    saved_workbook = await workbook_repo.save(workbook, db)
+    workbook = _create_workbook_by_data(workbook_data, user_profile.user_id)
+    workbook = await workbook_repo.save(workbook, db)
 
-    provided_problem_ids = problems_data if problems_data is not None else getattr(workbook_data, "problem_ids", [])
-    if provided_problem_ids:
-        await workbook_repo.update_problems(saved_workbook, provided_problem_ids, db)
-        refreshed = await workbook_repo.find_by_id(saved_workbook.id, db)
+    if not is_admin:
+        workbook.visible = False
+        await pending_service.create_pending(PendingTargetType.WORKBOOK, workbook.id, user_profile, db)
+        workbook = await workbook_repo.save(workbook, db)
+
+        provided_problem_ids = problems_data if problems_data is not None else getattr(workbook_data, "problem_ids", [])
+        if provided_problem_ids:
+            await workbook_repo.update_problems(workbook, provided_problem_ids, db)
+        refreshed = await workbook_repo.find_by_id(workbook.id, db)
         if refreshed:
-            saved_workbook = refreshed
+            workbook = refreshed
 
-    return saved_workbook
+    return WorkbookResponse.model_validate(workbook)
 
 
 async def get_workbook(workbook_id: int, user_profile: UserProfile, db: AsyncSession) -> Workbook:
@@ -46,41 +54,43 @@ async def get_workbook(workbook_id: int, user_profile: UserProfile, db: AsyncSes
 
 
 async def get_workbooks(
-    db: AsyncSession, 
-    page: int = 1, 
-    size: int = 20,
-    search: Optional[str] = None,
-    sort_by: Optional[str] = "created_time",
-    sort_order: Optional[str] = "desc",
-    category: Optional[str] = None,
-    tags: Optional[str] = None) -> Page[WorkbookResponse]:
+        db: AsyncSession,
+        page: int = 1,
+        size: int = 20,
+        search: Optional[str] = None,
+        sort_by: Optional[str] = "created_time",
+        sort_order: Optional[str] = "desc",
+        category: Optional[str] = None,
+        tags: Optional[str] = None) -> Page[WorkbookResponse]:
     workbooks_page = await workbook_repo.find_all_paginated(db, page, size, search, sort_by, sort_order, category, tags)
     for workbook in workbooks_page.items:
         user = await user_repo.find_user_by_id(workbook.created_by_id, db)
         if not user:
             user_exceptions.user_not_found()
-            
+
         await _enrich_workbook(workbook, user.username)
     return workbooks_page.map(WorkbookResponse.model_validate)
 
 
 async def get_public_workbooks(
-    db: AsyncSession, 
-    page: int = 1, 
-    size: int = 20,
-    search: Optional[str] = None,
-    sort_by: Optional[str] = "created_time",
-    sort_order: Optional[str] = "desc",
-    category: Optional[str] = None,
-    tags: Optional[str] = None) -> Page[WorkbookResponse]:
-    workbooks_page = await workbook_repo.find_public_paginated(db, page, size, search, sort_by, sort_order, category, tags)
+        db: AsyncSession,
+        page: int = 1,
+        size: int = 20,
+        search: Optional[str] = None,
+        sort_by: Optional[str] = "created_time",
+        sort_order: Optional[str] = "desc",
+        category: Optional[str] = None,
+        tags: Optional[str] = None) -> Page[WorkbookResponse]:
+    workbooks_page = await workbook_repo.find_public_paginated(db, page, size, search, sort_by, sort_order, category,
+                                                               tags)
     for workbook in workbooks_page.items:
         user = await user_repo.find_user_by_id(workbook.created_by_id, db)
         if not user:
             user_exceptions.user_not_found()
-            
+
         await _enrich_workbook(workbook, user.username)
     return workbooks_page.map(WorkbookResponse.model_validate)
+
 
 async def update_workbook(workbook_id: int, workbook_data: WorkbookUpdate, db: AsyncSession) -> Optional[Workbook]:
     workbook = await workbook_repo.find_by_id(workbook_id, db)
@@ -95,6 +105,7 @@ async def delete_workbook(workbook_id: int, db: AsyncSession):
     if not workbook:
         exceptions.workbook_not_found()
     await workbook_repo.delete(workbook, db)
+
 
 async def get_workbook_problems(workbook_id: int, user_profile: UserProfile, db: AsyncSession) -> List[WorkbookProblem]:
     workbook = await workbook_repo.find_by_id(workbook_id, db)
@@ -142,12 +153,13 @@ async def _enrich_workbook(workbook: Workbook, username: str):
     return workbook
 
 
-async def get_contributed_workbooks(user_profile: UserProfile, page: int, size: int, db: AsyncSession) -> Page[WorkbookSchema]:
+async def get_contributed_workbooks(user_profile: UserProfile, page: int, size: int, db: AsyncSession) -> Page[
+    WorkbookSchema]:
     workbooks_page = await workbook_repo.find_workbooks_by_creator_id(user_profile.user_id, page, size, db)
     for workbook in workbooks_page.items:
         user = await user_repo.find_user_by_id(workbook.created_by_id, db)
         if not user:
             user_exceptions.user_not_found()
-            
+
         await _enrich_workbook(workbook, user.username)
     return workbooks_page.map(WorkbookSchema.model_validate)

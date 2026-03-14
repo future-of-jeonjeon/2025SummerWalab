@@ -1,7 +1,7 @@
 from typing import List
 import enum
 
-from sqlalchemy import String, ForeignKey, UniqueConstraint, Index, Enum as SAEnum
+from sqlalchemy import String, ForeignKey, UniqueConstraint, Index, Enum as SAEnum, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship, backref
 
 from app.core.database import Base
@@ -22,7 +22,7 @@ class Organization(BaseEntity, Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     img_url: Mapped[str] = mapped_column(String(512), nullable=True)
     description: Mapped[str] = mapped_column(String(100), nullable=False)
-
+    visible: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     member_links: Mapped[List["OrganizationMember"]] = relationship(
         "OrganizationMember",
         back_populates="organization",

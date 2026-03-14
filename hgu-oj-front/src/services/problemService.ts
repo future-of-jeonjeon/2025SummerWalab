@@ -398,7 +398,7 @@ const fetchMicroProblemList = async (
     if (error?.name === 'AbortError') {
       throw error;
     }
-    return fetchOjProblemList(filter, options);
+    throw new Error(error?.message || '문제 목록을 불러오지 못했습니다.');
   }
 };
 
@@ -424,12 +424,7 @@ export const problemService = {
       const response = await apiClient.get<any>(`${MICRO_PROBLEM_DETAIL_ENDPOINT}/${problemId}`);
       return adaptProblem(response.data);
     }
-
-    const response = await api.get<any>('/problem', { problem_id: String(problemId) });
-    if (!response.success) {
-      throw new Error(response.message || '문제를 불러오지 못했습니다.');
-    }
-    return adaptProblem(response.data);
+    throw new Error('마이크로서비스 상세 조점 엔드포인트가 구성되지 않았습니다.');
   },
 
   // 문제 상태 맵 조회 (id -> Problem)
@@ -551,21 +546,6 @@ export const problemService = {
         if (status !== 404) {
           lastError = error;
         }
-      }
-    }
-
-    if (responseData === undefined) {
-      try {
-        const response = await apiClient.get('/problem/tags/', {
-          signal: options?.signal,
-        });
-        responseData = unwrapOjResponse<any>(response.data);
-        lastError = undefined;
-      } catch (error: any) {
-        if (error?.name === 'CanceledError' || error?.code === 'ERR_CANCELED') {
-          throw error;
-        }
-        throw new Error(error?.message || '태그 정보를 불러오지 못했습니다.');
       }
     }
 

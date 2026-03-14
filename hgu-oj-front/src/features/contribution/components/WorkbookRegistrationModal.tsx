@@ -14,13 +14,11 @@ interface WorkbookRegistrationModalProps {
 type WorkbookFormState = {
     title: string;
     description: string;
-    visible: boolean;
 };
 
 const initialWorkbookForm: WorkbookFormState = {
     title: '',
     description: '',
-    visible: true,
 };
 
 type WorkbookProblemsState = {
@@ -73,7 +71,6 @@ export const WorkbookRegistrationModal: React.FC<WorkbookRegistrationModalProps>
                 setFormState({
                     title: initialData.title,
                     description: initialData.description || '',
-                    visible: initialData.is_public,
                 });
                 setMessage({});
                 setActiveTab('basic');
@@ -170,7 +167,6 @@ export const WorkbookRegistrationModal: React.FC<WorkbookRegistrationModalProps>
                 await adminService.updateWorkbook(initialData.id, {
                     title: formState.title,
                     description: formState.description,
-                    is_public: formState.visible,
                 });
                 await adminService.updateWorkbookProblems(initialData.id, problemIds);
             } else {
@@ -178,7 +174,7 @@ export const WorkbookRegistrationModal: React.FC<WorkbookRegistrationModalProps>
                 await adminService.createWorkbook({
                     title: formState.title,
                     description: formState.description,
-                    is_public: formState.visible,
+                    is_public: false,
                     problemIds,
                 });
             }
@@ -198,7 +194,6 @@ export const WorkbookRegistrationModal: React.FC<WorkbookRegistrationModalProps>
                 <div
                     className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm transition-opacity"
                     aria-hidden="true"
-                    onClick={onClose}
                 ></div>
 
                 <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
@@ -261,18 +256,6 @@ export const WorkbookRegistrationModal: React.FC<WorkbookRegistrationModalProps>
                                         value={formState.description}
                                         onChange={e => setFormState({ ...formState, description: e.target.value })}
                                     />
-                                </div>
-                                <div className="flex items-center p-3 bg-gray-50 rounded-lg bg-white dark:bg-slate-900 border border-gray-100 dark:border-slate-800 w-fit">
-                                    <input
-                                        id="visible"
-                                        type="checkbox"
-                                        checked={formState.visible}
-                                        onChange={e => setFormState({ ...formState, visible: e.target.checked })}
-                                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded transition-colors"
-                                    />
-                                    <label htmlFor="visible" className="ml-2 block text-sm font-medium text-gray-900 dark:text-slate-100 cursor-pointer select-none">
-                                        공개 설정
-                                    </label>
                                 </div>
                             </div>
                         )}

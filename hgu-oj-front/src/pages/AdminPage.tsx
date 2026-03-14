@@ -4,20 +4,22 @@ import { Card } from '../components/atoms/Card';
 import { Button } from '../components/atoms/Button';
 import { useAuthStore } from '../stores/authStore';
 import { OrganizationManager } from '../components/admin/OrganizationManager';
-import { OrganizationApplyManager } from '../components/admin/OrganizationApplyManager';
 import { ContestManager } from '../components/admin/ContestManager';
 import { ServerAdminSection } from '../components/admin/ServerAdminSection';
 import { UserAdminSection } from '../components/admin/UserAdminSection';
 import { ProblemManager } from '../components/admin/ProblemManager';
 import { WorkbookManager } from '../components/admin/WorkbookManager';
 import { BulkProblemManager } from '../components/admin/BulkProblemManager';
+import { PendingApplyManager } from '../components/admin/PendingApplyManager';
 
 type AdminSection =
   | 'problem-list'
+  | 'problem-apply'
   | 'bulk'
   | 'contest'
   | 'contest-edit'
   | 'workbook'
+  | 'workbook-apply'
   | 'workbook-manage'
   | 'user'
   | 'server'
@@ -65,11 +67,13 @@ export const AdminPage: React.FC = () => {
       case 'organization':
         return <OrganizationManager />;
       case 'organization-apply':
-        return <OrganizationApplyManager />;
+        return <PendingApplyManager type="organization" />;
       case 'server':
         return <ServerAdminSection />;
       case 'problem-list':
         return <ProblemManager />;
+      case 'problem-apply':
+        return <PendingApplyManager type="problem" />;
       case 'bulk':
         return <BulkProblemManager />;
       case 'contest':
@@ -78,6 +82,8 @@ export const AdminPage: React.FC = () => {
       case 'workbook':
       case 'workbook-manage':
         return <WorkbookManager />;
+      case 'workbook-apply':
+        return <PendingApplyManager type="workbook" />;
       case 'user':
         return <UserAdminSection />;
       default:
@@ -89,10 +95,12 @@ export const AdminPage: React.FC = () => {
     switch (section) {
       case 'server': return 'Server';
       case 'problem-list':
+      case 'problem-apply':
       case 'bulk': return 'Problem';
       case 'contest':
       case 'contest-edit': return 'Contest';
       case 'workbook':
+      case 'workbook-apply':
       case 'workbook-manage': return 'Workbook';
       case 'user': return 'User';
       case 'organization-apply':
@@ -136,7 +144,7 @@ export const AdminPage: React.FC = () => {
                     const isExpanded = expandedCategory === 'problem';
                     setExpandedCategory(isExpanded ? null : 'problem');
                   }}
-                  className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-colors ${['problem-list', 'bulk'].includes(activeSection)
+                  className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-colors ${['problem-list', 'bulk', 'problem-apply'].includes(activeSection)
                     ? 'bg-blue-50 text-blue-700 dark:bg-sky-900/30 dark:text-sky-300'
                     : 'text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800'
                     }`}
@@ -153,7 +161,7 @@ export const AdminPage: React.FC = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
-                <div className={`transition-all duration-300 ease-in-out overflow-hidden ${expandedCategory === 'problem' ? 'max-h-48 opacity-100' : 'max-h-0 opacity-0'}`}>
+                <div className={`transition-all duration-300 ease-in-out overflow-hidden ${expandedCategory === 'problem' ? 'max-h-64 opacity-100' : 'max-h-0 opacity-0'}`}>
                   <div className="pl-6 pr-2 py-1 space-y-1">
                     <button
                       onClick={() => setActiveSection('problem-list')}
@@ -166,6 +174,12 @@ export const AdminPage: React.FC = () => {
                       className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${activeSection === 'bulk' ? 'bg-blue-50 text-blue-700 font-medium dark:bg-sky-900/30 dark:text-sky-300' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800'}`}
                     >
                       문제 등록 / 내보내기
+                    </button>
+                    <button
+                      onClick={() => setActiveSection('problem-apply')}
+                      className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${activeSection === 'problem-apply' ? 'bg-blue-50 text-blue-700 font-medium dark:bg-sky-900/30 dark:text-sky-300' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800'}`}
+                    >
+                      문제 신청 목록
                     </button>
                   </div>
                 </div>
@@ -214,7 +228,7 @@ export const AdminPage: React.FC = () => {
                     const isExpanded = expandedCategory === 'workbook';
                     setExpandedCategory(isExpanded ? null : 'workbook');
                   }}
-                  className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-colors ${['workbook', 'workbook-manage'].includes(activeSection)
+                  className={`w-full flex items-center justify-between px-4 py-3 text-sm font-medium rounded-lg transition-colors ${['workbook', 'workbook-manage', 'workbook-apply'].includes(activeSection)
                     ? 'bg-blue-50 text-blue-700 dark:bg-sky-900/30 dark:text-sky-300'
                     : 'text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800'
                     }`}
@@ -231,13 +245,19 @@ export const AdminPage: React.FC = () => {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
-                <div className={`transition-all duration-300 ease-in-out overflow-hidden ${expandedCategory === 'workbook' ? 'max-h-32 opacity-100' : 'max-h-0 opacity-0'}`}>
+                <div className={`transition-all duration-300 ease-in-out overflow-hidden ${expandedCategory === 'workbook' ? 'max-h-48 opacity-100' : 'max-h-0 opacity-0'}`}>
                   <div className="pl-6 pr-2 py-1 space-y-1">
                     <button
                       onClick={() => setActiveSection('workbook')}
                       className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${activeSection === 'workbook' ? 'bg-blue-50 text-blue-700 font-medium dark:bg-sky-900/30 dark:text-sky-300' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800'}`}
                     >
                       문제집 관리
+                    </button>
+                    <button
+                      onClick={() => setActiveSection('workbook-apply')}
+                      className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${activeSection === 'workbook-apply' ? 'bg-blue-50 text-blue-700 font-medium dark:bg-sky-900/30 dark:text-sky-300' : 'text-gray-600 dark:text-slate-400 hover:bg-gray-100 dark:hover:bg-slate-800'}`}
+                    >
+                      문제집 신청 목록
                     </button>
                   </div>
                 </div>

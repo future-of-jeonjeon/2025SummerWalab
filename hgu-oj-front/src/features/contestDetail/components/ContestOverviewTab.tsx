@@ -93,6 +93,7 @@ export const ContestOverviewTab: React.FC<ContestOverviewTabProps> = ({
 
   const { hasAccess, requiresPassword, accessLoading, password, passwordError, passwordPending, onPasswordChange, onPasswordSubmit } =
     accessState;
+  const isBeforeStart = contestPhase === 'before';
 
   return (
     <div className="flex flex-col gap-6">
@@ -195,9 +196,9 @@ export const ContestOverviewTab: React.FC<ContestOverviewTabProps> = ({
               <div className="space-y-2">
                 <h2 className="text-xl font-semibold text-emerald-800 dark:text-emerald-100">대회 참여 신청</h2>
                 <p className="text-sm text-emerald-700/80 dark:text-emerald-100/80">
-                  {contestPhase === 'running'
-                    ? '진행 중인 대회는 관리자 승인이 필요할 수 있습니다. 참여 신청 후 승인을 기다려 주세요.'
-                    : '진행 전 대회는 신청만 하면 자동으로 참가할 수 있습니다.'}
+                  {isBeforeStart
+                    ? '대회 시작 전에는 참여 신청과 비밀번호 입력이 비활성화됩니다. 시작 시간 이후 자동으로 활성화됩니다.'
+                    : '진행 중인 대회는 관리자 승인이 필요할 수 있습니다. 참여 신청 후 승인을 기다려 주세요.'}
                 </p>
                 {hasJoinedContest && !isPendingApproval && (
                   <span className="inline-flex items-center text-sm font-semibold text-emerald-700 dark:text-emerald-200">참여 신청이 완료되었습니다.</span>
@@ -212,15 +213,15 @@ export const ContestOverviewTab: React.FC<ContestOverviewTabProps> = ({
                     이전 신청이 거절되었습니다. 다시 신청하여 승인을 요청할 수 있습니다.
                   </span>
                 )}
-                {!hasJoinedContest && !isPendingApproval && isAuthenticated && (
+                {!hasJoinedContest && !isPendingApproval && isAuthenticated && !isBeforeStart && (
                   <span className="text-sm text-emerald-700 dark:text-emerald-200">
                     지금 신청하면 {contestPhase === 'running' ? '승인 후 바로 입장할 수 있습니다.' : '대회 시작 시 자동으로 입장할 수 있습니다.'}
                   </span>
                 )}
-                {showLoginPrompt && <span className="text-sm text-emerald-700 dark:text-emerald-200">로그인 후 참여 신청을 진행해 주세요.</span>}
+                {showLoginPrompt && !isBeforeStart && <span className="text-sm text-emerald-700 dark:text-emerald-200">로그인 후 참여 신청을 진행해 주세요.</span>}
               </div>
               <div className="flex flex-col items-start gap-2 sm:items-end">
-                {showJoinButton ? (
+                {showJoinButton && !isBeforeStart ? (
                   <Button onClick={onJoinClick} loading={joinActionDisabled} className="whitespace-nowrap px-5 py-2 text-base">
                     대회 참여하기
                   </Button>
@@ -229,7 +230,7 @@ export const ContestOverviewTab: React.FC<ContestOverviewTabProps> = ({
                     {isPendingApproval ? '승인 대기 중' : hasJoinedContest ? '참여 신청 완료' : '참여 신청 필요'}
                   </span>
                 )}
-                {showLoginPrompt && (
+                {showLoginPrompt && !isBeforeStart && (
                   <Button variant="outline" onClick={onNavigateLogin}>
                     로그인 하러 가기
                   </Button>
@@ -242,8 +243,8 @@ export const ContestOverviewTab: React.FC<ContestOverviewTabProps> = ({
                 참여 여부를 확인하는 중입니다.
               </div>
             )}
-            {membershipErrorMessage && <div className="mt-3 text-sm text-red-600 dark:text-red-300">{membershipErrorMessage}</div>}
-            {joinFeedback && (
+            {membershipErrorMessage && !isBeforeStart && <div className="mt-3 text-sm text-red-600 dark:text-red-300">{membershipErrorMessage}</div>}
+            {joinFeedback && !isBeforeStart && (
               <div className={`mt-3 text-sm ${joinFeedback.type === 'error' ? 'text-red-600 dark:text-red-300' : 'text-emerald-700 dark:text-emerald-200'}`}>
                 {joinFeedback.message}
               </div>
@@ -251,7 +252,7 @@ export const ContestOverviewTab: React.FC<ContestOverviewTabProps> = ({
           </Card>
         )}
 
-        {requiresPassword && !hasAccess && (
+        {requiresPassword && !hasAccess && !isBeforeStart && (
           <Card className="border border-blue-200/70 bg-blue-50/70 p-6 dark:border-blue-400/40 dark:bg-blue-900/20 dark:text-blue-100">
             <h2 className="text-xl font-semibold text-blue-800 dark:text-blue-100 mb-3">비밀번호 인증 필요</h2>
             <p className="text-sm text-blue-700/80 dark:text-blue-200/90 mb-4">이 대회는 비밀번호가 필요합니다. 비밀번호를 입력해 주세요.</p>

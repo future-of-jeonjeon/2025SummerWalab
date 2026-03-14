@@ -4,33 +4,57 @@ import uuid
 import zipfile
 from typing import Union
 from fastapi import UploadFile
-from sqlalchemy import asc, desc, case, cast, Float
 from sqlalchemy.ext.asyncio import AsyncSession
-
-import app.execution.service as execution_service
-import app.problem.exceptions as problem_exceptions
 from app.api.deps import get_background_database
+from app.contest.models import OrganizationContest, ContestLanguage
 from app.core.logger import logger
 from app.core.redis import get_polling_task
 from app.execution.schemas import RunCodeRequest
-from app.problem import repository as problem_repository
+from app.pending.models import PendingTargetType
 from app.problem.models import Problem, ProblemTag
 from app.problem.schemas import *
 from app.user.schemas import UserProfile
 from app.problem import utils
 from app.problem.schemas import ProblemDetailResponse
 
+import app.execution.service as execution_service
+import app.pending.service as pending_service
+import app.problem.repository as problem_repository
+import app.contest.repository as contest_repository
+import app.problem.exceptions as problem_exceptions
+import app.contest.exceptions as contest_exceptions
+
 POLLING_SESSION_TIME = 3600
+
+
+def _extract_error_code(exc: Exception) -> str:
+    detail = getattr(exc, "detail", None)
+    if isinstance(detail, dict):
+        return detail.get("code", "unknown_error")
+    return "unknown_error"
+
+
+def _extract_error_message(exc: Exception) -> str:
+    detail = getattr(exc, "detail", None)
+    if isinstance(detail, dict):
+        return detail.get("message", str(exc))
+    if isinstance(detail, list):
+        return "; ".join([str(item) for item in detail])
+    if detail is not None:
+        return str(detail)
+    return str(exc)
 
 
 async def create_problem(
         polling_key: str,
         request_data: ProblemCreateRequest,
         user_profile: UserProfile,
-        is_admin: bool):
+        is_admin: bool,
+        contest_id: int | None = None,
+        is_contest: bool = False):
     try:
         await _set_redis_polling_state(polling_key, "processing", 0, 1, 1)
-        async for db in get_background_database():
+        async with get_background_database() as db:
             await _validate_problem_request(request_data, db)
             info_json = utils.load_test_case_info(request_data.test_case_id)
             test_cases_info = info_json.get("test_cases", {})
@@ -41,17 +65,30 @@ async def create_problem(
             display_id = str(uuid.uuid4())
             problem = utils.create_problem_from_data(create_data, display_id, request_data.test_case_id, info_list)
             problem.created_by_id = user_profile.user_id
-            if not is_admin:
-                problem.visible = False
             if request_data.tags:
                 problem.tags = await _process_tags(db, request_data.tags)
-            await problem_repository.create_problem(db, problem)
+            if not is_admin:
+                problem.visible = False
+            problem = await problem_repository.save(db, problem)
+            if not is_admin and not is_contest:
+                await pending_service.create_pending(PendingTargetType.PROBLEM, problem.id, user_profile, db)
+            if not is_admin and is_contest:
+                problem = await _set_problem_contest_language(contest_id, problem, db)
         await _set_redis_polling_state(polling_key, "done", 1, 0, 1, problem_id=problem.id)
     except Exception as e:
         logger.error(f"Failed to create problem: {e}")
-        error_code = getattr(e, "detail", {}).get("code") if hasattr(e, "detail") else "unknown_error"
+        error_code = _extract_error_code(e)
         utils.remove_test_case_directory([request_data.test_case_id])
         await _set_redis_polling_state(polling_key, "error", 0, 1, 1, error_code)
+
+
+async def _set_problem_contest_language(contest_id: int, problem: Problem, db: AsyncSession) -> Problem:
+    contest_language: ContestLanguage = await contest_repository.find_contest_language_by_contest_id(contest_id, db)
+    if not contest_language:
+        contest_exceptions.contest_not_found()
+    problem.contest_id = contest_id
+    problem.languages = contest_language.languages
+    return problem
 
 
 async def update_problem(
@@ -62,7 +99,7 @@ async def update_problem(
         is_admin: bool):
     try:
         await _set_redis_polling_state(polling_key, "processing", 0, 1, 1)
-        async for db in get_background_database():
+        async with get_background_database() as db:
             problem = await problem_repository.find_problem_with_tags_by_id(problem_id, db)
             if not problem:
                 await _set_redis_polling_state(polling_key, "error", 0, 1, 1)
@@ -72,7 +109,7 @@ async def update_problem(
         await _set_redis_polling_state(polling_key, "done", 1, 0, 1, problem_id=problem.id)
     except Exception as e:
         logger.error(f"Failed to update problem: {e}")
-        error_code = getattr(e, "detail", {}).get("code") if hasattr(e, "detail") else "unknown_error"
+        error_code = _extract_error_code(e)
         if request_data.test_case_id and problem and request_data.test_case_id != problem.test_case_id:
             utils.remove_test_case_directory([request_data.test_case_id])
         await _set_redis_polling_state(polling_key, "error", 0, 1, 1, error_code)
@@ -146,6 +183,10 @@ async def _apply_problem_updates(problem: Problem, request_data: ProblemUpdateRe
     problem.last_update_time = datetime.now()
 
 
+async def _process_tags(db: AsyncSession, tags: List[str]):
+    return [await problem_repository.get_or_create_tag(db, tag) for tag in tags]
+
+
 async def _set_redis_polling_state(
         polling_key: str,
         status: str,
@@ -196,7 +237,10 @@ async def import_problem_from_file(
         file_contents: bytes,
         filename: str,
         user_profile: UserProfile,
-        is_admin: bool) -> str | None:
+        is_admin: bool,
+        contest_id: int | None = None,
+        display_id_start_point: int | None = None,
+        is_contest: bool = False) -> str | None:
     problems = []
     testcase_list = []
     redis = await get_polling_task()
@@ -205,7 +249,7 @@ async def import_problem_from_file(
         problem_exceptions.polling_not_found()
     status = ProblemImportPollingStatus.model_validate_json(raw)
     try:
-        async for db in get_background_database():
+        async with get_background_database() as db:
             if not file_contents:
                 logger.error("No zip file provided")
                 problem_exceptions.bad_zip_file()
@@ -230,7 +274,6 @@ async def import_problem_from_file(
                             if parsed_title:
                                 title_hint = str(parsed_title)
                         except Exception:
-                            # Keep import failure context best-effort only.
                             pass
 
                         context_prefix = f"[Problem {i + 1}/{len(md_paths)}]"
@@ -254,14 +297,22 @@ async def import_problem_from_file(
                 logger.info(f"Polling finished: {status}")
                 await _set_redis_polling_state(polling_key, "done", status.processed_problem, 0,
                                                status.all_problem)
+            if is_contest:
+                for offset, problem in enumerate(problems, start=0):
+                    problem._id = str(display_id_start_point + offset)
+                    problem.visible = False
+                    problem.contest_id = contest_id
+                    contest_language: ContestLanguage = await contest_repository.find_contest_language_by_contest_id(
+                        contest_id, db)
+                    problem.languages = contest_language.languages
             await problem_repository.create_problems(db, problems)
             logger.info(f"Successfully imported {len(problems)} problems")
             return problems
     except Exception as e:
         logger.error(f"Import failed: {e}")
         status.status = "error"
-        status.error_code = getattr(e, "detail", {}).get("code") if hasattr(e, "detail") else "unknown_error"
-        status.error_message = getattr(e, "detail", {}).get("message") if hasattr(e, "detail") else str(e)
+        status.error_code = _extract_error_code(e)
+        status.error_message = _extract_error_message(e)
         await _set_redis_polling_state(polling_key, "error", status.processed_problem, status.left_problem,
                                        status.all_problem, error_code=status.error_code,
                                        error_message=status.error_message)
@@ -352,7 +403,8 @@ async def get_problem_detail(problem_id: int, db: AsyncSession) -> ProblemDetail
 
     tags = problem.tags or []
     tag_payload = [{"id": t.id, "name": t.name} for t in tags]
-    io_mode = problem.io_mode if isinstance(problem.io_mode, dict) else {"io_mode": "standard", "input": "input.txt", "output": "output.txt"}
+    io_mode = problem.io_mode if isinstance(problem.io_mode, dict) else {"io_mode": "standard", "input": "input.txt",
+                                                                         "output": "output.txt"}
     template = problem.template if isinstance(problem.template, dict) else {}
     samples = problem.samples or []
 
@@ -442,10 +494,16 @@ async def get_filter_sorted_problems(
             db,
         )
         solved_set = set(solved_problem_ids)
+        attempted_problem_ids = await problem_repository.find_attempted_problems_user_id(
+            request_user.user_id,
+            problem_ids,
+            db,
+        )
+        attempted_set = set(attempted_problem_ids)
 
         items = [
             ProblemSchema.model_validate(problem, from_attributes=True).model_copy(
-                update={"status": 2 if problem.id in solved_set else 0}
+                update={"status": 2 if problem.id in solved_set else (1 if problem.id in attempted_set else 0)}
             )
             for problem in problems.items
         ]

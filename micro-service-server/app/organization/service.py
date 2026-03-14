@@ -1,33 +1,48 @@
 import uuid
 
 from app.core.redis import get_redis_manage_code
-from app.organization import exceptions
-from app.user import exceptions as user_exceptions
-from app.organization.models import Organization, OrganizationRole, OrganizationMember
+from app.pending.models import PendingTargetType
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.organization.schemas import OrganizationCreateRequest, OrganizationUpdateRequest, \
-    OrganizationMemberUpdateRequest, OrganizationResponse, OrganizationMemberResponse, OrganizationListResponse
+from app.organization.schemas import *
 from app.user.schemas import UserProfile
 from app.common.page import Page
 
+import app.user.exceptions as user_exceptions
+import app.organization.exceptions as organization_exception
+import app.pending.service as pending_service
 import app.organization.repository as organization_repo
 import app.user.repository as user_repo
+
 
 TTL_24_HOURS = 60 * 60 * 24
 
 
 async def create_organization(
         data: OrganizationCreateRequest,
+        request_user: UserProfile,
+        is_admin: bool,
         db: AsyncSession):
     organization = Organization(name=data.name, description=data.description, img_url=data.img_url)
-    saved_organization = await organization_repo.save(organization, db)
-    return OrganizationResponse.from_orm(saved_organization)
+    organization = await organization_repo.save(organization, db)
+    if not is_admin:
+        organization.visible = False
+        await pending_service.create_pending(PendingTargetType.Organization, organization.id, request_user, db)
+        organization = await organization_repo.save(organization, db)
+    org_member = OrganizationMember(
+        organization_id=organization.id,
+        user_id=request_user.user_id,
+        role=OrganizationRole.ORG_SUPER_ADMIN
+    )
+    await organization_repo.save_organization_member(org_member, db)
+    return OrganizationResponse.from_orm(organization)
 
 
 async def get_organization(
         organization_id: int,
         db: AsyncSession) -> OrganizationResponse:
     organization = await _get_organization_by_id(organization_id, db)
+    if not organization.visible:
+        organization_exception.organization_not_found()
     return OrganizationResponse.from_orm(organization)
 
 
@@ -35,7 +50,7 @@ async def list_organizations(
         page: int,
         size: int,
         db: AsyncSession):
-    organization_page = await organization_repo.get_organizations(page, size, db)
+    organization_page = await organization_repo.get_organizations(page, size, db, True)
     return Page(
         items=[OrganizationListResponse.from_orm(org) for org in organization_page.items],
         total=organization_page.total,
@@ -57,10 +72,11 @@ async def update_organization(
 
 
 async def delete_organization(
-        organization_id: int, 
+        organization_id: int,
         user_profile: UserProfile,
         db: AsyncSession):
     await check_organization_admin(organization_id, user_profile, db)
+    await organization_repo.remove_organization_all_members(organization_id, db)
     await _get_organization_by_id(organization_id, db)
     await organization_repo.delete_by_id(organization_id, db)
     return
@@ -95,7 +111,7 @@ async def join_organization(
     member = (await organization_repo
               .get_member_by_organization_id_and_user_id(organization_id, user_profile.user_id, db))
     if member:
-        exceptions.user_already_exist()
+        organization_exception.user_already_exist()
     new_organization_member = OrganizationMember(organization=organization, user=user_profile)
     await organization_repo.save_organization_member(new_organization_member, db)
     await redis.delete(join_code)
@@ -122,7 +138,7 @@ async def edit_organization_user(
     member_data = await (organization_repo
                          .get_member_by_organization_id_and_user_id(organization_id, user_update_data.user_id, db))
     if not member_data:
-        exceptions.user_not_found()
+        organization_exception.user_not_found()
 
     member_data.role = OrganizationRole(user_update_data.role)
     return OrganizationMemberResponse.from_orm(member_data)
@@ -139,7 +155,7 @@ async def delete_organization_user(
     member_data = await organization_repo.get_member_by_id_and_organization_id(member_id, organization_id, db)
 
     if not member_data:
-        exceptions.user_not_found()
+        organization_exception.user_not_found()
 
     await organization_repo.delete_member_by_member_id(member_data.id, db)
     return
@@ -150,14 +166,15 @@ async def _get_organization_by_id(
         db: AsyncSession) -> Organization:
     organization = await organization_repo.find_by_id(organization_id, db)
     if not organization:
-        exceptions.organization_not_found()
+        organization_exception.organization_not_found()
     return organization
 
 
 async def is_organization_admin(organization_id: int, user_profile: UserProfile, db: AsyncSession) -> bool:
     if user_profile.admin_type in ["Admin", "Super Admin"]:
         return True
-    member = await organization_repo.get_member_by_organization_id_and_user_id(organization_id, user_profile.user_id, db)
+    member = await organization_repo.get_member_by_organization_id_and_user_id(organization_id, user_profile.user_id,
+                                                                               db)
     if member and member.role in {OrganizationRole.ORG_ADMIN, OrganizationRole.ORG_SUPER_ADMIN}:
         return True
     return False
@@ -168,7 +185,7 @@ async def check_organization_admin(
         user_profile: UserProfile,
         db: AsyncSession) -> bool:
     if not await is_organization_admin(organization_id, user_profile, db):
-        exceptions.forbidden()
+        organization_exception.forbidden()
     return True
 
 
@@ -198,14 +215,14 @@ async def _check_join_code(
         redis) -> tuple[int, int]:
     val = await redis.get(join_code)
     if not val:
-        exceptions.forbidden()
+        organization_exception.forbidden()
     try:
         prefix, org_id_str, issuer_id_str = val.split(":")
         code_org_id, issuer_id = int(org_id_str), int(issuer_id_str)
         if prefix != "organization_join" or code_org_id != organization_id:
-            exceptions.forbidden()
+            organization_exception.forbidden()
     except (ValueError, IndexError):
-        exceptions.forbidden()
+        organization_exception.forbidden()
     return code_org_id, issuer_id
 
 

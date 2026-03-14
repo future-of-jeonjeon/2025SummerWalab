@@ -13,12 +13,20 @@ router = APIRouter(prefix="/api/organization", tags=["organization"])
 
 
 @router.post("", response_model=OrganizationResponse)
-@require_role("Admin")
-async def create_organization(
+async def create_organization_api(
         data: OrganizationCreateRequest,
         user_profile: UserProfile = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)):
-    return await organization_serv.create_organization(data, db)
+    return await organization_serv.create_organization(data, user_profile, False, db)
+
+
+@router.post("/admin", response_model=OrganizationResponse)
+@require_role("Admin")
+async def create_organization_admin_api(
+        data: OrganizationCreateRequest,
+        user_profile: UserProfile = Depends(get_userdata),
+        db: AsyncSession = Depends(get_database)):
+    return await organization_serv.create_organization(data, user_profile, True, db)
 
 
 @router.get("", response_model=Page[OrganizationListResponse])

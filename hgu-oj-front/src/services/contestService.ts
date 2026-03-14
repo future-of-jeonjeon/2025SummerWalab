@@ -164,6 +164,17 @@ export const contestService = {
     await apiClient.put(`${MICRO_API_BASE}/contest/${contestId}/problems`, payload);
   },
 
+  reindexContestProblems: async (contestId: number, problems: Problem[]): Promise<void> => {
+    if (!MICRO_API_BASE) {
+      throw new Error('MS_API_BASE not defined');
+    }
+    const payload = problems.map((p, index) => ({
+      problem_id: p.id,
+      display_id: String(index + 1),
+    }));
+    await apiClient.put(`${MICRO_API_BASE}/contest/${contestId}/problems/reindex`, payload);
+  },
+
   hasContestProblemSubmission: async (contestId: number, problemId: number): Promise<boolean> => {
     const stats = await fetchContestProblemStats(contestId, [problemId]);
     const entry = stats.get(problemId);
