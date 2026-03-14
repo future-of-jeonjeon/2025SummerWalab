@@ -150,7 +150,7 @@ async def find_problems_by_contest_id(session: AsyncSession, contest_id: int) ->
     stmt = (
         select(Problem)
         .where(Problem.contest_id == contest_id)
-        .where(Problem.visible.is_(True))
+        # .where(Problem.visible.is_(True))
         .order_by(Problem._id)
     )
     result = await session.execute(stmt)

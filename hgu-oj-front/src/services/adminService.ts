@@ -120,6 +120,16 @@ export interface UpdateWorkbookPayload {
   is_public?: boolean;
 }
 
+export type ProblemImportPollingStatus = {
+  status: 'initialized' | 'processing' | 'done' | 'error';
+  processed_problem: number;
+  left_problem: number;
+  all_problem: number;
+  error_code?: string;
+  error_message?: string;
+  problem_id?: number;
+};
+
 export interface UserListParams {
   page?: number;
   limit?: number;
@@ -520,6 +530,33 @@ export const adminService = {
       throw new Error('대회 문제 API 응답 형식이 올바르지 않습니다.');
     }
     return adaptContestProblemList(msData);
+  },
+
+  importContestProblems: async (
+    contestId: number,
+    file: File,
+    displayIdStartPoint: number,
+  ): Promise<{ polling_key: string }> => {
+    const baseUrl = getMsBaseUrl();
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.post(
+      `${baseUrl}/problem/contest/${contestId}/import`,
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        params: { display_id_start_point: displayIdStartPoint },
+      },
+    );
+    return response.data as { polling_key: string };
+  },
+
+  getProblemImportPolling: async (key: string): Promise<ProblemImportPollingStatus> => {
+    const baseUrl = getMsBaseUrl();
+    const response = await apiClient.get<ProblemImportPollingStatus>(`${baseUrl}/problem/polling`, {
+      params: { key },
+    });
+    return response.data;
   },
 
   addContestProblemFromPublic: async (contestId: number, problemId: number, displayId: string): Promise<void> => {

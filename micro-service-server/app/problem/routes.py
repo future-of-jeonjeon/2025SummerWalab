@@ -3,7 +3,7 @@ import asyncio
 from fastapi import APIRouter, Depends, Query, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
 
-import app.problem.service as serv
+import app.problem.service as problem_service
 from app.api.deps import get_database, get_userdata, get_database_readonly, get_optional_userdata
 from app.problem.schemas import *
 from app.core.auth.guards import require_role
@@ -16,8 +16,41 @@ router = APIRouter(prefix="/api/problem", tags=["Problem Management"])
 async def create_problem_api(
         request_data: ProblemCreateRequest,
         user_profile: UserProfile = Depends(get_userdata)):
-    polling_key = await serv.setup_polling(problem_num=1)
-    asyncio.create_task(serv.create_problem(polling_key, request_data, user_profile, is_admin=False))
+    polling_key = await problem_service.setup_polling(problem_num=1)
+    asyncio.create_task(problem_service.create_problem(polling_key, request_data, user_profile, is_admin=False))
+    return {"polling_key": polling_key}
+
+
+@router.post("/contest/{contest_id}")
+async def create_contest_problem_api(
+        contest_id: int,
+        request_data: ProblemCreateRequest,
+        user_profile: UserProfile = Depends(get_userdata), ):
+    polling_key = await problem_service.setup_polling(problem_num=1)
+    asyncio.create_task(
+        problem_service.create_problem(
+            polling_key, request_data, user_profile, is_admin=False, contest_id=contest_id, is_contest=True
+        )
+    )
+    return {"polling_key": polling_key}
+
+
+@router.post("/contest/{contest_id}/import")
+async def import_contest_problems_api(
+        contest_id: int,
+        display_id_start_point: int = Query(...),
+        file: UploadFile = File(...),
+        user_profile: UserProfile = Depends(get_userdata)):
+    problem_num = await problem_service.count_problems_in_file(file)
+    polling_key = await problem_service.setup_polling(problem_num)
+    file_contents = await file.read()
+    filename = file.filename
+    asyncio.create_task(
+        problem_service.import_problem_from_file(
+            polling_key, file_contents, filename, user_profile, is_admin=True, is_contest=True, contest_id=contest_id,
+            display_id_start_point=display_id_start_point
+        )
+    )
     return {"polling_key": polling_key}
 
 
@@ -26,8 +59,9 @@ async def update_problem_api(
         problem_id: int,
         request_data: ProblemUpdateRequest,
         user_profile: UserProfile = Depends(get_userdata)):
-    polling_key = await serv.setup_polling(problem_num=1)
-    asyncio.create_task(serv.update_problem(polling_key, problem_id, request_data, user_profile, is_admin=False))
+    polling_key = await problem_service.setup_polling(problem_num=1)
+    asyncio.create_task(
+        problem_service.update_problem(polling_key, problem_id, request_data, user_profile, is_admin=False))
     return {"polling_key": polling_key}
 
 
@@ -36,19 +70,19 @@ async def upload_test_case(
         file: UploadFile = File(...),
         spj: bool = Query(False),
         user_profile: UserProfile = Depends(get_userdata)):
-    return await serv.process_test_case_upload(file, spj)
+    return await problem_service.process_test_case_upload(file, spj)
 
 
 @router.post("/import")
 async def import_problem(
         file: UploadFile = File(...),
         user_profile: UserProfile = Depends(get_userdata)):
-    problem_num = await serv.count_problems_in_file(file)
-    polling_key = await serv.setup_polling(problem_num)
+    problem_num = await problem_service.count_problems_in_file(file)
+    polling_key = await problem_service.setup_polling(problem_num)
     file_contents = await file.read()
     filename = file.filename
     asyncio.create_task(
-        serv.import_problem_from_file(polling_key, file_contents, filename, user_profile, is_admin=False))
+        problem_service.import_problem_from_file(polling_key, file_contents, filename, user_profile, is_admin=False))
     return {"polling_key": polling_key}
 
 
@@ -57,8 +91,8 @@ async def import_problem(
 async def create_problem_admin(
         request_data: ProblemCreateRequest,
         user_profile: UserProfile = Depends(get_userdata)):
-    polling_key = await serv.setup_polling(problem_num=1)
-    asyncio.create_task(serv.create_problem(polling_key, request_data, user_profile, is_admin=True))
+    polling_key = await problem_service.setup_polling(problem_num=1)
+    asyncio.create_task(problem_service.create_problem(polling_key, request_data, user_profile, is_admin=True))
     return {"polling_key": polling_key}
 
 
@@ -67,15 +101,15 @@ async def create_problem_admin(
 async def import_problem_admin(
         file: UploadFile = File(...),
         user_profile: UserProfile = Depends(get_userdata)):
-    problem_num = await serv.count_problems_in_file(file)
-    polling_key = await serv.setup_polling(problem_num)
-    asyncio.create_task(serv.import_problem_from_file(polling_key, file, user_profile, is_admin=True))
+    problem_num = await problem_service.count_problems_in_file(file)
+    polling_key = await problem_service.setup_polling(problem_num)
+    asyncio.create_task(problem_service.import_problem_from_file(polling_key, file, user_profile, is_admin=True))
     return {"polling_key": polling_key}
 
 
 @router.get("/polling", response_model=ProblemImportPollingStatus)
 async def problem_polling(key: str):
-    return await serv.import_problem_polling(key)
+    return await problem_service.import_problem_polling(key)
 
 
 @router.get("/{problem_id}", response_model=ProblemDetailResponse)
@@ -83,7 +117,7 @@ async def get_problem_detail_api(
         problem_id: int,
         db: AsyncSession = Depends(get_database),
         user_profile: UserProfile = Depends(get_optional_userdata)):
-    return await serv.get_problem_detail(problem_id, db)
+    return await problem_service.get_problem_detail(problem_id, db)
 
 
 # =======================================================================================================================
@@ -92,12 +126,12 @@ async def get_problem_detail_api(
 # 태그별 문제수 조회할 때 필요한거
 @router.get("/tags/counts")
 async def get_tag_count(db: AsyncSession = Depends(get_database)):
-    return await serv.get_tag_count(db)
+    return await problem_service.get_tag_count(db)
 
 
 @router.get("/contest/{contest_id}/count")
 async def get_contest_problem_count(contest_id: int, db: AsyncSession = Depends(get_database)):
-    count = await serv.get_contest_problem_count(contest_id, db)
+    count = await problem_service.get_contest_problem_count(contest_id, db)
     return {"contest_id": contest_id, "count": count}
 
 
@@ -114,7 +148,7 @@ async def get_filter_sorted_problems(
         size: int = Query(20, ge=1, le=250),
         request_user: Optional[UserProfile] = Depends(get_optional_userdata),
         db: AsyncSession = Depends(get_database)) -> ProblemListResponse:
-    return await serv.get_filter_sorted_problems(
+    return await problem_service.get_filter_sorted_problems(
         tags,
         keyword,
         difficulty_min,
@@ -135,7 +169,7 @@ async def get_available_problems(
         user_profile: UserProfile = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)
 ):
-    return await serv.get_available_contest_problem(page, size, keyword, user_profile, db)
+    return await problem_service.get_available_contest_problem(page, size, keyword, user_profile, db)
 
 
 @router.get("/contest/search", response_model=ProblemListResponse)
@@ -145,15 +179,15 @@ async def get_available_contest_problem(
         keyword: Optional[str] = Query(None),
         user_profile: UserProfile = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)):
-    return await serv.get_available_contest_problem(page=page,
-                                                    size=size,
-                                                    keyword=keyword,
-                                                    user_profile=user_profile,
-                                                    db=db)
+    return await problem_service.get_available_contest_problem(page=page,
+                                                               size=size,
+                                                               keyword=keyword,
+                                                               user_profile=user_profile,
+                                                               db=db)
 
 
 @router.get("/{problem_id}", response_model=ProblemResponse)
 async def get_problem_by_id(
         problem_id: int,
         db: AsyncSession = Depends(get_database_readonly)):
-    return await serv.get_problem(problem_id, db)
+    return await problem_service.get_problem(problem_id, db)
