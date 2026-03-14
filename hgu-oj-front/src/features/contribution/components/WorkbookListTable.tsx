@@ -3,6 +3,7 @@ import { Button } from '../../../components/atoms/Button';
 import { VisibilityBadge } from '../../../components/common/VisibilityBadge';
 import { Workbook } from '../../../types';
 import { ActionIconButtons } from './ActionIconButtons';
+import { ApprovalStatusBadge } from './ApprovalStatusBadge';
 
 interface WorkbookListTableProps {
   title?: string;
@@ -43,6 +44,7 @@ export const WorkbookListTable: React.FC<WorkbookListTableProps> = ({
           <thead className="bg-gray-50 dark:bg-slate-800">
             <tr>
               <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">제목</th>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">승인 상태</th>
               <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">문제 수</th>
               <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">공개 상태</th>
               <th scope="col" className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">관리</th>
@@ -51,7 +53,7 @@ export const WorkbookListTable: React.FC<WorkbookListTableProps> = ({
           <tbody className="bg-white dark:bg-slate-900 divide-y divide-gray-200 dark:divide-slate-700">
             {workbooks.length === 0 ? (
               <tr>
-                <td colSpan={4} className="px-6 py-10 text-center text-sm text-gray-500 dark:text-slate-400">
+                <td colSpan={5} className="px-6 py-10 text-center text-sm text-gray-500 dark:text-slate-400">
                   문제집이 없습니다.
                 </td>
               </tr>
@@ -59,6 +61,9 @@ export const WorkbookListTable: React.FC<WorkbookListTableProps> = ({
               workbooks.map((workbook) => (
                 <tr key={workbook.id} className="hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 dark:text-slate-100">{workbook.title}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400">
+                    <ApprovalStatusBadge status={workbook.approvalStatus} />
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400 text-right">{workbook.problemCount || 0}개</td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-slate-400 text-right">
                     <VisibilityBadge visible={Boolean((workbook as any).visible ?? workbook.is_public)} />

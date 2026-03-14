@@ -9,6 +9,7 @@ import { Problem, Workbook } from '../types';
 import { ProblemListTable } from '../features/contribution/components/ProblemListTable';
 import { WorkbookListTable } from '../features/contribution/components/WorkbookListTable';
 import CommonPagination from '../components/common/CommonPagination';
+import { pendingService } from '../services/pendingService';
 
 export const ContributionPage: React.FC = () => {
     const navigate = useNavigate();
@@ -36,8 +37,21 @@ export const ContributionPage: React.FC = () => {
     const fetchProblems = async () => {
         setIsLoading(true);
         try {
-            const data = await contributionService.getContributedProblems(page, pageSize);
-            setProblems(data.data || []);
+            const [data, statusMap] = await Promise.all([
+                contributionService.getContributedProblems(page, pageSize),
+                pendingService.getProblemStatuses().catch(() => ({} as Record<number, any>)),
+            ]);
+
+            const mergedProblems = (data.data || []).map((problem) => {
+                const pending = statusMap[problem.id];
+                return {
+                    ...problem,
+                    approvalStatus: pending?.status ?? 'approved',
+                    approvalReason: pending?.reason ?? null,
+                };
+            });
+
+            setProblems(mergedProblems);
             setTotalPages(data.totalPages);
         } catch (error) {
             console.error('Failed to fetch problems:', error);
@@ -50,8 +64,21 @@ export const ContributionPage: React.FC = () => {
     const fetchWorkbooks = async () => {
         setIsLoading(true);
         try {
-            const data = await contributionService.getContributedWorkbooks(page, pageSize);
-            setWorkbooks(data.data || []);
+            const [data, statusMap] = await Promise.all([
+                contributionService.getContributedWorkbooks(page, pageSize),
+                pendingService.getWorkbookStatuses().catch(() => ({} as Record<number, any>)),
+            ]);
+
+            const mergedWorkbooks = (data.data || []).map((workbook) => {
+                const pending = statusMap[workbook.id];
+                return {
+                    ...workbook,
+                    approvalStatus: pending?.status ?? 'approved',
+                    approvalReason: pending?.reason ?? null,
+                };
+            });
+
+            setWorkbooks(mergedWorkbooks);
             setTotalPages(data.totalPages);
         } catch (error) {
             console.error('Failed to fetch workbooks:', error);

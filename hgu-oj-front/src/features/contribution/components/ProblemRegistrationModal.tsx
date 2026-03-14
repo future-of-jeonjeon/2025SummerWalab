@@ -282,6 +282,7 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                         if (!Number.isFinite(createdProblemId) || createdProblemId <= 0) {
                             throw new Error('문제 생성은 완료되었지만 problem_id를 받지 못했습니다. 잠시 후 다시 시도해주세요.');
                         }
+                        alert('문제 등록 신청이 완료되었습니다. 관리자 허가 이후에 최종 등록됩니다.');
                         onSuccess({ problemId: createdProblemId, title: formState.title.trim() });
                         onClose();
                         isPolling = false;

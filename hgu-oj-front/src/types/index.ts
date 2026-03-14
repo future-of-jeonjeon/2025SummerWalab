@@ -43,6 +43,8 @@ export interface Problem {
   totalScore?: number;
   visible?: boolean;
   isPublic?: boolean;
+  approvalStatus?: ApprovalStatus;
+  approvalReason?: string | null;
   // Contest-specific stats (optional)
   contestSubmissionNumber?: number;
   contestSolvedUserNumber?: number;
@@ -207,6 +209,8 @@ export interface Workbook {
   problemCount?: number;
   tags?: string[];
   writer?: string;
+  approvalStatus?: ApprovalStatus;
+  approvalReason?: string | null;
 }
 
 export interface WorkbookProblem {
@@ -237,6 +241,9 @@ export interface ApiResponse<T> {
   data: T;
   message?: string;
 }
+
+// 승인 상태 타입 (기여/승인 도메인)
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected';
 
 // 페이지네이션 타입
 export interface PaginationParams {
