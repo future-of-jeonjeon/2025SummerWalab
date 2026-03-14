@@ -43,7 +43,8 @@ export const OrganizationApplyModal: React.FC<OrganizationApplyModalProps> = ({ 
             setError('단체 이름을 입력해주세요.');
             return;
         }
-        if (!formData.description.trim()) {
+        const descriptionValue = formData.description ?? '';
+        if (!descriptionValue.trim()) {
             setError('단체 설명을 입력해주세요.');
             return;
         }
@@ -121,7 +122,7 @@ export const OrganizationApplyModal: React.FC<OrganizationApplyModalProps> = ({ 
                         <div>
                             <label className="block text-sm font-bold text-gray-700 dark:text-gray-300 mb-1.5 ml-1">단체 설명</label>
                             <textarea
-                                value={formData.description}
+                                value={formData.description ?? ''}
                                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                 className="w-full bg-gray-50 dark:bg-slate-900 border-none rounded-2xl px-5 py-3.5 text-[15px] focus:ring-2 focus:ring-blue-500 outline-none transition-all h-32 resize-none placeholder:text-gray-400 dark:placeholder:text-gray-600"
                                 placeholder="단체의 성격과 목적을 간단히 설명해주세요."
