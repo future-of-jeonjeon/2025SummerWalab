@@ -177,6 +177,7 @@ export const WorkbookRegistrationModal: React.FC<WorkbookRegistrationModalProps>
                     is_public: false,
                     problemIds,
                 });
+                alert('문제집 등록 신청이 완료되었습니다. 관리자 허가 이후에 최종 등록됩니다.');
             }
 
             onSuccess();

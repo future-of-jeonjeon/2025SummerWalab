@@ -31,3 +31,14 @@ async def get_pendings_api(
         request_user: UserProfile = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)):
     return await pending_service.get_pending(target_type, page, size, db)
+
+
+@require_role("User")
+@router.get("/me")
+async def get_my_pendings_api(
+        target_type: PendingTargetType = Query(...),
+        page: int = Query(1, ge=1),
+        size: int = Query(20, ge=1, le=250),
+        request_user: UserProfile = Depends(get_userdata),
+        db: AsyncSession = Depends(get_database)):
+    return await pending_service.get_my_pending(request_user.user_id, target_type, page, size, db)
