@@ -120,6 +120,16 @@ export interface UpdateWorkbookPayload {
   is_public?: boolean;
 }
 
+export type ProblemImportPollingStatus = {
+  status: 'initialized' | 'processing' | 'done' | 'error';
+  processed_problem: number;
+  left_problem: number;
+  all_problem: number;
+  error_code?: string;
+  error_message?: string;
+  problem_id?: number;
+};
+
 export interface UserListParams {
   page?: number;
   limit?: number;
@@ -522,6 +532,33 @@ export const adminService = {
     return adaptContestProblemList(msData);
   },
 
+  importContestProblems: async (
+    contestId: number,
+    file: File,
+    displayIdStartPoint: number,
+  ): Promise<{ polling_key: string }> => {
+    const baseUrl = getMsBaseUrl();
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await apiClient.post(
+      `${baseUrl}/problem/contest/${contestId}/import`,
+      formData,
+      {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        params: { display_id_start_point: displayIdStartPoint },
+      },
+    );
+    return response.data as { polling_key: string };
+  },
+
+  getProblemImportPolling: async (key: string): Promise<ProblemImportPollingStatus> => {
+    const baseUrl = getMsBaseUrl();
+    const response = await apiClient.get<ProblemImportPollingStatus>(`${baseUrl}/problem/polling`, {
+      params: { key },
+    });
+    return response.data;
+  },
+
   addContestProblemFromPublic: async (contestId: number, problemId: number, displayId: string): Promise<void> => {
     const baseUrl = getMsBaseUrl();
     try {
@@ -548,6 +585,15 @@ export const adminService = {
       display_id: p.displayId ?? (p as any)._id ?? String(index + 1),
     }));
     await apiClient.put(`${baseUrl}/contest/${contestId}/problems`, payload);
+  },
+
+  reindexContestProblems: async (contestId: number, problems: Problem[]): Promise<void> => {
+    const baseUrl = getMsBaseUrl();
+    const payload = problems.map((p, index) => ({
+      problem_id: p.id,
+      display_id: String(index + 1),
+    }));
+    await apiClient.put(`${baseUrl}/contest/${contestId}/problems/reindex`, payload);
   },
 
   deleteContestProblem: async (id: number): Promise<void> => {

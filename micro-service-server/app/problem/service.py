@@ -46,7 +46,9 @@ async def create_problem(
         polling_key: str,
         request_data: ProblemCreateRequest,
         user_profile: UserProfile,
-        is_admin: bool):
+        is_admin: bool,
+        contest_id: int | None = None,
+        is_contest: bool = False):
     try:
         await _set_redis_polling_state(polling_key, "processing", 0, 1, 1)
         async with get_background_database() as db:
@@ -65,8 +67,11 @@ async def create_problem(
             if not is_admin:
                 problem.visible = False
             problem = await problem_repository.save(db, problem)
-            if not is_admin:
+            if not is_admin and not is_contest:
                 await pending_service.create_pending(PendingTargetType.PROBLEM, problem.id, user_profile, db)
+            if not is_admin and is_contest:
+                problem.contest_id = contest_id
+
         await _set_redis_polling_state(polling_key, "done", 1, 0, 1, problem_id=problem.id)
     except Exception as e:
         logger.error(f"Failed to create problem: {e}")
@@ -221,7 +226,10 @@ async def import_problem_from_file(
         file_contents: bytes,
         filename: str,
         user_profile: UserProfile,
-        is_admin: bool) -> str | None:
+        is_admin: bool,
+        contest_id: int | None = None,
+        display_id_start_point: int | None = None,
+        is_contest: bool = False) -> str | None:
     problems = []
     testcase_list = []
     redis = await get_polling_task()
@@ -255,7 +263,6 @@ async def import_problem_from_file(
                             if parsed_title:
                                 title_hint = str(parsed_title)
                         except Exception:
-                            # Keep import failure context best-effort only.
                             pass
 
                         context_prefix = f"[Problem {i + 1}/{len(md_paths)}]"
@@ -279,6 +286,11 @@ async def import_problem_from_file(
                 logger.info(f"Polling finished: {status}")
                 await _set_redis_polling_state(polling_key, "done", status.processed_problem, 0,
                                                status.all_problem)
+            if is_contest:
+                for offset, problem in enumerate(problems, start=0):
+                    problem._id = str(display_id_start_point + offset)
+                    problem.visible = False
+                    problem.contest_id = contest_id
             await problem_repository.create_problems(db, problems)
             logger.info(f"Successfully imported {len(problems)} problems")
             return problems
@@ -377,7 +389,8 @@ async def get_problem_detail(problem_id: int, db: AsyncSession) -> ProblemDetail
 
     tags = problem.tags or []
     tag_payload = [{"id": t.id, "name": t.name} for t in tags]
-    io_mode = problem.io_mode if isinstance(problem.io_mode, dict) else {"io_mode": "standard", "input": "input.txt", "output": "output.txt"}
+    io_mode = problem.io_mode if isinstance(problem.io_mode, dict) else {"io_mode": "standard", "input": "input.txt",
+                                                                         "output": "output.txt"}
     template = problem.template if isinstance(problem.template, dict) else {}
     samples = problem.samples or []
 

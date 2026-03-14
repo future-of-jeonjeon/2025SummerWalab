@@ -212,7 +212,6 @@ async def count_problem_by_contest_id(contest_id: int, db: AsyncSession) -> int:
     stmt = (
         select(func.count(func.distinct(Problem.id)))
         .where(Problem.contest_id == contest_id)
-        .where(Problem.visible.is_(True))
     )
     result = await db.execute(stmt)
     return int(result.scalar() or 0)
