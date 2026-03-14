@@ -8,6 +8,7 @@ from sqlalchemy import Integer
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import ColumnElement
+from app.common.page import Page, paginate
 
 from app.problem.models import Problem, ProblemTag, problem_tags_association_table
 from app.submission.models import Submission
@@ -45,7 +46,6 @@ async def fetch_tag_counts(session: AsyncSession) -> Sequence[Tuple[str, int]]:
     return result.all()
 
 
-from app.common.page import Page, paginate
 
 
 async def fetch_filtered_problems(
@@ -56,8 +56,7 @@ async def fetch_filtered_problems(
         difficulty: Optional[int] = None,
         ordering: ColumnElement,
         page: int,
-        page_size: int,
-) -> Page[Problem]:
+        page_size: int) -> Page[Problem]:
     from sqlalchemy import or_
     visibility_filter = _public_problem_filter()
     base_stmt: Select = (
@@ -89,7 +88,6 @@ async def fetch_filtered_problems(
             Problem.difficulty.ilike(f"%Lv.{difficulty}%"),
             Problem.difficulty == str(difficulty)
         ))
-
     stmt = base_stmt.order_by(ordering)
     return await paginate(session, stmt, page, page_size)
 
@@ -113,15 +111,12 @@ async def get_or_create_tag(session: AsyncSession, tag_name: str) -> ProblemTag:
     if not tag:
         tag = ProblemTag(name=tag_name)
         session.add(tag)
-        await session.flush()  # To get the ID
-
+        await session.flush()
     return tag
 
 
 async def create_problems(session: AsyncSession, problems: List[Problem]) -> List[Problem]:
     session.add_all(problems)
-
-    # Re-fetch problems with tags loaded to avoid MissingGreenlet error
     ids = [p.id for p in problems]
     stmt = select(Problem).options(selectinload(Problem.tags)).where(Problem.id.in_(ids))
     result = await session.execute(stmt)
@@ -150,7 +145,6 @@ async def find_problems_by_contest_id(session: AsyncSession, contest_id: int) ->
     stmt = (
         select(Problem)
         .where(Problem.contest_id == contest_id)
-        # .where(Problem.visible.is_(True))
         .order_by(Problem._id)
     )
     result = await session.execute(stmt)
@@ -183,10 +177,13 @@ async def find_problems_by_creator_id(
         page: int,
         size: int,
         session: AsyncSession) -> Page[Problem]:
-    stmt = (select(Problem)
+    stmt = (
+        select(Problem)
             .options(selectinload(Problem.tags))
             .where(Problem.created_by_id == creator_id)
-            .order_by(Problem.id.desc()))
+            .where(Problem.visible==True)
+            .order_by(Problem.id.desc())
+    )
     return await paginate(session, stmt, page, size)
 
 
@@ -195,8 +192,7 @@ async def find_available_problems_by_creator_id_and_keyword(
         page_size: int,
         user_id: int,
         keyword: str | None,
-        db: AsyncSession,
-):
+        db: AsyncSession):
     visibility = (
             Problem.is_public.is_(True)
             & Problem.visible.is_(True)
@@ -230,8 +226,10 @@ def _apply_keyword(keyword, stmt):
 
 async def find_problems_by_contest_id_and_problem_id(contest_id, problem_id, db):
     problem_display_id = str(problem_id)
-    stmt = select(Problem).options(selectinload(Problem.tags)).where(
-        and_(Problem.contest_id == contest_id, Problem._id == problem_display_id)
+    stmt = (
+        select(Problem)
+        .options(selectinload(Problem.tags))
+        .where(and_(Problem.contest_id == contest_id, Problem._id == problem_display_id))
     )
     result = await db.execute(stmt)
     return result.scalar()
@@ -246,9 +244,12 @@ async def find_filtered_problems(
         order: Optional[str],
         page: int,
         page_size: int,
-        db: AsyncSession,
-) -> Page[Problem]:
-    stmt: Select = select(Problem).options(selectinload(Problem.tags)).where(_public_problem_filter())
+        db: AsyncSession) -> Page[Problem]:
+    stmt = (
+        select(Problem)
+        .options(selectinload(Problem.tags))
+        .where(_public_problem_filter())
+    )
 
     if tags:
         tag_ids = (
@@ -263,8 +264,8 @@ async def find_filtered_problems(
         stmt = stmt.where(or_(Problem.title.ilike(term), Problem._id.ilike(term)))
 
     if difficulty_min is not None or difficulty_max is not None:
-        lo, hi = sorted((difficulty_min if difficulty_min is not None else 0, difficulty_max if difficulty_max is not None else 5))
-        # difficulty is stored as text (e.g. "Lv.3"), so extract numeric part before range comparison.
+        lo, hi = sorted(
+            (difficulty_min if difficulty_min is not None else 0, difficulty_max if difficulty_max is not None else 5))
         difficulty_num = func.cast(
             func.nullif(func.regexp_replace(Problem.difficulty, r"[^0-9]", "", "g"), ""),
             Integer,
@@ -290,11 +291,11 @@ async def find_filtered_problems(
 
     return await paginate(db, stmt, page, page_size)
 
+
 async def find_solved_problems_user_id(
-    user_id: int,
-    problem_ids: List[int],
-    db: AsyncSession,
-) -> List[int]:
+        user_id: int,
+        problem_ids: List[int],
+        db: AsyncSession) -> List[int]:
     if not problem_ids:
         return []
 
@@ -309,11 +310,11 @@ async def find_solved_problems_user_id(
     result = await db.execute(stmt)
     return [int(problem_id) for problem_id in result.scalars().all()]
 
+
 async def find_attempted_problems_user_id(
-    user_id: int,
-    problem_ids: List[int],
-    db: AsyncSession,
-) -> List[int]:
+        user_id: int,
+        problem_ids: List[int],
+        db: AsyncSession,) -> List[int]:
     if not problem_ids:
         return []
 

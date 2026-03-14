@@ -7,14 +7,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.problem.models import Problem
 from app.submission.models import Submission
+
 JUDGE_STATUS_ACCEPTED = 0
 
 
 async def fetch_contest_problem_stats(
         db: AsyncSession,
         contest_id: int,
-        problem_ids: Iterable[int] | None = None,
-) -> List[dict]:
+        problem_ids: Iterable[int] | None = None) -> List[dict]:
     problem_id_list = list(problem_ids) if problem_ids is not None else []
     filters = [Submission.contest_id == contest_id]
     if problem_id_list:
@@ -24,7 +24,8 @@ async def fetch_contest_problem_stats(
         select(
             Submission.problem_id.label("problem_id"),
             Problem._id.label("display_id"),
-            func.count(Submission.id).label("submission_count"),
+            func.count(Submission.id)
+            .label("submission_count"),
             func.count(func.distinct(Submission.user_id)).label("attempt_users"),
             func.count(
                 func.distinct(
@@ -66,14 +67,7 @@ async def fetch_contest_problem_stats(
 
 async def fetch_contest_user_scores(
         db: AsyncSession,
-        contest_id: int,
-) -> List[dict]:
-    """
-    Compute per-user contest scores based on submission info and problem test_case_score.
-    - For each problem, find the submission with the highest partial score for that user.
-    - Sum best scores across problems to get total_score.
-    - Count problems where best score reached full score as solved_problems.
-    """
+        contest_id: int) -> List[dict]:
     problem_scores: dict[int, dict[str, object]] = {}
     stmt_problem = select(Problem.id, Problem.test_case_score).where(Problem.contest_id == contest_id)
     problem_rows = await db.execute(stmt_problem)
@@ -96,13 +90,15 @@ async def fetch_contest_user_scores(
     if not problem_scores:
         return []
 
-    stmt_submissions = select(
-        Submission.user_id,
-        Submission.problem_id,
-        Submission.info,
-    ).where(Submission.contest_id == contest_id)
+    stmt_submissions = (
+        select(
+            Submission.user_id,
+            Submission.problem_id,
+            Submission.info,
+        )
+        .where(Submission.contest_id == contest_id)
+    )
     submission_rows = await db.execute(stmt_submissions)
-
     best_scores: dict[int, dict[int, int]] = defaultdict(dict)
 
     for row in submission_rows:
@@ -153,12 +149,15 @@ async def fetch_contest_user_scores(
 async def get_user_submissions_by_year(user_id: int, db: AsyncSession):
     one_year_ago = datetime.utcnow() - timedelta(days=365)
     result = await db.execute(
-        select(func.date(Submission.create_time).label("date"),
-               func.count().label("count"))
+        select(
+            func.date(Submission.create_time)
+            .label("date"), func.count().label("count")
+        )
         .where(Submission.user_id == user_id,
                Submission.create_time >= one_year_ago)
         .group_by(func.date(Submission.create_time))
-        .order_by(func.date(Submission.create_time)))
+        .order_by(func.date(Submission.create_time))
+    )
     return result.all()
 
 
@@ -208,6 +207,7 @@ async def get_score_by_contest_id_and_user_id(contest_id: int, user_id: int, db:
         return 0
     return int(target.get("total_score", 0) or 0)
 
+
 async def count_problem_by_contest_id(contest_id: int, db: AsyncSession) -> int:
     stmt = (
         select(func.count(func.distinct(Problem.id)))
@@ -220,8 +220,7 @@ async def count_problem_by_contest_id(contest_id: int, db: AsyncSession) -> int:
 async def count_submissions_for_contest_problems(
         db: AsyncSession,
         contest_id: int,
-        problem_ids: list[int],
-) -> int:
+        problem_ids: list[int],) -> int:
     if not problem_ids:
         return 0
     stmt = (
@@ -237,8 +236,7 @@ async def find_solved_problem_ids_by_contest_and_user(
         contest_id: int,
         user_id: int,
         problem_ids: Iterable[int],
-        db: AsyncSession,
-) -> List[int]:
+        db: AsyncSession) -> List[int]:
     problem_id_list = [int(pid) for pid in problem_ids if pid is not None]
     if not problem_id_list:
         return []
@@ -258,8 +256,7 @@ async def find_attempted_problem_ids_by_contest_and_user(
         contest_id: int,
         user_id: int,
         problem_ids: Iterable[int],
-        db: AsyncSession,
-) -> List[int]:
+        db: AsyncSession) -> List[int]:
     problem_id_list = [int(pid) for pid in problem_ids if pid is not None]
     if not problem_id_list:
         return []

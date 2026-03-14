@@ -696,7 +696,7 @@ async def get_contest_progress(contest_id, user_profile, db) -> ContestProgressR
     )
 
 
-async def reindex_contest_problems(contest_id: int, problem_ids: list[ContestProblemInputDTO], user_profile, db):
+async def reindex_contest_problems(contest_id: int, problem_ids: list[ContestProblemInputDTO], user_profile, db: AsyncSession):
     contest: Contest = await contest_repo.find_contest_by_id(contest_id, db)
     if not contest or not contest.visible:
         contest_exception.contest_not_found()
