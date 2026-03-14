@@ -101,6 +101,37 @@ async def get_pending(
     )
 
 
+async def get_my_pending(
+        created_user_id: int,
+        target_type: PendingTargetType,
+        page: int,
+        size: int,
+        db: AsyncSession):
+    data = await pending_repo.find_all_by_user_and_type(created_user_id, target_type, db, page, size)
+    items: list[PendingResponse] = []
+    for pending in data.items:
+        created_user_data = await _to_user_profile_response(pending.created_user_id, db)
+        items.append(
+            PendingResponse(
+                pending_id=pending.id,
+                status=pending.status,
+                target_type=pending.target_type,
+                target_id=pending.target_id,
+                due_at=pending.due_at,
+                created_user_data=created_user_data,
+                target_data=await _to_target_data(pending.target_type, pending.target_id, db),
+                completed_at=pending.completed_at,
+                completed_user_id=pending.completed_user_id,
+            )
+        )
+    return PendingPaginationResponse(
+        items=items,
+        total=data.total,
+        page=data.page,
+        size=data.size,
+    )
+
+
 ########################################################################################################################
 # pending process
 
