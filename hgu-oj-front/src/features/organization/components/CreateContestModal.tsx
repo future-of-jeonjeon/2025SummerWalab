@@ -440,7 +440,6 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                 <div
                     className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm transition-opacity"
                     aria-hidden="true"
-                    onClick={onClose}
                 />
 
                 <span className="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true">&#8203;</span>

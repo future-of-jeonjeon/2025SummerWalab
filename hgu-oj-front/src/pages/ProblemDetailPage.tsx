@@ -1773,7 +1773,6 @@ export const ProblemDetailPage: React.FC = () => {
         isSubmissionModalOpen && (
           <div
             className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
-            onClick={closeSubmissionModal}
           >
             <div
               className={`max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-lg shadow-xl ${isDarkTheme ? 'bg-slate-900 text-slate-100 border border-slate-700' : 'bg-white text-gray-900'}`}
