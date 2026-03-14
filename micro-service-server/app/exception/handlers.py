@@ -7,7 +7,7 @@ def raise_http_exception(status_code: int, message: str, error_code: ErrorCode):
     raise HTTPException(status_code=status_code, detail={"code": error_code, "message": message})
 
 
-def bad_request(message: str, error_code: ErrorCode = ErrorCode.BAD_REQUEST):
+def bad_request(message: str ="bad_request", error_code: ErrorCode = ErrorCode.BAD_REQUEST):
     raise_http_exception(400, message, error_code)
 
 

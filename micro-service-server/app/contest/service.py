@@ -1,3 +1,4 @@
+import uuid
 from ipaddress import ip_network
 from typing import Union
 
@@ -93,7 +94,7 @@ async def update_contest_problems(
         contest_id: int,
         problem_inputs: List[ContestProblemInputDTO],
         user_profile: UserProfile,
-        db: AsyncSession,) -> None:
+        db: AsyncSession, ) -> None:
     contest = await contest_repo.find_contest_by_id(contest_id, db)
     if not contest:
         contest_exception.contest_not_found()
@@ -685,11 +686,31 @@ async def ensure_user_joined_contest(contest_id, user_profile: UserProfile, db) 
 
 
 async def get_contest_progress(contest_id, user_profile, db) -> ContestProgressResponse:
-    solved:int = await submission_repo.count_solved_problem_by_contest_id_and_user_id(contest_id, user_profile.user_id, db)
-    score:int = await submission_repo.get_score_by_contest_id_and_user_id(contest_id, user_profile.user_id, db)
-    total:int = await submission_repo.count_problem_by_contest_id(contest_id, db)
+    solved: int = await submission_repo.count_solved_problem_by_contest_id_and_user_id(contest_id, user_profile.user_id, db)
+    score: int = await submission_repo.get_score_by_contest_id_and_user_id(contest_id, user_profile.user_id, db)
+    total: int = await submission_repo.count_problem_by_contest_id(contest_id, db)
     return ContestProgressResponse(
         solved=solved,
         total=total,
         total_score=score
     )
+
+
+async def reindex_contest_problems(contest_id: int, problem_ids: list[ContestProblemInputDTO], user_profile, db):
+    contest: Contest = await contest_repo.find_contest_by_id(contest_id, db)
+    if not contest or not contest.visible:
+        contest_exception.contest_not_found()
+    await _ensure_contest_permission(contest_id, user_profile, db)
+
+    problem_list: list[Problem] = await problem_repo.find_problems_by_contest_id(db, contest_id)
+    mapping = {p.problem_id: p.display_id for p in problem_ids}
+
+    for problem in problem_list:
+        problem._id = str(uuid.uuid4())
+    await db.flush()
+    for problem in problem_list:
+        display_id = mapping.get(problem.id)
+        if display_id is None:
+            problem_exceptions.handlers.bad_request()
+        problem._id = str(display_id)
+    return

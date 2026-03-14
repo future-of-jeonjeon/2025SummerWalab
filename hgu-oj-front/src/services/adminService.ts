@@ -587,6 +587,15 @@ export const adminService = {
     await apiClient.put(`${baseUrl}/contest/${contestId}/problems`, payload);
   },
 
+  reindexContestProblems: async (contestId: number, problems: Problem[]): Promise<void> => {
+    const baseUrl = getMsBaseUrl();
+    const payload = problems.map((p, index) => ({
+      problem_id: p.id,
+      display_id: String(index + 1),
+    }));
+    await apiClient.put(`${baseUrl}/contest/${contestId}/problems/reindex`, payload);
+  },
+
   deleteContestProblem: async (id: number): Promise<void> => {
     const response = await apiClient.delete('/admin/contest/problem', {
       params: { id },

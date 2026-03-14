@@ -40,7 +40,7 @@ const LANGUAGE_BACKEND_VALUE_MAP: Record<string, string> = {
   java: 'Java',
   cpp: 'C++',
   c: 'C',
-  go: 'Go',
+  go: 'Golang',
 };
 
 const getLanguageBackendValue = (key: string): string => LANGUAGE_BACKEND_VALUE_MAP[key] ?? key;
@@ -106,4 +106,3 @@ export {
   normalizeLanguageList,
   toBackendLanguageList,
 };
-

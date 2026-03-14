@@ -392,7 +392,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                         password: formData.password || null,
                         organization_id: organizationIdForPayload!,
                     });
-                    await adminService.updateContestProblems(editContestId, contestProblems);
+                    await adminService.reindexContestProblems(editContestId, contestProblems);
                 } else {
                     await adminService.createContest(payload);
                 }
@@ -420,7 +420,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                 if (isEditMode && editContestId) {
                     const { problems, ...metaPayload } = dataToSubmit;
                     await contestService.update(editContestId, metaPayload);
-                    await contestService.updateContestProblems(editContestId, contestProblems);
+                    await contestService.reindexContestProblems(editContestId, contestProblems);
                 } else {
                     await contestService.create(dataToSubmit);
                 }
