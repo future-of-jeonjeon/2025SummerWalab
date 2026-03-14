@@ -446,7 +446,7 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
         </div>
 
         {codeModal.open && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setCodeModal({ open: false, loading: false })}>
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
             <div
               className="bg-slate-900 text-slate-100 rounded-lg shadow-2xl max-w-4xl w-full max-h-[80vh] overflow-auto p-4 border border-slate-700"
               onClick={(e) => e.stopPropagation()}
@@ -480,7 +480,7 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
         )}
 
         {caseModal.open && (
-          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50" onClick={() => setCaseModal({ open: false, loading: false })}>
+          <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
             <div
               className="bg-white rounded-lg shadow-xl max-w-sm w-full max-h-[80vh] overflow-hidden dark:bg-slate-900 dark:border dark:border-slate-700"
               onClick={(e) => e.stopPropagation()}

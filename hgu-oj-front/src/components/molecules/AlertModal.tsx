@@ -75,7 +75,7 @@ export const AlertModal: React.FC<AlertModalProps> = ({
     const { iconBg, iconColor, icon } = getTypeStyles();
 
     const modalContent = (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4" onClick={onClose}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
             <div
                 className="w-full max-w-lg overflow-hidden rounded-lg bg-white shadow-xl"
                 onClick={(e) => e.stopPropagation()}
