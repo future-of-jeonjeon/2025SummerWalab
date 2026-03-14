@@ -107,21 +107,13 @@ async def import_problem_admin(
     return {"polling_key": polling_key}
 
 
+# =======================================================================================================================
+# 문제 필터 및 카운트에 필요한 api들
+
 @router.get("/polling", response_model=ProblemImportPollingStatus)
 async def problem_polling(key: str):
     return await problem_service.import_problem_polling(key)
 
-
-@router.get("/{problem_id}", response_model=ProblemDetailResponse)
-async def get_problem_detail_api(
-        problem_id: int,
-        db: AsyncSession = Depends(get_database),
-        user_profile: UserProfile = Depends(get_optional_userdata)):
-    return await problem_service.get_problem_detail(problem_id, db)
-
-
-# =======================================================================================================================
-# 문제 필터 및 카운트에 필요한 api들
 
 # 태그별 문제수 조회할 때 필요한거
 @router.get("/tags/counts")
@@ -186,8 +178,9 @@ async def get_available_contest_problem(
                                                                db=db)
 
 
-@router.get("/{problem_id}", response_model=ProblemResponse)
-async def get_problem_by_id(
+@router.get("/{problem_id}", response_model=ProblemDetailResponse)
+async def get_problem_detail_api(
         problem_id: int,
-        db: AsyncSession = Depends(get_database_readonly)):
-    return await problem_service.get_problem(problem_id, db)
+        db: AsyncSession = Depends(get_database),
+        user_profile: UserProfile = Depends(get_optional_userdata)):
+    return await problem_service.get_problem_detail(problem_id, db)

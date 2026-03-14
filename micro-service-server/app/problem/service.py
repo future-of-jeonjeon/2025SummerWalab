@@ -6,6 +6,7 @@ from typing import Union
 from fastapi import UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_background_database
+from app.contest.models import OrganizationContest, ContestLanguage
 from app.core.logger import logger
 from app.core.redis import get_polling_task
 from app.execution.schemas import RunCodeRequest
@@ -18,8 +19,10 @@ from app.problem.schemas import ProblemDetailResponse
 
 import app.execution.service as execution_service
 import app.pending.service as pending_service
-import app.problem.exceptions as problem_exceptions
 import app.problem.repository as problem_repository
+import app.contest.repository as contest_repository
+import app.problem.exceptions as problem_exceptions
+import app.contest.exceptions as contest_exceptions
 
 POLLING_SESSION_TIME = 3600
 
@@ -70,14 +73,22 @@ async def create_problem(
             if not is_admin and not is_contest:
                 await pending_service.create_pending(PendingTargetType.PROBLEM, problem.id, user_profile, db)
             if not is_admin and is_contest:
-                problem.contest_id = contest_id
-
+                problem = await _set_problem_contest_language(contest_id, problem, db)
         await _set_redis_polling_state(polling_key, "done", 1, 0, 1, problem_id=problem.id)
     except Exception as e:
         logger.error(f"Failed to create problem: {e}")
         error_code = _extract_error_code(e)
         utils.remove_test_case_directory([request_data.test_case_id])
         await _set_redis_polling_state(polling_key, "error", 0, 1, 1, error_code)
+
+
+async def _set_problem_contest_language(contest_id: int, problem: Problem, db: AsyncSession) -> Problem:
+    contest_language: ContestLanguage = await contest_repository.find_contest_language_by_contest_id(contest_id, db)
+    if not contest_language:
+        contest_exceptions.contest_not_found()
+    problem.contest_id = contest_id
+    problem.languages = contest_language.languages
+    return problem
 
 
 async def update_problem(
@@ -291,6 +302,9 @@ async def import_problem_from_file(
                     problem._id = str(display_id_start_point + offset)
                     problem.visible = False
                     problem.contest_id = contest_id
+                    contest_language: ContestLanguage = await contest_repository.find_contest_language_by_contest_id(
+                        contest_id, db)
+                    problem.languages = contest_language.languages
             await problem_repository.create_problems(db, problems)
             logger.info(f"Successfully imported {len(problems)} problems")
             return problems
