@@ -5,14 +5,16 @@ import { WorkbookRegistrationModal } from '../features/contribution/components/W
 import { useAuthStore } from '../stores/authStore';
 import { contributionService } from '../services/contributionService';
 import { adminService } from '../services/adminService';
-import { Problem, Workbook } from '../types';
+import { PendingItem, Problem, Workbook } from '../types';
 import { ProblemListTable } from '../features/contribution/components/ProblemListTable';
 import { WorkbookListTable } from '../features/contribution/components/WorkbookListTable';
 import CommonPagination from '../components/common/CommonPagination';
+import { pendingService } from '../services/pendingService';
+import { PendingListTable } from '../features/contribution/components/PendingListTable';
 
 export const ContributionPage: React.FC = () => {
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState<'problems' | 'workbooks'>('problems');
+    const [activeTab, setActiveTab] = useState<'problems' | 'workbooks' | 'pending'>('problems');
     const [isProblemModalOpen, setIsProblemModalOpen] = useState(false);
     const [isWorkbookModalOpen, setIsWorkbookModalOpen] = useState(false);
     const { isAuthenticated } = useAuthStore();
@@ -32,12 +34,26 @@ export const ContributionPage: React.FC = () => {
     const [totalPages, setTotalPages] = useState(1);
     const pageSize = 20;
     const [isLoading, setIsLoading] = useState(true);
+    const [pendingLoading, setPendingLoading] = useState(false);
 
     const fetchProblems = async () => {
         setIsLoading(true);
         try {
-            const data = await contributionService.getContributedProblems(page, pageSize);
-            setProblems(data.data || []);
+            const [data, statusMap] = await Promise.all([
+                contributionService.getContributedProblems(page, pageSize),
+                pendingService.getProblemStatuses().catch(() => ({} as Record<number, any>)),
+            ]);
+
+            const merged = (data.data || []).map((p) => {
+                const pending = statusMap[p.id];
+                return {
+                    ...p,
+                    approvalStatus: pending?.status,
+                    approvalReason: pending?.reason ?? null,
+                };
+            });
+
+            setProblems(merged);
             setTotalPages(data.totalPages);
         } catch (error) {
             console.error('Failed to fetch problems:', error);
@@ -50,8 +66,21 @@ export const ContributionPage: React.FC = () => {
     const fetchWorkbooks = async () => {
         setIsLoading(true);
         try {
-            const data = await contributionService.getContributedWorkbooks(page, pageSize);
-            setWorkbooks(data.data || []);
+            const [data, statusMap] = await Promise.all([
+                contributionService.getContributedWorkbooks(page, pageSize),
+                pendingService.getWorkbookStatuses().catch(() => ({} as Record<number, any>)),
+            ]);
+
+            const merged = (data.data || []).map((w) => {
+                const pending = statusMap[w.id];
+                return {
+                    ...w,
+                    approvalStatus: pending?.status,
+                    approvalReason: pending?.reason ?? null,
+                };
+            });
+
+            setWorkbooks(merged);
             setTotalPages(data.totalPages);
         } catch (error) {
             console.error('Failed to fetch workbooks:', error);
@@ -96,18 +125,52 @@ export const ContributionPage: React.FC = () => {
     };
 
     React.useEffect(() => {
-        if (isAuthenticated) {
-            if (activeTab === 'problems') {
-                fetchProblems();
-            } else {
-                fetchWorkbooks();
-            }
+        if (!isAuthenticated) return;
+        if (activeTab === 'problems') {
+            fetchProblems();
+        } else if (activeTab === 'workbooks') {
+            fetchWorkbooks();
+        } else if (activeTab === 'pending') {
+            fetchPendingItems();
         }
     }, [isAuthenticated, activeTab, page]);
 
     const handlePageChange = (newPage: number) => {
         if (newPage >= 1 && newPage <= totalPages) {
             setPage(newPage);
+        }
+    };
+
+    const [pendingProblems, setPendingProblems] = useState<PendingItem[]>([]);
+    const [pendingWorkbooks, setPendingWorkbooks] = useState<PendingItem[]>([]);
+    const [pendingOrganizations, setPendingOrganizations] = useState<PendingItem[]>([]);
+    const [pendingProblemPage, setPendingProblemPage] = useState(1);
+    const [pendingWorkbookPage, setPendingWorkbookPage] = useState(1);
+    const [pendingOrgPage, setPendingOrgPage] = useState(1);
+    const [pendingCategory, setPendingCategory] = useState<'problem' | 'workbook' | 'organization'>('problem');
+    const pendingPageSize = 10;
+
+    const fetchPendingItems = async () => {
+        setPendingLoading(true);
+        try {
+            const [problemPendings, workbookPendings, organizationPendings] = await Promise.all([
+                pendingService.getMyPendings('PROBLEM', pendingPageSize * 5).catch(() => []),
+                pendingService.getMyPendings('WORKBOOK', pendingPageSize * 5).catch(() => []),
+                pendingService.getMyPendings('Organization', pendingPageSize * 5).catch(() => []),
+            ]);
+            setPendingProblems(problemPendings);
+            setPendingWorkbooks(workbookPendings);
+            setPendingOrganizations(organizationPendings);
+            setPendingProblemPage(1);
+            setPendingWorkbookPage(1);
+            setPendingOrgPage(1);
+        } catch (error) {
+            console.error('Failed to fetch pending list:', error);
+            setPendingProblems([]);
+            setPendingWorkbooks([]);
+            setPendingOrganizations([]);
+        } finally {
+            setPendingLoading(false);
         }
     };
 
@@ -155,6 +218,42 @@ export const ContributionPage: React.FC = () => {
                                 </svg>
                                 문제집 목록
                             </button>
+                            <button
+                                onClick={() => setActiveTab('pending')}
+                                className={`w-full flex items-center px-4 py-3 text-sm font-medium rounded-lg transition-colors ${activeTab === 'pending'
+                                    ? 'bg-blue-50 text-blue-700 dark:bg-sky-900/30 dark:text-sky-300'
+                                    : 'text-gray-700 dark:text-slate-200 hover:bg-gray-50 dark:hover:bg-slate-800 dark:hover:bg-slate-800'
+                                    }`}
+                            >
+                                <svg className="mr-3 h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 1.343-3 3v4m6 0v-4c0-1.657-1.343-3-3-3zM5 12h14M9 16h6" />
+                                </svg>
+                                신청 목록
+                            </button>
+                            {activeTab === 'pending' && (
+                                <div className="mt-2 space-y-1 pl-6">
+                                    {[
+                                        { key: 'problem', label: '문제' },
+                                        { key: 'workbook', label: '문제집' },
+                                        { key: 'organization', label: '단체' },
+                                    ].map((tab) => {
+                                        const active = pendingCategory === tab.key;
+                                        return (
+                                            <button
+                                                key={tab.key}
+                                                onClick={() => setPendingCategory(tab.key as any)}
+                                                className={`w-full text-left px-3 py-2 text-sm font-medium rounded-md transition-colors ${
+                                                    active
+                                                        ? 'bg-blue-50 text-blue-700 dark:bg-sky-900/30 dark:text-sky-200'
+                                                        : 'text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'
+                                                }`}
+                                            >
+                                                {tab.label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
                         </nav>
                     </div>
                 </div>
@@ -165,7 +264,9 @@ export const ContributionPage: React.FC = () => {
                         <nav className="flex text-sm text-gray-500 dark:text-slate-400 dark:text-slate-400 mb-2">
                             <span className="cursor-pointer hover:text-gray-900 dark:hover:text-slate-100" onClick={() => navigate('/contribution')}>Contribute</span>
                             <span className="mx-2">/</span>
-                            <span className="font-medium text-gray-900 dark:text-slate-100">{activeTab === 'problems' ? 'Problem' : 'Workbook'}</span>
+                            <span className="font-medium text-gray-900 dark:text-slate-100">
+                                {activeTab === 'problems' ? 'Problem' : activeTab === 'workbooks' ? 'Workbook' : 'Pending'}
+                            </span>
                         </nav>
                     </div>
 
@@ -200,7 +301,7 @@ export const ContributionPage: React.FC = () => {
                                 onEdit={handleEditProblem}
                                 onDelete={handleDeleteProblem}
                             />
-                        ) : (
+                        ) : activeTab === 'workbooks' ? (
                             <WorkbookListTable
                                 title="내 문제집 목록"
                                 actionLabel="문제집 등록"
@@ -212,13 +313,79 @@ export const ContributionPage: React.FC = () => {
                                 onEdit={handleEditWorkbook}
                                 onDelete={handleDeleteWorkbook}
                             />
+                        ) : null}
+                        {activeTab !== 'pending' && (
+                            <CommonPagination
+                                page={page}
+                                pageSize={pageSize}
+                                totalPages={totalPages}
+                                onChangePage={handlePageChange}
+                            />
                         )}
-                        <CommonPagination
-                            page={page}
-                            pageSize={pageSize}
-                            totalPages={totalPages}
-                            onChangePage={handlePageChange}
-                        />
+
+                        {activeTab === 'pending' && (
+                            <div className="space-y-6">
+                                {pendingCategory === 'problem' && (
+                                    pendingProblems.length > 0 ? (
+                                        <>
+                                            <PendingListTable
+                                                items={pendingProblems.slice((pendingProblemPage - 1) * pendingPageSize, pendingProblemPage * pendingPageSize)}
+                                                loading={pendingLoading}
+                                                title="문제 신청 현황"
+                                            />
+                                            <CommonPagination
+                                                page={pendingProblemPage}
+                                                pageSize={pendingPageSize}
+                                                totalPages={Math.max(Math.ceil((pendingProblems.length || 0) / pendingPageSize), 1)}
+                                                onChangePage={(p) => setPendingProblemPage(p)}
+                                            />
+                                        </>
+                                    ) : (
+                                        !pendingLoading && <div className="text-center text-sm text-gray-500 dark:text-slate-400 py-8">신청 내역이 없습니다.</div>
+                                    )
+                                )}
+
+                                {pendingCategory === 'workbook' && (
+                                    pendingWorkbooks.length > 0 ? (
+                                        <>
+                                            <PendingListTable
+                                                items={pendingWorkbooks.slice((pendingWorkbookPage - 1) * pendingPageSize, pendingWorkbookPage * pendingPageSize)}
+                                                loading={pendingLoading}
+                                                title="문제집 신청 현황"
+                                            />
+                                            <CommonPagination
+                                                page={pendingWorkbookPage}
+                                                pageSize={pendingPageSize}
+                                                totalPages={Math.max(Math.ceil((pendingWorkbooks.length || 0) / pendingPageSize), 1)}
+                                                onChangePage={(p) => setPendingWorkbookPage(p)}
+                                            />
+                                        </>
+                                    ) : (
+                                        !pendingLoading && <div className="text-center text-sm text-gray-500 dark:text-slate-400 py-8">신청 내역이 없습니다.</div>
+                                    )
+                                )}
+
+                                {pendingCategory === 'organization' && (
+                                    pendingOrganizations.length > 0 ? (
+                                        <>
+                                            <PendingListTable
+                                                items={pendingOrganizations.slice((pendingOrgPage - 1) * pendingPageSize, pendingOrgPage * pendingPageSize)}
+                                                loading={pendingLoading}
+                                                title="단체 신청 현황"
+                                            />
+                                            <CommonPagination
+                                                page={pendingOrgPage}
+                                                pageSize={pendingPageSize}
+                                                totalPages={Math.max(Math.ceil((pendingOrganizations.length || 0) / pendingPageSize), 1)}
+                                                onChangePage={(p) => setPendingOrgPage(p)}
+                                            />
+                                        </>
+                                    ) : (
+                                        !pendingLoading && <div className="text-center text-sm text-gray-500 dark:text-slate-400 py-8">신청 내역이 없습니다.</div>
+                                    )
+                                )}
+                            </div>
+                        )}
 
                         {isProblemModalOpen && (
                             <ProblemRegistrationModal

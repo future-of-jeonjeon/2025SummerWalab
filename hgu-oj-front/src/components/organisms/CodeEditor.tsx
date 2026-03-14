@@ -758,7 +758,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
             disabled={isExecuting}
             loading={isExecuting}
           >
-            실행 (Ctrl/Cmd+Enter)
+            실행
           </Button>
           <Button
             variant="primary"

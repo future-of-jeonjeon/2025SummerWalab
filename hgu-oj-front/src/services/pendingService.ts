@@ -1,84 +1,90 @@
 import { apiClient, MS_API_BASE } from './api';
-import { PendingPaginationResponse, PendingResponse, PendingStatus, PendingTargetType } from '../components/admin/apply/types';
+import { ApprovalStatus, PendingItem, PendingTargetType } from '../types';
 
-interface GetPendingParams {
-  targetType: PendingTargetType;
-  page?: number;
-  size?: number;
+type PendingStatus = 'IN_PROGRESS' | 'DONE' | 'EXPIRED';
+
+export interface PendingContributionItem {
+  id: number;
+  status: ApprovalStatus;
+  type?: 'problem' | 'workbook';
+  title?: string;
+  reason?: string | null;
+  updated_at?: string;
 }
 
-const trimTrailingSlash = (value: string) => value.replace(/\/$/, '');
-const PENDING_API_BASE = `${trimTrailingSlash(MS_API_BASE)}/pending`;
+const normalizePendingList = (data: any): PendingContributionItem[] => {
+  const items = Array.isArray(data)
+    ? data
+    : Array.isArray(data?.items)
+      ? data.items
+      : Array.isArray(data?.data)
+        ? data.data
+        : [];
 
-const toNumber = (value: unknown, fallback: number) => {
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
+  return items
+    .map((item: any) => {
+      const id = item.id ?? item.problem_id ?? item.workbook_id ?? item.target_id;
+      const statusRaw = (item.status ?? item.state ?? '').toString().toLowerCase();
+      const status: ApprovalStatus | undefined =
+        ['pending', 'in_progress', 'in-progress', 'processing'].includes(statusRaw) ? 'pending'
+          : ['done', 'approved', 'accept', 'accepted'].includes(statusRaw) ? 'approved'
+          : ['expired', 'rejected', 'deny', 'denied'].includes(statusRaw) ? 'rejected'
+          : undefined;
+      if (!id || !status) return null;
+      return {
+        id: Number(id),
+        status,
+        type: item.type,
+        title: item.title ?? item.name,
+        reason: item.reason ?? item.reject_reason ?? null,
+        updated_at: item.updated_at ?? item.update_time ?? item.updatedAt,
+      } as PendingContributionItem;
+    })
+    .filter(Boolean) as PendingContributionItem[];
 };
 
-const adaptPending = (raw: any): PendingResponse => {
-  const targetData = raw?.target_data ?? null;
-  const titleFromTarget =
-    typeof targetData?.title === 'string'
-      ? targetData.title
-      : (typeof targetData?.name === 'string' ? targetData.name : '');
-
-  return {
-    id: typeof raw?.id === 'number' ? raw.id : undefined,
-    pending_id:
-      typeof raw?.pending_id === 'number'
-        ? raw.pending_id
-        : (typeof raw?.id === 'number' ? raw.id : undefined),
-    status: raw?.status as PendingStatus,
-    target_type: raw?.target_type as PendingTargetType,
-    target_id: toNumber(raw?.target_id, 0),
-    title: typeof raw?.title === 'string' && raw.title.length > 0 ? raw.title : titleFromTarget,
-    due_at: typeof raw?.due_at === 'string' ? raw.due_at : null,
-    created_user_data: {
-      username: raw?.created_user_data?.username ?? null,
-      avatar: raw?.created_user_data?.avatar ?? null,
-      student_id: raw?.created_user_data?.student_id ?? null,
-      major_id: typeof raw?.created_user_data?.major_id === 'number' ? raw.created_user_data.major_id : null,
-      name: raw?.created_user_data?.name ?? null,
-      dark_mode_enabled: Boolean(raw?.created_user_data?.dark_mode_enabled),
-      language_preferences: Array.isArray(raw?.created_user_data?.language_preferences)
-        ? raw.created_user_data.language_preferences
-        : [],
-    },
-    target_data: targetData,
-    completed_at: typeof raw?.completed_at === 'string' ? raw.completed_at : null,
-    completed_user_id: typeof raw?.completed_user_id === 'number' ? raw.completed_user_id : null,
-  };
-};
-
-const adaptPendingPagination = (raw: any, fallback: { page: number; size: number }): PendingPaginationResponse => {
-  const sourceItems = Array.isArray(raw?.items)
-    ? raw.items
-    : (Array.isArray(raw?.pending) ? raw.pending : []);
-
-  return {
-    items: sourceItems.map(adaptPending),
-    total: toNumber(raw?.total, sourceItems.length),
-    page: toNumber(raw?.page, fallback.page),
-    size: toNumber(raw?.size, fallback.size),
-  };
+const listToMap = (list: PendingContributionItem[]) => {
+  const map: Record<number, PendingContributionItem> = {};
+  list.forEach((item) => {
+    map[item.id] = item;
+  });
+  return map;
 };
 
 export const pendingService = {
-  getPending: async ({ targetType, page = 1, size = 20 }: GetPendingParams): Promise<PendingPaginationResponse> => {
-    const response = await apiClient.post(PENDING_API_BASE, null, {
-      params: {
-        target_type: targetType,
-        page,
-        size,
-      },
+  async getProblemStatuses(): Promise<Record<number, PendingContributionItem>> {
+    const res = await apiClient.get(`${MS_API_BASE}/pending`, {
+      params: { target_type: 'PROBLEM', size: 200 },
     });
-
-    return adaptPendingPagination(response.data, { page, size });
+    return listToMap(normalizePendingList(res.data));
+  },
+  async getWorkbookStatuses(): Promise<Record<number, PendingContributionItem>> {
+    const res = await apiClient.get(`${MS_API_BASE}/pending`, {
+      params: { target_type: 'WORKBOOK', size: 200 },
+    });
+    return listToMap(normalizePendingList(res.data));
+  },
+  async getMyPendings(target_type: PendingTargetType, size: number = 200, page: number = 1): Promise<PendingItem[]> {
+    const res = await apiClient.get(`${MS_API_BASE}/pending/me`, {
+      params: { target_type, size, page },
+    });
+    const list = Array.isArray(res.data?.items) ? res.data.items : Array.isArray(res.data) ? res.data : [];
+    return list as PendingItem[];
   },
 
-  processPending: async (pendingId: number, status: PendingStatus): Promise<void> => {
-    await apiClient.post(`${PENDING_API_BASE}/${pendingId}`, null, {
-      params: { status },
+  // Admin용 기존 인터페이스 호환 (관리자 페이지에서 사용)
+  async getPending(params: { targetType: PendingTargetType; page?: number; size?: number }) {
+    const res = await apiClient.get(`${MS_API_BASE}/pending`, {
+      params: {
+        target_type: params.targetType,
+        page: params.page ?? 1,
+        size: params.size ?? 20,
+      },
     });
+    return res.data;
+  },
+
+  async processPending(pending_id: number, status: PendingStatus | 'DONE' | 'EXPIRED') {
+    return apiClient.post(`${MS_API_BASE}/pending/${pending_id}`, null, { params: { status } });
   },
 };
