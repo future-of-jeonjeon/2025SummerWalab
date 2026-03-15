@@ -1,10 +1,8 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
 import { WorkbookList } from '../components/organisms/WorkbookList';
 import { useWorkbooks } from '../hooks/useWorkbooks';
 import { useWorkbookStore } from '../stores/workbookStore';
-import { problemService } from '../services/problemService';
 import CommonPagination from '../components/common/CommonPagination';
 
 const normalizeTags = (tags: string[]): string[] => {
@@ -26,22 +24,20 @@ export const WorkbookListPage: React.FC = () => {
   // useWorkbooks returns { data, isLoading, error, refetch } from useQuery
   const { data: workbookResponse, isLoading, error } = useWorkbooks(filter);
 
-  const {
-    data: tagCountsData,
-    isLoading: isTagCountsLoading,
-  } = useQuery({
-    queryKey: ['problem', 'tag-counts'],
-    queryFn: ({ signal }) => problemService.getTagCounts({ signal }),
-  });
+  const workbooks = workbookResponse?.data || [];
 
   const tagStats = useMemo(() => {
-    return (tagCountsData ?? [])
-      .map(({ tag, count }) => ({
-        name: tag,
-        count,
-      }))
-      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }));
-  }, [tagCountsData]);
+    const tagSet = new Set<string>();
+    workbooks.forEach((workbook) => {
+      (workbook.tags ?? []).forEach((tag) => {
+        const normalized = tag?.trim();
+        if (normalized) tagSet.add(normalized);
+      });
+    });
+    return Array.from(tagSet)
+      .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }))
+      .map((tag) => ({ name: tag }));
+  }, [workbooks]);
 
   const selectedTags = useMemo(
     () => normalizeTags(filter.tags ?? []),
@@ -69,7 +65,6 @@ export const WorkbookListPage: React.FC = () => {
     setFilter({ tags: newTags, page: 1 });
   };
 
-  const workbooks = workbookResponse?.data || [];
   const totalCount = workbookResponse?.total || 0;
   const currentPage = workbookResponse?.page || 1;
   const totalPages = workbookResponse?.totalPages || 1;
@@ -142,9 +137,6 @@ export const WorkbookListPage: React.FC = () => {
                 <svg className="w-5 h-5 text-gray-500 dark:text-slate-400" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M7 3a1 1 0 000 2h6a1 1 0 100-2H7zM4 7a1 1 0 011-1h10a1 1 0 110 2H5a1 1 0 01-1-1zM2 11a2 2 0 012-2h12a2 2 0 012 2v4a2 2 0 01-2 2H4a2 2 0 01-2-2v-4z"></path></svg>
                 카테고리
               </h3>
-              {isTagCountsLoading && (
-                <div className="text-sm text-gray-500 dark:text-slate-400 mb-3">태그를 불러오는 중입니다...</div>
-              )}
               <div className="space-y-3">
                 <label className="flex items-center justify-between cursor-pointer group">
                   <div className="flex items-center">

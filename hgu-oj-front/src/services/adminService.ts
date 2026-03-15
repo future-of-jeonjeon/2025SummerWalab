@@ -262,7 +262,7 @@ export const adminService = {
 
   updateContest: async (payload: UpdateContestPayload): Promise<AdminContest> => {
     const baseUrl = getMsBaseUrl();
-    const response = await apiClient.put<AdminContest>(`${baseUrl}/contest/`, payload);
+    const response = await apiClient.put<AdminContest>(`${baseUrl}/contest`, payload);
     return mapAdminContest(response.data);
   },
 
