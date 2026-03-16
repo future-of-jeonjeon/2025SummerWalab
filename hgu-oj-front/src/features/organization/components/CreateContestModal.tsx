@@ -808,7 +808,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
             <ProblemRegistrationModal
                 isOpen={isProblemCreateModalOpen}
                 editProblemId={editingProblemId}
-                contestId={isEditMode ? editContestId : undefined}
+                contestId={isEditMode ? (editContestId ?? undefined) : undefined}
                 onClose={() => {
                     setIsProblemCreateModalOpen(false);
                     setEditingProblemId(undefined);
