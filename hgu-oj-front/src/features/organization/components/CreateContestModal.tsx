@@ -31,17 +31,6 @@ const toDatetimeLocal = (isoString?: string) => {
     return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 };
 
-const getNextDisplayId = (problems: Problem[]) => {
-    const maxDisplayId = problems.reduce((max, problem) => {
-        const parsed = Number(problem.displayId);
-        if (Number.isFinite(parsed)) {
-            return Math.max(max, parsed);
-        }
-        return max;
-    }, 0);
-    return String(maxDisplayId + 1);
-};
-
 export const CreateContestModal: React.FC<CreateContestModalProps> = ({
     isOpen,
     onClose,
@@ -819,6 +808,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
             <ProblemRegistrationModal
                 isOpen={isProblemCreateModalOpen}
                 editProblemId={editingProblemId}
+                contestId={isEditMode ? (editContestId ?? undefined) : undefined}
                 onClose={() => {
                     setIsProblemCreateModalOpen(false);
                     setEditingProblemId(undefined);
@@ -827,12 +817,9 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                     setIsProblemCreateModalOpen(false);
                     setEditingProblemId(undefined);
                     if (created && created.problemId) {
-                        setProblemMessage({ success: '문제를 생성했습니다. 대회에 자동 추가 중입니다...' });
+                        setProblemMessage({ success: '문제를 생성했습니다.' });
                         try {
-                            const newProblemDetail = await adminService.getAdminProblemDetail(created.problemId);
-
                             if (isEditMode && editContestId) {
-                                await adminService.addContestProblemFromPublic(editContestId, created.problemId, getNextDisplayId(contestProblems));
                                 const refreshed = await adminService.getContestProblems(editContestId);
                                 const sorted = (Array.isArray(refreshed) ? refreshed : []).sort((a, b) => {
                                     const aId = Number(a.displayId) || 0;
@@ -840,7 +827,9 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                     return aId - bId;
                                 });
                                 setContestProblems(sorted);
+                                setProblemMessage({ success: `'${created.title || '새 문제'}' 문제가 대회에 등록되었습니다.` });
                             } else {
+                                const newProblemDetail = await adminService.getAdminProblemDetail(created.problemId);
                                 const normalizedProblem: Problem = {
                                     id: newProblemDetail.id,
                                     title: newProblemDetail.title,
@@ -856,10 +845,10 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                     if (prev.some((p) => p.id === normalizedProblem.id)) return prev;
                                     return ensureDisplayIds([...prev, normalizedProblem]);
                                 });
+                                setProblemMessage({ success: `'${newProblemDetail.title}' 문제를 자동으로 추가했습니다.` });
                             }
 
                             setProblemInput('');
-                            setProblemMessage({ success: `'${newProblemDetail.title}' 문제를 자동으로 추가했습니다.` });
                         } catch {
                             setProblemMessage({ error: '문제 생성 후 자동 추가에 실패했습니다.' });
                         }

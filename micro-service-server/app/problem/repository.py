@@ -46,8 +46,6 @@ async def fetch_tag_counts(session: AsyncSession) -> Sequence[Tuple[str, int]]:
     return result.all()
 
 
-
-
 async def fetch_filtered_problems(
         session: AsyncSession,
         *,
@@ -179,10 +177,10 @@ async def find_problems_by_creator_id(
         session: AsyncSession) -> Page[Problem]:
     stmt = (
         select(Problem)
-            .options(selectinload(Problem.tags))
-            .where(Problem.created_by_id == creator_id)
-            .where(Problem.visible==True)
-            .order_by(Problem.id.desc())
+        .options(selectinload(Problem.tags))
+        .where(Problem.created_by_id == creator_id)
+        .where(Problem.visible == True)
+        .order_by(Problem.id.desc())
     )
     return await paginate(session, stmt, page, size)
 
@@ -248,7 +246,7 @@ async def find_filtered_problems(
     stmt = (
         select(Problem)
         .options(selectinload(Problem.tags))
-        .where(_public_problem_filter())
+        .where(_public_problem_filter(), Problem.is_public == True)
     )
 
     if tags:
@@ -314,7 +312,7 @@ async def find_solved_problems_user_id(
 async def find_attempted_problems_user_id(
         user_id: int,
         problem_ids: List[int],
-        db: AsyncSession,) -> List[int]:
+        db: AsyncSession, ) -> List[int]:
     if not problem_ids:
         return []
 
