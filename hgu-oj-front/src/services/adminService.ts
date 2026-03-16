@@ -568,7 +568,17 @@ export const adminService = {
         display_id: displayId,
       });
       return;
-    } catch {
+    } catch (error: any) {
+      const status = Number(error?.response?.status);
+      const shouldFallbackToLegacyAdminApi = status === 404 || status === 405;
+      if (!shouldFallbackToLegacyAdminApi) {
+        const detailMessage =
+          error?.response?.data?.detail?.message ||
+          error?.response?.data?.message ||
+          error?.message;
+        throw new Error(detailMessage || '대회 문제 추가에 실패했습니다.');
+      }
+
       const response = await api.post('/admin/contest/add_problem_from_public', {
         contest_id: contestId,
         problem_id: problemId,

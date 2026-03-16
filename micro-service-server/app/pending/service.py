@@ -168,6 +168,7 @@ async def _problem_pending_pass(problem_id: int, db: AsyncSession):
     if not problem:
         problem_exception.problem_not_found()
     problem.visible = True
+    problem.is_public = True
     return problem.title
 
 
