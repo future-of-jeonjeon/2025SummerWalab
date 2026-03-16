@@ -13,6 +13,7 @@ interface ProblemRegistrationModalProps {
     onSuccess: (created?: { problemId: number; title?: string }) => void;
     editProblemId?: number;
     readOnly?: boolean;
+    contestId?: number;
 }
 
 type ProblemFormState = {
@@ -52,7 +53,7 @@ const initialFormState: ProblemFormState = {
 };
 
 export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> = ({
-    isOpen, onClose, onSuccess, editProblemId, readOnly = false
+    isOpen, onClose, onSuccess, editProblemId, readOnly = false, contestId
 }) => {
     const [formState, setFormState] = useState<ProblemFormState>(initialFormState);
     const [samples, setSamples] = useState<Array<{ input: string; output: string }>>([
@@ -274,7 +275,10 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                     onClose();
                 }, 1000);
             } else {
-                const { polling_key } = await contributionService.createProblem(payload);
+                const canCreateContestProblem = Number.isFinite(contestId) && Number(contestId) > 0;
+                const { polling_key } = canCreateContestProblem
+                    ? await contributionService.createContestProblem(Number(contestId), payload)
+                    : await contributionService.createProblem(payload);
 
                 let isPolling = true;
                 while (isPolling) {
@@ -284,7 +288,11 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                         if (!Number.isFinite(createdProblemId) || createdProblemId <= 0) {
                             throw new Error('문제 생성은 완료되었지만 problem_id를 받지 못했습니다. 잠시 후 다시 시도해주세요.');
                         }
-                        alert('문제 등록 신청이 완료되었습니다. 관리자 허가 이후에 최종 등록됩니다.');
+                        if (canCreateContestProblem) {
+                            alert('문제가 등록되었습니다.');
+                        } else {
+                            alert('문제 등록 신청이 완료되었습니다. 관리자 허가 이후에 최종 등록됩니다.');
+                        }
                         onSuccess({ problemId: createdProblemId, title: formState.title.trim() });
                         onClose();
                         isPolling = false;

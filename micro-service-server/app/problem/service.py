@@ -68,7 +68,8 @@ async def create_problem(
             if request_data.tags:
                 problem.tags = await _process_tags(db, request_data.tags)
             if not is_admin:
-                problem.visible = False
+                problem.visible = True
+                problem.is_public = False
             problem = await problem_repository.save(db, problem)
             if not is_admin and not is_contest:
                 await pending_service.create_pending(PendingTargetType.PROBLEM, problem.id, user_profile, db)

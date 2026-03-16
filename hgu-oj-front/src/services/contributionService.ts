@@ -67,6 +67,11 @@ export const contributionService = {
         return response.data;
     },
 
+    createContestProblem: async (contestId: number, payload: CreateProblemPayload): Promise<{ polling_key: string }> => {
+        const response = await apiClient.post(`${MS_API_BASE}/problem/contest/${contestId}`, payload);
+        return response.data;
+    },
+
     getPollingStatus: async (key: string): Promise<ProblemImportPollingStatus> => {
         const response = await apiClient.get<ProblemImportPollingStatus>(`${MS_API_BASE}/problem/polling`, {
             params: { key }
