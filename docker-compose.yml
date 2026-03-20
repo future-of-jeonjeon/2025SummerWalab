@@ -1,27 +1,4 @@
 services:
-  oj-frontend:
-    networks:
-      - judge-network
-    build:
-      context: ./OnlineJudgeFE
-      args:
-        VUE_APP_GOOGLE_CLIENT_ID: ${VUE_APP_GOOGLE_CLIENT_ID}
-        VUE_APP_GOOGLE_CLIENT_SECRET: ${VUE_APP_GOOGLE_CLIENT_SECRET}
-        VUE_APP_GOOGLE_REDIRECT_URI: ${VUE_APP_GOOGLE_REDIRECT_URI}
-    container_name: oj-frontend
-    env_file: .env
-    environment:
-      - TARGET=http://oj-backend:8000
-      - TARGET_HOST=${SERVICE_DOMAIN}
-      - PORT=8080
-      - VUE_APP_GOOGLE_CLIENT_ID=${VUE_APP_GOOGLE_CLIENT_ID}
-      - VUE_APP_GOOGLE_CLIENT_SECRET=${VUE_APP_GOOGLE_CLIENT_SECRET}
-      - VUE_APP_GOOGLE_REDIRECT_URI=${VUE_APP_GOOGLE_REDIRECT_URI}
-    ports:
-      - "8080:8080"
-    depends_on:
-      - oj-backend
-
   oj-redis:
     networks:
       - judge-network
