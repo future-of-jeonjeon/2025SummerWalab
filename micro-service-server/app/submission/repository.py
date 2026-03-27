@@ -2,9 +2,10 @@ from collections import defaultdict
 from datetime import datetime, timedelta
 from typing import Iterable, List, Optional
 
-from sqlalchemy import case, func, select
+from sqlalchemy import case, func, select, null
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.common.page import Page, paginate
 from app.problem.models import Problem
 from app.submission.models import Submission
 
@@ -220,7 +221,7 @@ async def count_problem_by_contest_id(contest_id: int, db: AsyncSession) -> int:
 async def count_submissions_for_contest_problems(
         db: AsyncSession,
         contest_id: int,
-        problem_ids: list[int],) -> int:
+        problem_ids: list[int], ) -> int:
     if not problem_ids:
         return 0
     stmt = (
@@ -269,3 +270,31 @@ async def find_attempted_problem_ids_by_contest_and_user(
     )
     result = await db.execute(stmt)
     return [int(pid) for pid in result.scalars().all()]
+
+
+async def find_solved_submission_by_user_id(
+        user_id: int,
+        db: AsyncSession) -> List[Submission]:
+    stmt = (
+        select(Submission)
+        .where(Submission.user_id == user_id)
+        .where(Submission.contest_id.is_(None))
+        .where(Submission.result == JUDGE_STATUS_ACCEPTED)
+    )
+    result = await db.execute(stmt)
+    return result.scalars().all()
+
+
+async def find_solved_submission_by_user_id_paginated(
+        user_id: int,
+        page: int,
+        size: int,
+        db: AsyncSession) -> Page[Submission]:
+    stmt = (
+        select(Submission)
+        .where(Submission.user_id == user_id)
+        .where(Submission.contest_id.is_(None))
+        .where(Submission.result == JUDGE_STATUS_ACCEPTED)
+        .order_by(Submission.create_time.desc())
+    )
+    return await paginate(db, stmt, page, size)

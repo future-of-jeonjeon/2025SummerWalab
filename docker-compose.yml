@@ -100,7 +100,6 @@ services:
       - ./data/micro_service/log:/log 
     depends_on:
       - oj-redis 
-      - oj-frontend
       - oj-backend
       - oj-judge
 

@@ -266,6 +266,32 @@ export const NavBar: React.FC = () => {
                     </div>
                   )}
                 </div>
+                <Link
+                  to="/ide"
+                  className={`relative inline-flex items-center justify-center p-2 transition-colors focus:outline-none ${isActive('/ide')
+                    ? 'text-blue-600 dark:text-blue-400'
+                    : 'text-gray-400 hover:text-gray-500 dark:text-slate-400 dark:hover:text-slate-200'
+                    } group`}
+                  aria-label="개발 IDE로 이동"
+                >
+                  <svg
+                    className="h-5 w-5"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.8"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    aria-hidden="true"
+                  >
+                    <polyline points="8 7 3 12 8 17" />
+                    <polyline points="16 7 21 12 16 17" />
+                    <line x1="14" y1="4" x2="10" y2="20" />
+                  </svg>
+                  <span className="pointer-events-none absolute left-1/2 top-full z-20 mt-1 -translate-x-1/2 whitespace-nowrap rounded-md bg-gray-900 px-2 py-1 text-[11px] font-medium text-white opacity-0 shadow-sm transition-opacity duration-150 group-hover:opacity-100 group-focus-visible:opacity-100 dark:bg-slate-700">
+                    IDE
+                  </span>
+                </Link>
                 <div className="flex items-center space-x-2">
                   <Button
                     onClick={handleLogout}
