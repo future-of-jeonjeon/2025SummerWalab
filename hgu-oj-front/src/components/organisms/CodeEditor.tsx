@@ -3,6 +3,7 @@ import { Editor } from '@monaco-editor/react';
 import { LanguageOption, ExecutionResult } from '../../types';
 import { Button } from '../atoms/Button';
 import { Card } from '../atoms/Card';
+import { ResizerBar } from '../atoms/ResizerBar';
 import { AlertModal } from '../molecules/AlertModal';
 import codeTemplates from '../../config/codeTemplates.json';
 import { codeAutoSaveService } from '../../services/codeAutoSaveService';
@@ -22,6 +23,16 @@ interface CodeEditorProps {
   isSubmitting?: boolean;
   preferredTheme?: 'light' | 'dark';
   onThemeChange?: (theme: 'light' | 'dark') => void;
+  showBackButton?: boolean;
+  onBackClick?: () => void;
+  showExecuteButton?: boolean;
+  executeButtonIconOnly?: boolean;
+  showSaveButton?: boolean;
+  showSubmitButton?: boolean;
+  saveButtonIconOnly?: boolean;
+  submitButtonIconOnly?: boolean;
+  modernToolbarSelect?: boolean;
+  showLanguageSelector?: boolean;
   className?: string;
 }
 
@@ -180,6 +191,16 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   isSubmitting = false,
   preferredTheme,
   onThemeChange,
+  showBackButton = false,
+  onBackClick,
+  showExecuteButton = true,
+  executeButtonIconOnly = false,
+  showSaveButton = true,
+  showSubmitButton = true,
+  saveButtonIconOnly = false,
+  submitButtonIconOnly = false,
+  modernToolbarSelect = false,
+  showLanguageSelector = true,
   className = '',
 }) => {
   const autoSaveIntervalMs = useMemo(() => resolveAutoSaveIntervalMs(), []);
@@ -234,7 +255,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     return allowedValues.length > 0 ? initial : 'javascript';
   });
   const [code, setCode] = useState(() => {
-    if (initialCode) return initialCode;
+    if (initialCode !== undefined) return initialCode;
     return defaultCode[language] || '';
   });
 
@@ -242,7 +263,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     if (!availableLanguageOptions.some((opt) => opt.value === language)) {
       const fallbackLang = availableLanguageOptions[0]?.value ?? 'javascript';
       setLanguage(fallbackLang);
-      const nextCode = initialCode || defaultCode[fallbackLang] || '';
+      const nextCode = initialCode ?? defaultCode[fallbackLang] ?? '';
       setCode(nextCode);
     }
   }, [availableLanguageOptions, language, initialCode]);
@@ -383,7 +404,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     if (typeof window === 'undefined') {
       languageRef.current = initialLanguage;
       setLanguage((prev) => (prev === initialLanguage ? prev : initialLanguage));
-      const baseCode = initialCode || defaultCode[initialLanguage] || '';
+      const baseCode = initialCode ?? defaultCode[initialLanguage] ?? '';
       if (codeRef.current !== baseCode) {
         codeRef.current = baseCode;
         setCode(baseCode);
@@ -398,7 +419,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     const savedLanguage = localStorage.getItem(langKey) || availableLanguageOptions[0]?.value || initialLanguage;
     languageRef.current = savedLanguage;
     setLanguage((prev) => (prev === savedLanguage ? prev : savedLanguage));
-    const baseCode = initialCode || defaultCode[savedLanguage] || '';
+    const baseCode = initialCode ?? defaultCode[savedLanguage] ?? '';
     if (codeRef.current !== baseCode) {
       codeRef.current = baseCode;
       setCode(baseCode);
@@ -584,7 +605,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       if (!ctrl) return;
       if (e.key === 'Enter') {
         e.preventDefault();
-        if (code.trim()) {
+        if (showExecuteButton && code.trim()) {
           onExecute?.(code, language, input);
         }
       }
@@ -599,7 +620,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     };
     window.addEventListener('keydown', listener);
     return () => window.removeEventListener('keydown', listener);
-  }, [code, language, input, onExecute, handleManualSave]);
+  }, [code, language, input, onExecute, handleManualSave, showExecuteButton]);
 
   // Persist theme
   useEffect(() => {
@@ -669,11 +690,16 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     : 'bg-gray-50 border-gray-200 text-gray-700';
 
   const controlSelectClasses = (size: 'default' | 'sm' = 'default') => {
-    const base = size === 'sm' ? 'px-2 py-1 text-xs' : 'px-3 py-1.5 text-sm';
-    const theme = isDarkTheme
-      ? 'border border-slate-600 bg-slate-900 text-slate-100 focus:ring-slate-400 focus:border-slate-400'
-      : 'border border-gray-300 bg-white text-gray-800 focus:ring-[#58A0C8] focus:border-[#58A0C8]';
-    return `${base} rounded-md focus:outline-none ${theme}`;
+    const base = size === 'sm' ? 'px-2.5 py-1.5 text-xs' : 'px-3 py-1.5 text-sm';
+    const theme = modernToolbarSelect
+      ? (isDarkTheme
+        ? 'appearance-none border border-slate-500/80 bg-slate-900/90 text-slate-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] hover:border-slate-400 focus:ring-2 focus:ring-blue-400/40 focus:border-blue-400'
+        : 'appearance-none border border-slate-300 bg-white text-slate-800 shadow-sm hover:border-blue-300 focus:ring-2 focus:ring-blue-200 focus:border-blue-400')
+      : (isDarkTheme
+        ? 'border border-slate-600 bg-slate-900 text-slate-100 focus:ring-slate-400 focus:border-slate-400'
+        : 'border border-gray-300 bg-white text-gray-800 focus:ring-[#58A0C8] focus:border-[#58A0C8]');
+    const arrowGap = modernToolbarSelect ? 'pr-8' : '';
+    return `${base} ${arrowGap} rounded-md focus:outline-none ${theme}`;
   };
 
   const ioPanelClasses = isDarkTheme
@@ -691,8 +717,8 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
     : 'border-blue-600 text-blue-600 hover:bg-blue-50 dark:!border-blue-600 dark:!text-blue-600 dark:hover:!bg-blue-50';
 
   const executeButtonClass = isDarkTheme
-    ? 'bg-sky-900/40 text-sky-200 hover:bg-sky-900'
-    : 'bg-sky-100 text-blue-700 hover:bg-sky-200 dark:!bg-sky-100 dark:!text-blue-700 dark:hover:!bg-sky-200';
+    ? '!bg-emerald-700 !text-white hover:!bg-emerald-600'
+    : '!bg-emerald-600 !text-white hover:!bg-emerald-700 dark:!bg-emerald-600 dark:!text-white dark:hover:!bg-emerald-700';
 
   const submitButtonClass = isDarkTheme
     ? 'bg-blue-500 text-white hover:bg-blue-400'
@@ -701,6 +727,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
   const outputCardForceClass = isDarkTheme
     ? ''
     : 'dark:!bg-white dark:!border-gray-200 dark:!text-gray-900';
+  const useSoftTabs = language !== 'javascript';
 
 
 
@@ -709,27 +736,66 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
       {/* Toolbar */}
       <div className={`flex items-center justify-between p-2 border-b ${toolbarThemeClasses}`}>
         <div className="flex items-center gap-2">
-          <select
-            value={language}
-            onChange={(e) => handleLanguageChange(e.target.value)}
-            className={controlSelectClasses('sm')}
-          >
-            {availableLanguageOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
+          {showBackButton && (
+            <button
+              type="button"
+              onClick={onBackClick}
+              className={`inline-flex h-8 w-8 items-center justify-center rounded-md border transition-colors focus:outline-none ${isDarkTheme
+                ? 'border-slate-500 text-slate-200 hover:bg-slate-700'
+                : 'border-gray-300 text-gray-700 hover:bg-gray-100'}`}
+              aria-label="뒤로가기"
+              title="뒤로가기"
+            >
+              <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+          )}
+          {showLanguageSelector && (
+            <div className="relative">
+              <select
+                value={language}
+                onChange={(e) => handleLanguageChange(e.target.value)}
+                className={controlSelectClasses('sm')}
+              >
+                {availableLanguageOptions.map((option) => (
+                  <option
+                    key={option.value}
+                    value={option.value}
+                    style={isDarkTheme ? { backgroundColor: '#0f172a', color: '#e2e8f0' } : { backgroundColor: '#ffffff', color: '#0f172a' }}
+                  >
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+              {modernToolbarSelect && (
+                <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center">
+                  <svg className={`h-3.5 w-3.5 ${isDarkTheme ? 'text-slate-300' : 'text-slate-500'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </span>
+              )}
+            </div>
+          )}
           <div className="flex items-center gap-1 text-sm">
             <label className={isDarkTheme ? 'text-slate-300' : 'text-gray-600'}>테마</label>
-            <select
-              value={editorTheme}
-              onChange={(e) => setEditorTheme(e.target.value as 'light' | 'dark')}
-              className={controlSelectClasses('sm')}
-            >
-              <option value="light">Light</option>
-              <option value="dark">Dark</option>
-            </select>
+            <div className="relative">
+              <select
+                value={editorTheme}
+                onChange={(e) => setEditorTheme(e.target.value as 'light' | 'dark')}
+                className={controlSelectClasses('sm')}
+              >
+                <option value="light" style={isDarkTheme ? { backgroundColor: '#0f172a', color: '#e2e8f0' } : { backgroundColor: '#ffffff', color: '#0f172a' }}>Light</option>
+                <option value="dark" style={isDarkTheme ? { backgroundColor: '#0f172a', color: '#e2e8f0' } : { backgroundColor: '#ffffff', color: '#0f172a' }}>Dark</option>
+              </select>
+              {modernToolbarSelect && (
+                <span className="pointer-events-none absolute inset-y-0 right-2 flex items-center">
+                  <svg className={`h-3.5 w-3.5 ${isDarkTheme ? 'text-slate-300' : 'text-slate-500'}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </span>
+              )}
+            </div>
           </div>
           {saveFeedback && (
             <div
@@ -741,35 +807,67 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
           )}
         </div>
         <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className={outlineButtonClass}
-            onClick={handleManualSave}
-            title="Ctrl/Cmd+S"
-          >
-            저장
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            className={executeButtonClass}
-            onClick={handleExecute}
-            disabled={isExecuting}
-            loading={isExecuting}
-          >
-            실행
-          </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            className={submitButtonClass}
-            onClick={handleSubmit}
-            disabled={isSubmitting}
-            loading={isSubmitting}
-          >
-            제출
-          </Button>
+          {showSaveButton && (
+            <Button
+              variant="outline"
+              size="sm"
+              className={outlineButtonClass}
+              onClick={handleManualSave}
+              title="저장 (Ctrl/Cmd+S)"
+            >
+              {saveButtonIconOnly ? (
+                <>
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                    <polyline points="17 21 17 13 7 13 7 21" />
+                    <polyline points="7 3 7 8 15 8" />
+                  </svg>
+                  <span className="sr-only">저장</span>
+                </>
+              ) : '저장'}
+            </Button>
+          )}
+          {showExecuteButton && (
+            <Button
+              variant="secondary"
+              size="sm"
+              className={executeButtonClass}
+              onClick={handleExecute}
+              disabled={isExecuting}
+              loading={isExecuting}
+              title="실행"
+            >
+              {executeButtonIconOnly ? (
+                <>
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                    <path d="M8 5v14l11-7-11-7z" />
+                  </svg>
+                  <span className="sr-only">실행</span>
+                </>
+              ) : '실행'}
+            </Button>
+          )}
+          {showSubmitButton && (
+            <Button
+              variant="primary"
+              size="sm"
+              className={submitButtonClass}
+              onClick={handleSubmit}
+              disabled={isSubmitting}
+              loading={isSubmitting}
+              title="제출"
+            >
+              {submitButtonIconOnly ? (
+                <>
+                  <svg className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <line x1="22" y1="2" x2="11" y2="13" />
+                    <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                  </svg>
+                  <span className="sr-only">제출</span>
+                </>
+              ) : '제출'}
+            </Button>
+          )}
         </div>
       </div>
 
@@ -791,15 +889,18 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
               roundedSelection: false,
               scrollBeyondLastLine: false,
               automaticLayout: true,
+              tabSize: 4,
+              insertSpaces: useSoftTabs,
+              detectIndentation: false,
             }}
           />
         </div>
 
         {/* Resizer: minimal hairline with centered handle */}
-        <div
-          role="separator"
-          aria-orientation="horizontal"
-          className="oj-resizer-h select-none group"
+        <ResizerBar
+          orientation="horizontal"
+          className="select-none group"
+          style={{ backgroundColor: isDarkTheme ? '#0f172a' : '#f3f4f6' }}
           onMouseDown={() => !ioCollapsed && setDraggingIO(true)}
         >
           <button
@@ -818,7 +919,7 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
               </svg>
             )}
           </button>
-        </div>
+        </ResizerBar>
 
         {/* IO Panel */}
         {!ioCollapsed && (
@@ -873,10 +974,8 @@ export const CodeEditor: React.FC<CodeEditorProps> = ({
               </div>
 
               {/* 수직 리사이저 */}
-              <div
-                role="separator"
-                aria-orientation="vertical"
-                className="oj-resizer-v"
+              <ResizerBar
+                orientation="vertical"
                 onMouseDown={() => setDraggingIOSplit(true)}
                 title="I/O 폭 조절"
               />

@@ -23,14 +23,14 @@ import { OrganizationDetailPage } from './pages/OrganizationDetailPage';
 import { OrganizationManagePage } from './pages/OrganizationManagePage';
 import { OrganizationJoinPage } from './pages/OrganizationJoinPage';
 import { ContributionPage } from './pages/ContributionPage';
+import { DevIdePage } from './pages/DevIdePage';
 
 const AppShell: React.FC = () => {
   const location = useLocation();
-  const hideOnProblemDetail = /^\/problems\/(?:[^/]+)$/.test(location.pathname);
-
+  const hideOnIdeLayout = /^\/problems\/(?:[^/]+)$/.test(location.pathname) || location.pathname.startsWith('/ide');
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-slate-950 dark:text-slate-100 flex flex-col">
-      {!hideOnProblemDetail && <NavBar />}
+      {!hideOnIdeLayout && <NavBar />}
       <div className="flex-1 flex flex-col">
         <Routes>
           <Route path="/" element={<HomePage />} />
@@ -53,10 +53,11 @@ const AppShell: React.FC = () => {
           <Route path="/organizations/:id/manage" element={<OrganizationManagePage />} />
           <Route path="/organizations/:id/join" element={<OrganizationJoinPage />} />
           <Route path="/contribution" element={<ContributionPage />} />
+          <Route path="/ide" element={<DevIdePage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
-      {!hideOnProblemDetail && <Footer />}
+      {!hideOnIdeLayout && <Footer />}
     </div>
   );
 };
