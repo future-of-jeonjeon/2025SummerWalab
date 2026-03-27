@@ -11,7 +11,8 @@ import { submissionService } from '../services/submissionService';
 import { MyProfile, MySolvedProblem, MyWrongProblem } from '../types';
 import { ContributionGraph } from '../components/molecules/ContributionGraph';
 import { GoalConfigModal } from '../components/organisms/GoalConfigModal';
-import { todoService, GoalRecommendation } from '../services/todoService';
+import { useUserGoals } from '../hooks/useUserGoals';
+import { UserGoalCard } from '../components/molecules/UserGoalCard';
 
 
 
@@ -91,6 +92,7 @@ export const MyPage: React.FC = () => {
   } = useProblemCount();
 
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
+  const [modalInitialView, setModalInitialView] = useState<'profile' | 'goal'>('goal');
 
   const handleUserUpdateSuccess = async () => {
     await Promise.all([
@@ -99,112 +101,21 @@ export const MyPage: React.FC = () => {
     ]);
   };
 
-  const { data: myTodo } = useQuery({
-    queryKey: ['todo', 'my'],
-    queryFn: todoService.getMyTodo,
-    enabled: isAuthenticated,
-  });
+  const { data: myTodo, goals: userGoals } = useUserGoals();
 
-  const { data: recommendations } = useQuery({
-    queryKey: ['todo', 'recommendations'],
-    queryFn: todoService.getRecommendations,
-    enabled: isAuthenticated,
-  });
+  const averageGoalProgress = userGoals.length > 0
+    ? Math.round(userGoals.reduce((sum, goal) => sum + goal.progress.percent, 0) / userGoals.length)
+    : 0;
+  const completedGoalCount = userGoals.filter((goal) => goal.progress.percent >= 100).length;
 
-  const { data: solveStats } = useQuery({
-    queryKey: ['todo', 'stats', 'solve-count'],
-    queryFn: todoService.getSolveCountStats,
-    enabled: isAuthenticated,
-  });
-
-  const { data: streakStats } = useQuery({
-    queryKey: ['todo', 'stats', 'streak'],
-    queryFn: todoService.getStreakStats,
-    enabled: isAuthenticated,
-  });
-
-  const { data: difficultyStats } = useQuery({
-    queryKey: ['todo', 'stats', 'difficulty'],
-    queryFn: todoService.getDifficultyStats,
-    enabled: isAuthenticated,
-  });
-
-  // Helper to find goal definition
-  const getGoalDef = (val: string | null | undefined, type: 'daily' | 'weekly' | 'monthly'): GoalRecommendation | undefined => {
-    if (!val) return undefined;
-    if (val.startsWith('CUSTOM:')) {
-      const parts = val.split(':');
-      return {
-        id: 'custom',
-        type: parts[1],
-        target: parseInt(parts[2]) || 1,
-        unit: parts[3] || 'problem',
-        label: parts[4] || '사용자 지정 목표',
-        startDate: parts[5],
-        endDate: parts[6]
-      } as any;
-    }
-    if (!recommendations) return undefined;
-    return recommendations[type].find(r => r.id === val);
+  const openGoalSettings = () => {
+    setModalInitialView('goal');
+    setIsGoalModalOpen(true);
   };
 
-  // Helper to calculate progress using real API stats
-  const getProgress = (def: GoalRecommendation | undefined, type: 'daily' | 'weekly' | 'monthly') => {
-    if (!def) return { current: 0, percent: 0 };
-
-    let current = 0;
-    if (def.type === 'SOLVE_COUNT' || def.type === 'PROBLEM_SOLVE') {
-      if (type === 'daily') current = solveStats?.daily || 0;
-      else if (type === 'weekly') current = solveStats?.weekly || 0;
-      else if (type === 'monthly') current = solveStats?.monthly || 0;
-    } else if (def.type === 'STREAK') {
-      current = streakStats?.streak || 0;
-    } else if (def.type === 'TIER_SOLVE') {
-      let searchDifficulty = 'Bronze';
-      if (def.id === 'custom') {
-        if (def.label.includes('Mid')) searchDifficulty = 'Mid';
-        else if (def.label.includes('Gold')) searchDifficulty = 'Gold';
-      } else {
-        const difficultyMap: Record<string, string> = {
-          'monthly_bronze_3': 'Bronze',
-          'monthly_mid_3': 'Mid',
-          'monthly_gold_3': 'Gold',
-        };
-        searchDifficulty = difficultyMap[def.id] || 'Bronze';
-      }
-      current = difficultyStats?.stats.find(s => s.difficulty === searchDifficulty)?.count || 0;
-    }
-
-    const percent = Math.min(Math.round((current / def.target) * 100), 100);
-    return { current, percent };
-  };
-
-  const dailyGoal = getGoalDef(myTodo?.day_todo, 'daily');
-  const weeklyGoal = getGoalDef(myTodo?.week_todo, 'weekly');
-  const monthlyGoal = getGoalDef(myTodo?.month_todo, 'monthly');
-  const customGoal = getGoalDef(myTodo?.custom_todo, 'daily');
-
-  const dailyProgress = getProgress(dailyGoal, 'daily');
-  const weeklyProgress = getProgress(weeklyGoal, 'weekly');
-  const monthlyProgress = getProgress(monthlyGoal, 'monthly');
-  const customProgress = getProgress(customGoal, 'daily');
-
-  const activeGoals = [
-    { type: 'daily', goal: dailyGoal, progress: dailyProgress, color: 'emerald', title: '일간 목표' },
-    { type: 'weekly', goal: weeklyGoal, progress: weeklyProgress, color: 'blue', title: '주간 목표' },
-    { type: 'monthly', goal: monthlyGoal, progress: monthlyProgress, color: 'purple', title: '월간 목표' },
-    { type: 'custom', goal: customGoal, progress: customProgress, color: 'amber', title: '사용자 정의' },
-  ].filter(g => !!g.goal);
-
-  const getGridCols = (count: number) => {
-    if (count <= 1) return 'grid-cols-1';
-    if (count === 2) return 'grid-cols-1 md:grid-cols-2';
-    if (count === 3) return 'grid-cols-1 md:grid-cols-3';
-    return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4';
-  };
-
-  const getCardPadding = (count: number) => {
-    return count > 3 ? 'p-4' : 'p-5';
+  const openProfileSettings = () => {
+    setModalInitialView('profile');
+    setIsGoalModalOpen(true);
   };
 
 
@@ -268,71 +179,86 @@ export const MyPage: React.FC = () => {
             </div>
 
             {/* Right: Learning Goal Management */}
-            <div className="flex-1 flex flex-col justify-center">
-              <div className="flex justify-between items-end mb-6">
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">학습 목표 관리</h3>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Learning Goal</h3>
+            <div className="min-w-0 flex-1 flex flex-col justify-center">
+              <div className="max-w-full rounded-3xl border border-gray-100 bg-gray-50/70 p-5 dark:border-slate-700 dark:bg-slate-900/50">
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Learning Goals</p>
+                    <h3 className="mt-1 text-xl font-bold text-gray-900 dark:text-white">학습 목표 관리</h3>
+                    <p className="mt-2 text-sm text-gray-500 dark:text-slate-400">
+                      목표를 원하는 만큼 추가하고, 진행률을 한눈에 확인할 수 있습니다.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={openProfileSettings}
+                      className="inline-flex items-center justify-center gap-2 self-start rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-emerald-200 hover:text-emerald-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-emerald-400 dark:hover:text-emerald-300"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 7a3 3 0 11-6 0 3 3 0 016 0zM21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      프로필 설정
+                    </button>
+                    <button
+                      onClick={openGoalSettings}
+                      className="inline-flex items-center justify-center gap-2 self-start rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-blue-200 hover:text-blue-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-blue-400 dark:hover:text-blue-300"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                      </svg>
+                      목표 설정
+                    </button>
+                  </div>
                 </div>
-                <div className="flex flex-col items-end gap-2">
-                  <button
-                    onClick={() => setIsGoalModalOpen(true)}
-                    className="inline-flex items-center justify-center text-gray-400 hover:text-blue-600 transition-colors"
-                    title="설정"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                  </button>
+
+                <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-slate-500">활성 목표</p>
+                    <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white">{userGoals.length}</p>
+                  </div>
+                  <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-slate-500">완료 목표</p>
+                    <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white">{completedGoalCount}</p>
+                  </div>
+                  <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-slate-500">평균 달성률</p>
+                    <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white">{averageGoalProgress}%</p>
+                  </div>
                 </div>
-              </div>
 
-              <div className={`grid gap-4 ${getGridCols(activeGoals.length)}`}>
-                {activeGoals.map((g) => {
-                  const progressColorMap: Record<string, string> = {
-                    emerald: 'bg-emerald-500',
-                    blue: 'bg-blue-600',
-                    purple: 'bg-purple-500',
-                    amber: 'bg-amber-500'
-                  };
-                  const textColorMap: Record<string, string> = {
-                    emerald: 'text-emerald-600',
-                    blue: 'text-blue-600',
-                    purple: 'text-purple-600',
-                    amber: 'text-amber-600'
-                  };
-                  const bgMap: Record<string, string> = {
-                    emerald: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-                    blue: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-                    purple: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-                    amber: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                  };
-
-                  return (
-                    <div key={g.type} className={`bg-gray-50 dark:bg-slate-700/50 rounded-2xl ${getCardPadding(activeGoals.length)} relative group transition-all`}>
-                      <span className={`inline-block px-2 py-0.5 rounded ${bgMap[g.color]} text-[10px] font-bold tracking-wide mb-3`}>
-                        {g.title}
-                      </span>
-                      <p className={`font-semibold text-gray-900 dark:text-white ${activeGoals.length > 3 ? 'text-xs mb-1 line-clamp-1' : 'text-sm mb-1'}`}>
-                        {g.goal?.label}
-                      </p>
-                      {g.type === 'custom' && (g.goal as any).startDate && (
-                        <p className="text-[10px] text-gray-400 dark:text-slate-500 mb-4 font-mono">
-                          {(g.goal as any).startDate} ~ {(g.goal as any).endDate}
-                        </p>
-                      )}
-                      {g.type !== 'custom' && <div className={activeGoals.length > 3 ? 'mb-4' : 'mb-6'} />}
-                      <div className="w-full bg-gray-200 dark:bg-slate-600 rounded-full h-1.5 mb-2">
-                        <div className={`${progressColorMap[g.color]} h-1.5 rounded-full transition-all duration-500`} style={{ width: `${g.progress.percent}%` }}></div>
-                      </div>
-                      <div className={`flex justify-between items-center text-gray-500 dark:text-slate-400 font-medium ${activeGoals.length > 3 ? 'text-[10px]' : 'text-xs'}`}>
-                        <span>{g.progress.current} / {g.goal?.target || 0} {g.goal?.unit || ''}</span>
-                        <span className={`${textColorMap[g.color]} dark:brightness-110`}>{g.progress.percent}%</span>
+                {userGoals.length === 0 ? (
+                  <div className="mt-5 rounded-3xl border border-dashed border-gray-300 bg-white px-6 py-10 text-center dark:border-slate-600 dark:bg-slate-800">
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">
+                      <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3A9 9 0 1112 3a9 9 0 019 9z" />
+                      </svg>
+                    </div>
+                    <h4 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">아직 설정한 목표가 없습니다</h4>
+                    <p className="mt-2 text-sm text-gray-500 dark:text-slate-400">
+                      목표를 추가하면 일간, 주간, 월간 학습 계획을 자유롭게 관리할 수 있습니다.
+                    </p>
+                  </div>
+                ) : userGoals.length <= 2 ? (
+                  <div className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-2">
+                    {userGoals.map((goal) => (
+                      <UserGoalCard key={goal.id} goal={goal} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-5 max-w-full overflow-hidden">
+                    <div className="overflow-x-auto pb-2">
+                      <div className="flex w-max gap-4">
+                        {userGoals.map((goal) => (
+                          <UserGoalCard
+                            key={goal.id}
+                            goal={goal}
+                            className="w-[320px] min-w-[320px]"
+                          />
+                        ))}
                       </div>
                     </div>
-                  );
-                })}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -370,6 +296,7 @@ export const MyPage: React.FC = () => {
           currentTodo={myTodo || null}
           initialUserData={userData || null}
           onUserUpdateSuccess={handleUserUpdateSuccess}
+          initialView={modalInitialView}
         />
 
         <section aria-labelledby="mypage-contests">

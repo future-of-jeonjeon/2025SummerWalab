@@ -2,7 +2,7 @@ import React, { FormEvent, useCallback, useEffect, useRef, useState } from 'reac
 import { Card } from '../atoms/Card';
 import { Input } from '../atoms/Input';
 import { Button } from '../atoms/Button';
-import { RichTextEditor } from '../molecules/RichTextEditor';
+import { ProblemTextEditor } from '../molecules/ProblemTextEditor';
 import CommonPagination from '../common/CommonPagination';
 import {
   adminService,
@@ -17,6 +17,7 @@ import {
   normalizeLanguageList,
   toBackendLanguageList,
 } from '../../lib/problemLanguage';
+import { normalizeProblemRichTextFields } from '../../utils/problemRichText';
 
 const PROBLEM_EDIT_PAGE_SIZE = 10;
 
@@ -288,9 +289,12 @@ export const ProblemEditSection: React.FC = () => {
     const payload: UpdateProblemPayload = {
       id: selectedProblemDetail.id,
       title: formState.title.trim(),
-      description: formState.description,
-      input_description: formState.inputDescription,
-      output_description: formState.outputDescription,
+      ...normalizeProblemRichTextFields({
+        description: formState.description,
+        input_description: formState.inputDescription,
+        output_description: formState.outputDescription,
+        hint: formState.hint,
+      }),
       samples: effectiveSamples,
       test_case_id: selectedProblemDetail.testCaseId,
       time_limit: timeLimit,
@@ -299,7 +303,6 @@ export const ProblemEditSection: React.FC = () => {
       template: selectedProblemDetail.template,
       difficulty: formState.difficulty,
       tags: tags.length > 0 ? tags : selectedProblemDetail.tags,
-      hint: formState.hint,
     };
 
     if (!payload.title) {
@@ -503,26 +506,26 @@ export const ProblemEditSection: React.FC = () => {
               <div className="space-y-3">
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">문제 설명</label>
-                  <RichTextEditor value={formState.description} onChange={(value) => handleFieldChange('description', value)} placeholder="문제 설명을 입력하세요." />
+                  <ProblemTextEditor value={formState.description} onChange={(value) => handleFieldChange('description', value)} placeholder="문제 설명을 입력하세요." />
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">입력 설명</label>
-                  <RichTextEditor value={formState.inputDescription} onChange={(value) => handleFieldChange('inputDescription', value)} placeholder="입력에 대한 설명을 입력하세요." />
+                  <ProblemTextEditor value={formState.inputDescription} onChange={(value) => handleFieldChange('inputDescription', value)} placeholder="입력에 대한 설명을 입력하세요." />
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">출력 설명</label>
-                  <RichTextEditor value={formState.outputDescription} onChange={(value) => handleFieldChange('outputDescription', value)} placeholder="출력에 대한 설명을 입력하세요." />
+                  <ProblemTextEditor value={formState.outputDescription} onChange={(value) => handleFieldChange('outputDescription', value)} placeholder="출력에 대한 설명을 입력하세요." />
                 </div>
               </div>
 
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">힌트</label>
-                  <RichTextEditor value={formState.hint} onChange={(value) => handleFieldChange('hint', value)} placeholder="힌트가 있다면 입력하세요." />
+                  <ProblemTextEditor value={formState.hint} onChange={(value) => handleFieldChange('hint', value)} placeholder="힌트가 있다면 입력하세요." />
                 </div>
                 <div>
                   <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">출처</label>
-                  <RichTextEditor value={formState.source} onChange={(value) => handleFieldChange('source', value)} placeholder="문제 출처를 입력하세요." />
+                  <ProblemTextEditor value={formState.source} onChange={(value) => handleFieldChange('source', value)} placeholder="문제 출처를 입력하세요." />
                 </div>
               </div>
 

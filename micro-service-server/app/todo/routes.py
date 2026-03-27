@@ -16,7 +16,7 @@ from app.user.schemas import UserProfile
 router = APIRouter(prefix="/api/todo", tags=["todo"])
 
 
-@router.get("/my", response_model=TodoResponse | None)
+@router.get("/my", response_model=TodoResponse)
 async def get_my_todo(
     db: AsyncSession = Depends(get_database),
     user_profile: UserProfile = Depends(get_userdata),

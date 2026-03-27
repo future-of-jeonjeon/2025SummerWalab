@@ -1,35 +1,60 @@
-from typing import Optional
-from pydantic import BaseModel, Field
+from typing import Literal, Optional
+
+from pydantic import BaseModel, Field, model_validator
 
 
-class TodoBase(BaseModel):
-    day_todo: Optional[str] = Field(None, description="Daily goal identifier or configuration")
-    week_todo: Optional[str] = Field(None, description="Weekly goal identifier or configuration")
-    month_todo: Optional[str] = Field(None, description="Monthly goal identifier or configuration")
-    custom_todo: Optional[str] = Field(None, description="Custom goal identifier or configuration")
+GoalPeriod = Literal["daily", "weekly", "monthly"]
+GoalType = Literal["SOLVE_COUNT", "STREAK", "TIER_SOLVE"]
+GoalDifficulty = Literal["Bronze", "Mid", "Gold"]
 
 
-class TodoCreate(TodoBase):
-    pass
+class GoalPayload(BaseModel):
+    id: Optional[str] = None
+    period: GoalPeriod
+    type: GoalType
+    target: int = Field(..., ge=1)
+    difficulty: Optional[GoalDifficulty] = None
+
+    @model_validator(mode="after")
+    def validate_difficulty(self):
+        if self.type == "TIER_SOLVE" and not self.difficulty:
+            raise ValueError("difficulty is required when type is TIER_SOLVE")
+        if self.type != "TIER_SOLVE":
+            self.difficulty = None
+        return self
 
 
-class TodoUpdate(TodoBase):
-    pass
+class GoalProgress(BaseModel):
+    current: int
+    percent: int
 
 
-class TodoResponse(TodoBase):
-    user_id: int
+class GoalResponse(BaseModel):
+    id: str
+    period: GoalPeriod
+    type: GoalType
+    target: int
+    unit: str
+    difficulty: Optional[GoalDifficulty] = None
+    label: str
+    progress: GoalProgress
 
-    class Config:
-        from_attributes = True
+
+class TodoUpdate(BaseModel):
+    goals: list[GoalPayload] = Field(default_factory=list)
+
+
+class TodoResponse(BaseModel):
+    goals: list[GoalResponse] = Field(default_factory=list)
 
 
 class GoalRecommendation(BaseModel):
     id: str
     label: str
-    type: str  # e.g., 'SOLVE_COUNT', 'STREAK'
+    type: GoalType
     target: int
-    unit: str  # e.g., 'problem', 'day'
+    unit: str
+    difficulty: Optional[GoalDifficulty] = None
 
 
 class RecommendationsResponse(BaseModel):

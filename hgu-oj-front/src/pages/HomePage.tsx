@@ -10,6 +10,7 @@ import { userService } from '../services/userService';
 import { problemService } from '../services/problemService';
 import { getDifficultyMeta } from '../lib/difficulty';
 import { ProblemList } from '../components/organisms/ProblemList';
+import { GoalSidebar } from '../components/organisms/GoalSidebar';
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -101,7 +102,7 @@ export const HomePage: React.FC = () => {
         {/* Subtle Glow */}
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-600/20 rounded-full blur-[120px] pointer-events-none"></div>
 
-        <div className="relative mx-auto max-w-7xl 2xl:max-w-screen-2xl px-4 sm:px-6 lg:px-8 2xl:px-10">
+        <div className="relative mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
           <div className="max-w-3xl">
             <h1 className="mt-8 text-5xl font-extrabold tracking-tight sm:text-6xl lg:text-7xl" style={{ fontFamily: '"Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif' }}>
               H Code Round
@@ -123,25 +124,29 @@ export const HomePage: React.FC = () => {
       </section>
 
       {/* Main Content Area */}
-      <div className="mx-auto max-w-7xl 2xl:max-w-screen-2xl px-4 sm:px-6 lg:px-8 2xl:px-10 py-12">
-        <div className="flex flex-col lg:flex-row gap-8">
-          {/* Left Area: Recommended Problems */}
-          <div className="flex-1">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">최근 문제</h2>
-              <Link to="/problems" className="text-sm font-medium text-blue-600 hover:text-blue-400">
-                전체 보기 &gt;
-              </Link>
-            </div>
-            <ProblemList
-              problems={recentProblems}
-              isLoading={recentProblemsLoading}
-              onProblemClick={(problemId) => navigate(`/problems/${problemId}`)}
-            />
-          </div>
+      <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 py-12">
+        <div className="flex flex-col xl:flex-row gap-6">
+          <GoalSidebar className="hidden xl:block xl:w-64 xl:flex-shrink-0 xl:self-start" />
 
-          {/* Right Sidebar */}
-          <div className="w-full lg:w-[22rem] xl:w-96 shrink-0 flex flex-col gap-6">
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-col lg:flex-row gap-8">
+              {/* Left Area: Recommended Problems */}
+              <div className="flex-1">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-bold text-slate-900 dark:text-slate-100">최근 문제</h2>
+                  <Link to="/problems" className="text-sm font-medium text-blue-600 hover:text-blue-400">
+                    전체 보기 &gt;
+                  </Link>
+                </div>
+                <ProblemList
+                  problems={recentProblems}
+                  isLoading={recentProblemsLoading}
+                  onProblemClick={(problemId) => navigate(`/problems/${problemId}`)}
+                />
+              </div>
+
+              {/* Right Sidebar */}
+              <div className="w-full lg:w-[22rem] xl:w-96 shrink-0 flex flex-col gap-6">
             {/* 오늘의 도전 과제 */}
             <div className="relative overflow-hidden rounded-2xl bg-[#1A1F36] text-white shadow-xl">
               <div className="absolute top-4 right-4 opacity-10 pointer-events-none">
@@ -217,6 +222,8 @@ export const HomePage: React.FC = () => {
                 ) : (
                   <div className="text-sm text-slate-500 text-center py-4">랭커 정보가 없습니다.</div>
                 )}
+              </div>
+            </div>
               </div>
             </div>
           </div>
