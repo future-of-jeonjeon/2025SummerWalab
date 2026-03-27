@@ -27,6 +27,7 @@ import { ContributionPage } from './pages/ContributionPage';
 const AppShell: React.FC = () => {
   const location = useLocation();
   const hideOnProblemDetail = /^\/problems\/(?:[^/]+)$/.test(location.pathname);
+
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900 dark:bg-slate-950 dark:text-slate-100 flex flex-col">
       {!hideOnProblemDetail && <NavBar />}

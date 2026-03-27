@@ -1,6 +1,6 @@
 from datetime import datetime
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
+from sqlalchemy import select, update, func
 from app.todo.models import Todo
 
 
@@ -17,7 +17,15 @@ async def create_todo(db: AsyncSession, todo: Todo) -> Todo:
     return todo
 
 
-async def update_todo(db: AsyncSession, user_id: int, day_todo: str | None, week_todo: str | None, month_todo: str | None, custom_todo: str | None) -> Todo | None:
+async def update_todo(
+    db: AsyncSession,
+    user_id: int,
+    day_todo: str | None,
+    week_todo: str | None,
+    month_todo: str | None,
+    custom_todo: str | None,
+    goals: list[dict] | None = None,
+) -> Todo | None:
     stmt = (
         update(Todo)
         .where(Todo.user_id == user_id)
@@ -25,7 +33,8 @@ async def update_todo(db: AsyncSession, user_id: int, day_todo: str | None, week
             day_todo=day_todo,
             week_todo=week_todo,
             month_todo=month_todo,
-            custom_todo=custom_todo
+            custom_todo=custom_todo,
+            goals=goals,
         )
         .returning(Todo)
     )
@@ -34,19 +43,29 @@ async def update_todo(db: AsyncSession, user_id: int, day_todo: str | None, week
     return result.scalars().first()
 
 
-async def upsert_todo(db: AsyncSession, user_id: int, day_todo: str | None, week_todo: str | None, month_todo: str | None, custom_todo: str | None) -> Todo:
+async def upsert_todo(
+    db: AsyncSession,
+    user_id: int,
+    day_todo: str | None,
+    week_todo: str | None,
+    month_todo: str | None,
+    custom_todo: str | None,
+    goals: list[dict] | None = None,
+) -> Todo:
     existing = await get_todo_by_user_id(db, user_id)
     if existing:
         new_day = day_todo if day_todo is not None else existing.day_todo
         new_week = week_todo if week_todo is not None else existing.week_todo
         new_month = month_todo if month_todo is not None else existing.month_todo
         new_custom = custom_todo if custom_todo is not None else existing.custom_todo
-        
+        new_goals = goals if goals is not None else (existing.goals or [])
+
         existing.day_todo = new_day
         existing.week_todo = new_week
         existing.month_todo = new_month
         existing.custom_todo = new_custom
-        
+        existing.goals = new_goals
+
         db.add(existing)
         await db.commit()
         await db.refresh(existing)
@@ -57,7 +76,8 @@ async def upsert_todo(db: AsyncSession, user_id: int, day_todo: str | None, week
             day_todo=day_todo,
             week_todo=week_todo,
             month_todo=month_todo,
-            custom_todo=custom_todo
+            custom_todo=custom_todo,
+            goals=goals or [],
         )
         return await create_todo(db, new_todo)
 
@@ -116,3 +136,29 @@ async def get_difficulty_stats(db: AsyncSession, user_id: int) -> list[dict]:
     )
     result = await db.execute(stmt)
     return [{"difficulty": row[0], "count": row[1]} for row in result.all()]
+
+
+async def get_difficulty_count_in_range(
+    db: AsyncSession,
+    user_id: int,
+    start_time: datetime,
+    end_time: datetime,
+    difficulty: str,
+) -> int:
+    from app.submission.models import Submission
+    from app.problem.models import Problem
+
+    stmt = (
+        select(func.count(func.distinct(Submission.problem_id)))
+        .select_from(Submission)
+        .join(Problem, Problem.id == Submission.problem_id)
+        .where(
+            Submission.user_id == user_id,
+            Submission.result == 0,
+            Submission.create_time >= start_time,
+            Submission.create_time <= end_time,
+            Problem.difficulty == difficulty,
+        )
+    )
+    result = await db.execute(stmt)
+    return int(result.scalar() or 0)

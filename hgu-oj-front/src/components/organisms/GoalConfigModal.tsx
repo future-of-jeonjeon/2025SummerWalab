@@ -1,10 +1,22 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { todoService, UserTodo, GoalRecommendation } from '../../services/todoService';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+
 import { userService, DEPARTMENTS, UserDetail } from '../../services/userService';
+import { GoalPeriod, GoalType, todoService, UserGoalInput, UserTodo } from '../../services/todoService';
 import { useAuthStore } from '../../stores/authStore';
 import { Button } from '../atoms/Button';
+import {
+  createEmptyGoalInput,
+  createGoalDraftId,
+  getGoalLabel,
+  getGoalUnit,
+  GOAL_PERIOD_LABELS,
+  GOAL_PERIOD_TONES,
+  GOAL_TYPE_LABELS,
+  normalizeGoalInput,
+  toEditableGoalInput,
+} from '../../utils/goals';
 
 interface GoalConfigModalProps {
   isOpen: boolean;
@@ -12,18 +24,11 @@ interface GoalConfigModalProps {
   currentTodo: UserTodo | null;
   initialUserData?: UserDetail | null;
   onUserUpdateSuccess?: () => void;
+  initialView?: 'profile' | 'goal';
 }
 
-type TabType = 'daily' | 'weekly' | 'monthly' | 'custom';
 type UserMenuTab = 'info' | 'language' | 'theme';
-
-interface TabState {
-  isActive: boolean;
-  category: string;
-  target: number;
-  unit: string;
-  label: string;
-}
+type GoalDraft = UserGoalInput & { id: string };
 
 const EDITOR_LANGUAGE_ORDER_KEY = 'oj:editorLanguageOrder';
 const EDITOR_LANGUAGES = [
@@ -59,26 +64,19 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
   currentTodo,
   initialUserData,
   onUserUpdateSuccess,
+  initialView = 'profile',
 }) => {
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
 
   const [activeGroup, setActiveGroup] = useState<'user' | 'goal'>('user');
-  const [activeTab, setActiveTab] = useState<TabType>('daily');
   const [activeUserTab, setActiveUserTab] = useState<UserMenuTab>('info');
 
-  const [daily, setDaily] = useState<TabState>({ isActive: true, category: 'SOLVE_COUNT', target: 1, unit: 'problem', label: '하루 1문제 풀기' });
-  const [weekly, setWeekly] = useState<TabState>({ isActive: true, category: 'STREAK', target: 3, unit: 'day', label: '3일 연속 학습 유지' });
-  const [monthly, setMonthly] = useState<TabState>({ isActive: true, category: 'TIER_SOLVE', target: 3, unit: 'problem', label: 'Bronze 문제 3개 풀기' });
-  const [custom, setCustom] = useState<TabState & { startDate: string; endDate: string }>({
-    isActive: true,
-    category: 'PROBLEM_SOLVE',
-    target: 10,
-    unit: 'problem',
-    label: '사용자 정의 목표',
-    startDate: new Date().toISOString().split('T')[0],
-    endDate: new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString().split('T')[0],
-  });
+  const [goalDrafts, setGoalDrafts] = useState<GoalDraft[]>([]);
+  const [goalForm, setGoalForm] = useState<UserGoalInput>(createEmptyGoalInput());
+  const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
+  const [goalFormError, setGoalFormError] = useState<string | null>(null);
+  const [goalSaveError, setGoalSaveError] = useState<string | null>(null);
 
   const [userForm, setUserForm] = useState({
     realName: '',
@@ -98,12 +96,6 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
   const [editorLanguageOrder, setEditorLanguageOrder] = useState<string[]>(DEFAULT_EDITOR_LANGUAGE_ORDER);
   const [draggingLanguage, setDraggingLanguage] = useState<string | null>(null);
   const [dragOverLanguage, setDragOverLanguage] = useState<string | null>(null);
-
-  const { data: recommendations } = useQuery({
-    queryKey: ['todo', 'recommendations'],
-    queryFn: todoService.getRecommendations,
-    enabled: isOpen,
-  });
 
   useEffect(() => {
     if (!isOpen) return;
@@ -140,48 +132,32 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
     }
   }, [initialUserData]);
 
-  const parseGoal = (val: string | null | undefined, defaults: TabState, type: TabType): TabState => {
-    if (!val) return { ...defaults, isActive: false };
-    if (val.startsWith('CUSTOM:')) {
-      const parts = val.split(':');
-      const state = {
-        isActive: true,
-        category: parts[1],
-        target: parseInt(parts[2]) || 1,
-        unit: parts[3] || 'problem',
-        label: parts[4] || '사용자 지정 목표',
-      };
-      if (type === 'custom' && parts[5] && parts[6]) {
-        setTimeout(() => {
-          setCustom((prev) => ({ ...prev, ...state, startDate: parts[5], endDate: parts[6] }));
-        }, 0);
-      }
-      return state;
-    }
-    if (recommendations) {
-      const pool = recommendations[type === 'custom' ? 'daily' : type] as GoalRecommendation[];
-      const found = pool?.find((r) => r.id === val);
-      if (found) {
-        return {
-          isActive: true,
-          category: found.type,
-          target: found.target,
-          unit: found.unit,
-          label: found.label,
-        };
-      }
-    }
-    return { ...defaults, isActive: true };
-  };
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const initialGoals = (currentTodo?.goals ?? []).map((goal) => ({
+      ...(toEditableGoalInput(goal) as GoalDraft),
+      id: goal.id,
+    }));
+
+    setGoalDrafts(initialGoals);
+    setGoalForm(createEmptyGoalInput());
+    setEditingGoalId(null);
+    setGoalFormError(null);
+    setGoalSaveError(null);
+  }, [currentTodo, isOpen]);
 
   useEffect(() => {
-    if (isOpen && currentTodo && recommendations) {
-      setDaily(parseGoal(currentTodo.day_todo, daily, 'daily'));
-      setWeekly(parseGoal(currentTodo.week_todo, weekly, 'weekly'));
-      setMonthly(parseGoal(currentTodo.month_todo, monthly, 'monthly'));
-      setCustom({ ...parseGoal(currentTodo.custom_todo, custom, 'custom'), startDate: custom.startDate, endDate: custom.endDate });
+    if (!isOpen) return;
+
+    if (initialView === 'goal') {
+      setActiveGroup('goal');
+      return;
     }
-  }, [currentTodo, isOpen, recommendations]);
+
+    setActiveGroup('user');
+    setActiveUserTab('info');
+  }, [initialView, isOpen]);
 
   const goalMutation = useMutation({
     mutationFn: todoService.setMyTodo,
@@ -189,23 +165,68 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
       queryClient.invalidateQueries({ queryKey: ['todo', 'my'] });
       onClose();
     },
+    onError: (error: any) => {
+      setGoalSaveError(error?.response?.data?.message || error?.message || '목표 저장에 실패했습니다.');
+    },
   });
 
-  const stringifyGoal = (state: TabState, type: TabType) => {
-    if (!state.isActive) return '';
-    let base = `CUSTOM:${state.category}:${state.target}:${state.unit}:${state.label}`;
-    if (type === 'custom') {
-      base += `:${custom.startDate}:${custom.endDate}`;
+  const validateGoalForm = (goal: UserGoalInput) => {
+    if (!Number.isFinite(goal.target) || goal.target < 1) {
+      return '목표 수치는 1 이상이어야 합니다.';
     }
-    return base;
+    if (goal.type === 'TIER_SOLVE' && !goal.difficulty) {
+      return '난이도 목표는 난이도 선택이 필요합니다.';
+    }
+    return null;
+  };
+
+  const resetGoalForm = () => {
+    setGoalForm(createEmptyGoalInput());
+    setEditingGoalId(null);
+    setGoalFormError(null);
+  };
+
+  const upsertGoalDraft = () => {
+    const normalized = normalizeGoalInput(goalForm);
+    const validationMessage = validateGoalForm(normalized);
+    if (validationMessage) {
+      setGoalFormError(validationMessage);
+      return;
+    }
+
+    const nextGoal: GoalDraft = {
+      ...normalized,
+      id: editingGoalId ?? normalized.id ?? createGoalDraftId(),
+    };
+
+    setGoalDrafts((prev) => {
+      if (!editingGoalId) {
+        return [...prev, nextGoal];
+      }
+      return prev.map((goal) => (goal.id === editingGoalId ? nextGoal : goal));
+    });
+
+    resetGoalForm();
+  };
+
+  const startGoalEdit = (goal: GoalDraft) => {
+    setActiveGroup('goal');
+    setGoalForm(toEditableGoalInput(goal));
+    setEditingGoalId(goal.id);
+    setGoalFormError(null);
+  };
+
+  const removeGoalDraft = (goalId: string) => {
+    setGoalDrafts((prev) => prev.filter((goal) => goal.id !== goalId));
+    if (editingGoalId === goalId) {
+      resetGoalForm();
+    }
   };
 
   const handleSaveGoals = () => {
+    setGoalSaveError(null);
     goalMutation.mutate({
-      day_todo: stringifyGoal(daily, 'daily'),
-      week_todo: stringifyGoal(weekly, 'weekly'),
-      month_todo: stringifyGoal(monthly, 'monthly'),
-      custom_todo: stringifyGoal(custom, 'custom'),
+      goals: goalDrafts.map((goal) => normalizeGoalInput(goal)),
     });
   };
 
@@ -251,7 +272,6 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
     const file = e.target.files?.[0];
     if (!file) return;
 
-    // Check size
     if (file.size > 2 * 1024 * 1024) {
       setAvatarUploadError('파일이 2MB를 초과할 수 없습니다.');
       e.target.value = '';
@@ -267,13 +287,9 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
         throw new Error(payload?.error || '업로드 실패');
       }
 
-      // Check if data is returned and successful
       if (payload.data === 'success' || payload.success || payload.file_path) {
-        // Re-fetch auth token or profile to update UI if necessary
-        // Auth interceptor normally does it, or we can reload
         onUserUpdateSuccess?.();
       }
-
     } catch (err: any) {
       setAvatarUploadError(err.response?.data?.message || err.message || '업로드 중 오류 발생');
     } finally {
@@ -334,35 +350,6 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
     });
   };
 
-  const renderTabIcon = (type: TabType) => {
-    switch (type) {
-      case 'daily':
-        return (
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2-2v12a2 2 0 002 2z" />
-          </svg>
-        );
-      case 'weekly':
-        return (
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-          </svg>
-        );
-      case 'monthly':
-        return (
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
-          </svg>
-        );
-      case 'custom':
-        return (
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
-          </svg>
-        );
-    }
-  };
-
   const renderUserTabIcon = (type: UserMenuTab) => {
     switch (type) {
       case 'info':
@@ -386,58 +373,32 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
     }
   };
 
-  const getState = (tab: TabType) => {
-    if (tab === 'daily') return daily;
-    if (tab === 'weekly') return weekly;
-    if (tab === 'monthly') return monthly;
-    return custom;
-  };
-
-  const updateState = (tab: TabType, val: Partial<TabState>) => {
-    const updater = (prev: TabState) => {
-      const next = { ...prev, ...val };
-
-      if (val.target !== undefined || val.category !== undefined || val.unit !== undefined) {
-        if (next.category === 'SOLVE_COUNT') {
-          if (tab === 'daily') next.label = `하루 ${next.target}문제 풀기`;
-          else if (tab === 'weekly') next.label = `주간 ${next.target}문제 해결`;
-          else if (tab === 'monthly') next.label = `월간 ${next.target}문제 상향`;
-          else next.label = `${next.target}문제 해결하기`;
-        } else if (next.category === 'PROBLEM_SOLVE') {
-          next.label = `${next.target}문제 목표 달성`;
-        } else if (next.category === 'STREAK') {
-          next.label = `${next.target}일 연속 학습 유지`;
-        } else if (next.category === 'TIER_SOLVE') {
-          const diff = next.label.split(' ')[0] || 'Bronze';
-          next.label = `${diff} 문제 ${next.target}개 풀기`;
-        }
-      }
-      return next;
-    };
-
-    if (tab === 'daily') setDaily(updater(daily));
-    else if (tab === 'weekly') setWeekly(updater(weekly));
-    else if (tab === 'monthly') setMonthly(updater(monthly));
-    else {
-      const nextCustom = updater(custom as TabState) as TabState & { startDate: string; endDate: string };
-      setCustom({ ...custom, ...nextCustom });
-    }
-  };
+  const renderGoalIcon = () => (
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+    </svg>
+  );
 
   if (!isOpen) return null;
 
-  const currentState = getState(activeTab);
-
   const modalContent = (
-    <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/30 backdrop-blur-sm p-4 h-screen w-screen overflow-hidden">
-      <div className="bg-white dark:bg-slate-800 rounded-[28px] w-full max-w-5xl shadow-2xl overflow-hidden flex h-[680px] relative border border-gray-100 dark:border-slate-700" onClick={(e) => e.stopPropagation()}>
-        <div className="w-64 bg-gray-50/50 dark:bg-slate-900 border-r border-gray-100 dark:border-slate-700 flex flex-col pt-8">
+    <div
+      className="fixed inset-0 z-[100000] flex items-center justify-center bg-black/30 backdrop-blur-sm p-4 h-screen w-screen overflow-hidden"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white dark:bg-slate-800 rounded-[28px] w-full max-w-6xl shadow-2xl overflow-hidden flex h-[min(720px,calc(100vh-2rem))] relative border border-gray-100 dark:border-slate-700"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="w-72 bg-gray-50/70 dark:bg-slate-900 border-r border-gray-100 dark:border-slate-700 flex flex-col pt-8">
           <div className="px-6 mb-6">
-            <h3 className="text-xl font-bold text-gray-900 dark:text-white tracking-tight">유저 정보 수정</h3>
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-gray-400 dark:text-slate-500">MY PAGE</p>
+            <h3 className="mt-2 text-xl font-bold text-gray-900 dark:text-white tracking-tight">설정 정리</h3>
+            <p className="mt-2 text-sm text-gray-500 dark:text-slate-400">프로필과 학습 목표를 한 화면에서 관리합니다.</p>
           </div>
 
           <div className="mx-4 mb-2 px-3 py-2 text-[13px] font-bold tracking-wide text-gray-500 dark:text-slate-400">
-            유저 정보 수정
+            프로필 설정
           </div>
           <nav className="space-y-1 px-4 mb-3">
             {(['info', 'language', 'theme'] as UserMenuTab[]).map((tab) => {
@@ -466,49 +427,19 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
           </nav>
 
           <div className="mx-4 mb-2 px-3 py-2 text-[13px] font-bold tracking-wide text-gray-500 dark:text-slate-400">
-            목표 설정
+            학습 목표
           </div>
           <nav className="space-y-1 px-4">
-            {(['daily', 'weekly', 'monthly', 'custom'] as TabType[]).map((tab) => {
-              const isCurrent = activeGroup === 'goal' && activeTab === tab;
-              const state = getState(tab);
-
-              return (
-                <div
-                  key={tab}
-                  className={`group flex items-center justify-between px-4 py-2 rounded-xl transition-all duration-200 ${isCurrent
-                    ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'
-                    : 'text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800'
-                    }`}
-                >
-                  <button
-                    onClick={() => {
-                      setActiveGroup('goal');
-                      setActiveTab(tab);
-                    }}
-                    className="flex-1 flex items-center gap-3"
-                  >
-                    <div className={isCurrent ? 'text-blue-600' : 'text-gray-400'}>{renderTabIcon(tab)}</div>
-                    <span className={`text-sm ${isCurrent ? 'font-bold' : 'font-medium'}`}>
-                      {tab === 'daily' && '일간'}
-                      {tab === 'weekly' && '주간'}
-                      {tab === 'monthly' && '월간'}
-                      {tab === 'custom' && '사용자 정의'}
-                    </span>
-                  </button>
-
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      updateState(tab, { isActive: !state.isActive });
-                    }}
-                    className={`w-11 h-6 rounded-full transition-all relative shrink-0 ml-2 ${state.isActive ? 'bg-[#31C48D]' : 'bg-gray-200 dark:bg-slate-700'}`}
-                  >
-                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all shadow-sm ${state.isActive ? 'left-6' : 'left-1'}`} />
-                  </button>
-                </div>
-              );
-            })}
+            <button
+              onClick={() => setActiveGroup('goal')}
+              className={`w-full flex items-center gap-3 text-left rounded-xl px-4 py-2 text-sm ${activeGroup === 'goal'
+                ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 font-semibold'
+                : 'text-gray-600 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-800'
+                }`}
+            >
+              <span className={activeGroup === 'goal' ? 'text-blue-600' : 'text-gray-400'}>{renderGoalIcon()}</span>
+              <span>목표 생성/관리</span>
+            </button>
           </nav>
         </div>
 
@@ -725,101 +656,239 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
 
               {activeGroup === 'goal' && (
                 <section className="space-y-6 border border-gray-100 dark:border-slate-700 rounded-2xl p-5">
-                  <h4 className="text-[17px] font-bold text-gray-900 dark:text-white">목표 상세 설정</h4>
-
-                  {activeTab === 'custom' && (
-                    <div className="space-y-4">
-                      <h5 className="text-[15px] font-bold text-gray-900 dark:text-white">기간 설정</h5>
-                      <div className="flex items-center gap-4">
-                        <input
-                          type="date"
-                          value={custom.startDate}
-                          onChange={(e) => setCustom({ ...custom, startDate: e.target.value })}
-                          className="w-full bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl px-4 py-2 text-sm"
-                        />
-                        <span className="text-gray-300">~</span>
-                        <input
-                          type="date"
-                          value={custom.endDate}
-                          onChange={(e) => setCustom({ ...custom, endDate: e.target.value })}
-                          className="w-full bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl px-4 py-2 text-sm"
-                        />
-                      </div>
-                    </div>
-                  )}
-
                   <div className="space-y-4">
-                    <h5 className="text-[15px] font-bold text-gray-900 dark:text-white">1. 주요 목표 선택</h5>
-                    <select
-                      value={currentState.category}
-                      onChange={(e) => updateState(activeTab, { category: e.target.value })}
-                      className="w-full bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl px-4 py-2 text-sm"
-                    >
-                      <option value="SOLVE_COUNT">문제 해결</option>
-                      {activeTab !== 'daily' && <option value="STREAK">연속 출석</option>}
-                      <option value="TIER_SOLVE">난이도 목표</option>
-                      {activeTab === 'custom' && <option value="PROBLEM_SOLVE">기타 과제</option>}
-                    </select>
-                  </div>
-
-                  {currentState.category === 'TIER_SOLVE' && (
-                    <div className="space-y-4">
-                      <label className="text-[15px] font-bold text-gray-700 dark:text-gray-300">난이도 선택</label>
-                      <select
-                        value={currentState.label.split(' ')[0]}
-                        onChange={(e) => updateState(activeTab, { label: `${e.target.value} 문제 ${currentState.target}개 풀기` })}
-                        className="w-full bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl px-4 py-2 text-sm"
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h5 className="text-[15px] font-bold text-gray-900 dark:text-white">현재 목표 목록</h5>
+                        <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">편집하거나 삭제한 뒤 저장하면 전체 목표 구성이 갱신됩니다.</p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={resetGoalForm}
+                        className="rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-600 transition hover:text-blue-600 hover:border-blue-200 dark:border-slate-600 dark:text-slate-300 dark:hover:text-blue-300 dark:hover:border-blue-400"
                       >
-                        <option value="Bronze">Bronze</option>
-                        <option value="Mid">Mid</option>
-                        <option value="Gold">Gold</option>
-                      </select>
+                        새 목표 작성
+                      </button>
                     </div>
-                  )}
+
+                    {goalDrafts.length === 0 ? (
+                      <div className="rounded-3xl border border-dashed border-gray-300 px-6 py-10 text-center dark:border-slate-600">
+                        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">
+                          <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                          </svg>
+                        </div>
+                        <h6 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">등록된 목표가 없습니다</h6>
+                        <p className="mt-2 text-sm text-gray-500 dark:text-slate-400">아래 생성 폼에서 첫 번째 목표를 추가해보세요.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        {goalDrafts.map((goal) => {
+                          const tone = GOAL_PERIOD_TONES[goal.period];
+                          return (
+                            <div
+                              key={goal.id}
+                              className={`rounded-3xl border border-gray-200 bg-white p-5 shadow-sm ring-1 ${tone.soft} dark:border-slate-700 dark:bg-slate-800`}
+                            >
+                              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                <div>
+                                  <div className="flex flex-wrap items-center gap-2">
+                                    <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold tracking-wide ${tone.badge} ${tone.badgeText}`}>
+                                      {GOAL_PERIOD_LABELS[goal.period]}
+                                    </span>
+                                    <span className="inline-flex items-center rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-semibold text-gray-600 dark:bg-slate-700 dark:text-slate-300">
+                                      {GOAL_TYPE_LABELS[goal.type]}
+                                    </span>
+                                  </div>
+                                  <p className="mt-3 text-base font-semibold text-gray-900 dark:text-white">
+                                    {getGoalLabel(goal)}
+                                  </p>
+                                  <p className="mt-2 text-sm text-gray-500 dark:text-slate-400">
+                                    목표 수치: {goal.target} {getGoalUnit(goal.type)}
+                                    {goal.type === 'TIER_SOLVE' && goal.difficulty ? ` · 난이도 ${goal.difficulty}` : ''}
+                                  </p>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                  <button
+                                    type="button"
+                                    onClick={() => startGoalEdit(goal)}
+                                    className="rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-600 transition hover:border-blue-200 hover:text-blue-600 dark:border-slate-600 dark:text-slate-300 dark:hover:border-blue-400 dark:hover:text-blue-300"
+                                  >
+                                    수정
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => removeGoalDraft(goal.id)}
+                                    className="rounded-xl border border-red-200 px-3 py-2 text-sm font-semibold text-red-600 transition hover:bg-red-50 dark:border-red-900/60 dark:text-red-300 dark:hover:bg-red-950/30"
+                                  >
+                                    삭제
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
 
                   <div className="space-y-4">
-                    <h5 className="text-[15px] font-bold text-gray-900 dark:text-white">2. 세부 목표 설정</h5>
-                    <div className="bg-gray-50 dark:bg-slate-900/50 rounded-2xl p-4 border border-gray-100 dark:border-slate-700 flex items-center gap-5">
-                      <input
-                        type="number"
-                        value={currentState.target === 0 ? '' : currentState.target}
-                        onChange={(e) => updateState(activeTab, { target: e.target.value === '' ? 0 : parseInt(e.target.value) })}
-                        className="w-20 bg-white dark:bg-slate-700 border border-gray-200 dark:border-slate-600 rounded-xl px-3 py-1.5 text-lg font-bold text-center text-blue-600"
-                        placeholder="0"
-                      />
-                      <span className="text-[15px] font-bold text-gray-700 dark:text-gray-300 leading-tight">
-                        {currentState.category === 'STREAK' ? '일 동안 학습을 진행하겠습니다.' : '문제를 해결하겠습니다.'}
-                      </span>
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <h5 className="text-[15px] font-bold text-gray-900 dark:text-white">
+                          {editingGoalId ? '목표 수정' : '새 목표 생성'}
+                        </h5>
+                        <p className="mt-1 text-sm text-gray-500 dark:text-slate-400">기간과 목표 유형을 정하고 원하는 만큼 추가할 수 있습니다.</p>
+                      </div>
+                      {editingGoalId && (
+                        <button
+                          type="button"
+                          onClick={resetGoalForm}
+                          className="rounded-xl border border-gray-200 px-3 py-2 text-sm font-semibold text-gray-600 transition hover:border-gray-300 dark:border-slate-600 dark:text-slate-300"
+                        >
+                          수정 취소
+                        </button>
+                      )}
+                    </div>
+
+                    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_320px]">
+                      <div className="space-y-5">
+                        <div className="space-y-3">
+                          <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200">기간 선택</label>
+                          <div className="flex flex-wrap gap-2">
+                            {(['daily', 'weekly', 'monthly'] as GoalPeriod[]).map((period) => {
+                              const selected = goalForm.period === period;
+                              return (
+                                <button
+                                  key={period}
+                                  type="button"
+                                  onClick={() => setGoalForm((prev) => ({ ...prev, period }))}
+                                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${selected
+                                    ? 'bg-gray-900 text-white dark:bg-white dark:text-slate-900'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600'
+                                    }`}
+                                >
+                                  {GOAL_PERIOD_LABELS[period]}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        <div className="space-y-3">
+                          <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200">목표 유형</label>
+                          <div className="grid gap-3 md:grid-cols-3">
+                            {(['SOLVE_COUNT', 'STREAK', 'TIER_SOLVE'] as GoalType[]).map((type) => {
+                              const selected = goalForm.type === type;
+                              return (
+                                <button
+                                  key={type}
+                                  type="button"
+                                  onClick={() => setGoalForm((prev) => ({
+                                    ...prev,
+                                    type,
+                                    difficulty: type === 'TIER_SOLVE' ? (prev.difficulty ?? 'Bronze') : null,
+                                  }))}
+                                  className={`rounded-2xl border p-4 text-left shadow-sm transition ${selected
+                                    ? 'border-blue-500 bg-blue-100 ring-2 ring-blue-100 dark:border-blue-400 dark:bg-blue-900/30 dark:ring-blue-900/40'
+                                    : 'border-slate-300 bg-slate-50 hover:border-blue-300 hover:bg-blue-50 dark:border-slate-600 dark:bg-slate-800 dark:hover:border-blue-500 dark:hover:bg-slate-700'
+                                    }`}
+                                >
+                                  <p className="text-sm font-semibold text-gray-900 dark:text-white">{GOAL_TYPE_LABELS[type]}</p>
+                                  <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
+                                    {type === 'SOLVE_COUNT' && '해당 기간의 해결 문제 수를 목표로 설정합니다.'}
+                                    {type === 'STREAK' && '연속 출석 일수를 목표로 설정합니다.'}
+                                    {type === 'TIER_SOLVE' && '선택한 난이도의 해결 문제 수를 추적합니다.'}
+                                  </p>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {goalForm.type === 'TIER_SOLVE' && (
+                          <div className="space-y-3">
+                            <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200">난이도 선택</label>
+                            <div className="flex flex-wrap gap-2">
+                              {(['Bronze', 'Mid', 'Gold'] as const).map((difficulty) => {
+                                const selected = goalForm.difficulty === difficulty;
+                                return (
+                                  <button
+                                    key={difficulty}
+                                    type="button"
+                                    onClick={() => setGoalForm((prev) => ({ ...prev, difficulty }))}
+                                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${selected
+                                      ? 'bg-gray-900 text-white dark:bg-white dark:text-slate-900'
+                                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600'
+                                      }`}
+                                  >
+                                    {difficulty}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="space-y-3">
+                          <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200">목표 수치</label>
+                          <div className="flex items-center gap-3">
+                            <input
+                              type="number"
+                              min={1}
+                              value={goalForm.target}
+                              onChange={(e) => setGoalForm((prev) => ({ ...prev, target: Math.max(1, Number(e.target.value) || 1) }))}
+                              className="w-28 rounded-xl border border-gray-200 bg-white px-4 py-2 text-lg font-bold text-blue-600 dark:border-slate-600 dark:bg-slate-700 dark:text-blue-300"
+                            />
+                            <span className="rounded-full bg-gray-100 px-3 py-1 text-sm font-semibold text-gray-600 dark:bg-slate-700 dark:text-slate-200">
+                              {getGoalUnit(goalForm.type)}
+                            </span>
+                          </div>
+                        </div>
+
+                        {goalFormError && (
+                          <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+                            {goalFormError}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="rounded-3xl border border-gray-200 bg-gray-50/70 p-5 dark:border-slate-700 dark:bg-slate-900/40">
+                          <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-slate-500">미리보기</p>
+                          <h6 className="mt-3 text-lg font-bold text-gray-900 dark:text-white">{getGoalLabel(goalForm)}</h6>
+                          <p className="mt-2 text-sm text-gray-500 dark:text-slate-400">
+                            {GOAL_PERIOD_LABELS[goalForm.period]} · {GOAL_TYPE_LABELS[goalForm.type]}
+                          </p>
+                          <p className="mt-3 text-sm text-gray-500 dark:text-slate-400">
+                            목표 수치 {goalForm.target} {getGoalUnit(goalForm.type)}
+                            {goalForm.type === 'TIER_SOLVE' && goalForm.difficulty ? ` · 난이도 ${goalForm.difficulty}` : ''}
+                          </p>
+                        </div>
+
+                        <div className="flex flex-col gap-3">
+                          <Button
+                            type="button"
+                            onClick={upsertGoalDraft}
+                            className="w-full rounded-2xl border border-blue-600 bg-blue-600 py-3 text-base font-bold text-white transition hover:bg-blue-700"
+                          >
+                            {editingGoalId ? '목표 수정 적용' : '목표 추가'}
+                          </Button>
+                          <button
+                            type="button"
+                            onClick={resetGoalForm}
+                            className="w-full rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:hover:bg-slate-700"
+                          >
+                            폼 초기화
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  {activeTab !== 'custom' && recommendations && (
-                    <div className="space-y-4">
-                      <label className="text-[15px] font-bold text-gray-700 dark:text-gray-300 block">권장 목표 (빠른 선택)</label>
-                      <div className="grid grid-cols-1 gap-2.5">
-                        {recommendations[activeTab]?.map((goal) => (
-                          <button
-                            key={goal.id}
-                            onClick={() => {
-                              updateState(activeTab, {
-                                isActive: true,
-                                category: goal.type,
-                                target: goal.target,
-                                unit: goal.unit,
-                                label: goal.label,
-                              });
-                            }}
-                            className={`flex items-center justify-between p-4 px-6 rounded-2xl border-2 transition-all duration-200 ${currentState.target === goal.target && currentState.category === goal.type && currentState.label === goal.label
-                              ? 'border-blue-500 bg-blue-50/50 dark:bg-blue-900/20 shadow-sm'
-                              : 'border-gray-50 dark:border-slate-800 hover:border-gray-100 dark:hover:border-slate-700'
-                              }`}
-                          >
-                            <div className="text-left">
-                              <p className="text-[14px] font-bold text-gray-900 dark:text-white">{goal.label}</p>
-                            </div>
-                          </button>
-                        ))}
-                      </div>
+                  {goalSaveError && (
+                    <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+                      {goalSaveError}
                     </div>
                   )}
                 </section>
