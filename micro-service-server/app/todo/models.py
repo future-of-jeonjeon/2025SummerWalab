@@ -1,4 +1,7 @@
-from sqlalchemy import String, ForeignKey, Integer
+from typing import Any
+
+from sqlalchemy import String, ForeignKey, Integer, text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -20,5 +23,11 @@ class Todo(BaseEntity, Base):
     week_todo: Mapped[str] = mapped_column(String(255), nullable=True)
     month_todo: Mapped[str] = mapped_column(String(255), nullable=True)
     custom_todo: Mapped[str] = mapped_column(String(255), nullable=True)
+    goals: Mapped[list[dict[str, Any]]] = mapped_column(
+        JSONB,
+        nullable=False,
+        default=list,
+        server_default=text("'[]'::jsonb"),
+    )
 
     user = relationship("User", backref="todos", uselist=False)

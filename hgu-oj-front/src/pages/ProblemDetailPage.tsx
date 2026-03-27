@@ -624,6 +624,7 @@ export const ProblemDetailPage: React.FC = () => {
 
   const invalidateMyPageQueries = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: ['mypage'] });
+    queryClient.invalidateQueries({ queryKey: ['todo', 'my'] });
   }, [queryClient]);
 
   const invalidateProblemStatusQueries = useCallback(() => {
@@ -1380,6 +1381,11 @@ export const ProblemDetailPage: React.FC = () => {
     navigate('/problems');
   }, [contestContextId, workbookContextId, navigate]);
 
+  const handleContestTitleClick = useCallback(() => {
+    if (!contestContextId) return;
+    navigate(`/contests/${contestContextId}`);
+  }, [contestContextId, navigate]);
+
   const openProblemFromList = useCallback((target: Problem) => {
     if (!target) return;
     const targetKey = contestContextId
@@ -1437,9 +1443,13 @@ export const ProblemDetailPage: React.FC = () => {
         <div className={`border-b px-4 py-3 text-xs sm:text-sm flex-none ${isDarkTheme ? 'border-slate-700 bg-slate-900 text-slate-200' : 'border-slate-200 bg-white text-slate-600'}`}>
           <div className="flex w-full flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-6">
             <div className="flex items-center gap-3 lg:pl-12">
-              <span className={`text-lg font-semibold ${isDarkTheme ? 'text-slate-100' : 'text-slate-900'}`}>
+              <button
+                type="button"
+                onClick={handleContestTitleClick}
+                className={`text-left text-lg font-semibold transition hover:underline ${isDarkTheme ? 'text-slate-100' : 'text-slate-900'}`}
+              >
                 {contestMeta.title}
-              </span>
+              </button>
             </div>
             <div className="flex flex-1 flex-wrap items-end justify-end gap-6 text-right">
               <div className="flex flex-col items-end">
@@ -1489,7 +1499,10 @@ export const ProblemDetailPage: React.FC = () => {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className={`mt-1 ${isDarkTheme ? 'text-slate-200 hover:bg-slate-800' : 'text-blue-600 hover:bg-blue-50 dark:!text-blue-600 dark:hover:!bg-blue-50'}`}
+                    className={`mt-1 rounded-xl border shadow-sm ${isDarkTheme
+                      ? 'border-slate-700 bg-slate-800 text-slate-100 hover:bg-slate-700'
+                      : 'border-slate-200 bg-slate-100 text-blue-700 hover:bg-slate-200 dark:!border-slate-200 dark:!bg-slate-100 dark:!text-blue-700 dark:hover:!bg-slate-200'
+                      }`}
                     onClick={handleBackClick}
                   >
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { Button } from '../../../components/atoms/Button';
 import { Input } from '../../../components/atoms/Input';
-import { RichTextEditor } from '../../../components/molecules/RichTextEditor';
+import { ProblemTextEditor } from '../../../components/molecules/ProblemTextEditor';
 import { CreateProblemPayload, adminService } from '../../../services/adminService';
 import { contributionService } from '../../../services/contributionService';
 import { availableLanguages, toBackendLanguageList, getLanguageBackendValue, getLanguageLabel, normalizeLanguageKey } from '../../../lib/problemLanguage';
+import { normalizeProblemRichTextFields } from '../../../utils/problemRichText';
 import codeTemplates from '../../../config/codeTemplates.json';
 
 interface ProblemRegistrationModalProps {
@@ -244,9 +246,12 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
         try {
             const payload: CreateProblemPayload = {
                 title: formState.title.trim(),
-                description: formState.description,
-                input_description: formState.inputDescription,
-                output_description: formState.outputDescription,
+                ...normalizeProblemRichTextFields({
+                    description: formState.description,
+                    input_description: formState.inputDescription,
+                    output_description: formState.outputDescription,
+                    hint: formState.useHint ? (formState.hint.trim() || null) : null,
+                }),
                 samples: cleanedSamples,
                 time_limit: Number(formState.timeLimit) || 1000,
                 memory_limit: Number(formState.memoryLimit) || 256,
@@ -260,7 +265,6 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                 }, {} as Record<string, string>),
                 difficulty: formState.difficulty,
                 tags: formState.tags,
-                hint: formState.useHint ? (formState.hint.trim() || null) : null,
                 solution_code: formState.solutionCode,
                 solution_code_language: getLanguageBackendValue(formState.solutionLanguage),
                 test_case_id: testCaseId,
@@ -303,20 +307,12 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
         }
     };
 
-    return (
-        <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-            <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-                <div
-                    className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm transition-opacity"
-                    aria-hidden="true"
-                ></div>
-
-                <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
-
-                <div className="inline-block align-bottom bg-white dark:bg-slate-900 rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl sm:w-full border border-gray-100 dark:border-slate-800">
-                    <div className="bg-white dark:bg-slate-900 px-8 pt-8 pb-6">
+    const modalContent = (
+        <div className="fixed inset-0 z-[100000] flex items-center justify-center bg-gray-900/50 p-4 backdrop-blur-sm" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+                <div className="flex max-h-[90vh] w-full max-w-[1240px] flex-col overflow-hidden rounded-2xl border border-gray-100 bg-white text-left shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+                    <div className="flex-1 overflow-y-auto px-8 pt-8 pb-6">
                         <div className="sm:flex sm:items-start">
-                            <div className="mt-3 text-center sm:mt-0 sm:text-left w-full">
+                            <div className="mt-3 w-full text-center sm:mt-0 sm:text-left">
                                 <h3 className="text-2xl font-bold leading-6 text-gray-900 dark:text-slate-100 tracking-tight mb-6" id="modal-title">
                                     {readOnly ? '문제 정보' : (editProblemId ? '문제 수정' : '새 문제 등록')}
                                 </h3>
@@ -434,17 +430,17 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                                     </div>
 
                                     <div className="space-y-4">
-                                        <RichTextEditor
+                                        <ProblemTextEditor
                                             label="문제 설명"
                                             value={formState.description}
                                             onChange={(val) => setFormState({ ...formState, description: val })}
                                         />
-                                        <RichTextEditor
+                                        <ProblemTextEditor
                                             label="입력 설명"
                                             value={formState.inputDescription}
                                             onChange={(val) => setFormState({ ...formState, inputDescription: val })}
                                         />
-                                        <RichTextEditor
+                                        <ProblemTextEditor
                                             label="출력 설명"
                                             value={formState.outputDescription}
                                             onChange={(val) => setFormState({ ...formState, outputDescription: val })}
@@ -466,7 +462,7 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
 
                                             {formState.useHint && (
                                                 <div className="pl-6 border-l-2 border-blue-100 ml-2">
-                                                    <RichTextEditor
+                                                    <ProblemTextEditor
                                                         label="힌트 내용"
                                                         value={formState.hint}
                                                         onChange={(val) => setFormState({ ...formState, hint: val })}
@@ -687,7 +683,12 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                         </Button>
                     </div>
                 </div>
-            </div>
         </div>
     );
+
+    if (typeof document === 'undefined') {
+        return modalContent;
+    }
+
+    return createPortal(modalContent, document.body);
 };

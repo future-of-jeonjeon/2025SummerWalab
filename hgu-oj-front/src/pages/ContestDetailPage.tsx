@@ -367,9 +367,9 @@ export const ContestDetailPage: React.FC = () => {
           <span className="font-bold text-gray-900 dark:text-slate-100">대회 메뉴</span>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-8 lg:mt-6">
-          <div className="w-full lg:w-64 flex-shrink-0">
-            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden sticky top-24">
+        <div className="flex flex-col lg:flex-row gap-6 lg:mt-6">
+          <div className="w-full lg:w-64 flex-shrink-0 space-y-6">
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
               <div className="p-6 border-b border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/60">
                 <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100 leading-tight">{contest?.title || '대회'}</h2>
                 {contest?.organization_name && (
