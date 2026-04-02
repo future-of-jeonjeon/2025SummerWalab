@@ -36,6 +36,17 @@ async def create_custom_code_api(
 
 
 @required_login()
+@router.post("/file/rename")
+async def rename_custom_code_api(
+        request_data: RenameCustomCodeRequest,
+        request: Request,
+        user_profile: UserProfile = Depends(get_userdata),
+        db: AsyncSession = Depends(get_database)):
+    await autosave_serv.rename_custom_code(request_data.old_file_name, request_data.new_file_name, user_profile, db)
+    return {"status": "ok"}
+
+
+@required_login()
 @router.post("/file/{file_name}")
 async def save_custom_code_api(
         request: Request,

@@ -203,3 +203,26 @@ async def delete_custom_code(file_name: str, user_profile: UserProfile, db: Asyn
     await redis.delete(_get_custom_code_debounce_key(file_name, user_profile.user_id))
     await autosave_repository.delete_custom_code_by_file_name_and_user_id(file_name, user_profile.user_id, db)
     return
+
+
+async def rename_custom_code(old_file_name: str, new_file_name: str, user_profile: UserProfile, db: AsyncSession):
+    old_name = (old_file_name or "").strip()
+    new_name = (new_file_name or "").strip()
+    if not old_name or not new_name or old_name == new_name:
+        return None
+
+    redis = await get_redis_code_save()
+    old_data_key = get_custom_code_data_key(old_name, user_profile.user_id)
+    code = await redis.get(old_data_key)
+    if code is None:
+        code = await autosave_repository.get_custom_code_by_file_name_and_user_id(old_name, user_profile.user_id, db)
+    if code is None:
+        code = ""
+
+    await _save_custom_code_to_redis(new_name, code, user_profile.user_id)
+    await save_custom_code_to_database(new_name, code, user_profile.user_id, db)
+
+    await redis.delete(old_data_key)
+    await redis.delete(_get_custom_code_debounce_key(old_name, user_profile.user_id))
+    await autosave_repository.delete_custom_code_by_file_name_and_user_id(old_name, user_profile.user_id, db)
+    return None

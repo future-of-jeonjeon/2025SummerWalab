@@ -29,3 +29,8 @@ class SolvedCodeResponse(BaseModel):
 class CustomCodeRequest(BaseModel):
     file_name:str
     code: str
+
+
+class RenameCustomCodeRequest(BaseModel):
+    old_file_name: str
+    new_file_name: str
