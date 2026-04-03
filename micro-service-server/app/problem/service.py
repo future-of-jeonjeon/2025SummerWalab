@@ -1,9 +1,14 @@
 import io
 import os
+import random
 import uuid
 import zipfile
+from datetime import datetime, date, timedelta
 from typing import Union
+from zoneinfo import ZoneInfo
+
 from fastapi import UploadFile
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_background_database
 from app.contest.models import OrganizationContest, ContestLanguage
@@ -25,6 +30,8 @@ import app.problem.exceptions as problem_exceptions
 import app.contest.exceptions as contest_exceptions
 
 POLLING_SESSION_TIME = 3600
+SEOUL_TZ = ZoneInfo("Asia/Seoul")
+DAILY_PROBLEM_LOCK_KEY = 2026040301
 
 
 def _extract_error_code(exc: Exception) -> str:
@@ -571,3 +578,98 @@ async def get_problem(problem_id, db) -> ProblemResponse:
     if not problem or problem.visible == False:
         problem_exceptions.problem_not_found()
     return ProblemResponse.model_validate(problem)
+
+
+def choose_daily_problem_id(
+        problem_ids: list[int],
+        yesterday_problem_id: int | None,
+        seed: int | None = None) -> int:
+    if not problem_ids:
+        problem_exceptions.problem_not_found()
+
+    candidates = list(problem_ids)
+    if yesterday_problem_id is not None and len(candidates) > 1:
+        filtered = [problem_id for problem_id in candidates if problem_id != yesterday_problem_id]
+        if filtered:
+            candidates = filtered
+
+    rng = random.Random(seed) if seed is not None else random.SystemRandom()
+    return int(rng.choice(candidates))
+
+
+def _to_daily_response(entity) -> DailyProblemResponse:
+    return DailyProblemResponse(
+        date=entity.challenge_date.isoformat(),
+        selected_at=entity.selected_at,
+        problem_id=entity.problem.id,
+        title=entity.problem.title,
+        description=entity.problem.description,
+    )
+
+
+async def _create_daily_problem(
+        db: AsyncSession,
+        *,
+        challenge_date: date,
+        seed: int | None = None) -> DailyProblemResponse:
+    await problem_repository.lock_daily_problem_selection(db, DAILY_PROBLEM_LOCK_KEY)
+
+    existing = await problem_repository.find_daily_problem_by_date(db, challenge_date)
+    if existing:
+        return _to_daily_response(existing)
+
+    problem_ids = await problem_repository.find_daily_candidate_problem_ids(db)
+    yesterday_problem_id = await problem_repository.find_daily_problem_by_problem_date(db, challenge_date - timedelta(days=1))
+    selected_problem_id = choose_daily_problem_id(problem_ids, yesterday_problem_id, seed=seed)
+
+    try:
+        created = await problem_repository.create_daily_problem(
+            db,
+            problem_id=selected_problem_id,
+            challenge_date=challenge_date,
+            selected_at=datetime.now(SEOUL_TZ),
+        )
+    except IntegrityError:
+        # Another instance may have committed first after lock wait boundaries.
+        await db.rollback()
+        entity = await problem_repository.find_daily_problem_by_date(db, challenge_date)
+        if not entity:
+            raise
+        return _to_daily_response(entity)
+
+    return _to_daily_response(created)
+
+
+async def get_or_create_daily_problem(
+        db: AsyncSession,
+        *,
+        target_date: date | None = None) -> DailyProblemResponse:
+    challenge_date = target_date or datetime.now(SEOUL_TZ).date()
+    entity = await problem_repository.find_daily_problem_by_date(db, challenge_date)
+    if entity:
+        return _to_daily_response(entity)
+    return await _create_daily_problem(db, challenge_date=challenge_date)
+
+
+async def reselect_daily_problem(
+        db: AsyncSession,
+        *,
+        seed: int | None = None,
+        target_date: date | None = None) -> DailyProblemResponse:
+    challenge_date = target_date or datetime.now(SEOUL_TZ).date()
+    await problem_repository.lock_daily_problem_selection(db, DAILY_PROBLEM_LOCK_KEY)
+
+    problem_ids = await problem_repository.find_daily_candidate_problem_ids(db)
+    yesterday_problem_id = await problem_repository.find_daily_problem_by_problem_date(db, challenge_date - timedelta(days=1))
+    selected_problem_id = choose_daily_problem_id(problem_ids, yesterday_problem_id, seed=seed)
+
+    existing = await problem_repository.find_daily_problem_by_date(db, challenge_date)
+    if existing:
+        existing.problem_id = selected_problem_id
+        existing.selected_at = datetime.now(SEOUL_TZ)
+        await db.flush()
+        await db.refresh(existing)
+        refreshed = await problem_repository.find_daily_problem_by_date(db, challenge_date)
+        return _to_daily_response(refreshed)
+
+    return await _create_daily_problem(db, challenge_date=challenge_date, seed=seed)

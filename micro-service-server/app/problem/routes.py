@@ -178,6 +178,21 @@ async def get_available_contest_problem(
                                                                db=db)
 
 
+@router.get("/daily", response_model=DailyProblemResponse)
+async def get_daily_problem_api(
+        db: AsyncSession = Depends(get_database)):
+    return await problem_service.get_or_create_daily_problem(db)
+
+
+@require_role("Admin")
+@router.post("/daily/reselect", response_model=DailyProblemResponse)
+async def reselect_daily_problem_api(
+        request_data: DailyProblemReselectRequest,
+        user_profile: UserProfile = Depends(get_userdata),
+        db: AsyncSession = Depends(get_database)):
+    return await problem_service.reselect_daily_problem(db, seed=request_data.seed)
+
+
 @router.get("/{problem_id}", response_model=ProblemDetailResponse)
 async def get_problem_detail_api(
         problem_id: int,

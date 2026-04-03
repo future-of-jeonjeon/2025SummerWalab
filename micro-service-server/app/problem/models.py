@@ -1,7 +1,7 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import TYPE_CHECKING, List, Optional, Any, Union
 
-from sqlalchemy import Column, Integer, Text, Boolean, DateTime, ForeignKey, Table, func
+from sqlalchemy import Column, Integer, Text, Boolean, DateTime, Date, ForeignKey, Table, func, UniqueConstraint
 from sqlalchemy.dialects.postgresql import JSONB  # PostgreSQL의 JSONB 타입 사용
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from app.core.database import Base
@@ -76,3 +76,24 @@ class Problem(Base):
     is_public: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default='FALSE')
 
     tags: Mapped[List["ProblemTag"]] = relationship("ProblemTag", secondary=problem_tags_association_table, backref="problems")
+    daily_challenges: Mapped[List["DailyProblem"]] = relationship("DailyProblem", back_populates="problem")
+
+
+class DailyProblem(Base):
+    __tablename__ = "micro_daily_problem"
+    __table_args__ = (
+        UniqueConstraint("challenge_date", name="uq_micro_daily_problem_challenge_date"),
+        {"schema": "public"},
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True, autoincrement=True)
+    problem_id: Mapped[int] = mapped_column(
+        Integer,
+        ForeignKey("public.problem.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    challenge_date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    selected_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+
+    problem: Mapped["Problem"] = relationship("Problem", back_populates="daily_challenges")

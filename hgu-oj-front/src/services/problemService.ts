@@ -213,6 +213,14 @@ type RequestOptions = {
   signal?: AbortSignal;
 };
 
+export type DailyChallenge = {
+  date: string;
+  selectedAt?: string;
+  problemId: number;
+  title: string;
+  description?: string;
+};
+
 const fetchOjProblemList = async (
   filter: ProblemFilter,
   options?: RequestOptions,
@@ -411,6 +419,28 @@ export const problemService = {
 
   // 마이크로서비스 기반 문제 목록
   getMicroProblemList: fetchMicroProblemList,
+
+  getDailyChallenge: async (options?: RequestOptions): Promise<DailyChallenge> => {
+    if (!MS_API_BASE) {
+      throw new Error('MS_API_BASE is not defined');
+    }
+    const response = await apiClient.get<any>(`${MS_API_BASE}/problems/daily`, {
+      signal: options?.signal,
+    });
+    const payload = response.data ?? {};
+    const problemId = Number(payload.problem_id ?? payload.problemId ?? payload.id ?? 0);
+    return {
+      date: String(payload.date ?? ''),
+      selectedAt: typeof payload.selected_at === 'string'
+        ? payload.selected_at
+        : typeof payload.selectedAt === 'string'
+          ? payload.selectedAt
+          : undefined,
+      problemId: Number.isFinite(problemId) ? problemId : 0,
+      title: String(payload.title ?? ''),
+      description: typeof payload.description === 'string' ? payload.description : undefined,
+    };
+  },
 
   // 문제 상세 조회
   getProblem: async (identifier: string | number): Promise<Problem> => {
