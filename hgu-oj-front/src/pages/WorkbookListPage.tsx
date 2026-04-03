@@ -4,7 +4,6 @@ import { WorkbookList } from '../components/organisms/WorkbookList';
 import { useWorkbooks } from '../hooks/useWorkbooks';
 import { useWorkbookStore } from '../stores/workbookStore';
 import CommonPagination from '../components/common/CommonPagination';
-import { SidebarGoalColumn } from '../components/organisms/SidebarGoalColumn';
 
 const normalizeTags = (tags: string[]): string[] => {
   const unique = new Set(
@@ -111,7 +110,7 @@ export const WorkbookListPage: React.FC = () => {
 
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Sidebar */}
-          <SidebarGoalColumn className="w-full lg:w-64 shrink-0 space-y-6">
+          <div className="w-full lg:w-64 shrink-0 space-y-6">
 
             {/* Search */}
             <div>
@@ -177,7 +176,7 @@ export const WorkbookListPage: React.FC = () => {
               </div>
             </div>
 
-          </SidebarGoalColumn>
+          </div>
 
           {/* Main Content */}
           <div className="flex-1 min-w-0">

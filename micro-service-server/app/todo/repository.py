@@ -1,98 +1,84 @@
-from datetime import datetime
+from __future__ import annotations
+
+from datetime import date, datetime
+from typing import Optional
+
+from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update, func
-from app.todo.models import Todo
+from sqlalchemy.orm import selectinload
+
+from app.todo.models import Goal, GoalType, Todo
 
 
-async def get_todo_by_user_id(db: AsyncSession, user_id: int) -> Todo | None:
+async def get_todo_by_user_id(db: AsyncSession, user_id: int, *, with_goals: bool = False) -> Optional[Todo]:
     stmt = select(Todo).where(Todo.user_id == user_id)
+    if with_goals:
+        stmt = stmt.options(selectinload(Todo.goals))
     result = await db.execute(stmt)
     return result.scalars().first()
 
 
-async def create_todo(db: AsyncSession, todo: Todo) -> Todo:
+async def get_or_create_todo(db: AsyncSession, user_id: int) -> Todo:
+    existing = await get_todo_by_user_id(db, user_id)
+    if existing:
+        return existing
+
+    todo = Todo(user_id=user_id)
     db.add(todo)
-    await db.commit()
+    await db.flush()
     await db.refresh(todo)
     return todo
 
 
-async def update_todo(
-    db: AsyncSession,
-    user_id: int,
-    day_todo: str | None,
-    week_todo: str | None,
-    month_todo: str | None,
-    custom_todo: str | None,
-    goals: list[dict] | None = None,
-) -> Todo | None:
+async def list_goals_by_todo_id(db: AsyncSession, todo_id: int) -> list[Goal]:
     stmt = (
-        update(Todo)
-        .where(Todo.user_id == user_id)
-        .values(
-            day_todo=day_todo,
-            week_todo=week_todo,
-            month_todo=month_todo,
-            custom_todo=custom_todo,
-            goals=goals,
-        )
-        .returning(Todo)
+        select(Goal)
+        .where(Goal.todo_id == todo_id)
+        .order_by(Goal.created_time.asc(), Goal.id.asc())
     )
     result = await db.execute(stmt)
-    await db.commit()
-    return result.scalars().first()
+    return list(result.scalars().all())
 
 
-async def upsert_todo(
+async def list_due_goals(db: AsyncSession, target_date: date, user_id: Optional[int] = None) -> list[Goal]:
+    stmt = (
+        select(Goal)
+        .join(Todo, Todo.id == Goal.todo_id)
+        .options(selectinload(Goal.todo))
+        .where(Goal.end_day < target_date)
+        .order_by(Goal.end_day.asc(), Goal.id.asc())
+    )
+    if user_id is not None:
+        stmt = stmt.where(Todo.user_id == user_id)
+
+    result = await db.execute(stmt)
+    return list(result.scalars().all())
+
+
+async def delete_goals_not_in_ids(db: AsyncSession, todo_id: int, keep_ids: set[int]) -> None:
+    stmt = select(Goal).where(Goal.todo_id == todo_id)
+    if keep_ids:
+        stmt = stmt.where(Goal.id.notin_(keep_ids))
+    result = await db.execute(stmt)
+    for goal in result.scalars().all():
+        await db.delete(goal)
+
+
+async def get_solved_problem_ids_in_range(
     db: AsyncSession,
     user_id: int,
-    day_todo: str | None,
-    week_todo: str | None,
-    month_todo: str | None,
-    custom_todo: str | None,
-    goals: list[dict] | None = None,
-) -> Todo:
-    existing = await get_todo_by_user_id(db, user_id)
-    if existing:
-        new_day = day_todo if day_todo is not None else existing.day_todo
-        new_week = week_todo if week_todo is not None else existing.week_todo
-        new_month = month_todo if month_todo is not None else existing.month_todo
-        new_custom = custom_todo if custom_todo is not None else existing.custom_todo
-        new_goals = goals if goals is not None else (existing.goals or [])
-
-        existing.day_todo = new_day
-        existing.week_todo = new_week
-        existing.month_todo = new_month
-        existing.custom_todo = new_custom
-        existing.goals = new_goals
-
-        db.add(existing)
-        await db.commit()
-        await db.refresh(existing)
-        return existing
-    else:
-        new_todo = Todo(
-            user_id=user_id,
-            day_todo=day_todo,
-            week_todo=week_todo,
-            month_todo=month_todo,
-            custom_todo=custom_todo,
-            goals=goals or [],
-        )
-        return await create_todo(db, new_todo)
-
-
-async def get_solved_problem_ids_in_range(db: AsyncSession, user_id: int, start_time: datetime, end_time: datetime) -> set[int]:
-    # 특정 기간이 주어지면 그안에 해결한거 가져오기
+    start_time: datetime,
+    end_time: datetime,
+) -> set[int]:
     from app.submission.models import Submission
-    
+
     stmt = (
         select(Submission.problem_id)
         .where(
             Submission.user_id == user_id,
             Submission.result == 0,
             Submission.create_time >= start_time,
-            Submission.create_time <= end_time
+            Submission.create_time <= end_time,
         )
         .distinct()
     )
@@ -100,35 +86,55 @@ async def get_solved_problem_ids_in_range(db: AsyncSession, user_id: int, start_
     return set(result.scalars().all())
 
 
-async def get_all_ac_dates(db: AsyncSession, user_id: int) -> list[datetime]:
-    # 연속 출석 계산 -> 제출날짜 조회
+async def count_solved_problems_in_range(
+    db: AsyncSession,
+    user_id: int,
+    start_time: datetime,
+    end_time: datetime,
+    difficulty: Optional[int] = None,
+) -> int:
+    from app.problem.models import Problem
     from app.submission.models import Submission
-    
+
     stmt = (
-        select(Submission.create_time)
+        select(func.count(func.distinct(Submission.problem_id)))
+        .select_from(Submission)
         .where(
             Submission.user_id == user_id,
-            Submission.result == 0
+            Submission.result == 0,
+            Submission.create_time >= start_time,
+            Submission.create_time <= end_time,
         )
-        .order_by(Submission.create_time.desc())
     )
+
+    if difficulty is not None:
+        difficulty_text = str(difficulty)
+        stmt = (
+            stmt.join(Problem, Problem.id == Submission.problem_id)
+            .where(
+                or_(
+                    Problem.difficulty == difficulty_text,
+                    Problem.difficulty.ilike(f"%Lv.{difficulty_text}%"),
+                    Problem.difficulty.ilike(f"%Lv. {difficulty_text}%"),
+                )
+            )
+        )
+
     result = await db.execute(stmt)
-    return list(result.scalars().all())
+    return int(result.scalar() or 0)
 
 
 async def get_difficulty_stats(db: AsyncSession, user_id: int) -> list[dict]:
-    # 난이도별 해결 문제 수 조회
-    from app.submission.models import Submission
     from app.problem.models import Problem
-    from sqlalchemy import func
-    
+    from app.submission.models import Submission
+
     subq = (
         select(Submission.problem_id)
         .where(Submission.user_id == user_id, Submission.result == 0)
         .distinct()
         .subquery()
     )
-    
+
     stmt = (
         select(Problem.difficulty, func.count(Problem.id).label("count"))
         .join(subq, Problem.id == subq.c.problem_id)
@@ -145,20 +151,4 @@ async def get_difficulty_count_in_range(
     end_time: datetime,
     difficulty: str,
 ) -> int:
-    from app.submission.models import Submission
-    from app.problem.models import Problem
-
-    stmt = (
-        select(func.count(func.distinct(Submission.problem_id)))
-        .select_from(Submission)
-        .join(Problem, Problem.id == Submission.problem_id)
-        .where(
-            Submission.user_id == user_id,
-            Submission.result == 0,
-            Submission.create_time >= start_time,
-            Submission.create_time <= end_time,
-            Problem.difficulty == difficulty,
-        )
-    )
-    result = await db.execute(stmt)
-    return int(result.scalar() or 0)
+    return await count_solved_problems_in_range(db, user_id, start_time, end_time, difficulty=int(difficulty))

@@ -12,7 +12,6 @@ import {
   RankingTableColumn,
 } from '../components/ranking/RankingTable';
 import CommonPagination from '../components/common/CommonPagination';
-import { SidebarGoalColumn } from '../components/organisms/SidebarGoalColumn';
 
 
 const RankBadge = ({ rank }: { rank: number }) => {
@@ -214,11 +213,7 @@ export const RankingPage: React.FC = () => {
     <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
       <main className="mx-auto w-full max-w-[1440px] px-4 py-8 sm:px-6 lg:px-8 flex flex-col lg:flex-row gap-6">
         {/* Sidebar */}
-        <SidebarGoalColumn
-          className="w-full lg:w-64 shrink-0 space-y-6"
-          menuStickyClassName="lg:sticky lg:top-24"
-          goalClassName="hidden lg:block"
-        >
+        <div className="w-full lg:w-64 shrink-0 space-y-6">
           <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
             <div className="p-6 border-b border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-800">
               <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">랭킹</h2>
@@ -250,7 +245,7 @@ export const RankingPage: React.FC = () => {
               </button>
             </nav>
           </div>
-        </SidebarGoalColumn>
+        </div>
 
         {/* Main Content */}
         <div className="flex-1 min-w-0">

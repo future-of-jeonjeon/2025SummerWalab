@@ -14,9 +14,12 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 
 @router.post("/login")
-async def login_with_sso_api(req: LoginRequest, res: Response):
+async def login_with_sso_api(
+        req: LoginRequest,
+        res: Response,
+        db: AsyncSession = Depends(get_database)):
     logger.info("Login requested, Token = %s", req.token)
-    cookie_data = await auth_service.login(req)
+    cookie_data = await auth_service.login(req, db)
     res.set_cookie(**cookie_data)
     res.status_code = status.HTTP_200_OK
     return res

@@ -10,6 +10,7 @@ from app.core.cors import setup_cors
 from app.core.logger import logger
 from app.core.logger import setup_logging
 from app.problem.cron import daily_problem_cron_bot
+from app.todo.cron import todo_rollover_cron_bot
 
 
 @asynccontextmanager
@@ -18,6 +19,7 @@ async def lifespan(app: FastAPI):
     logger.info("lifespan started")
     listener_task = asyncio.create_task(code_save_listener())
     daily_problem_task = asyncio.create_task(daily_problem_cron_bot())
+    todo_rollover_task = asyncio.create_task(todo_rollover_cron_bot())
     configure_mappers()
     logger.info("DB mappers configured.")
     try:
@@ -25,10 +27,13 @@ async def lifespan(app: FastAPI):
     finally:
         listener_task.cancel()
         daily_problem_task.cancel()
+        todo_rollover_task.cancel()
         with suppress(asyncio.CancelledError):
             await listener_task
         with suppress(asyncio.CancelledError):
             await daily_problem_task
+        with suppress(asyncio.CancelledError):
+            await todo_rollover_task
 
 
 app = FastAPI(lifespan=lifespan)

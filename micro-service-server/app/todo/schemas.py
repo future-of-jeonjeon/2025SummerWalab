@@ -1,26 +1,37 @@
-from typing import Literal, Optional
+from datetime import date
+from typing import Optional
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.todo.models import GoalPeriod, GoalType
 
-GoalPeriod = Literal["daily", "weekly", "monthly"]
-GoalType = Literal["SOLVE_COUNT", "STREAK", "TIER_SOLVE"]
-GoalDifficulty = Literal["Bronze", "Mid", "Gold"]
+
+GoalDifficulty = int
 
 
 class GoalPayload(BaseModel):
     id: Optional[str] = None
     period: GoalPeriod
     type: GoalType
-    target: int = Field(..., ge=1)
-    difficulty: Optional[GoalDifficulty] = None
+    target: int = Field(default=1, ge=1)
+    difficulty: Optional[GoalDifficulty] = Field(default=None, ge=1, le=5)
+    custom_days: Optional[int] = Field(default=None, ge=1, le=365)
 
     @model_validator(mode="after")
-    def validate_difficulty(self):
-        if self.type == "TIER_SOLVE" and not self.difficulty:
+    def validate_goal(self):
+        if self.period == GoalPeriod.CUSTOM and not self.custom_days:
+            raise ValueError("custom_days is required when period is custom")
+        if self.period != GoalPeriod.CUSTOM:
+            self.custom_days = None
+
+        if self.type == GoalType.TIER_SOLVE and self.difficulty is None:
             raise ValueError("difficulty is required when type is TIER_SOLVE")
-        if self.type != "TIER_SOLVE":
+        if self.type != GoalType.TIER_SOLVE:
             self.difficulty = None
+
+        if self.type == GoalType.ATTENDANCE and self.period == GoalPeriod.DAILY:
+            raise ValueError("attendance goal is not allowed for daily period")
+
         return self
 
 
@@ -34,8 +45,12 @@ class GoalResponse(BaseModel):
     period: GoalPeriod
     type: GoalType
     target: int
+    count: int
     unit: str
     difficulty: Optional[GoalDifficulty] = None
+    custom_days: Optional[int] = None
+    start_day: date
+    end_day: date
     label: str
     progress: GoalProgress
 
@@ -55,6 +70,7 @@ class GoalRecommendation(BaseModel):
     target: int
     unit: str
     difficulty: Optional[GoalDifficulty] = None
+    custom_days: Optional[int] = None
 
 
 class RecommendationsResponse(BaseModel):
@@ -69,8 +85,9 @@ class SolveCountResponse(BaseModel):
     monthly: int
 
 
-class StreakResponse(BaseModel):
-    streak: int
+class AttendanceSyncResponse(BaseModel):
+    checked: bool
+    checked_on: date
 
 
 class DifficultyCount(BaseModel):

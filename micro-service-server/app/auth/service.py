@@ -19,11 +19,19 @@ import app.auth.repository as auth_repository
 TOKEN_NAME = settings.TOKEN_COOKIE_NAME
 
 
-async def login(req):
+async def login(req, db: AsyncSession):
     token_ttl_seconds = settings.LOCAL_TOKEN_TTL_SECONDS
     token = await _get_token(req)
     session_token = await exchange_sso_for_local_token(token)
     logger.info("Login requested, Token = %s, Session Token = %s", token, session_token)
+    try:
+        user_profile = await get_user_session_data(session_token)
+        if user_profile:
+            import app.todo.service as todo_service
+
+            await todo_service.sync_user_attendance(db, user_profile.user_id)
+    except Exception as exc:
+        logger.exception("Attendance sync failed during login: %s", exc)
     return await _create_cookie_data(session_token, token_ttl_seconds)
 
 

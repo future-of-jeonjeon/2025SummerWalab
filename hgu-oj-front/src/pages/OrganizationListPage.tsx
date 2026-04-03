@@ -7,7 +7,6 @@ import { Button } from '../components/atoms/Button';
 import { OrganizationLogo } from '../components/atoms/OrganizationLogo';
 import { OrganizationApplyModal } from '../components/organisms/OrganizationApplyModal';
 import CommonPagination from '../components/common/CommonPagination';
-import { GoalSidebar } from '../components/organisms/GoalSidebar';
 
 export const OrganizationListPage: React.FC = () => {
     const [organizations, setOrganizations] = useState<Organization[]>([]);
@@ -75,10 +74,7 @@ export const OrganizationListPage: React.FC = () => {
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-slate-950 py-12">
             <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8">
-                <div className="flex flex-col lg:flex-row gap-6">
-                    <GoalSidebar className="hidden lg:block lg:w-64 lg:flex-shrink-0 lg:self-start" />
-
-                    <div className="min-w-0 flex-1">
+                    <div className="min-w-0">
                         <div className="flex flex-col md:flex-row justify-end items-start md:items-center mb-8 gap-4">
                             <div className="flex items-center gap-4 w-full md:w-auto">
                                 <div className="relative w-full md:w-64">
@@ -180,7 +176,6 @@ export const OrganizationListPage: React.FC = () => {
                             </>
                         )}
                     </div>
-                </div>
             </div>
 
             <OrganizationApplyModal
