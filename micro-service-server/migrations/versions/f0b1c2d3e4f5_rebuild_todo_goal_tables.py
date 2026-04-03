@@ -265,8 +265,8 @@ def upgrade() -> None:
     goal_table = sa.table(
         "micro_goal",
         sa.column("todo_id", sa.BigInteger),
-        sa.column("period", sa.String),
-        sa.column("type", sa.String),
+        sa.column("period", goal_period_enum),
+        sa.column("type", goal_type_enum),
         sa.column("target_count", sa.Integer),
         sa.column("count", sa.Integer),
         sa.column("difficulty", sa.Integer),

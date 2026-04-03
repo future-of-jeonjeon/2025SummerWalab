@@ -188,3 +188,50 @@ class DailyProblemResponse(BaseModel):
 
 class DailyProblemReselectRequest(BaseModel):
     seed: Optional[int] = None
+
+
+class ProblemFilePayloadV1(BaseModel):
+    # 동일성 비교에 포함되는 필드만 저장한다. (id/create_time 등은 제외)
+    display_id: str = Field(..., alias="_id")
+    title: str
+    description: str
+    input_description: str
+    output_description: str
+    samples: List[Dict[str, Any]]
+    test_case_id: str
+    test_case_score: List[Dict[str, Any]] = []
+    hint: Optional[str] = None
+    languages: List[str]
+    template: Dict[str, Any] = {}
+    time_limit: int
+    memory_limit: int
+    io_mode: Dict[str, Any] = {}
+    spj: bool
+    spj_language: Optional[str] = None
+    spj_code: Optional[str] = None
+    spj_version: Optional[str] = None
+    spj_compile_ok: bool
+    rule_type: str
+    visible: bool
+    difficulty: Optional[str] = None
+    source: Optional[str] = None
+    total_score: int = 0
+    share_submission: bool = False
+    is_public: bool = False
+    tags: List[str] = []
+
+
+class ProblemFileEnvelope(BaseModel):
+    schemaVersion: int
+    problem: ProblemFilePayloadV1
+
+
+class ProblemFileImportResponse(BaseModel):
+    id: int
+    _id: str
+
+
+class ProblemRoundTripCompareResponse(BaseModel):
+    equals: bool
+    original: Dict[str, Any]
+    restored: Dict[str, Any]

@@ -6,10 +6,6 @@ type WrappedResponse<T> = {
   data: T;
 };
 
-const ADMIN_PROBLEM_API_BASE = '/admin';
-
-const buildAdminProblemUrl = (path: string) => `${ADMIN_PROBLEM_API_BASE}${path}`;
-
 const isWrappedResponse = <T>(payload: unknown): payload is WrappedResponse<T> =>
   Boolean(
     payload &&
@@ -62,49 +58,23 @@ const extractErrorMessage = (error: unknown, fallback: string): string => {
   return fallback;
 };
 
-const parseContentDispositionFilename = (value: string | null | undefined): string | undefined => {
-  if (!value) {
-    return undefined;
-  }
-
-  const utf8Match = value.match(/filename\*=UTF-8''([^;]+)/i);
-  if (utf8Match && utf8Match[1]) {
-    try {
-      return decodeURIComponent(utf8Match[1]);
-    } catch {
-      return utf8Match[1];
-    }
-  }
-
-  const asciiMatch = value.match(/filename="?([^\";]+)"?/i);
-  if (asciiMatch && asciiMatch[1]) {
-    return asciiMatch[1];
-  }
-
-  return undefined;
-};
-
 const serializeParams = (params: Record<string, unknown>): string => {
   const search = new URLSearchParams();
-
   Object.entries(params).forEach(([key, value]) => {
-    if (value === undefined || value === null) {
-      return;
-    }
-
+    if (value === undefined || value === null) return;
     if (Array.isArray(value)) {
-      value
-        .map((entry) => (entry === undefined || entry === null ? undefined : String(entry)))
-        .filter((entry): entry is string => typeof entry === 'string' && entry.length > 0)
-        .forEach((entry) => search.append(key, entry));
+      value.forEach((item) => {
+        if (item !== undefined && item !== null) {
+          search.append(key, String(item));
+        }
+      });
       return;
     }
-
     search.append(key, String(value));
   });
-
   return search.toString();
 };
+
 
 export type ImportProblemsResult = {
   polling_key: string;
@@ -148,7 +118,6 @@ export const adminProblemBulkService = {
         return { polling_key: data.polling_key };
       }
 
-      // Fallback for types not matching directly (should not happen with correct backend)
       const unwrapped = unwrapResponse<any>(data);
       if (unwrapped && typeof unwrapped.polling_key === 'string') {
         return { polling_key: unwrapped.polling_key };
@@ -180,39 +149,24 @@ export const adminProblemBulkService = {
   },
 
   exportProblems: async (problemIds: number[]): Promise<ExportProblemsResult> => {
+    if (!Array.isArray(problemIds) || problemIds.length === 0) {
+      throw new Error('내보낼 문제를 선택하세요.');
+    }
+    const MS_API_BASE = ((import.meta.env.VITE_MS_API_BASE as string | undefined) || '').replace(/\/$/, '');
+    if (!MS_API_BASE) {
+      throw new Error('Microservice API base URL is not configured.');
+    }
+
     try {
-      const response = await apiClient.get<Blob>(buildAdminProblemUrl('/export_problem/'), {
+      const response = await apiClient.get<Blob>(`${MS_API_BASE}/problem/export/zip`, {
         params: { problem_id: problemIds },
-        paramsSerializer: (params) => serializeParams(params),
+        paramsSerializer: (params) => serializeParams(params as Record<string, unknown>),
         responseType: 'blob',
       });
-
       const blob = response.data;
-      const contentType = response.headers['content-type'] as string | undefined;
-
-      if (contentType && contentType.includes('application/json')) {
-        const payloadText = await blob.text();
-        if (payloadText) {
-          try {
-            const parsed = JSON.parse(payloadText);
-            if (isWrappedResponse(parsed) && parsed.error) {
-              const detail = parsed.data;
-              const message = typeof detail === 'string' && detail.trim().length > 0
-                ? detail
-                : '문제 내보내기에 실패했습니다.';
-              throw new Error(message);
-            }
-          } catch (error) {
-            // If parsing fails, rethrow with raw content
-            throw new Error(payloadText);
-          }
-        }
-      }
-
-      const filename = parseContentDispositionFilename(response.headers['content-disposition'] as string | undefined);
       return {
         blob,
-        filename,
+        filename: problemIds.length > 1 ? 'problem-export.zip' : `problem-${problemIds[0]}.zip`,
       };
     } catch (error) {
       const message = extractErrorMessage(error, '문제 내보내기에 실패했습니다.');

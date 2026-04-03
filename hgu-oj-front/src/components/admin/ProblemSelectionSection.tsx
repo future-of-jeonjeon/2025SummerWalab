@@ -193,7 +193,7 @@ export const ProblemSelectionSection: React.FC<ProblemSelectionSectionProps> = (
                 >
                   <div>
                     <p className="font-medium text-gray-800">
-                      {problem.displayId ?? problem.id} · {problem.title}
+                      {problem.title}
                     </p>
                     <p className="text-xs text-gray-500 dark:text-slate-400">난이도: {problem.difficulty}</p>
                   </div>
@@ -213,18 +213,13 @@ export const ProblemSelectionSection: React.FC<ProblemSelectionSectionProps> = (
         {selectedProblems.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {selectedProblems.map((problem) => {
-              const labelText = problem.displayId ?? problem.id;
+              const labelText = problem.title || `#${problem.id}`;
               return (
                 <span
                   key={`problem-selection-chip-${problem.id}`}
                   className="inline-flex items-center gap-2 rounded-full bg-[#113F67]/10 px-3 py-1 text-sm text-[#113F67]"
                 >
-                  <span className="font-medium">문제 {labelText}</span>
-                  {problem.title && (
-                    <span className="max-w-[160px] truncate text-xs text-gray-500 dark:text-slate-400">
-                      {problem.title}
-                    </span>
-                  )}
+                  <span className="max-w-[220px] truncate font-medium">{labelText}</span>
                   <button
                     type="button"
                     className="text-[#113F67] transition-colors hover:text-[#34699A]"
@@ -244,4 +239,3 @@ export const ProblemSelectionSection: React.FC<ProblemSelectionSectionProps> = (
 };
 
 export default ProblemSelectionSection;
-

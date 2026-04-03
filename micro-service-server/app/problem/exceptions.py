@@ -50,3 +50,18 @@ def test_case_not_match(input_str: str, output_str: str, result_str: str):
 
 def test_case_not_found(test_case_id: str):
     handlers.not_found(f"Test case not found: {test_case_id}", ErrorCode.PROBLEM_TEST_CASE_NOT_FOUND)
+
+
+def export_invalid_json(detail: str):
+    handlers.bad_request(f"Invalid export JSON: {detail}", ErrorCode.PROBLEM_EXPORT_INVALID_JSON)
+
+
+def export_unsupported_version(version: int):
+    handlers.bad_request(
+        f"Unsupported schemaVersion: {version}",
+        ErrorCode.PROBLEM_EXPORT_UNSUPPORTED_VERSION,
+    )
+
+
+def export_validation_error(detail: str):
+    handlers.bad_request(f"Export validation error: {detail}", ErrorCode.PROBLEM_EXPORT_VALIDATION_ERROR)

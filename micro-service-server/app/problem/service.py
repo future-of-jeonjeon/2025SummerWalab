@@ -1,4 +1,5 @@
 import io
+import json
 import os
 import random
 import uuid
@@ -8,11 +9,13 @@ from typing import Union
 from zoneinfo import ZoneInfo
 
 from fastapi import UploadFile
+from pydantic import ValidationError
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_background_database
 from app.contest.models import OrganizationContest, ContestLanguage
 from app.core.logger import logger
+from app.core.settings import settings
 from app.core.redis import get_polling_task
 from app.execution.schemas import RunCodeRequest
 from app.pending.models import PendingTargetType
@@ -32,6 +35,45 @@ import app.contest.exceptions as contest_exceptions
 POLLING_SESSION_TIME = 3600
 SEOUL_TZ = ZoneInfo("Asia/Seoul")
 DAILY_PROBLEM_LOCK_KEY = 2026040301
+PROBLEM_FILE_SCHEMA_VERSION = 1
+PROBLEM_EQUALITY_FIELDS = (
+    "_id",
+    "title",
+    "description",
+    "input_description",
+    "output_description",
+    "samples",
+    "test_case_id",
+    "test_case_score",
+    "hint",
+    "languages",
+    "template",
+    "time_limit",
+    "memory_limit",
+    "io_mode",
+    "spj",
+    "spj_language",
+    "spj_code",
+    "spj_version",
+    "spj_compile_ok",
+    "rule_type",
+    "visible",
+    "difficulty",
+    "source",
+    "total_score",
+    "share_submission",
+    "is_public",
+    "tags",
+)
+EXPORT_LANGUAGE_TO_EXTENSION = {
+    "Python3": ".py",
+    "C++": ".cpp",
+    "C": ".c",
+    "Java": ".java",
+    "Golang": ".go",
+    "Go": ".go",
+    "JavaScript": ".js",
+}
 
 
 def _extract_error_code(exc: Exception) -> str:
@@ -50,6 +92,302 @@ def _extract_error_message(exc: Exception) -> str:
     if detail is not None:
         return str(detail)
     return str(exc)
+
+
+def _build_problem_file_payload(problem: Problem) -> ProblemFilePayloadV1:
+    return ProblemFilePayloadV1(
+        _id=problem._id,
+        title=problem.title,
+        description=problem.description,
+        input_description=problem.input_description,
+        output_description=problem.output_description,
+        samples=problem.samples or [],
+        test_case_id=problem.test_case_id,
+        test_case_score=problem.test_case_score or [],
+        hint=problem.hint,
+        languages=problem.languages or [],
+        template=problem.template or {},
+        time_limit=problem.time_limit,
+        memory_limit=problem.memory_limit,
+        io_mode=problem.io_mode or {"io_mode": "standard", "input": "input.txt", "output": "output.txt"},
+        spj=bool(problem.spj),
+        spj_language=problem.spj_language,
+        spj_code=problem.spj_code,
+        spj_version=problem.spj_version,
+        spj_compile_ok=bool(problem.spj_compile_ok),
+        rule_type=problem.rule_type,
+        visible=bool(problem.visible),
+        difficulty=problem.difficulty,
+        source=problem.source,
+        total_score=int(problem.total_score or 0),
+        share_submission=bool(problem.share_submission),
+        is_public=bool(problem.is_public),
+        tags=sorted([tag.name for tag in (problem.tags or []) if getattr(tag, "name", None)]),
+    )
+
+
+def _migrate_problem_file_payload(raw: dict) -> dict:
+    version = raw.get("schemaVersion")
+    if version == PROBLEM_FILE_SCHEMA_VERSION:
+        return raw
+    problem_exceptions.export_unsupported_version(version)
+    return raw
+
+
+def _parse_problem_file(file_contents: bytes) -> ProblemFileEnvelope:
+    try:
+        raw = json.loads(file_contents.decode("utf-8"))
+    except Exception as exc:  # noqa: BLE001
+        problem_exceptions.export_invalid_json(str(exc))
+
+    migrated = _migrate_problem_file_payload(raw)
+    try:
+        return ProblemFileEnvelope.model_validate(migrated)
+    except ValidationError as exc:
+        problem_exceptions.export_validation_error(str(exc))
+
+
+def build_problem_semantic_identity(problem: Problem | ProblemFilePayloadV1) -> dict:
+    if isinstance(problem, ProblemFilePayloadV1):
+        dump = problem.model_dump(by_alias=True)
+    else:
+        dump = _build_problem_file_payload(problem).model_dump(by_alias=True)
+    return {k: dump.get(k) for k in PROBLEM_EQUALITY_FIELDS}
+
+
+async def export_problem_file(problem_id: int, db: AsyncSession) -> dict:
+    problem = await problem_repository.find_problem_with_tags_by_id(problem_id, db)
+    if not problem:
+        problem_exceptions.problem_not_found()
+    envelope = ProblemFileEnvelope(
+        schemaVersion=PROBLEM_FILE_SCHEMA_VERSION,
+        problem=_build_problem_file_payload(problem),
+    )
+    return envelope.model_dump(by_alias=True)
+
+
+async def import_problem_file(
+        file_contents: bytes,
+        user_profile: UserProfile,
+        is_admin: bool,
+        db: AsyncSession) -> ProblemFileImportResponse:
+    envelope = _parse_problem_file(file_contents)
+    payload = envelope.problem
+
+    try:
+        info_json = utils.load_test_case_info(payload.test_case_id)
+    except Exception:  # noqa: BLE001
+        problem_exceptions.test_case_not_found(payload.test_case_id)
+
+    test_cases_info = info_json.get("test_cases", {})
+    sorted_keys = sorted(test_cases_info.keys(), key=lambda x: int(x) if x.isdigit() else x)
+    info_list = [test_cases_info[key] for key in sorted_keys]
+
+    create_data = CreateProblemData(
+        title=payload.title,
+        description=payload.description,
+        input_description=payload.input_description,
+        output_description=payload.output_description,
+        samples=[Sample.model_validate(item) for item in payload.samples],
+        time_limit=payload.time_limit,
+        memory_limit=payload.memory_limit,
+        languages=payload.languages,
+        template=payload.template,
+        difficulty=payload.difficulty or "",
+        tags=payload.tags,
+        hint=payload.hint,
+        source=payload.source,
+        spj=payload.spj,
+        spj_code=payload.spj_code,
+        spj_language=payload.spj_language,
+        rule_type=payload.rule_type,
+        io_mode=payload.io_mode,
+        test_case_score=payload.test_case_score or [],
+        visible=payload.visible,
+    )
+    problem = utils.create_problem_from_data(
+        data=create_data,
+        display_id=payload.display_id,
+        test_case_id=payload.test_case_id,
+        test_case_list=info_list,
+    )
+    problem.created_by_id = user_profile.user_id
+    problem.spj_version = payload.spj_version
+    problem.spj_compile_ok = payload.spj_compile_ok
+    problem.total_score = payload.total_score
+    problem.share_submission = payload.share_submission
+    problem.is_public = payload.is_public if is_admin else False
+    problem.visible = payload.visible if is_admin else True
+    problem.tags = await _process_tags(db, payload.tags)
+
+    try:
+        problem = await problem_repository.save(db, problem)
+    except IntegrityError:
+        problem_exceptions.invalid_metadata("Duplicate display id(_id) already exists")
+
+    return ProblemFileImportResponse(id=problem.id, _id=problem._id)
+
+
+async def validate_problem_round_trip(problem_id: int, db: AsyncSession) -> ProblemRoundTripCompareResponse:
+    problem = await problem_repository.find_problem_with_tags_by_id(problem_id, db)
+    if not problem:
+        problem_exceptions.problem_not_found()
+
+    export_data = await export_problem_file(problem_id, db)
+    restored_payload = _parse_problem_file(json.dumps(export_data).encode("utf-8")).problem
+    original_identity = build_problem_semantic_identity(problem)
+    restored_identity = build_problem_semantic_identity(restored_payload)
+    return ProblemRoundTripCompareResponse(
+        equals=(original_identity == restored_identity),
+        original=original_identity,
+        restored=restored_identity,
+    )
+
+
+def _build_problem_md_for_export(problem: Problem, tags: list[str]) -> str:
+    metadata: dict[str, object] = {
+        "title": problem.title,
+        "time_limit": problem.time_limit,
+        "memory_limit": problem.memory_limit,
+        "languages": problem.languages or [],
+        "template": problem.template or {},
+        "level": problem.difficulty or "0",
+        "tags": tags,
+        "source": problem.source or "",
+        # export zip 재가져오기 전용 훅: 기존 사용자 zip은 영향 없음
+        "skip_solution_validation": True,
+    }
+
+    default_io_mode = {"io_mode": "Standard IO", "input": "input.txt", "output": "output.txt"}
+    io_mode = problem.io_mode or default_io_mode
+    if io_mode != default_io_mode:
+        metadata["io_mode"] = io_mode
+
+    if problem.rule_type and problem.rule_type != "ACM":
+        metadata["rule_type"] = problem.rule_type
+
+    if problem.spj:
+        metadata["spj"] = True
+        if problem.spj_code:
+            metadata["spj_code"] = problem.spj_code
+        if problem.spj_language:
+            metadata["spj_language"] = problem.spj_language
+
+    if problem.rule_type == "OI" and (problem.test_case_score or []):
+        metadata["test_case_score"] = problem.test_case_score
+
+    if not bool(problem.visible):
+        metadata["visible"] = False
+
+    lines: list[str] = ["---"]
+    for key, value in metadata.items():
+        lines.append(f"{key}: {json.dumps(value, ensure_ascii=False)}")
+    lines.append("---")
+    lines.append("")
+
+    lines.append("## description")
+    lines.append(problem.description or "")
+    lines.append("")
+    lines.append("## input_description")
+    lines.append(problem.input_description or "")
+    lines.append("")
+    lines.append("## output_description")
+    lines.append(problem.output_description or "")
+    lines.append("")
+    lines.append("## hint")
+    lines.append(problem.hint or "")
+    lines.append("")
+    lines.append("## samples")
+    for sample in (problem.samples or []):
+        lines.append("### input")
+        lines.append(sample.get("input", ""))
+        lines.append("### output")
+        lines.append(sample.get("output", ""))
+        lines.append("")
+    return "\n".join(lines)
+
+
+def _build_solution_file_for_export(problem: Problem) -> tuple[str, str]:
+    languages = problem.languages or []
+    preferred = languages[0] if languages else "Python3"
+    extension = EXPORT_LANGUAGE_TO_EXTENSION.get(preferred, ".py")
+    template = problem.template or {}
+    code = template.get(preferred) or template.get("Python3") or "print()"
+    return f"solution{extension}", code
+
+
+def _collect_test_case_files(problem: Problem) -> list[tuple[str, bytes]]:
+    info = utils.load_test_case_info(problem.test_case_id)
+    test_case_dir = os.path.join(settings.TEST_CASE_DATA_PATH, problem.test_case_id)
+    test_cases_info = info.get("test_cases", {})
+    sorted_keys = sorted(test_cases_info.keys(), key=lambda x: int(x) if x.isdigit() else x)
+    files: list[tuple[str, bytes]] = []
+    for key in sorted_keys:
+        case = test_cases_info[key]
+        input_name = case.get("input_name")
+        output_name = case.get("output_name")
+        if input_name:
+            input_path = os.path.join(test_case_dir, input_name)
+            with open(input_path, "rb") as f:
+                files.append((f"test/{input_name}", f.read()))
+        if output_name:
+            output_path = os.path.join(test_case_dir, output_name)
+            if os.path.exists(output_path):
+                with open(output_path, "rb") as f:
+                    files.append((f"test/{output_name}", f.read()))
+    return files
+
+
+async def export_problem_zip(problem_id: int, db: AsyncSession) -> tuple[bytes, str]:
+    problem = await problem_repository.find_problem_with_tags_by_id(problem_id, db)
+    if not problem:
+        problem_exceptions.problem_not_found()
+
+    tags = sorted([tag.name for tag in (problem.tags or []) if getattr(tag, "name", None)])
+    folder_name = f"problem-{problem._id}"
+    md_content = _build_problem_md_for_export(problem, tags)
+    solution_name, solution_code = _build_solution_file_for_export(problem)
+    test_files = _collect_test_case_files(problem)
+
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        zf.writestr(f"{folder_name}/problem.md", md_content)
+        zf.writestr(f"{folder_name}/{solution_name}", solution_code)
+        for relative_path, content in test_files:
+            zf.writestr(f"{folder_name}/{relative_path}", content)
+    zip_buffer.seek(0)
+    return zip_buffer.getvalue(), f"{folder_name}.zip"
+
+
+async def export_problems_zip(problem_ids: list[int], db: AsyncSession) -> tuple[bytes, str]:
+    if not problem_ids:
+        problem_exceptions.invalid_metadata("problem_ids is required")
+
+    zip_buffer = io.BytesIO()
+    found_count = 0
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+        for problem_id in problem_ids:
+            problem = await problem_repository.find_problem_with_tags_by_id(problem_id, db)
+            if not problem:
+                continue
+            found_count += 1
+            tags = sorted([tag.name for tag in (problem.tags or []) if getattr(tag, "name", None)])
+            folder_name = f"problem-{problem._id}"
+            md_content = _build_problem_md_for_export(problem, tags)
+            solution_name, solution_code = _build_solution_file_for_export(problem)
+            test_files = _collect_test_case_files(problem)
+
+            zf.writestr(f"{folder_name}/problem.md", md_content)
+            zf.writestr(f"{folder_name}/{solution_name}", solution_code)
+            for relative_path, content in test_files:
+                zf.writestr(f"{folder_name}/{relative_path}", content)
+
+    if found_count == 0:
+        problem_exceptions.problem_not_found()
+
+    zip_buffer.seek(0)
+    filename = "problem-export.zip" if found_count > 1 else f"problem-{problem_ids[0]}.zip"
+    return zip_buffer.getvalue(), filename
 
 
 async def create_problem(
@@ -358,13 +696,15 @@ async def _process_single_problem(
     test_case_dir = f"{problem_dir}test/"
     problem_md = zip_ref.read(md_path).decode("utf-8")
     meta_data, sections = utils.parse_problem_md(problem_md)
-    solution_file = utils.find_solution_file(file_list, problem_dir)
-    solution_code = zip_ref.read(solution_file).decode("utf-8")
-    language = utils.detect_language_from_extension(solution_file)
-    test_cases_to_validate = (utils
-                              .extract_test_cases_to_memory(zip_ref, file_list, test_case_dir,
-                                                            sections.get("samples", [])))
-    await _validate_solution_code(solution_code, language, test_cases_to_validate, db)
+    skip_solution_validation = bool(meta_data.get("skip_solution_validation", False))
+    if not skip_solution_validation:
+        solution_file = utils.find_solution_file(file_list, problem_dir)
+        solution_code = zip_ref.read(solution_file).decode("utf-8")
+        language = utils.detect_language_from_extension(solution_file)
+        test_cases_to_validate = (utils
+                                  .extract_test_cases_to_memory(zip_ref, file_list, test_case_dir,
+                                                                sections.get("samples", [])))
+        await _validate_solution_code(solution_code, language, test_cases_to_validate, db)
     test_case_id, info_list = utils.save_test_cases_to_disk(zip_ref, test_case_dir, meta_data.get("spj", False))
     create_data = utils.parse_create_problem_data(meta_data, sections)
     display_id = str(uuid.uuid4())
