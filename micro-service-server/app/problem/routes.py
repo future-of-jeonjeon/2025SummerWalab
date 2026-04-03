@@ -1,6 +1,8 @@
 import asyncio
+import io
 
 from fastapi import APIRouter, Depends, Query, UploadFile, File
+from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 import app.problem.service as problem_service
@@ -84,6 +86,57 @@ async def import_problem(
     asyncio.create_task(
         problem_service.import_problem_from_file(polling_key, file_contents, filename, user_profile, is_admin=False))
     return {"polling_key": polling_key}
+
+
+@router.get("/{problem_id}/export", response_model=ProblemFileEnvelope)
+async def export_problem_file_api(
+        problem_id: int,
+        db: AsyncSession = Depends(get_database),
+        user_profile: UserProfile = Depends(get_optional_userdata)):
+    return await problem_service.export_problem_file(problem_id, db)
+
+
+@router.get("/{problem_id}/export/zip")
+async def export_problem_zip_api(
+        problem_id: int,
+        db: AsyncSession = Depends(get_database),
+        user_profile: UserProfile = Depends(get_optional_userdata)):
+    file_bytes, filename = await problem_service.export_problem_zip(problem_id, db)
+    return StreamingResponse(
+        io.BytesIO(file_bytes),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/export/zip")
+async def export_problems_zip_api(
+        problem_id: List[int] = Query(...),
+        db: AsyncSession = Depends(get_database),
+        user_profile: UserProfile = Depends(get_optional_userdata)):
+    file_bytes, filename = await problem_service.export_problems_zip(problem_id, db)
+    return StreamingResponse(
+        io.BytesIO(file_bytes),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.post("/import/file", response_model=ProblemFileImportResponse)
+async def import_problem_file_api(
+        file: UploadFile = File(...),
+        user_profile: UserProfile = Depends(get_userdata),
+        db: AsyncSession = Depends(get_database)):
+    file_contents = await file.read()
+    return await problem_service.import_problem_file(file_contents, user_profile, is_admin=False, db=db)
+
+
+@router.get("/{problem_id}/round-trip", response_model=ProblemRoundTripCompareResponse)
+async def validate_round_trip_api(
+        problem_id: int,
+        db: AsyncSession = Depends(get_database),
+        user_profile: UserProfile = Depends(get_optional_userdata)):
+    return await problem_service.validate_problem_round_trip(problem_id, db)
 
 
 @require_role("Admin")

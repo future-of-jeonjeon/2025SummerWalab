@@ -122,6 +122,7 @@ export const OrganizationManager: React.FC = () => {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 mode="create"
+                organizationId={null}
                 onSuccess={() => fetchOrganizations(page)}
             />
         </Card>

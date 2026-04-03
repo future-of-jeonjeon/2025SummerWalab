@@ -63,7 +63,6 @@ export const BulkProblemManager: React.FC = () => {
         setImportMessage({ success: `총 ${processedProblem}개의 문제를 처리했습니다.` });
         setImportStatus(null);
         setImportFile(null);
-        // Reset file input
         const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
         if (fileInput) fileInput.value = '';
       } else if (status.status === 'error') {
@@ -95,7 +94,6 @@ export const BulkProblemManager: React.FC = () => {
 
     try {
       setIsImporting(true);
-      setImportStatus('업로드 및 분석 중...');
       const result = await adminProblemBulkService.importProblems(importFile);
 
       if (result.polling_key) {
@@ -105,10 +103,10 @@ export const BulkProblemManager: React.FC = () => {
         throw new Error('폴링 키를 받지 못했습니다.');
       }
     } catch (error) {
-      setIsImporting(false);
-      setImportStatus(null);
       const message = error instanceof Error ? error.message : '문제 대량 등록 중 오류가 발생했습니다.';
       setImportMessage({ error: message });
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -172,7 +170,6 @@ export const BulkProblemManager: React.FC = () => {
                 <span>{importStatus}</span>
               </div>
             )}
-
             <div className="flex flex-col md:flex-row md:items-center gap-4">
               <input
                 type="file"
@@ -195,6 +192,7 @@ export const BulkProblemManager: React.FC = () => {
           <form onSubmit={handleExportSubmit} className="space-y-6">
             <div className="space-y-1">
               <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 dark:text-slate-100">문제 내보내기</h2>
+              <p className="text-sm text-gray-500 dark:text-slate-400">선택한 여러 문제를 ZIP 파일로 내보낼 수 있습니다.</p>
             </div>
 
             {exportMessage.error && (
