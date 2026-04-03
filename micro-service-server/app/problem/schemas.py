@@ -176,3 +176,15 @@ class ProblemUpdateRequest(BaseModel):
     hint: Optional[str] = None
     solution_code: Optional[str] = None
     solution_code_language: Optional[str] = None
+
+
+class DailyProblemResponse(BaseModel):
+    date: str
+    selected_at: datetime
+    problem_id: int
+    title: str
+    description: str
+
+
+class DailyProblemReselectRequest(BaseModel):
+    seed: Optional[int] = None

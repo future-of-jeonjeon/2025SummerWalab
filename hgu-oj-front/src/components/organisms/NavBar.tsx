@@ -318,12 +318,6 @@ export const NavBar: React.FC = () => {
                 >
                   로그인
                 </Button>
-                <Button
-                  onClick={() => navigate('/register')}
-                  size="sm"
-                >
-                  회원가입
-                </Button>
               </div>
             )}
           </div>

@@ -51,6 +51,16 @@ export const codeAutoSaveService = {
     await apiClient.delete(`${MS_API_BASE}/code/file/${encodeURIComponent(fileName)}`);
   },
 
+  async renameCustomFile(oldFileName: string, newFileName: string): Promise<void> {
+    if (!MS_API_BASE) {
+      throw new Error('API base URL is not configured.');
+    }
+    await apiClient.post(`${MS_API_BASE}/code/file/rename`, {
+      old_file_name: oldFileName,
+      new_file_name: newFileName,
+    });
+  },
+
   async save({ problemId, language, code }: AutoSavePayload): Promise<void> {
     if (!MS_API_BASE) {
       throw new Error('API base URL is not configured.');

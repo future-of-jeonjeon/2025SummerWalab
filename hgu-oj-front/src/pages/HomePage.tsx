@@ -61,6 +61,22 @@ export const HomePage: React.FC = () => {
     staleTime: 60 * 1000,
   });
 
+  const {
+    data: dailyChallenge,
+    isLoading: dailyChallengeLoading,
+  } = useQuery({
+    queryKey: ['home', 'daily-challenge'],
+    queryFn: ({ signal }) => problemService.getDailyChallenge({ signal }),
+    staleTime: 60 * 1000,
+  });
+
+  const { data: dailyChallengeDetail } = useQuery({
+    queryKey: ['home', 'daily-challenge-detail', dailyChallenge?.problemId],
+    enabled: Boolean(dailyChallenge?.problemId),
+    queryFn: () => problemService.getProblem(dailyChallenge!.problemId),
+    staleTime: 60 * 1000,
+  });
+
   const recentProblems = useMemo(
     () => recentProblemsData?.data ?? [],
     [recentProblemsData?.data]
@@ -157,28 +173,30 @@ export const HomePage: React.FC = () => {
               <div className="relative p-6">
                 <p className="text-xs font-semibold text-slate-400 mb-2">오늘의 도전 과제</p>
                 <h3 className="text-xl font-bold leading-tight mb-2">
-                  이진 트리 레벨 순회<br />
-                  (Binary Tree Level Order)
+                  {dailyChallengeLoading
+                    ? '오늘의 문제를 불러오는 중...'
+                    : (dailyChallenge?.title || '오늘의 문제가 아직 없습니다.')}
                 </h3>
                 <div className="flex items-center gap-2 mb-8">
                   {(() => {
-                    const meta = getDifficultyMeta(2);
-                    return meta ? <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${meta.className}`}>
-                      {meta.label}
-                    </span> : null;
+                    const meta = getDifficultyMeta(dailyChallengeDetail?.difficulty ?? 0);
+                    if (!meta) return null;
+                    return (
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${meta.className}`}>
+                        {meta.label}
+                      </span>
+                    );
                   })()}
                 </div>
 
-                <div className="flex items-center justify-between text-sm mb-4">
-                  <span className="flex items-center gap-1.5 text-emerald-400 font-medium">
-                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                    12k 해결됨
-                  </span>
-                </div>
-
                 <button
-                  className="w-full py-3 mt-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl font-semibold transition-colors shadow-sm"
-                  onClick={() => navigate('/problems/102')}
+                  className="w-full py-3 mt-2 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-500 disabled:cursor-not-allowed text-white rounded-xl font-semibold transition-colors shadow-sm"
+                  onClick={() => {
+                    if (dailyChallenge?.problemId) {
+                      navigate(`/problems/${dailyChallenge.problemId}`);
+                    }
+                  }}
+                  disabled={!dailyChallenge?.problemId}
                 >
                   문제 풀기
                 </button>

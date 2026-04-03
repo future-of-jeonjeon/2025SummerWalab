@@ -135,7 +135,10 @@ export const DevIdePage: React.FC = () => {
 
       setFiles((prev) => {
         const solvedOnly = prev.filter((file) => file.folderId === 'folder-solved');
-        const next = [...savedFiles, ...solvedOnly];
+        const localDrafts = prev.filter((file) => file.folderId === 'folder-saved' && !file.persisted);
+        const remoteNameSet = new Set(savedFiles.map((file) => file.name));
+        const mergedDrafts = localDrafts.filter((file) => !remoteNameSet.has(file.name));
+        const next = [...savedFiles, ...mergedDrafts, ...solvedOnly];
         if (next.length > 0 && !next.some((file) => file.id === activeFileId)) {
           setActiveFileId(next[0].id);
         }
@@ -250,8 +253,7 @@ export const DevIdePage: React.FC = () => {
   };
 
   const handleCreateFile = () => {
-    const nextIndex = files.length + 1;
-    const name = `new-file-${nextIndex}.js`;
+    const name = '';
     const language = resolveLanguageByFileName(name);
     const targetFolderId = 'folder-saved';
     const nextFile: DevFile = {
@@ -297,9 +299,8 @@ export const DevIdePage: React.FC = () => {
 
     setFiles((prev) => {
       const next = prev.filter((file) => file.id !== fileId);
-      if (next.length === 0) return prev;
       if (activeFileId === fileId) {
-        setActiveFileId(next[0].id);
+        setActiveFileId(next.length > 0 ? next[0].id : '');
         setExecutionResult(undefined);
       }
       return next;
@@ -313,26 +314,66 @@ export const DevIdePage: React.FC = () => {
     setOpenFileMenuId(null);
   };
 
-  const commitRename = () => {
+  const hasDuplicateFileName = useCallback((name: string, excludeFileId?: string) => {
+    const normalized = name.trim();
+    return files.some((file) => file.id !== excludeFileId && file.name.trim() === normalized);
+  }, [files]);
+
+  const commitRename = async () => {
     const targetId = editingFileId;
     const nextName = editingName.trim();
 
     if (!targetId) return;
 
-    if (!nextName) {
+    const targetFile = files.find((item) => item.id === targetId);
+    if (!targetFile) {
       setEditingFileId(null);
       setEditingName('');
       return;
     }
 
-    const targetFile = files.find((item) => item.id === targetId);
+    if (!nextName) {
+      if (targetFile.folderId === 'folder-saved' && !targetFile.persisted && !targetFile.name.trim()) {
+        setFiles((prev) => {
+          const next = prev.filter((item) => item.id !== targetId);
+          if (activeFileId === targetId) {
+            setActiveFileId(next.length > 0 ? next[0].id : '');
+            setExecutionResult(undefined);
+          }
+          return next;
+        });
+      }
+      setEditingFileId(null);
+      setEditingName('');
+      return;
+    }
+
+    if (targetFile.name === nextName) {
+      setEditingFileId(null);
+      setEditingName('');
+      return;
+    }
+
+    if (hasDuplicateFileName(nextName, targetId)) {
+      window.alert('동일한 파일 이름이 이미 존재합니다.');
+      return;
+    }
+
+    if (targetFile.folderId === 'folder-saved' && targetFile.persisted) {
+      try {
+        await codeAutoSaveService.renameCustomFile(targetFile.name, nextName);
+      } catch (error) {
+        return;
+      }
+    }
+
     setFiles((prev) => prev.map((item) => (
       item.id === targetId
         ? { ...item, name: nextName, language: resolveLanguageByFileName(nextName) }
         : item
     )));
 
-    if (targetFile && targetFile.folderId === 'folder-saved' && !targetFile.persisted) {
+    if (targetFile.folderId === 'folder-saved' && !targetFile.persisted) {
       void codeAutoSaveService.createCustomFile(nextName, targetFile.code || '').then(() => {
         setFiles((prev) => prev.map((item) => (
           item.id === targetId ? { ...item, persisted: true } : item
@@ -347,6 +388,19 @@ export const DevIdePage: React.FC = () => {
   };
 
   const cancelRename = () => {
+    if (editingFileId) {
+      const targetFile = files.find((item) => item.id === editingFileId);
+      if (targetFile && targetFile.folderId === 'folder-saved' && !targetFile.persisted && !targetFile.name.trim()) {
+        setFiles((prev) => {
+          const next = prev.filter((item) => item.id !== editingFileId);
+          if (activeFileId === editingFileId) {
+            setActiveFileId(next.length > 0 ? next[0].id : '');
+            setExecutionResult(undefined);
+          }
+          return next;
+        });
+      }
+    }
     setEditingFileId(null);
     setEditingName('');
   };
@@ -388,12 +442,12 @@ export const DevIdePage: React.FC = () => {
     } catch (err: any) {
       const normalizedMessage = String(err?.message ?? '');
       const isTimeout = err?.code === 'ECONNABORTED' || normalizedMessage.toLowerCase().includes('timeout');
+      const rawStderr = err?.response?.data?.stderr;
+      const errorMsg = typeof rawStderr === 'string' ? rawStderr : (err?.message || '실행 중 오류가 발생했습니다.');
 
       setExecutionResult({
         output: '',
-        error: isTimeout
-          ? '실행 시간이 제한을 초과했습니다. 무한 루프 여부를 확인해 주세요.'
-          : (err?.message || '실행 중 오류가 발생했습니다.'),
+        error: errorMsg,
         executionTime: 0,
         memoryUsage: 0,
         status: isTimeout ? 'TIMEOUT' : 'ERROR',
