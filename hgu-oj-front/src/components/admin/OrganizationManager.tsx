@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card } from '../atoms/Card';
 import { Button } from '../atoms/Button';
 import { Input } from '../atoms/Input';
@@ -9,6 +10,7 @@ import { ActionIconButtons } from '../../features/contribution/components/Action
 import CommonPagination from '../common/CommonPagination';
 
 export const OrganizationManager: React.FC = () => {
+    const navigate = useNavigate();
     const [orgList, setOrgList] = useState<Organization[]>([]);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -17,8 +19,6 @@ export const OrganizationManager: React.FC = () => {
     const [keyword, setKeyword] = useState('');
 
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [modalMode, setModalMode] = useState<'create' | 'edit'>('create');
-    const [selectedOrgId, setSelectedOrgId] = useState<number | null>(null);
 
     const fetchOrganizations = useCallback(async (p: number = 1) => {
         setLoading(true);
@@ -44,12 +44,6 @@ export const OrganizationManager: React.FC = () => {
         setTimeout(() => fetchOrganizations(1), 300);
     };
 
-    const openModal = (mode: 'create' | 'edit', id?: number) => {
-        setModalMode(mode);
-        setSelectedOrgId(id ?? null);
-        setIsModalOpen(true);
-    };
-
     const handleDelete = async (id: number, name: string) => {
         if (!window.confirm(`'${name}' 단체를 삭제하시겠습니까?`)) return;
         try {
@@ -67,7 +61,7 @@ export const OrganizationManager: React.FC = () => {
                     <div className="space-y-1">
                         <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 dark:text-slate-100">단체 목록</h2>
                     </div>
-                    <Button onClick={() => openModal('create')}>단체 등록</Button>
+                    <Button onClick={() => setIsModalOpen(true)}>단체 등록</Button>
                 </div>
 
                 <div className="flex gap-2">
@@ -103,7 +97,7 @@ export const OrganizationManager: React.FC = () => {
                                         <td className="px-4 py-3 text-sm text-gray-500 dark:text-slate-400">{org.description}</td>
                                         <td className="px-4 py-3 text-sm">
                                             <ActionIconButtons
-                                                onEdit={() => openModal('edit', org.id)}
+                                                onEdit={() => navigate(`/organizations/${org.id}/manage`)}
                                                 onDelete={() => handleDelete(org.id, org.name)}
                                                 editTitle={`단체 ${org.name} 수정`}
                                                 deleteTitle={`단체 ${org.name} 삭제`}
@@ -127,8 +121,7 @@ export const OrganizationManager: React.FC = () => {
             <OrganizationModal
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
-                mode={modalMode}
-                organizationId={selectedOrgId}
+                mode="create"
                 onSuccess={() => fetchOrganizations(page)}
             />
         </Card>
