@@ -442,12 +442,12 @@ export const DevIdePage: React.FC = () => {
     } catch (err: any) {
       const normalizedMessage = String(err?.message ?? '');
       const isTimeout = err?.code === 'ECONNABORTED' || normalizedMessage.toLowerCase().includes('timeout');
+      const rawStderr = err?.response?.data?.stderr;
+      const errorMsg = typeof rawStderr === 'string' ? rawStderr : (err?.message || '실행 중 오류가 발생했습니다.');
 
       setExecutionResult({
         output: '',
-        error: isTimeout
-          ? '실행 시간이 제한을 초과했습니다. 무한 루프 여부를 확인해 주세요.'
-          : (err?.message || '실행 중 오류가 발생했습니다.'),
+        error: errorMsg,
         executionTime: 0,
         memoryUsage: 0,
         status: isTimeout ? 'TIMEOUT' : 'ERROR',
