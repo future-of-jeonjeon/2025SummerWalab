@@ -11,7 +11,6 @@ import { WorkbookListTable } from '../features/contribution/components/WorkbookL
 import CommonPagination from '../components/common/CommonPagination';
 import { pendingService } from '../services/pendingService';
 import { PendingListTable } from '../features/contribution/components/PendingListTable';
-import { SidebarGoalColumn } from '../components/organisms/SidebarGoalColumn';
 
 export const ContributionPage: React.FC = () => {
     const navigate = useNavigate();
@@ -189,11 +188,7 @@ export const ContributionPage: React.FC = () => {
                 </div>
 
                 {/* Sidebar */}
-                <SidebarGoalColumn
-                    className="w-full md:w-64 flex-shrink-0 space-y-6"
-                    menuStickyClassName="md:sticky md:top-24"
-                    goalClassName="hidden lg:block"
-                >
+                <div className="w-full md:w-64 flex-shrink-0 space-y-6">
                     <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 dark:border-slate-800 overflow-hidden">
                         <div className="p-6 border-b border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-800">
                             <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">기여</h2>
@@ -261,7 +256,7 @@ export const ContributionPage: React.FC = () => {
                             )}
                         </nav>
                     </div>
-                </SidebarGoalColumn>
+                </div>
 
                 {/* Main Content */}
                 <div className="flex-1 min-w-0">

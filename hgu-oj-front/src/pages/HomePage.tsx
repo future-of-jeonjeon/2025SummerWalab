@@ -10,7 +10,6 @@ import { userService } from '../services/userService';
 import { problemService } from '../services/problemService';
 import { getDifficultyMeta } from '../lib/difficulty';
 import { ProblemList } from '../components/organisms/ProblemList';
-import { GoalSidebar } from '../components/organisms/GoalSidebar';
 
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
@@ -91,12 +90,20 @@ export const HomePage: React.FC = () => {
     [topUserRankings?.data, userRankingLoading],
   );
 
+  const heroSectionClassName = isAuthenticated
+    ? 'relative w-full overflow-hidden bg-[#0A101F] text-white py-12 sm:py-16'
+    : 'relative w-full overflow-hidden bg-[#0A101F] text-white py-24 sm:py-32';
+
+  const heroSpacerClassName = isAuthenticated
+    ? 'mt-8 h-6 w-full sm:mt-10 sm:h-8'
+    : 'mt-16 h-32 w-full';
+
 
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 pb-12">
       {/* Full-width Dark Hero Section */}
-      <section className="relative w-full overflow-hidden bg-[#0A101F] text-white py-24 sm:py-32">
+      <section className={heroSectionClassName}>
         {/* Abstract Background Floating Elements */}
         {/* Top Right Element */}
         <div className="absolute top-10 right-32 opacity-20 transform rotate-12 pointer-events-none hidden lg:block">
@@ -121,7 +128,7 @@ export const HomePage: React.FC = () => {
         <div className="relative mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
           <div className="max-w-3xl">
             <h1 className="mt-8 text-5xl font-extrabold tracking-tight sm:text-6xl lg:text-7xl" style={{ fontFamily: '"Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif' }}>
-              H Code Round
+              H-Code Round
             </h1>
             <h2 className="mt-2 text-5xl font-extrabold tracking-tight sm:text-6xl lg:text-7xl" style={{ fontFamily: '"Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif' }}>
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-500">
@@ -134,17 +141,14 @@ export const HomePage: React.FC = () => {
 
 
             {/* Empty space for where buttons and stats would be */}
-            <div className="mt-16 h-32 w-full"></div>
+            <div className={heroSpacerClassName}></div>
           </div>
         </div>
       </section>
 
       {/* Main Content Area */}
       <div className="mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8 py-12">
-        <div className="flex flex-col xl:flex-row gap-6">
-          <GoalSidebar className="hidden xl:block xl:w-64 xl:flex-shrink-0 xl:self-start" />
-
-          <div className="min-w-0 flex-1">
+        <div className="min-w-0">
             <div className="flex flex-col lg:flex-row gap-8">
               {/* Left Area: Recommended Problems */}
               <div className="flex-1">
@@ -244,7 +248,6 @@ export const HomePage: React.FC = () => {
             </div>
               </div>
             </div>
-          </div>
         </div>
       </div>
     </div>

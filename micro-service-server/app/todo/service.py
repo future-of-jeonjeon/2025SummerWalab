@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import calendar
 from datetime import date, datetime, time, timedelta
-from typing import Any
-from uuid import uuid4
+from typing import Optional
+from zoneinfo import ZoneInfo
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.todo import repository
+from app.todo.models import Goal, GoalPeriod, GoalType, Todo, TodoResult
 from app.todo.schemas import (
+    AttendanceSyncResponse,
     DifficultyCount,
     DifficultyStatsResponse,
     GoalPayload,
@@ -17,219 +20,160 @@ from app.todo.schemas import (
     GoalResponse,
     RecommendationsResponse,
     SolveCountResponse,
-    StreakResponse,
     TodoResponse,
     TodoUpdate,
 )
 
 
+SEOUL_TZ = ZoneInfo("Asia/Seoul")
 PERIOD_LABELS = {
-    "daily": "일간",
-    "weekly": "주간",
-    "monthly": "월간",
+    GoalPeriod.DAILY: "일간",
+    GoalPeriod.WEEKLY: "주간",
+    GoalPeriod.MONTHLY: "월간",
+    GoalPeriod.CUSTOM: "커스텀",
+}
+FIXED_PERIOD_DAYS = {
+    GoalPeriod.DAILY: 1,
+    GoalPeriod.WEEKLY: 7,
+    GoalPeriod.MONTHLY: 30,
 }
 
 
-def get_recommendations() -> RecommendationsResponse:
-    return RecommendationsResponse(
-        daily=[
-            GoalRecommendation(id="daily_solve_1", label="하루 1문제 풀기", type="SOLVE_COUNT", target=1, unit="problem"),
-            GoalRecommendation(id="daily_solve_2", label="하루 2문제 풀기", type="SOLVE_COUNT", target=2, unit="problem"),
-            GoalRecommendation(id="daily_solve_3", label="하루 3문제 풀기", type="SOLVE_COUNT", target=3, unit="problem"),
-        ],
-        weekly=[
-            GoalRecommendation(id="weekly_streak_3", label="3일 연속 학습 유지", type="STREAK", target=3, unit="day"),
-            GoalRecommendation(id="weekly_streak_5", label="5일 연속 학습 유지", type="STREAK", target=5, unit="day"),
-            GoalRecommendation(id="weekly_streak_7", label="매일 학습하기 (7일)", type="STREAK", target=7, unit="day"),
-        ],
-        monthly=[
-            GoalRecommendation(id="monthly_bronze_3", label="Bronze 문제 3개 풀기", type="TIER_SOLVE", target=3, unit="problem", difficulty="Bronze"),
-            GoalRecommendation(id="monthly_mid_3", label="Mid 문제 3개 풀기", type="TIER_SOLVE", target=3, unit="problem", difficulty="Mid"),
-            GoalRecommendation(id="monthly_solve_10", label="10문제 풀기", type="SOLVE_COUNT", target=10, unit="problem"),
-        ],
-    )
+def _kst_now() -> datetime:
+    return datetime.now(SEOUL_TZ)
 
 
-def _period_bounds(period: str, now: datetime) -> tuple[datetime, datetime]:
-    if period == "daily":
-        return datetime.combine(now.date(), time.min), datetime.combine(now.date(), time.max)
+def _kst_today() -> date:
+    return _kst_now().date()
 
-    if period == "weekly":
+
+def _period_bounds(period: GoalPeriod, now: datetime) -> tuple[datetime, datetime]:
+    if period == GoalPeriod.DAILY:
+        return datetime.combine(now.date(), time.min, tzinfo=SEOUL_TZ), datetime.combine(now.date(), time.max, tzinfo=SEOUL_TZ)
+
+    if period == GoalPeriod.WEEKLY:
         days_since_sunday = (now.weekday() + 1) % 7
-        week_start = datetime.combine(now.date() - timedelta(days=days_since_sunday), time.min)
-        week_end = datetime.combine(week_start.date() + timedelta(days=6), time.max)
+        week_start = datetime.combine(now.date() - timedelta(days=days_since_sunday), time.min, tzinfo=SEOUL_TZ)
+        week_end = datetime.combine(week_start.date() + timedelta(days=6), time.max, tzinfo=SEOUL_TZ)
         return week_start, week_end
 
-    month_start = datetime.combine(now.date().replace(day=1), time.min)
+    month_start = datetime.combine(now.date().replace(day=1), time.min, tzinfo=SEOUL_TZ)
     last_day = calendar.monthrange(now.year, now.month)[1]
-    month_end = datetime.combine(now.date().replace(day=last_day), time.max)
+    month_end = datetime.combine(now.date().replace(day=last_day), time.max, tzinfo=SEOUL_TZ)
     return month_start, month_end
 
 
-def _goal_unit(goal_type: str) -> str:
-    return "day" if goal_type == "STREAK" else "problem"
+def _goal_unit(goal_type: GoalType) -> str:
+    return "day" if goal_type == GoalType.ATTENDANCE else "problem"
 
 
-def _goal_label(period: str, goal_type: str, target: int, difficulty: str | None = None) -> str:
-    period_label = PERIOD_LABELS.get(period, "목표")
-    if goal_type == "STREAK":
-        return f"{period_label} {target}일 연속 출석"
-    if goal_type == "TIER_SOLVE":
-        difficulty_label = difficulty or "Bronze"
-        return f"{period_label} {difficulty_label} 문제 {target}개 해결"
-    return f"{period_label} {target}문제 해결"
+def _period_days(period: GoalPeriod, custom_days: Optional[int]) -> int:
+    if period == GoalPeriod.CUSTOM:
+        return max(int(custom_days or 1), 1)
+    return FIXED_PERIOD_DAYS[period]
 
 
-def _legacy_recommendation_map() -> dict[str, GoalRecommendation]:
-    recommendations = get_recommendations()
-    all_items = [*recommendations.daily, *recommendations.weekly, *recommendations.monthly]
-    return {item.id: item for item in all_items}
+def _period_label(period: GoalPeriod, custom_days: Optional[int]) -> str:
+    if period != GoalPeriod.CUSTOM:
+        return PERIOD_LABELS[period]
+    return f"커스텀 { _period_days(period, custom_days) }일"
 
 
-def _period_from_date_range(start_date: str | None, end_date: str | None) -> str:
-    if not start_date or not end_date:
-        return "monthly"
+def _normalize_difficulty(raw: Optional[object]) -> Optional[int]:
+    if raw is None:
+        return None
     try:
-        start = datetime.strptime(start_date, "%Y-%m-%d").date()
-        end = datetime.strptime(end_date, "%Y-%m-%d").date()
+        value = int(str(raw).replace("Lv.", "").strip())
     except ValueError:
-        return "monthly"
-
-    span_days = max((end - start).days + 1, 1)
-    if span_days <= 1:
-        return "daily"
-    if span_days <= 7:
-        return "weekly"
-    return "monthly"
-
-
-def _difficulty_from_label(label: str | None) -> str | None:
-    if not label:
         return None
-    if "Gold" in label:
-        return "Gold"
-    if "Mid" in label:
-        return "Mid"
-    if "Bronze" in label:
-        return "Bronze"
-    return None
+    return min(max(value, 1), 5)
 
 
-def _normalize_goal_dict(raw: dict[str, Any], fallback_period: str | None = None) -> dict[str, Any]:
-    period = raw.get("period") or fallback_period or "daily"
-    goal_type = raw.get("type") or "SOLVE_COUNT"
-    target = max(int(raw.get("target") or 1), 1)
-    difficulty = raw.get("difficulty")
-    if goal_type == "PROBLEM_SOLVE":
-        goal_type = "SOLVE_COUNT"
-    if goal_type != "TIER_SOLVE":
-        difficulty = None
-    else:
-        difficulty = difficulty or _difficulty_from_label(raw.get("label")) or "Bronze"
-
-    return {
-        "id": str(raw.get("id") or uuid4()),
-        "period": period,
-        "type": goal_type,
-        "target": target,
-        "difficulty": difficulty,
-        "unit": _goal_unit(goal_type),
-        "label": _goal_label(period, goal_type, target, difficulty),
-    }
+def _format_difficulty_label(difficulty: Optional[int]) -> str:
+    return f"Lv.{_normalize_difficulty(difficulty) or 1}"
 
 
-def _legacy_goal_to_dict(value: str | None, fallback_period: str) -> dict[str, Any] | None:
-    if not value:
-        return None
+def _goal_label(
+    period: GoalPeriod,
+    goal_type: GoalType,
+    target_count: int,
+    difficulty: Optional[int] = None,
+    custom_days: Optional[int] = None,
+) -> str:
+    period_label = _period_label(period, custom_days)
+    if goal_type == GoalType.ATTENDANCE:
+        return f"{period_label} 출석"
+    if goal_type == GoalType.TIER_SOLVE:
+        return f"{period_label} {_format_difficulty_label(difficulty)} 문제 {target_count}개 해결"
+    return f"{period_label} {target_count}문제 해결"
 
-    recommendation = _legacy_recommendation_map().get(value)
-    if recommendation:
-        return _normalize_goal_dict(
-            {
-                "id": recommendation.id,
-                "period": fallback_period,
-                "type": recommendation.type,
-                "target": recommendation.target,
-                "difficulty": recommendation.difficulty,
-            },
-            fallback_period=fallback_period,
-        )
 
-    if not value.startswith("CUSTOM:"):
-        return None
-
-    parts = value.split(":")
-    goal_type = parts[1] if len(parts) > 1 else "SOLVE_COUNT"
-    target = parts[2] if len(parts) > 2 else 1
-    label = parts[4] if len(parts) > 4 else ""
-    period = fallback_period
-    if fallback_period == "monthly" and len(parts) > 6:
-        period = _period_from_date_range(parts[5], parts[6])
-
-    return _normalize_goal_dict(
-        {
-            "id": f"legacy-{fallback_period}-{uuid4()}",
-            "period": period,
-            "type": goal_type,
-            "target": target,
-            "label": label,
-            "difficulty": _difficulty_from_label(label),
-        },
-        fallback_period=period,
+def _window_from_goal(goal: Goal) -> tuple[datetime, datetime]:
+    return (
+        datetime.combine(goal.start_day, time.min, tzinfo=SEOUL_TZ),
+        datetime.combine(goal.end_day, time.max, tzinfo=SEOUL_TZ),
     )
 
 
-def _extract_stored_goals(todo: Any) -> list[dict[str, Any]]:
-    goals = todo.goals or []
-    if isinstance(goals, list) and goals:
-        return [_normalize_goal_dict(goal) for goal in goals if isinstance(goal, dict)]
+def _goal_target(
+    period: GoalPeriod,
+    goal_type: GoalType,
+    requested_target: int,
+    custom_days: Optional[int],
+) -> int:
+    if goal_type == GoalType.ATTENDANCE:
+        return _period_days(period, custom_days)
+    return max(int(requested_target or 1), 1)
 
-    legacy_goals = [
-        _legacy_goal_to_dict(getattr(todo, "day_todo", None), "daily"),
-        _legacy_goal_to_dict(getattr(todo, "week_todo", None), "weekly"),
-        _legacy_goal_to_dict(getattr(todo, "month_todo", None), "monthly"),
-        _legacy_goal_to_dict(getattr(todo, "custom_todo", None), "monthly"),
-    ]
-    return [goal for goal in legacy_goals if goal]
+
+def _calculate_percent(current: int, target: int) -> int:
+    safe_target = max(target, 1)
+    return min(round((current / safe_target) * 100), 100)
+
+
+def _goal_payload_matches(goal: Goal, payload: GoalPayload) -> bool:
+    normalized_difficulty = _normalize_difficulty(payload.difficulty)
+    normalized_custom_days = payload.custom_days if payload.period == GoalPeriod.CUSTOM else None
+    return (
+        goal.period == payload.period
+        and goal.type == payload.type
+        and goal.target_count == _goal_target(payload.period, payload.type, payload.target, payload.custom_days)
+        and goal.difficulty == normalized_difficulty
+        and goal.custom_days == normalized_custom_days
+    )
+
+
+async def get_recommendations() -> RecommendationsResponse:
+    return RecommendationsResponse(
+        daily=[
+            GoalRecommendation(id="daily_solve_1", label="하루 1문제 풀기", type=GoalType.SOLVE_COUNT, target=1, unit="problem"),
+            GoalRecommendation(id="daily_solve_2", label="하루 2문제 풀기", type=GoalType.SOLVE_COUNT, target=2, unit="problem"),
+            GoalRecommendation(id="daily_level_1_1", label="Lv.1 문제 1개 풀기", type=GoalType.TIER_SOLVE, target=1, unit="problem", difficulty=1),
+        ],
+        weekly=[
+            GoalRecommendation(id="weekly_attendance", label="7일 출석 유지", type=GoalType.ATTENDANCE, target=7, unit="day"),
+            GoalRecommendation(id="weekly_solve_5", label="5문제 해결", type=GoalType.SOLVE_COUNT, target=5, unit="problem"),
+            GoalRecommendation(id="weekly_level_2_3", label="Lv.2 문제 3개 해결", type=GoalType.TIER_SOLVE, target=3, unit="problem", difficulty=2),
+        ],
+        monthly=[
+            GoalRecommendation(id="monthly_attendance", label="30일 출석 유지", type=GoalType.ATTENDANCE, target=30, unit="day"),
+            GoalRecommendation(id="monthly_solve_10", label="10문제 해결", type=GoalType.SOLVE_COUNT, target=10, unit="problem"),
+            GoalRecommendation(id="monthly_level_4_5", label="Lv.4 문제 5개 해결", type=GoalType.TIER_SOLVE, target=5, unit="problem", difficulty=4),
+        ],
+    )
 
 
 async def get_user_stats(db: AsyncSession, user_id: int) -> SolveCountResponse:
-    now = datetime.now()
-    daily_start, daily_end = _period_bounds("daily", now)
-    weekly_start, weekly_end = _period_bounds("weekly", now)
-    monthly_start, monthly_end = _period_bounds("monthly", now)
+    now = _kst_now()
+    daily_start, daily_end = _period_bounds(GoalPeriod.DAILY, now)
+    weekly_start, weekly_end = _period_bounds(GoalPeriod.WEEKLY, now)
+    monthly_start, monthly_end = _period_bounds(GoalPeriod.MONTHLY, now)
 
     daily_count = len(await repository.get_solved_problem_ids_in_range(db, user_id, daily_start, daily_end))
     weekly_count = len(await repository.get_solved_problem_ids_in_range(db, user_id, weekly_start, weekly_end))
     monthly_count = len(await repository.get_solved_problem_ids_in_range(db, user_id, monthly_start, monthly_end))
 
-    return SolveCountResponse(
-        daily=daily_count,
-        weekly=weekly_count,
-        monthly=monthly_count,
-    )
-
-
-async def get_user_streak(db: AsyncSession, user_id: int) -> StreakResponse:
-    ac_datetimes = await repository.get_all_ac_dates(db, user_id)
-    if not ac_datetimes:
-        return StreakResponse(streak=0)
-
-    unique_dates = sorted(list(set(dt.date() for dt in ac_datetimes)), reverse=True)
-    today = date.today()
-    yesterday = today - timedelta(days=1)
-
-    if unique_dates[0] < yesterday:
-        return StreakResponse(streak=0)
-
-    streak = 1
-    for i in range(1, len(unique_dates)):
-        if unique_dates[i - 1] - unique_dates[i] == timedelta(days=1):
-            streak += 1
-        else:
-            break
-
-    return StreakResponse(streak=streak)
+    return SolveCountResponse(daily=daily_count, weekly=weekly_count, monthly=monthly_count)
 
 
 async def get_difficulty_stats_service(db: AsyncSession, user_id: int) -> DifficultyStatsResponse:
@@ -237,89 +181,207 @@ async def get_difficulty_stats_service(db: AsyncSession, user_id: int) -> Diffic
     return DifficultyStatsResponse(stats=[DifficultyCount(**item) for item in stats_data])
 
 
-async def _goal_progress(
+async def _compute_goal_count(
     db: AsyncSession,
     user_id: int,
-    goal: dict[str, Any],
-    solve_cache: dict[str, int],
-    difficulty_cache: dict[tuple[str, str], int],
-    streak_cache: dict[str, int],
-) -> GoalProgress:
-    goal_type = goal["type"]
-    period = goal["period"]
-    target = max(int(goal["target"]), 1)
+    goal: Goal,
+    solve_cache: dict[tuple[date, date], int],
+    difficulty_cache: dict[tuple[date, date, int], int],
+) -> int:
+    if goal.type == GoalType.ATTENDANCE:
+        return goal.count
 
-    if goal_type == "STREAK":
-        if "value" not in streak_cache:
-            streak_cache["value"] = (await get_user_streak(db, user_id)).streak
-        current = streak_cache["value"]
-    elif goal_type == "TIER_SOLVE":
-        difficulty = goal.get("difficulty") or "Bronze"
-        cache_key = (period, difficulty)
+    start_time, end_time = _window_from_goal(goal)
+    if goal.type == GoalType.TIER_SOLVE:
+        difficulty = _normalize_difficulty(goal.difficulty) or 1
+        cache_key = (goal.start_day, goal.end_day, difficulty)
         if cache_key not in difficulty_cache:
-            now = datetime.now()
-            start_time, end_time = _period_bounds(period, now)
-            difficulty_cache[cache_key] = await repository.get_difficulty_count_in_range(
+            difficulty_cache[cache_key] = await repository.count_solved_problems_in_range(
                 db,
                 user_id,
                 start_time,
                 end_time,
-                difficulty,
+                difficulty=difficulty,
             )
-        current = difficulty_cache[cache_key]
-    else:
-        if period not in solve_cache:
-            now = datetime.now()
-            start_time, end_time = _period_bounds(period, now)
-            solve_cache[period] = len(await repository.get_solved_problem_ids_in_range(db, user_id, start_time, end_time))
-        current = solve_cache[period]
+        return difficulty_cache[cache_key]
 
-    percent = min(round((current / target) * 100), 100)
-    return GoalProgress(current=current, percent=percent)
-
-
-async def _build_goal_responses(db: AsyncSession, user_id: int, goals: list[dict[str, Any]]) -> list[GoalResponse]:
-    solve_cache: dict[str, int] = {}
-    difficulty_cache: dict[tuple[str, str], int] = {}
-    streak_cache: dict[str, int] = {}
-
-    responses: list[GoalResponse] = []
-    for goal in goals:
-        normalized = _normalize_goal_dict(goal)
-        progress = await _goal_progress(db, user_id, normalized, solve_cache, difficulty_cache, streak_cache)
-        responses.append(
-            GoalResponse(
-                id=normalized["id"],
-                period=normalized["period"],
-                type=normalized["type"],
-                target=normalized["target"],
-                unit=normalized["unit"],
-                difficulty=normalized.get("difficulty"),
-                label=normalized["label"],
-                progress=progress,
-            )
+    cache_key = (goal.start_day, goal.end_day)
+    if cache_key not in solve_cache:
+        solve_cache[cache_key] = await repository.count_solved_problems_in_range(
+            db,
+            user_id,
+            start_time,
+            end_time,
         )
-    return responses
+    return solve_cache[cache_key]
+
+
+async def _refresh_goal_counts(
+    db: AsyncSession,
+    user_id: int,
+    goals: list[Goal],
+) -> None:
+    solve_cache: dict[tuple[date, date], int] = {}
+    difficulty_cache: dict[tuple[date, date, int], int] = {}
+
+    for goal in goals:
+        next_count = await _compute_goal_count(db, user_id, goal, solve_cache, difficulty_cache)
+        if goal.count != next_count:
+            goal.count = next_count
+
+
+async def _find_result(db: AsyncSession, goal_id: int, start_day: date, end_day: date) -> Optional[TodoResult]:
+    stmt = select(TodoResult).where(
+        TodoResult.goal_id == goal_id,
+        TodoResult.start_day == start_day,
+        TodoResult.end_day == end_day,
+    )
+    result = await db.execute(stmt)
+    return result.scalars().first()
+
+
+async def _archive_goal_result(db: AsyncSession, goal: Goal) -> bool:
+    existing = await _find_result(db, goal.id, goal.start_day, goal.end_day)
+    if existing:
+        return False
+
+    result = TodoResult(
+        todo_id=goal.todo_id,
+        goal_id=goal.id,
+        period=goal.period,
+        type=goal.type,
+        target_count=goal.target_count,
+        count=goal.count,
+        difficulty=goal.difficulty,
+        custom_days=goal.custom_days,
+        start_day=goal.start_day,
+        end_day=goal.end_day,
+        is_success=goal.count >= goal.target_count,
+    )
+    db.add(result)
+    return True
+
+
+async def rollover_due_goals(
+    db: AsyncSession,
+    target_date: Optional[date] = None,
+    user_id: Optional[int] = None,
+) -> int:
+    today = target_date or _kst_today()
+    due_goals = await repository.list_due_goals(db, today, user_id=user_id)
+    archived = 0
+
+    for goal in due_goals:
+        while goal.end_day < today:
+            await _refresh_goal_counts(db, goal.todo.user_id, [goal])
+            if await _archive_goal_result(db, goal):
+                archived += 1
+
+            next_start = goal.end_day + timedelta(days=1)
+            next_duration = _period_days(goal.period, goal.custom_days)
+
+            goal.start_day = next_start
+            goal.end_day = next_start + timedelta(days=next_duration - 1)
+            goal.target_count = _goal_target(goal.period, goal.type, goal.target_count, goal.custom_days)
+            goal.count = 0
+
+        if goal.type != GoalType.ATTENDANCE:
+            await _refresh_goal_counts(db, goal.todo.user_id, [goal])
+
+    return archived
+
+
+def _goal_response(goal: Goal) -> GoalResponse:
+    current = goal.count
+    target = goal.target_count
+    return GoalResponse(
+        id=str(goal.id),
+        period=goal.period,
+        type=goal.type,
+        target=target,
+        count=current,
+        unit=_goal_unit(goal.type),
+        difficulty=_normalize_difficulty(goal.difficulty),
+        custom_days=goal.custom_days,
+        start_day=goal.start_day,
+        end_day=goal.end_day,
+        label=_goal_label(goal.period, goal.type, target, goal.difficulty, goal.custom_days),
+        progress=GoalProgress(current=current, percent=_calculate_percent(current, target)),
+    )
 
 
 async def get_user_todo(db: AsyncSession, user_id: int) -> TodoResponse:
-    todo = await repository.get_todo_by_user_id(db, user_id)
-    if not todo:
-        return TodoResponse(goals=[])
-
-    goals = _extract_stored_goals(todo)
-    return TodoResponse(goals=await _build_goal_responses(db, user_id, goals))
+    todo = await repository.get_or_create_todo(db, user_id)
+    await rollover_due_goals(db, user_id=user_id)
+    goals = await repository.list_goals_by_todo_id(db, todo.id)
+    await _refresh_goal_counts(db, user_id, goals)
+    await db.flush()
+    return TodoResponse(goals=[_goal_response(goal) for goal in goals])
 
 
 async def set_user_todo(db: AsyncSession, user_id: int, data: TodoUpdate) -> TodoResponse:
-    normalized_goals = [_normalize_goal_dict(goal.model_dump()) for goal in data.goals]
-    await repository.upsert_todo(
-        db,
-        user_id,
-        day_todo=None,
-        week_todo=None,
-        month_todo=None,
-        custom_todo=None,
-        goals=normalized_goals,
-    )
-    return TodoResponse(goals=await _build_goal_responses(db, user_id, normalized_goals))
+    today = _kst_today()
+    todo = await repository.get_or_create_todo(db, user_id)
+    await rollover_due_goals(db, target_date=today, user_id=user_id)
+
+    existing_goals = {goal.id: goal for goal in await repository.list_goals_by_todo_id(db, todo.id)}
+    keep_ids: set[int] = set()
+
+    for payload in data.goals:
+        existing_goal: Optional[Goal] = None
+        if payload.id and str(payload.id).isdigit():
+            existing_goal = existing_goals.get(int(payload.id))
+
+        if existing_goal and _goal_payload_matches(existing_goal, payload):
+            keep_ids.add(existing_goal.id)
+            continue
+
+        goal = existing_goal or Goal(todo_id=todo.id)
+        if existing_goal is None:
+            db.add(goal)
+
+        goal.period = payload.period
+        goal.type = payload.type
+        goal.target_count = _goal_target(payload.period, payload.type, payload.target, payload.custom_days)
+        goal.difficulty = _normalize_difficulty(payload.difficulty)
+        goal.custom_days = payload.custom_days if payload.period == GoalPeriod.CUSTOM else None
+        goal.start_day = today
+        goal.end_day = today + timedelta(days=_period_days(payload.period, payload.custom_days) - 1)
+        goal.count = 0
+
+        if goal.type == GoalType.ATTENDANCE and todo.last_attendance_on == today:
+            goal.count = 1
+        elif goal.type != GoalType.ATTENDANCE:
+            await _refresh_goal_counts(db, user_id, [goal])
+
+        if existing_goal is None:
+            await db.flush()
+
+        keep_ids.add(goal.id)
+
+    await repository.delete_goals_not_in_ids(db, todo.id, keep_ids)
+    await db.flush()
+    goals = await repository.list_goals_by_todo_id(db, todo.id)
+    await _refresh_goal_counts(db, user_id, goals)
+    await db.flush()
+    return TodoResponse(goals=[_goal_response(goal) for goal in goals])
+
+
+async def sync_user_attendance(db: AsyncSession, user_id: int) -> AttendanceSyncResponse:
+    today = _kst_today()
+    todo = await repository.get_or_create_todo(db, user_id)
+    await rollover_due_goals(db, target_date=today, user_id=user_id)
+
+    if todo.last_attendance_on == today:
+        return AttendanceSyncResponse(checked=False, checked_on=today)
+
+    todo.last_attendance_on = today
+    goals = await repository.list_goals_by_todo_id(db, todo.id)
+    for goal in goals:
+        if goal.type != GoalType.ATTENDANCE:
+            continue
+        if goal.start_day <= today <= goal.end_day:
+            goal.count += 1
+
+    await db.flush()
+    return AttendanceSyncResponse(checked=True, checked_on=today)

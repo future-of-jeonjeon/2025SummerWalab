@@ -4,12 +4,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps import get_database, get_userdata
 from app.todo import service
 from app.todo.schemas import (
-    TodoResponse, 
-    TodoUpdate, 
+    AttendanceSyncResponse,
+    DifficultyStatsResponse,
     RecommendationsResponse,
     SolveCountResponse,
-    StreakResponse,
-    DifficultyStatsResponse
+    TodoResponse,
+    TodoUpdate,
 )
 from app.user.schemas import UserProfile
 
@@ -37,7 +37,7 @@ async def set_my_todo(
 async def get_recommendations(
     user_profile: UserProfile = Depends(get_userdata),
 ):
-    return service.get_recommendations()
+    return await service.get_recommendations()
 
 
 @router.get("/stats/solve-count", response_model=SolveCountResponse)
@@ -48,12 +48,12 @@ async def get_solve_count_stats(
     return await service.get_user_stats(db, user_profile.user_id)
 
 
-@router.get("/stats/streak", response_model=StreakResponse)
-async def get_streak_stats(
+@router.post("/attendance/sync", response_model=AttendanceSyncResponse)
+async def sync_attendance(
     db: AsyncSession = Depends(get_database),
     user_profile: UserProfile = Depends(get_userdata),
 ):
-    return await service.get_user_streak(db, user_profile.user_id)
+    return await service.sync_user_attendance(db, user_profile.user_id)
 
 
 @router.get("/stats/difficulty", response_model=DifficultyStatsResponse)

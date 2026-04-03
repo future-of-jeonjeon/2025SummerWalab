@@ -1,7 +1,7 @@
 import React from 'react';
 
 import type { UserGoal } from '../../services/todoService';
-import { GOAL_PERIOD_LABELS, GOAL_PERIOD_TONES, GOAL_TYPE_LABELS } from '../../utils/goals';
+import { formatGoalDateRange, formatGoalDifficulty, GOAL_PERIOD_LABELS, GOAL_PERIOD_TONES, GOAL_TYPE_LABELS } from '../../utils/goals';
 
 interface UserGoalCardProps {
   goal: UserGoal;
@@ -16,7 +16,7 @@ export const UserGoalCard: React.FC<UserGoalCardProps> = ({
 }) => {
   const tone = GOAL_PERIOD_TONES[goal.period];
   const isComplete = goal.progress.percent >= 100;
-  const remaining = Math.max(goal.target - goal.progress.current, 0);
+  const remaining = Math.max(goal.target - goal.count, 0);
   const cardClassName = compact
     ? `rounded-2xl border border-gray-200/90 bg-white/88 p-4 shadow-none ring-0 ${tone.soft} dark:border-slate-700 dark:bg-slate-800/90`
     : `rounded-3xl border border-gray-200 bg-white p-5 shadow-sm ring-1 ${tone.soft} dark:border-slate-700 dark:bg-slate-800`;
@@ -41,9 +41,10 @@ export const UserGoalCard: React.FC<UserGoalCardProps> = ({
           </h3>
           {goal.type === 'TIER_SOLVE' && goal.difficulty && (
             <p className="mt-2 text-xs text-gray-500 dark:text-slate-400">
-              난이도: {goal.difficulty}
+              난이도: {formatGoalDifficulty(goal.difficulty)}
             </p>
           )}
+          <p className="mt-2 text-xs text-gray-400 dark:text-slate-500">{formatGoalDateRange(goal)}</p>
         </div>
         <div className={metricClassName}>
           <p className={`${compact ? 'text-base' : 'text-lg'} font-bold ${tone.badgeText}`}>{goal.progress.percent}%</p>
@@ -55,7 +56,7 @@ export const UserGoalCard: React.FC<UserGoalCardProps> = ({
 
       <div className={`${compact ? 'mt-4' : 'mt-5'} flex items-center justify-between text-xs font-medium text-gray-500 dark:text-slate-400`}>
         <span>
-          {goal.progress.current} / {goal.target} {goal.unit}
+          {goal.count} / {goal.target} {goal.unit}
         </span>
         <span className={tone.text}>
           {isComplete ? '목표 달성' : `${remaining} 남음`}

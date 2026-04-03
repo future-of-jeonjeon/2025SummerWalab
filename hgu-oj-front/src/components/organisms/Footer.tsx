@@ -13,7 +13,7 @@ export const Footer: React.FC = () => {
                     {/* Brand & Description */}
                     <div className="col-span-1 md:col-span-1 flex flex-col items-start">
                         <div className="flex items-center gap-2 mb-4">
-                            <span className="text-lg font-extrabold text-[#1a1f36] dark:text-slate-100">H Code Round</span>
+                            <span className="text-lg font-extrabold text-[#1a1f36] dark:text-slate-100">H-Code Round</span>
                         </div>
                     </div>
 

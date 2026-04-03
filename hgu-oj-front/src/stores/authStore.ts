@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { UserProfile } from '../types';
 import { authService } from '../services/authService';
+import { todoService } from '../services/todoService';
 import { queryClient } from '../hooks/useQueryClient';
 import { useProblemStore } from './problemStore';
 import { userService } from '../services/userService';
@@ -135,6 +136,9 @@ export const useAuthStore = create<AuthState & AuthActions>()(
           }
           const ssoToken = await authService.getSSOToken();
           await authService.loginToMicroService(ssoToken);
+          await todoService.syncAttendance().catch((err) => {
+            console.warn('출석 동기화 실패:', err);
+          });
           const user = await authService.getProfile();
           await applyUserSettings();
           set({
@@ -170,6 +174,9 @@ export const useAuthStore = create<AuthState & AuthActions>()(
 
           // 3. Micro-service 로그인
           await authService.loginToMicroService(ssoToken);
+          await todoService.syncAttendance().catch((err) => {
+            console.warn('출석 동기화 실패:', err);
+          });
 
           // 4. 사용자 프로필 조회
           const user = await authService.getProfile();
@@ -242,6 +249,9 @@ export const useAuthStore = create<AuthState & AuthActions>()(
         try {
           const isStillAuthenticated = await authService.checkAuth();
           if (isStillAuthenticated) {
+            await todoService.syncAttendance().catch((err) => {
+              console.warn('출석 동기화 실패:', err);
+            });
             const user = await authService.getProfile();
             await applyUserSettings();
             set({ user, isAuthenticated: true, isLoading: false });

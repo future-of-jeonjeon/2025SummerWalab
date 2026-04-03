@@ -10,7 +10,6 @@ import CommonPagination from '../components/common/CommonPagination';
 import { normalizeDifficulty } from '../lib/difficulty';
 import { resolveProblemStatus } from '../utils/problemStatus';
 import { extractProblemTags } from '../utils/problemTags';
-import { SidebarGoalColumn } from '../components/organisms/SidebarGoalColumn';
 
 const normalizeTags = (tags: string[]): string[] => {
   const unique = new Set(
@@ -252,7 +251,7 @@ export const ProblemListPage: React.FC = () => {
 
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Sidebar */}
-          <SidebarGoalColumn className="w-full lg:w-64 shrink-0 space-y-6">
+          <div className="w-full lg:w-64 shrink-0 space-y-6">
 
             {/* Search */}
             <div>
@@ -401,7 +400,7 @@ export const ProblemListPage: React.FC = () => {
               </div>
             )}
 
-          </SidebarGoalColumn>
+          </div>
 
           {/* Main Content */}
           <div className="flex-1 min-w-0">

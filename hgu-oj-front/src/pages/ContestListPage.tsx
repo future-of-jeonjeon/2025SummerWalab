@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useContests } from '../hooks/useContests';
 import CommonPagination from '../components/common/CommonPagination';
-import { GoalSidebar } from '../components/organisms/GoalSidebar';
 export const ContestListPage: React.FC = () => {
   const navigate = useNavigate();
 
@@ -64,9 +63,7 @@ export const ContestListPage: React.FC = () => {
   const PageSkeleton = () => (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-col lg:flex-row gap-6">
-          <GoalSidebar className="hidden lg:block lg:w-64 lg:flex-shrink-0 lg:self-start" />
-          <div className="min-w-0 flex-1 animate-pulse space-y-12">
+        <div className="min-w-0 flex-1 animate-pulse space-y-12">
             <div className="space-y-4">
               <div className="h-6 w-40 rounded bg-gray-200 dark:bg-slate-700" />
               <div className="space-y-4">
@@ -104,7 +101,6 @@ export const ContestListPage: React.FC = () => {
               </div>
             </div>
           </div>
-        </div>
       </div>
     </div>
   );
@@ -117,12 +113,9 @@ export const ContestListPage: React.FC = () => {
     return (
       <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
         <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="flex flex-col lg:flex-row gap-6">
-            <GoalSidebar className="hidden lg:block lg:w-64 lg:flex-shrink-0 lg:self-start" />
-            <div className="min-w-0 flex-1 text-center">
+          <div className="min-w-0 flex-1 text-center">
               <h1 className="text-2xl font-bold text-red-600 mb-4">오류가 발생했습니다</h1>
               <p className="text-gray-600 dark:text-slate-400">{(error as Error).message || '데이터를 불러오지 못했습니다.'}</p>
-            </div>
           </div>
         </div>
       </div>
@@ -221,10 +214,7 @@ export const ContestListPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
       <div className="max-w-[1440px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex flex-col lg:flex-row gap-6">
-          <GoalSidebar className="hidden lg:block lg:w-64 lg:flex-shrink-0 lg:self-start" />
-
-          <div className="min-w-0 flex-1">
+        <div className="min-w-0 flex-1">
             {activeContests.length > 0 && (
               <div className="mb-12">
                 <div className="flex items-center gap-2 mb-4">
@@ -309,7 +299,6 @@ export const ContestListPage: React.FC = () => {
                 />
               </div>
             </div>
-          </div>
         </div>
       </div>
     </div>

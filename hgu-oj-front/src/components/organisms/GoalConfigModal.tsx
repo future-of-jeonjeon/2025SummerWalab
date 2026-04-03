@@ -9,12 +9,16 @@ import { Button } from '../atoms/Button';
 import {
   createEmptyGoalInput,
   createGoalDraftId,
+  formatGoalDifficulty,
   getGoalLabel,
+  getGoalResolvedTarget,
   getGoalUnit,
+  GOAL_DIFFICULTY_OPTIONS,
   GOAL_PERIOD_LABELS,
   GOAL_PERIOD_TONES,
   GOAL_TYPE_LABELS,
   normalizeGoalInput,
+  supportsAttendance,
   toEditableGoalInput,
 } from '../../utils/goals';
 
@@ -171,7 +175,13 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
   });
 
   const validateGoalForm = (goal: UserGoalInput) => {
-    if (!Number.isFinite(goal.target) || goal.target < 1) {
+    if (goal.period === 'custom' && (!goal.customDays || goal.customDays < 1)) {
+      return '커스텀 기간은 1일 이상이어야 합니다.';
+    }
+    if (goal.type === 'ATTENDANCE' && !supportsAttendance(goal.period)) {
+      return '출석 목표는 일간 기간에서 설정할 수 없습니다.';
+    }
+    if (goal.type !== 'ATTENDANCE' && (!Number.isFinite(goal.target) || goal.target < 1)) {
       return '목표 수치는 1 이상이어야 합니다.';
     }
     if (goal.type === 'TIER_SOLVE' && !goal.difficulty) {
@@ -704,8 +714,8 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
                                     {getGoalLabel(goal)}
                                   </p>
                                   <p className="mt-2 text-sm text-gray-500 dark:text-slate-400">
-                                    목표 수치: {goal.target} {getGoalUnit(goal.type)}
-                                    {goal.type === 'TIER_SOLVE' && goal.difficulty ? ` · 난이도 ${goal.difficulty}` : ''}
+                                    목표 수치: {getGoalResolvedTarget(goal)} {getGoalUnit(goal.type)}
+                                    {goal.type === 'TIER_SOLVE' && goal.difficulty ? ` · 난이도 ${formatGoalDifficulty(goal.difficulty)}` : ''}
                                   </p>
                                 </div>
                                 <div className="flex items-center gap-2">
@@ -756,13 +766,18 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
                         <div className="space-y-3">
                           <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200">기간 선택</label>
                           <div className="flex flex-wrap gap-2">
-                            {(['daily', 'weekly', 'monthly'] as GoalPeriod[]).map((period) => {
+                            {(['daily', 'weekly', 'monthly', 'custom'] as GoalPeriod[]).map((period) => {
                               const selected = goalForm.period === period;
                               return (
                                 <button
                                   key={period}
                                   type="button"
-                                  onClick={() => setGoalForm((prev) => ({ ...prev, period }))}
+                                  onClick={() => setGoalForm((prev) => ({
+                                    ...prev,
+                                    period,
+                                    type: period === 'daily' && prev.type === 'ATTENDANCE' ? 'SOLVE_COUNT' : prev.type,
+                                    customDays: period === 'custom' ? (prev.customDays ?? 1) : null,
+                                  }))}
                                   className={`rounded-full px-4 py-2 text-sm font-semibold transition ${selected
                                     ? 'bg-gray-900 text-white dark:bg-white dark:text-slate-900'
                                     : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600'
@@ -778,8 +793,9 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
                         <div className="space-y-3">
                           <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200">목표 유형</label>
                           <div className="grid gap-3 md:grid-cols-3">
-                            {(['SOLVE_COUNT', 'STREAK', 'TIER_SOLVE'] as GoalType[]).map((type) => {
+                            {(['SOLVE_COUNT', 'ATTENDANCE', 'TIER_SOLVE'] as GoalType[]).map((type) => {
                               const selected = goalForm.type === type;
+                              const disabled = type === 'ATTENDANCE' && !supportsAttendance(goalForm.period);
                               return (
                                 <button
                                   key={type}
@@ -787,17 +803,18 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
                                   onClick={() => setGoalForm((prev) => ({
                                     ...prev,
                                     type,
-                                    difficulty: type === 'TIER_SOLVE' ? (prev.difficulty ?? 'Bronze') : null,
+                                    difficulty: type === 'TIER_SOLVE' ? (prev.difficulty ?? 1) : null,
                                   }))}
+                                  disabled={disabled}
                                   className={`rounded-2xl border p-4 text-left shadow-sm transition ${selected
                                     ? 'border-blue-500 bg-blue-100 ring-2 ring-blue-100 dark:border-blue-400 dark:bg-blue-900/30 dark:ring-blue-900/40'
                                     : 'border-slate-300 bg-slate-50 hover:border-blue-300 hover:bg-blue-50 dark:border-slate-600 dark:bg-slate-800 dark:hover:border-blue-500 dark:hover:bg-slate-700'
-                                    }`}
+                                    } ${disabled ? 'cursor-not-allowed opacity-50' : ''}`}
                                 >
                                   <p className="text-sm font-semibold text-gray-900 dark:text-white">{GOAL_TYPE_LABELS[type]}</p>
                                   <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
                                     {type === 'SOLVE_COUNT' && '해당 기간의 해결 문제 수를 목표로 설정합니다.'}
-                                    {type === 'STREAK' && '연속 출석 일수를 목표로 설정합니다.'}
+                                    {type === 'ATTENDANCE' && '기간 동안 출석한 일수를 자동 목표로 추적합니다.'}
                                     {type === 'TIER_SOLVE' && '선택한 난이도의 해결 문제 수를 추적합니다.'}
                                   </p>
                                 </button>
@@ -806,11 +823,30 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
                           </div>
                         </div>
 
+                        {goalForm.period === 'custom' && (
+                          <div className="space-y-3">
+                            <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200">커스텀 기간</label>
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="number"
+                                min={1}
+                                max={365}
+                                value={goalForm.customDays ?? 1}
+                                onChange={(e) => setGoalForm((prev) => ({ ...prev, customDays: Math.max(1, Number(e.target.value) || 1) }))}
+                                className="w-28 rounded-xl border border-gray-200 bg-white px-4 py-2 text-lg font-bold text-blue-600 dark:border-slate-600 dark:bg-slate-700 dark:text-blue-300"
+                              />
+                              <span className="rounded-full bg-gray-100 px-3 py-1 text-sm font-semibold text-gray-600 dark:bg-slate-700 dark:text-slate-200">
+                                day
+                              </span>
+                            </div>
+                          </div>
+                        )}
+
                         {goalForm.type === 'TIER_SOLVE' && (
                           <div className="space-y-3">
                             <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200">난이도 선택</label>
                             <div className="flex flex-wrap gap-2">
-                              {(['Bronze', 'Mid', 'Gold'] as const).map((difficulty) => {
+                              {GOAL_DIFFICULTY_OPTIONS.map((difficulty) => {
                                 const selected = goalForm.difficulty === difficulty;
                                 return (
                                   <button
@@ -822,7 +858,7 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
                                       : 'bg-gray-100 text-gray-600 hover:bg-gray-200 dark:bg-slate-700 dark:text-slate-200 dark:hover:bg-slate-600'
                                       }`}
                                   >
-                                    {difficulty}
+                                    {formatGoalDifficulty(difficulty)}
                                   </button>
                                 );
                               })}
@@ -830,21 +866,27 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
                           </div>
                         )}
 
-                        <div className="space-y-3">
-                          <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200">목표 수치</label>
-                          <div className="flex items-center gap-3">
-                            <input
-                              type="number"
-                              min={1}
-                              value={goalForm.target}
-                              onChange={(e) => setGoalForm((prev) => ({ ...prev, target: Math.max(1, Number(e.target.value) || 1) }))}
-                              className="w-28 rounded-xl border border-gray-200 bg-white px-4 py-2 text-lg font-bold text-blue-600 dark:border-slate-600 dark:bg-slate-700 dark:text-blue-300"
-                            />
-                            <span className="rounded-full bg-gray-100 px-3 py-1 text-sm font-semibold text-gray-600 dark:bg-slate-700 dark:text-slate-200">
-                              {getGoalUnit(goalForm.type)}
-                            </span>
+                        {goalForm.type === 'ATTENDANCE' ? (
+                          <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700 dark:border-emerald-400/20 dark:bg-emerald-500/10 dark:text-emerald-200">
+                            출석 목표는 기간 길이에 맞춰 자동 설정됩니다. 현재 목표: {getGoalResolvedTarget(goalForm)} day
                           </div>
-                        </div>
+                        ) : (
+                          <div className="space-y-3">
+                            <label className="block text-sm font-semibold text-gray-700 dark:text-slate-200">목표 수치</label>
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="number"
+                                min={1}
+                                value={goalForm.target}
+                                onChange={(e) => setGoalForm((prev) => ({ ...prev, target: Math.max(1, Number(e.target.value) || 1) }))}
+                                className="w-28 rounded-xl border border-gray-200 bg-white px-4 py-2 text-lg font-bold text-blue-600 dark:border-slate-600 dark:bg-slate-700 dark:text-blue-300"
+                              />
+                              <span className="rounded-full bg-gray-100 px-3 py-1 text-sm font-semibold text-gray-600 dark:bg-slate-700 dark:text-slate-200">
+                                {getGoalUnit(goalForm.type)}
+                              </span>
+                            </div>
+                          </div>
+                        )}
 
                         {goalFormError && (
                           <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
@@ -861,8 +903,8 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
                             {GOAL_PERIOD_LABELS[goalForm.period]} · {GOAL_TYPE_LABELS[goalForm.type]}
                           </p>
                           <p className="mt-3 text-sm text-gray-500 dark:text-slate-400">
-                            목표 수치 {goalForm.target} {getGoalUnit(goalForm.type)}
-                            {goalForm.type === 'TIER_SOLVE' && goalForm.difficulty ? ` · 난이도 ${goalForm.difficulty}` : ''}
+                            목표 수치 {getGoalResolvedTarget(goalForm)} {getGoalUnit(goalForm.type)}
+                            {goalForm.type === 'TIER_SOLVE' && goalForm.difficulty ? ` · 난이도 ${formatGoalDifficulty(goalForm.difficulty)}` : ''}
                           </p>
                         </div>
 

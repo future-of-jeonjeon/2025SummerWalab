@@ -23,6 +23,7 @@ import { OrganizationManagePage } from './pages/OrganizationManagePage';
 import { OrganizationJoinPage } from './pages/OrganizationJoinPage';
 import { ContributionPage } from './pages/ContributionPage';
 import { DevIdePage } from './pages/DevIdePage';
+import { GoalFloatingWidget } from './components/organisms/GoalFloatingWidget';
 
 const AppShell: React.FC = () => {
   const location = useLocation();
@@ -55,6 +56,7 @@ const AppShell: React.FC = () => {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </div>
+      <GoalFloatingWidget />
       {!hideOnIdeLayout && <Footer />}
     </div>
   );
