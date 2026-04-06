@@ -208,7 +208,7 @@ export const organizationService = {
   },
 
   create: async (payload: OrganizationPayload, options?: RequestOptions): Promise<Organization> => {
-    const url = buildUrl('/');
+    const url = buildUrl('');
     const response = await apiClient.post<RawOrganization>(url, payload, { signal: options?.signal });
     const body = response.data;
     if (!body) {
