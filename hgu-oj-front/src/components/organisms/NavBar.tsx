@@ -43,7 +43,9 @@ export const NavBar: React.FC = () => {
   const { user, isAuthenticated, logout } = useAuthStore();
   const isAdmin = user?.admin_type === 'Admin' || user?.admin_type === 'Super Admin';
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const mobileMenuRef = useRef<HTMLDivElement>(null);
 
   const [notifications, setNotifications] = useState<NotificationResponse[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -52,6 +54,9 @@ export const NavBar: React.FC = () => {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsNotificationOpen(false);
+      }
+      if (mobileMenuRef.current && !mobileMenuRef.current.contains(event.target as Node)) {
+        setIsMobileMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -82,6 +87,10 @@ export const NavBar: React.FC = () => {
     }
   }, [isAuthenticated]);
 
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
+
   const isActive = (path: string) => {
     if (path === '/') {
       return location.pathname === '/';
@@ -94,93 +103,81 @@ export const NavBar: React.FC = () => {
     navigate('/');
   };
 
+  const navItems = [
+    { to: '/problems', label: '문제' },
+    { to: '/workbooks', label: '문제집' },
+    { to: '/contests', label: '대회' },
+    { to: '/organizations', label: '단체' },
+    ...(isAuthenticated ? [{ to: '/contribution', label: '기여' }] : []),
+    { to: '/ranking', label: '랭킹' },
+    ...(isAdmin ? [{ to: '/admin', label: '관리' }] : []),
+  ];
+
   return (
     <nav className="bg-white shadow-sm dark:bg-slate-900 dark:shadow-none dark:border-b dark:border-slate-800">
       <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 2xl:max-w-screen-2xl 2xl:px-10">
         <div className="flex items-center justify-between h-16">
-          <div className="flex items-center gap-8">
+          <div className="flex items-center gap-3 md:gap-8">
             {/* 로고 */}
             <Link to="/" className="flex items-center focus:outline-none">
               <span className="text-xl font-bold text-black dark:text-slate-100">H-Code Round</span>
             </Link>
 
-            {/* 네비게이션 메뉴 */}
-            <div className="flex items-center space-x-6">
-              <Link
-                to="/problems"
-                className={`text-sm font-medium transition-colors duration-200 px-3 py-2 focus:outline-none ${isActive('/problems')
-                  ? 'text-blue-600 font-semibold border-b-2 border-blue-600'
-                  : 'text-black hover:text-gray-600 dark:text-slate-100 dark:hover:text-slate-300'
-                  }`}
-              >
-                문제
-              </Link>
-              <Link
-                to="/workbooks"
-                className={`text-sm font-medium transition-colors duration-200 px-3 py-2 focus:outline-none ${isActive('/workbooks')
-                  ? 'text-blue-600 font-semibold border-b-2 border-blue-600'
-                  : 'text-black hover:text-gray-600 dark:text-slate-100 dark:hover:text-slate-300'
-                  }`}
-              >
-                문제집
-              </Link>
-              <Link
-                to="/contests"
-                className={`text-sm font-medium transition-colors duration-200 px-3 py-2 focus:outline-none ${isActive('/contests')
-                  ? 'text-blue-600 font-semibold border-b-2 border-blue-600'
-                  : 'text-black hover:text-gray-600 dark:text-slate-100 dark:hover:text-slate-300'
-                  }`}
-              >
-                대회
-              </Link>
-              <Link
-                to="/organizations"
-                className={`text-sm font-medium transition-colors duration-200 px-3 py-2 focus:outline-none ${isActive('/organizations')
-                  ? 'text-blue-600 font-semibold border-b-2 border-blue-600'
-                  : 'text-black hover:text-gray-600 dark:text-slate-100 dark:hover:text-slate-300'
-                  }`}
-              >
-                단체
-              </Link>
-              {isAuthenticated && (
+            {/* 데스크탑 네비게이션 메뉴 */}
+            <div className="hidden md:flex items-center space-x-2 lg:space-x-6">
+              {navItems.map((item) => (
                 <Link
-                  to="/contribution"
-                  className={`text-sm font-medium transition-colors duration-200 px-3 py-2 focus:outline-none ${isActive('/contribution')
+                  key={item.to}
+                  to={item.to}
+                  className={`text-sm font-medium transition-colors duration-200 px-2 lg:px-3 py-2 focus:outline-none ${isActive(item.to)
                     ? 'text-blue-600 font-semibold border-b-2 border-blue-600'
                     : 'text-black hover:text-gray-600 dark:text-slate-100 dark:hover:text-slate-300'
                     }`}
                 >
-                  기여
+                  {item.label}
                 </Link>
-              )}
-              <Link
-                to="/ranking"
-                className={`text-sm font-medium transition-colors duration-200 px-3 py-2 focus:outline-none ${isActive('/ranking')
-                  ? 'text-blue-600 font-semibold border-b-2 border-blue-600'
-                  : 'text-black hover:text-gray-600 dark:text-slate-100 dark:hover:text-slate-300'
-                  }`}
-              >
-                랭킹
-              </Link>
-              {isAdmin && (
-                <Link
-                  to="/admin"
-                  className={`text-sm font-medium transition-colors duration-200 px-3 py-2 focus:outline-none ${isActive('/admin')
-                    ? 'text-blue-600 font-semibold border-b-2 border-blue-600'
-                    : 'text-black hover:text-gray-600 dark:text-slate-100 dark:hover:text-slate-300'
-                    }`}
-                >
-                  관리
-                </Link>
-              )}
+              ))}
             </div>
+
           </div>
 
           {/* 사용자 메뉴 & 알림 영역 */}
           <div className="flex items-center space-x-4">
+            <div className="relative md:hidden" ref={mobileMenuRef}>
+              <button
+                type="button"
+                onClick={() => setIsMobileMenuOpen((prev) => !prev)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-md text-gray-700 hover:bg-gray-100 dark:text-slate-200 dark:hover:bg-slate-800 focus:outline-none"
+                aria-label="메뉴 열기"
+                aria-expanded={isMobileMenuOpen}
+              >
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <line x1="3" y1="6" x2="21" y2="6" />
+                  <line x1="3" y1="12" x2="21" y2="12" />
+                  <line x1="3" y1="18" x2="21" y2="18" />
+                </svg>
+              </button>
+
+              {isMobileMenuOpen && (
+                <div className="absolute right-0 top-full z-50 mt-2 w-44 rounded-lg border border-gray-200 bg-white p-2 shadow-lg dark:border-slate-700 dark:bg-slate-900">
+                  {navItems.map((item) => (
+                    <Link
+                      key={`mobile-${item.to}`}
+                      to={item.to}
+                      className={`block rounded-md px-3 py-2 text-sm font-medium transition-colors ${isActive(item.to)
+                        ? 'bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
+                        : 'text-gray-800 hover:bg-gray-100 dark:text-slate-100 dark:hover:bg-slate-800'
+                        }`}
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
             {isAuthenticated ? (
-              <div className="flex items-center space-x-4">
-                <span className="text-sm text-gray-700 dark:text-slate-300">
+              <div className="flex items-center space-x-2 md:space-x-4">
+                <span className="hidden lg:block text-sm text-gray-700 dark:text-slate-300">
                   안녕하세요 <span className="font-medium">{user?.username}</span> 님
                 </span>
                 <div className="relative" ref={dropdownRef}>

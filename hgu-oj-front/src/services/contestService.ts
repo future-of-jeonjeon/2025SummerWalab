@@ -123,6 +123,7 @@ const mapContest = (raw: any): Contest => ({
   languages: raw.languages ?? [],
   participants: raw.participants ?? 0,
   isOrganizationOnly: raw.is_organization_only ?? raw.isOrganizationOnly,
+  isPublic: raw.is_public ?? raw.isPublic,
   organization_id: raw.organization_id,
   organization_name: raw.organization_name,
 });

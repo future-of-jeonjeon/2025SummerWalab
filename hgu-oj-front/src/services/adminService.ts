@@ -907,6 +907,7 @@ const mapAdminContest = (raw: any): AdminContest => {
     organization_id: Number(raw?.organization_id ?? raw?.organizationId ?? 0) || 0,
     organization_name: raw?.organization_name ?? raw?.organizationName ?? null,
     isOrganizationOnly: raw?.is_organization_only ?? raw?.isOrganizationOnly ?? false,
+    isPublic: raw?.is_public ?? raw?.isPublic ?? false,
   } as AdminContest;
 };
 

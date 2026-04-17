@@ -18,7 +18,6 @@ class ContestDTO(BaseModel):
 
 
 class ContestCreatedByDTO(BaseModel):
-
     id: int
     username: str
     realName: Optional[str] = None
@@ -42,6 +41,7 @@ class ContestDataDTO(BaseModel):
     languages: list[str]
     problemCount: int = 0
     is_organization_only: bool = False
+    is_public: bool = False
     requires_approval: bool = False
     organization_id: Optional[int] = None
     organization_name: Optional[str] = None
@@ -58,9 +58,10 @@ class CreateContestRequest(BaseModel):
     real_time_rank: bool
     allowed_ip_ranges: list[str]
     is_organization_only: bool = False
+    is_public: bool = False
     requires_approval: Optional[bool] = False
     languages: list[str]
-    organization_id:int
+    organization_id: int
     problems: Optional[List[ContestProblemInputDTO]] = []
 
 
@@ -77,6 +78,7 @@ class ReqUpdateContestDTO(BaseModel):
     allowed_ip_ranges: list[str]
     requires_approval: Optional[bool] = False
     is_organization_only: Optional[bool] = None
+    is_public: Optional[bool] = None
     languages: list[str]
     organization_id: int
 
@@ -98,7 +100,7 @@ class ContestProblemDTO(BaseModel):
 
     class Config:
         populate_by_name = True
-    
+
 
 class PaginatedContestResponse(Page[ContestDataDTO]):
     results: List[ContestDataDTO] = Field(..., alias="items")

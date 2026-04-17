@@ -37,8 +37,9 @@ async def get_organization_contest_list(
         organization_id: int,
         page: int = Query(1, ge=1),
         size: int = Query(10, ge=1),
+        user_profile: UserProfile = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)):
-    return await serv.get_organization_contest_list(page, size, organization_id, db)
+    return await serv.get_organization_contest_list(page, size, organization_id, user_profile, db)
 
 
 @router.put("", response_model=ContestDataDTO)
@@ -69,7 +70,6 @@ async def get_all_contests_admin(
 
 
 @router.post("/add_problem_from_public")
-@require_role("Admin")
 async def add_contest_problem_from_public(
         contest_problem_dto: ReqAddContestProblemDTO,
         user_profile: UserProfile = Depends(get_userdata),
@@ -115,8 +115,9 @@ async def get_participated_contest_by_user(
 @router.get("/{contest_id}", response_model=ContestDataDTO)
 async def get_contest_detail(
         contest_id: int,
+        user_profile: UserProfile = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)):
-    return await serv.get_contest_detail(contest_id, db)
+    return await serv.get_contest_detail(contest_id, user_profile, db)
 
 
 # ======================================================================================================================
