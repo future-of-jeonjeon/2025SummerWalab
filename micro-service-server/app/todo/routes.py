@@ -1,11 +1,17 @@
-from fastapi import APIRouter, Depends
+from typing import Optional
+from datetime import date
+
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_database, get_userdata
 from app.todo import service
+from app.todo.models import GoalPeriod, GoalType
 from app.todo.schemas import (
     AttendanceSyncResponse,
     DifficultyStatsResponse,
+    GoalHistoryOverviewResponse,
+    GoalHistoryPageResponse,
     RecommendationsResponse,
     SolveCountResponse,
     TodoResponse,
@@ -31,6 +37,45 @@ async def set_my_todo(
     user_profile: UserProfile = Depends(get_userdata),
 ):
     return await service.set_user_todo(db, user_profile.user_id, data)
+
+
+@router.get("/history", response_model=GoalHistoryOverviewResponse)
+async def get_goal_history(
+    db: AsyncSession = Depends(get_database),
+    user_profile: UserProfile = Depends(get_userdata),
+):
+    return await service.get_user_goal_history_overview(db, user_profile.user_id)
+
+
+@router.get("/history/group", response_model=GoalHistoryPageResponse)
+async def get_goal_history_group(
+    period: GoalPeriod,
+    type: GoalType,
+    target: int = Query(..., ge=1),
+    difficulty: Optional[int] = Query(None, ge=1, le=5),
+    custom_days: Optional[int] = Query(None, ge=1, le=365),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(5, ge=1, le=50),
+    start_day_from: Optional[date] = Query(None),
+    end_day_to: Optional[date] = Query(None),
+    status: Optional[str] = Query(None, pattern="^(success|failure)$"),
+    db: AsyncSession = Depends(get_database),
+    user_profile: UserProfile = Depends(get_userdata),
+):
+    return await service.get_user_goal_history_group_page(
+        db,
+        user_profile.user_id,
+        period=period,
+        goal_type=type,
+        target=target,
+        difficulty=difficulty,
+        custom_days=custom_days,
+        page=page,
+        page_size=page_size,
+        start_day_from=start_day_from,
+        end_day_to=end_day_to,
+        status=status,
+    )
 
 
 @router.get("/recommendations", response_model=RecommendationsResponse)

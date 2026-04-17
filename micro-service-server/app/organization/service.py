@@ -130,17 +130,31 @@ async def list_organization_user(
 async def edit_organization_user(
         organization_id: int,
         user_profile: UserProfile,
+        member_id: int,
         user_update_data: OrganizationMemberUpdateRequest,
         db: AsyncSession) -> OrganizationMemberResponse:
-    await check_organization_admin(organization_id, user_profile, db)
-
     await _get_organization_by_id(organization_id, db)
-    member_data = await (organization_repo
-                         .get_member_by_organization_id_and_user_id(organization_id, user_update_data.user_id, db))
+    member_data = await organization_repo.get_member_by_id_and_organization_id(member_id, organization_id, db)
     if not member_data:
         organization_exception.user_not_found()
 
-    member_data.role = OrganizationRole(user_update_data.role)
+    actor_is_system_admin = user_profile.admin_type in ["Admin", "Super Admin"]
+    actor_member = await organization_repo.get_member_by_organization_id_and_user_id(
+        organization_id,
+        user_profile.user_id,
+        db,
+    )
+
+    if not actor_is_system_admin:
+        if not actor_member or actor_member.role not in {OrganizationRole.ORG_ADMIN, OrganizationRole.ORG_SUPER_ADMIN}:
+            organization_exception.forbidden()
+        if actor_member.role == OrganizationRole.ORG_ADMIN and (
+            member_data.role == OrganizationRole.ORG_SUPER_ADMIN
+            or user_update_data.role == OrganizationRole.ORG_SUPER_ADMIN
+        ):
+            organization_exception.forbidden()
+
+    member_data.role = user_update_data.role
     return OrganizationMemberResponse.from_orm(member_data)
 
 
