@@ -123,6 +123,13 @@ class ContestUserStatus(BaseModel):
     requires_approval: bool = False
 
 
+class ContestManageUserSearchItem(BaseModel):
+    user_id: int
+    username: str
+    name: str | None = None
+    student_id: str | None = None
+
+
 class ContestApprovalPolicy(BaseModel):
     contest_id: int
     requires_approval: bool

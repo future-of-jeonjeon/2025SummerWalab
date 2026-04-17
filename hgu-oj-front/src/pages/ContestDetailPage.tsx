@@ -485,7 +485,20 @@ export const ContestDetailPage: React.FC = () => {
                 loading={userManagement.isLoading}
                 errorMessage={userManagement.errorMessage}
                 feedback={userManagement.feedback}
+                modalFeedback={userManagement.modalFeedback}
                 onDecision={userManagement.handleDecision}
+                isAddModalOpen={userManagement.isAddModalOpen}
+                onOpenAddModal={userManagement.handleOpenAddModal}
+                onCloseAddModal={userManagement.handleCloseAddModal}
+                addQuery={userManagement.addQuery}
+                onAddQueryChange={userManagement.setAddQuery}
+                participantSearchQuery={userManagement.participantSearchQuery}
+                onParticipantSearchQueryChange={userManagement.setParticipantSearchQuery}
+                addCandidates={userManagement.addCandidates}
+                onSearchCandidates={userManagement.handleSearchCandidates}
+                onAddParticipant={userManagement.handleAddParticipant}
+                addSearchPending={userManagement.addSearchPending}
+                addParticipantPending={userManagement.addParticipantPending}
                 decisionState={userManagement.decisionState}
               />
             )}

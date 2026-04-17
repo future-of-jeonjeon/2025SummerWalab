@@ -198,6 +198,13 @@ export interface ContestUserRegistrationList {
   pending: ContestUserRegistration[];
 }
 
+export interface ContestManageUserSearchItem {
+  userId: number;
+  username: string;
+  name?: string | null;
+  studentId?: string | null;
+}
+
 // 문제집 관련 타입
 export interface Workbook {
   id: number;

@@ -12,6 +12,7 @@ import app.submission.repository as submission_repo
 import app.user.repository as user_repo
 import app.contest.exceptions as contest_exception
 import app.organization.exceptions as organization_exception
+import app.user.exceptions as user_exception
 from app.problem import exceptions as problem_exceptions
 from app.contest.models import *
 from app.contest.schemas import *
@@ -474,6 +475,68 @@ async def join_contest(contest_id: int, user_profile: UserProfile, db: AsyncSess
         is_admin=is_admin_user,
         requires_approval=requires_approval_policy,
     )
+
+
+async def join_contest_by_user_id(
+        contest_id: int,
+        user_profile: UserProfile,
+        user_id: int,
+        db: AsyncSession) -> ContestUserStatus:
+    await _ensure_contest_permission(contest_id, user_profile, db)
+
+    contest = await contest_repo.find_contest_by_id(contest_id, db)
+    if not contest:
+        contest_exception.contest_not_found()
+
+    target_user = await user_repo.find_user_by_id(user_id, db)
+    if not target_user:
+        user_exception.user_not_found()
+
+    organization_contest = await contest_repo.find_organization_contest_by_contest_id(contest_id, db)
+    if organization_contest and organization_contest.is_organization_only:
+        is_member = await organization_repo.get_member_by_organization_id_and_user_id(
+            organization_contest.organization_id, user_id, db
+        )
+        if not is_member:
+            contest_exception.cannot_participate_in_organization_contest()
+
+    if _has_contest_ended(contest.end_time):
+        contest_exception.cannot_participate_in_ended_contest()
+
+    membership = await contest_repo.upsert_membership(
+        contest_id=contest_id,
+        user_id=user_id,
+        status=APPROVED,
+        approver_id=user_profile.user_id,
+        db=db,
+    )
+    return ContestUserStatus(
+        contest_id=contest_id,
+        user_id=user_id,
+        joined=True,
+        joined_at=membership.created_time,
+        is_admin=False,
+        status=APPROVED,
+        requires_approval=False,
+    )
+
+
+async def search_contest_users_for_management(
+        contest_id: int,
+        keyword: str,
+        user_profile: UserProfile,
+        db: AsyncSession) -> list[ContestManageUserSearchItem]:
+    await _ensure_contest_permission(contest_id, user_profile, db)
+    users = await user_repo.search_users_by_name_or_student_id(keyword, db, limit=10)
+    return [
+        ContestManageUserSearchItem(
+            user_id=user_id,
+            username=username,
+            name=name,
+            student_id=student_id,
+        )
+        for user_id, username, student_id, name in users
+    ]
 
 
 async def get_membership_status(contest_id: int, user_profile: UserProfile, db: AsyncSession) -> ContestUserStatus:

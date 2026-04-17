@@ -124,7 +124,7 @@ export const NavBar: React.FC = () => {
             </Link>
 
             {/* 데스크탑 네비게이션 메뉴 */}
-            <div className="hidden md:flex items-center space-x-2 lg:space-x-6">
+            <div className="hidden min-[1155px]:flex items-center space-x-2 lg:space-x-6">
               {navItems.map((item) => (
                 <Link
                   key={item.to}
@@ -143,7 +143,7 @@ export const NavBar: React.FC = () => {
 
           {/* 사용자 메뉴 & 알림 영역 */}
           <div className="flex items-center space-x-4">
-            <div className="relative md:hidden" ref={mobileMenuRef}>
+            <div className="relative min-[1155px]:hidden" ref={mobileMenuRef}>
               <button
                 type="button"
                 onClick={() => setIsMobileMenuOpen((prev) => !prev)}

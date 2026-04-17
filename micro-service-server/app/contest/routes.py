@@ -130,6 +130,24 @@ async def join_contest(
     return await serv.join_contest(contest_id, user_profile, db)
 
 
+@router.post("/{contest_id}/manage/participants", response_model=ContestUserStatus)
+async def join_contest_by_user_id_api(
+        contest_id: int,
+        user_profile: UserProfile = Depends(get_userdata),
+        user_id: int = Query(...),
+        db: AsyncSession = Depends(get_database)):
+    return await serv.join_contest_by_user_id(contest_id, user_profile, user_id, db)
+
+
+@router.get("/{contest_id}/manage/participants/search", response_model=List[ContestManageUserSearchItem])
+async def search_contest_participants_by_keyword_api(
+        contest_id: int,
+        keyword: str = Query(..., min_length=1),
+        user_profile: UserProfile = Depends(get_userdata),
+        db: AsyncSession = Depends(get_database)):
+    return await serv.search_contest_users_for_management(contest_id, keyword, user_profile, db)
+
+
 @router.get("/{contest_id}/participants", response_model=ContestUserListResponse)
 async def list_contest_participants(
         contest_id: int,
