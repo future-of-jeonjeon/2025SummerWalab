@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from typing import Optional
 
 from pydantic import BaseModel, Field, model_validator
@@ -61,6 +61,64 @@ class TodoUpdate(BaseModel):
 
 class TodoResponse(BaseModel):
     goals: list[GoalResponse] = Field(default_factory=list)
+
+
+class GoalHistoryHeatmapEntry(BaseModel):
+    date: date
+    count: int
+
+
+class GoalHistorySummary(BaseModel):
+    total_logged: int
+    success_count: int
+    failure_count: int
+    success_rate: int
+    average_progress: int
+
+
+class GoalHistoryEntry(BaseModel):
+    id: str
+    period: GoalPeriod
+    type: GoalType
+    target: int
+    count: int
+    unit: str
+    difficulty: Optional[GoalDifficulty] = None
+    custom_days: Optional[int] = None
+    start_day: date
+    end_day: date
+    label: str
+    is_success: bool
+    percent: int
+    archived_at: datetime
+
+
+class GoalHistoryGroupSummary(BaseModel):
+    key: str
+    period: GoalPeriod
+    type: GoalType
+    target: int
+    difficulty: Optional[GoalDifficulty] = None
+    custom_days: Optional[int] = None
+    label: str
+    total_logged: int
+    success_count: int
+    failure_count: int
+    latest_archived_at: datetime
+
+
+class GoalHistoryOverviewResponse(BaseModel):
+    heatmap: list[GoalHistoryHeatmapEntry] = Field(default_factory=list)
+    summary: GoalHistorySummary
+    groups: list[GoalHistoryGroupSummary] = Field(default_factory=list)
+
+
+class GoalHistoryPageResponse(BaseModel):
+    items: list[GoalHistoryEntry] = Field(default_factory=list)
+    total_count: int
+    page: int
+    page_size: int
+    total_pages: int
 
 
 class GoalRecommendation(BaseModel):

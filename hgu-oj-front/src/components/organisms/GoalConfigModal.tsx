@@ -29,6 +29,7 @@ interface GoalConfigModalProps {
   initialUserData?: UserDetail | null;
   onUserUpdateSuccess?: () => void;
   initialView?: 'profile' | 'goal';
+  initialGoalDraft?: UserGoalInput | null;
 }
 
 type UserMenuTab = 'info' | 'language' | 'theme';
@@ -69,6 +70,7 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
   initialUserData,
   onUserUpdateSuccess,
   initialView = 'profile',
+  initialGoalDraft = null,
 }) => {
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
@@ -150,6 +152,16 @@ export const GoalConfigModal: React.FC<GoalConfigModalProps> = ({
     setGoalFormError(null);
     setGoalSaveError(null);
   }, [currentTodo, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !initialGoalDraft) return;
+
+    setActiveGroup('goal');
+    setGoalForm(initialGoalDraft);
+    setEditingGoalId(null);
+    setGoalFormError(null);
+    setGoalSaveError(null);
+  }, [initialGoalDraft, isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;

@@ -103,3 +103,13 @@ async def delete_organization_user(
         db: AsyncSession = Depends(get_database)):
     return await organization_serv.delete_organization_user(organization_id, user_profile, member_id, db)
     return {}
+
+
+@router.put("/{organization_id}/users/{member_id}", response_model=OrganizationMemberResponse)
+async def edit_organization_user(
+        organization_id: int,
+        member_id: int,
+        data: OrganizationMemberUpdateRequest,
+        user_profile: UserProfile = Depends(get_userdata),
+        db: AsyncSession = Depends(get_database)):
+    return await organization_serv.edit_organization_user(organization_id, user_profile, member_id, data, db)

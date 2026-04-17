@@ -64,8 +64,7 @@ class OrganizationResponse(BaseModel):
 
 
 class OrganizationMemberUpdateRequest(BaseModel):
-    user_id: int
-    role: int  # | 0 USER | 1 ADMIN | 2 SUPER ADMIN |
+    role: OrganizationRole
 
 
 class OrganizationCreateRequest(BaseModel):

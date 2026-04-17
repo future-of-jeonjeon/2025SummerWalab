@@ -1,4 +1,4 @@
-import { Organization, OrganizationListResponse, OrganizationMember, OrganizationPayload, OrganizationApplication, OrganizationApplicationPayload, OrganizationApplicationApprovePayload } from '../types';
+import { Organization, OrganizationListResponse, OrganizationMember, OrganizationPayload, OrganizationApplication, OrganizationApplicationPayload, OrganizationApplicationApprovePayload, OrganizationRole } from '../types';
 import { apiClient, MS_API_BASE } from './api';
 
 type RequestOptions = {
@@ -257,6 +257,25 @@ export const organizationService = {
       };
     }
     return adaptOrganization(body);
+  },
+
+  updateMemberRole: async (
+    organizationId: number,
+    memberId: number,
+    role: OrganizationRole,
+    options?: RequestOptions,
+  ): Promise<OrganizationMember> => {
+    const url = buildUrl(`/${organizationId}/users/${memberId}`);
+    const response = await apiClient.put<RawOrganizationMember>(
+      url,
+      { role },
+      { signal: options?.signal },
+    );
+    const body = response.data;
+    if (!body) {
+      throw new Error('Failed to parse organization member update response.');
+    }
+    return adaptMember(body);
   },
 
   join: async (organizationId: number, joinCode?: string, options?: RequestOptions): Promise<void> => {

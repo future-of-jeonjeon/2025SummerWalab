@@ -14,6 +14,12 @@ from app.todo.schemas import (
     AttendanceSyncResponse,
     DifficultyCount,
     DifficultyStatsResponse,
+    GoalHistoryEntry,
+    GoalHistoryGroupSummary,
+    GoalHistoryHeatmapEntry,
+    GoalHistoryOverviewResponse,
+    GoalHistoryPageResponse,
+    GoalHistorySummary,
     GoalPayload,
     GoalProgress,
     GoalRecommendation,
@@ -310,6 +316,45 @@ def _goal_response(goal: Goal) -> GoalResponse:
     )
 
 
+def _todo_result_response(result: TodoResult) -> GoalHistoryEntry:
+    target = result.target_count
+    count = result.count
+    return GoalHistoryEntry(
+        id=str(result.id),
+        period=result.period,
+        type=result.type,
+        target=target,
+        count=count,
+        unit=_goal_unit(result.type),
+        difficulty=_normalize_difficulty(result.difficulty),
+        custom_days=result.custom_days,
+        start_day=result.start_day,
+        end_day=result.end_day,
+        label=_goal_label(result.period, result.type, target, result.difficulty, result.custom_days),
+        is_success=result.is_success,
+        percent=_calculate_percent(count, target),
+        archived_at=result.archived_at,
+    )
+
+
+def _goal_history_group_key(
+    period: GoalPeriod,
+    goal_type: GoalType,
+    target_count: int,
+    difficulty: Optional[int],
+    custom_days: Optional[int],
+) -> str:
+    return "|".join(
+        [
+            period.value,
+            goal_type.value,
+            str(target_count),
+            str(difficulty if difficulty is not None else "none"),
+            str(custom_days if custom_days is not None else "none"),
+        ]
+    )
+
+
 async def get_user_todo(db: AsyncSession, user_id: int) -> TodoResponse:
     todo = await repository.get_or_create_todo(db, user_id)
     await rollover_due_goals(db, user_id=user_id)
@@ -317,6 +362,107 @@ async def get_user_todo(db: AsyncSession, user_id: int) -> TodoResponse:
     await _refresh_goal_counts(db, user_id, goals)
     await db.flush()
     return TodoResponse(goals=[_goal_response(goal) for goal in goals])
+
+
+async def get_user_goal_history_overview(db: AsyncSession, user_id: int) -> GoalHistoryOverviewResponse:
+    today = _kst_today()
+    heatmap_start = today - timedelta(days=364)
+
+    summary_data = await repository.get_goal_result_summary(db, user_id)
+    heatmap_rows = await repository.get_goal_result_heatmap(db, user_id, start_day=heatmap_start)
+    group_rows = await repository.list_goal_history_groups(db, user_id)
+
+    return GoalHistoryOverviewResponse(
+        heatmap=[GoalHistoryHeatmapEntry(**row) for row in heatmap_rows],
+        summary=GoalHistorySummary(**summary_data),
+        groups=[
+            GoalHistoryGroupSummary(
+                key=_goal_history_group_key(
+                    row["period"],
+                    row["type"],
+                    row["target_count"],
+                    row["difficulty"],
+                    row["custom_days"],
+                ),
+                period=row["period"],
+                type=row["type"],
+                target=row["target_count"],
+                difficulty=_normalize_difficulty(row["difficulty"]),
+                custom_days=row["custom_days"],
+                label=_goal_label(
+                    row["period"],
+                    row["type"],
+                    row["target_count"],
+                    row["difficulty"],
+                    row["custom_days"],
+                ),
+                total_logged=row["total_logged"],
+                success_count=row["success_count"],
+                failure_count=row["failure_count"],
+                latest_archived_at=row["latest_archived_at"],
+            )
+            for row in group_rows
+        ],
+    )
+
+
+async def get_user_goal_history_group_page(
+    db: AsyncSession,
+    user_id: int,
+    *,
+    period: GoalPeriod,
+    goal_type: GoalType,
+    target: int,
+    difficulty: Optional[int] = None,
+    custom_days: Optional[int] = None,
+    page: int = 1,
+    page_size: int = 5,
+    start_day_from: Optional[date] = None,
+    end_day_to: Optional[date] = None,
+    status: Optional[str] = None,
+) -> GoalHistoryPageResponse:
+    safe_page = max(page, 1)
+    safe_page_size = max(min(page_size, 50), 1)
+    normalized_difficulty = _normalize_difficulty(difficulty)
+    normalized_custom_days = custom_days if period == GoalPeriod.CUSTOM else None
+    normalized_status = {"success": True, "failure": False}.get(status or "")
+    offset = (safe_page - 1) * safe_page_size
+
+    total_count = await repository.count_goal_history_group_entries(
+        db,
+        user_id,
+        period=period,
+        goal_type=goal_type,
+        target_count=target,
+        difficulty=normalized_difficulty,
+        custom_days=normalized_custom_days,
+        start_day_from=start_day_from,
+        end_day_to=end_day_to,
+        is_success=normalized_status,
+    )
+    rows = await repository.list_goal_history_group_entries(
+        db,
+        user_id,
+        period=period,
+        goal_type=goal_type,
+        target_count=target,
+        difficulty=normalized_difficulty,
+        custom_days=normalized_custom_days,
+        offset=offset,
+        limit=safe_page_size,
+        start_day_from=start_day_from,
+        end_day_to=end_day_to,
+        is_success=normalized_status,
+    )
+    total_pages = max(1, (total_count + safe_page_size - 1) // safe_page_size)
+
+    return GoalHistoryPageResponse(
+        items=[_todo_result_response(row) for row in rows],
+        total_count=total_count,
+        page=safe_page,
+        page_size=safe_page_size,
+        total_pages=total_pages,
+    )
 
 
 async def set_user_todo(db: AsyncSession, user_id: int, data: TodoUpdate) -> TodoResponse:
