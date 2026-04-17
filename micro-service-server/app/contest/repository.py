@@ -36,16 +36,17 @@ async def get_contest_list(
     if status == "1":
         filters.append(Contest.start_time <= now)
         filters.append(Contest.end_time >= now)
-    elif status == "-1":
+    if status == "-1":
         filters.append(Contest.end_time < now)
-    elif status == "0":
+    if status == "0":
         filters.append(Contest.start_time > now)
     stmt = (
         select(Contest, ContestLanguage.languages, User, UserData)
         .join(User, Contest.created_by_id == User.id)
+        .join(OrganizationContest, Contest.id == OrganizationContest.contest_id)
         .outerjoin(UserData, User.id == UserData.user_id)
         .outerjoin(ContestLanguage, Contest.id == ContestLanguage.contest_id)
-        .where(*filters)
+        .where(*filters, OrganizationContest.is_public.is_(True))
         .order_by(desc(Contest.create_time))
     )
     return await paginate(db, stmt, page, size)

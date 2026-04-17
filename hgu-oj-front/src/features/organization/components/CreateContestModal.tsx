@@ -67,6 +67,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
         languages: SUPPORTED_LANGUAGES,
         requires_approval: false,
         is_organization_only: false,
+        is_public: false,
     });
     const [resolvedOrganizationId, setResolvedOrganizationId] = useState<number | null>(
         (initialData as AdminContest | undefined)?.organization_id ??
@@ -109,6 +110,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                     initialData.requiresApproval ??
                     false,
                 is_organization_only: initialData.isOrganizationOnly || false,
+                is_public: initialData.isPublic || false,
             });
         } else {
             setFormData({
@@ -124,6 +126,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                 languages: SUPPORTED_LANGUAGES,
                 requires_approval: false,
                 is_organization_only: false,
+                is_public: false,
             });
             setContestProblems([]);
             setResolvedOrganizationId(organizationId ?? null);
@@ -166,6 +169,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                         detail.requiresApproval ??
                         false,
                     is_organization_only: detail.isOrganizationOnly || false,
+                    is_public: detail.isPublic || false,
                 });
                 const orgId = (detail as any)?.organization_id ?? (detail as any)?.organizationId ?? null;
                 if (orgId != null) {
@@ -365,6 +369,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                     allowed_ip_ranges: allowedIpRanges,
                     requires_approval: formData.requires_approval,
                     is_organization_only: formData.is_organization_only,
+                    is_public: formData.is_public,
                     languages: formData.languages,
                     problems: contestProblems.map((p, index) => ({
                         problem_id: p.id,
@@ -399,6 +404,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                     allowed_ip_ranges: allowedIpRanges,
                     requires_approval: formData.requires_approval,
                     is_organization_only: formData.is_organization_only,
+                    is_public: formData.is_public,
                     languages: formData.languages,
                     organization_id: organizationId!,
                     problems: contestProblems.map((p, index) => ({
@@ -537,6 +543,20 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                                     />
                                                     <label htmlFor="requires_approval" className="ml-2 block cursor-pointer select-none text-sm font-medium text-gray-900 dark:text-slate-100">
                                                         참가 승인 필요
+                                                    </label>
+                                                </div>
+                                            </div>
+                                            <div className="grid grid-cols-1 gap-4">
+                                                <div className="flex items-center space-x-2 rounded-lg border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 p-3">
+                                                    <input
+                                                        id="is_public"
+                                                        type="checkbox"
+                                                        className="h-4 w-4 rounded border-gray-300 text-blue-600 transition-colors focus:ring-blue-500"
+                                                        checked={formData.is_public}
+                                                        onChange={(e) => setFormData({ ...formData, is_public: e.target.checked })}
+                                                    />
+                                                    <label htmlFor="is_public" className="ml-2 block cursor-pointer select-none text-sm font-medium text-gray-900 dark:text-slate-100">
+                                                        대회 공개
                                                     </label>
                                                 </div>
                                             </div>
