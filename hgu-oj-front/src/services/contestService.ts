@@ -246,6 +246,35 @@ export const contestService = {
     };
   },
 
+  getPublicOrganizationContests: async (organizationId: number, params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<PaginatedResponse<Contest>> => {
+    const queryParams: any = {
+      page: params?.page || 1,
+      size: params?.limit || 10,
+    };
+
+    if (!MICRO_API_BASE) {
+      throw new Error('MS_API_BASE not defined');
+    }
+
+    const response = await apiClient.get<any>(`${MICRO_API_BASE}/contest/organization/${organizationId}/public`, { params: queryParams });
+    const payload = response.data;
+    const items = payload.items ?? payload.results ?? [];
+    const total = payload.total ?? items.length;
+    const page = payload.page ?? params?.page ?? 1;
+    const size = payload.size ?? params?.limit ?? 10;
+
+    return {
+      data: items.map(mapContest),
+      total,
+      page,
+      limit: size,
+      totalPages: Math.ceil(total / size)
+    };
+  },
+
   // 대회 상세 조회
   getContest: async (id: number): Promise<Contest> => {
     if (!MICRO_API_BASE) {

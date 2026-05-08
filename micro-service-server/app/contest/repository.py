@@ -46,7 +46,8 @@ async def get_contest_list(
         .join(OrganizationContest, Contest.id == OrganizationContest.contest_id)
         .outerjoin(UserData, User.id == UserData.user_id)
         .outerjoin(ContestLanguage, Contest.id == ContestLanguage.contest_id)
-        .where(*filters, OrganizationContest.is_public.is_(True))
+        .where(*filters, OrganizationContest.is_public == True)
+        .where(OrganizationContest.is_organization_only == False)
         .order_by(desc(Contest.create_time))
     )
     return await paginate(db, stmt, page, size)
@@ -229,6 +230,21 @@ async def get_contest_list_page_by_organization_id(
         select(Contest)
         .join(OrganizationContest, Contest.id == OrganizationContest.contest_id)
         .where(OrganizationContest.organization_id == organization_id)
+        .order_by(desc(OrganizationContest.created_time))
+    )
+    return await paginate(db, stmt, page, size)
+
+
+async def get_public_contest_list_page_by_organization_id(
+        organization_id: int,
+        page: int,
+        size: int,
+        db: AsyncSession):
+    stmt = (
+        select(Contest)
+        .join(OrganizationContest, Contest.id == OrganizationContest.contest_id)
+        .where(OrganizationContest.organization_id == organization_id)
+        .where(OrganizationContest.is_public == True)
         .order_by(desc(OrganizationContest.created_time))
     )
     return await paginate(db, stmt, page, size)

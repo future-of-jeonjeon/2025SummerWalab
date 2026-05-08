@@ -425,6 +425,17 @@ async def get_organization_contest_list(
     return await _process_contest_response(contest_page, db)
 
 
+async def get_organization_public_contest_list(
+        page: int,
+        size: int,
+        organization_id: int,
+        user_profile: UserProfile,
+        db: AsyncSession):
+    # await organization_service.check_organization_admin(organization_id, user_profile, db)
+    contest_page = await contest_repo.get_public_contest_list_page_by_organization_id(organization_id, page, size, db)
+    return await _process_contest_response(contest_page, db)
+
+
 def _normalize_datetime(value: datetime | None) -> datetime | None:
     if value is None:
         return None
