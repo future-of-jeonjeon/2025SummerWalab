@@ -189,7 +189,7 @@ export const OrganizationManagePage: React.FC = () => {
             const inviteUrl = `${window.location.origin}/organizations/${organization.id}/join?code=${inviteCode}`;
 
             await navigator.clipboard.writeText(inviteUrl);
-            alert('초대 링크가 클립보드에 복사되었습니다. (24시간 유효)');
+            alert('초대 링크가 클립보드에 복사되었습니다. 24시간 동안 여러 명이 사용할 수 있습니다.');
         } catch (err) {
             console.error(err);
             alert('초대 링크 생성에 실패했습니다.');

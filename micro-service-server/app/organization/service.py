@@ -107,14 +107,13 @@ async def join_organization(
         user_exceptions.user_not_found()
     user_profile = await user_repo.find_sub_userdata_by_user_id(user_profile.user_id, db)
     redis = await get_redis_manage_code()
-    organization_id, issue_user_id = await _verify_and_consume_join_code(join_code, organization.id, redis)
+    organization_id, _issuer_user_id = await _check_join_code(join_code, organization.id, redis)
     member = (await organization_repo
               .get_member_by_organization_id_and_user_id(organization_id, user_profile.user_id, db))
     if member:
         organization_exception.user_already_exist()
     new_organization_member = OrganizationMember(organization=organization, user=user_profile)
     await organization_repo.save_organization_member(new_organization_member, db)
-    await redis.delete(join_code)
     return OrganizationMemberResponse.from_orm(new_organization_member)
 
 
@@ -212,15 +211,6 @@ async def _generate_join_code(
     value = f"organization_join:{organization_id}:{issuer_user_id}"
     await redis.set(code, value, ex=ttl_seconds)
     return code
-
-
-async def _verify_and_consume_join_code(
-        join_code: str,
-        organization_id: int,
-        redis) -> tuple[int, int]:
-    code_org_id, issuer_id = await _check_join_code(join_code, organization_id, redis)
-    await redis.delete(join_code)
-    return code_org_id, issuer_id
 
 
 async def _check_join_code(
