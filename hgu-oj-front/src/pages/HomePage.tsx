@@ -11,11 +11,41 @@ import { problemService } from '../services/problemService';
 import { getDifficultyMeta } from '../lib/difficulty';
 import { ProblemList } from '../components/organisms/ProblemList';
 
+const HERO_ROTATION_MS = 5000;
+
+const HERO_BANNERS = [
+  {
+    eyebrow: '실전 감각',
+    title: ['당신의 한계를 넘어서는', '코딩 테스트'],
+    description: '대회, 문제 풀이, 랭킹까지 한 흐름으로 이어지는 실전형 온라인 저지입니다.',
+    gradientClassName: 'from-blue-400 via-cyan-300 to-indigo-500',
+  },
+  {
+    eyebrow: '매일의 성장',
+    title: ['하루 한 문제로 쌓아가는', '문제 해결력'],
+    description: '데일리 챌린지와 최근 문제 탐색으로 꾸준한 학습 리듬을 만들 수 있습니다.',
+    gradientClassName: 'from-emerald-300 via-teal-300 to-sky-400',
+  },
+  {
+    eyebrow: '함께하는 루틴',
+    title: ['단체와 함께 설계하는', '학습 루프'],
+    description: '구성원 초대, 역할 관리, 조직 대회 운영까지 팀 단위 학습에 맞춘 흐름을 제공합니다.',
+    gradientClassName: 'from-amber-200 via-orange-300 to-rose-400',
+  },
+  {
+    eyebrow: '기록과 경쟁',
+    title: ['기록으로 증명하는', '당신의 성장 곡선'],
+    description: '랭킹과 풀이 기록을 통해 지금의 위치를 확인하고 다음 목표를 더 선명하게 잡아보세요.',
+    gradientClassName: 'from-fuchsia-300 via-violet-300 to-blue-400',
+  },
+] as const;
+
 export const HomePage: React.FC = () => {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuthStore();
 
   const [isUserVerified, setIsUserVerified] = React.useState(false);
+  const [activeHeroIndex, setActiveHeroIndex] = React.useState(0);
 
   React.useEffect(() => {
     const checkUserInfo = async () => {
@@ -33,6 +63,14 @@ export const HomePage: React.FC = () => {
     };
     checkUserInfo();
   }, [isAuthenticated, navigate]);
+
+  React.useEffect(() => {
+    const rotationTimer = window.setInterval(() => {
+      setActiveHeroIndex((prevIndex) => (prevIndex + 1) % HERO_BANNERS.length);
+    }, HERO_ROTATION_MS);
+
+    return () => window.clearInterval(rotationTimer);
+  }, []);
 
 
   const {
@@ -91,12 +129,24 @@ export const HomePage: React.FC = () => {
   );
 
   const heroSectionClassName = isAuthenticated
-    ? 'relative w-full overflow-hidden bg-[#0A101F] text-white py-12 sm:py-16'
-    : 'relative w-full overflow-hidden bg-[#0A101F] text-white py-24 sm:py-32';
+    ? 'relative w-full overflow-hidden bg-[#0A101F] text-white py-6 sm:py-8'
+    : 'relative w-full overflow-hidden bg-[#0A101F] text-white pt-20 pb-8 sm:pt-24 sm:pb-10';
 
-  const heroSpacerClassName = isAuthenticated
-    ? 'mt-8 h-6 w-full sm:mt-10 sm:h-8'
-    : 'mt-16 h-32 w-full';
+  const heroContentClassName = isAuthenticated
+    ? 'flex min-h-[18rem] flex-col justify-between sm:min-h-[19.5rem] lg:min-h-[20.5rem]'
+    : 'flex min-h-[22rem] flex-col justify-between sm:min-h-[23.5rem] lg:min-h-[24.5rem]';
+
+  const heroBannerFrameClassName = isAuthenticated
+    ? 'relative mt-3 min-h-[11rem] sm:min-h-[11.5rem] lg:min-h-[12rem]'
+    : 'relative mt-4 min-h-[14rem] sm:min-h-[15rem] lg:min-h-[16rem]';
+
+  const heroTitleClassName = isAuthenticated
+    ? 'mt-4 text-5xl font-extrabold tracking-tight sm:mt-5 sm:text-6xl lg:text-7xl'
+    : 'mt-8 text-5xl font-extrabold tracking-tight sm:text-6xl lg:text-7xl';
+
+  const heroIndicatorClassName = isAuthenticated
+    ? 'mt-4 flex items-center gap-3 self-end sm:mt-5 lg:absolute lg:right-8 lg:bottom-6 xl:right-10 xl:bottom-8'
+    : 'mt-4 flex items-center gap-3 self-end lg:absolute lg:right-8 lg:bottom-4 xl:right-10 xl:bottom-5';
 
 
 
@@ -126,22 +176,59 @@ export const HomePage: React.FC = () => {
         <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-600/20 rounded-full blur-[120px] pointer-events-none"></div>
 
         <div className="relative mx-auto max-w-[1440px] px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl">
-            <h1 className="mt-8 text-5xl font-extrabold tracking-tight sm:text-6xl lg:text-7xl" style={{ fontFamily: '"Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif' }}>
-              H-Code Round
-            </h1>
-            <h2 className="mt-2 text-5xl font-extrabold tracking-tight sm:text-6xl lg:text-7xl" style={{ fontFamily: '"Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif' }}>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-indigo-500">
-                당신의 한계를 넘어서는
-                <br />
-                코딩 테스트
-              </span>
-            </h2>
+          <div className={`max-w-3xl ${heroContentClassName}`}>
+            <div>
+              <h1 className={heroTitleClassName} style={{ fontFamily: '"Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif' }}>
+                H-Code Round
+              </h1>
 
+              <div className={heroBannerFrameClassName}>
+                {HERO_BANNERS.map((banner, index) => {
+                  const isActive = index === activeHeroIndex;
+                  return (
+                    <div
+                      key={banner.eyebrow}
+                      aria-hidden={!isActive}
+                      className={`absolute inset-0 transition-all duration-700 ease-out ${isActive ? 'translate-y-0 opacity-100' : 'translate-y-4 opacity-0'}`}
+                    >
+                      <p className="mb-3 text-xs font-semibold uppercase tracking-[0.32em] text-slate-400">
+                        {banner.eyebrow}
+                      </p>
+                      <h2 className="text-5xl font-extrabold tracking-tight sm:text-6xl lg:text-7xl" style={{ fontFamily: '"Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif' }}>
+                        <span className={`text-transparent bg-clip-text bg-gradient-to-r ${banner.gradientClassName}`}>
+                          {banner.title[0]}
+                          <br />
+                          {banner.title[1]}
+                        </span>
+                      </h2>
+                      <p className="mt-6 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">
+                        {banner.description}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
 
-
-            {/* Empty space for where buttons and stats would be */}
-            <div className={heroSpacerClassName}></div>
+          <div className={heroIndicatorClassName}>
+            <div className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs font-medium text-slate-300">
+              {activeHeroIndex + 1} / {HERO_BANNERS.length}
+            </div>
+            <div className="flex items-center gap-2">
+              {HERO_BANNERS.map((banner, index) => {
+                const isActive = index === activeHeroIndex;
+                return (
+                  <button
+                    key={banner.eyebrow}
+                    type="button"
+                    onClick={() => setActiveHeroIndex(index)}
+                    aria-label={`${banner.eyebrow} 배너 보기`}
+                    className={`h-2.5 rounded-full transition-all duration-300 ${isActive ? 'w-10 bg-white' : 'w-2.5 bg-white/30 hover:bg-white/60'}`}
+                  />
+                );
+              })}
+            </div>
           </div>
         </div>
       </section>
