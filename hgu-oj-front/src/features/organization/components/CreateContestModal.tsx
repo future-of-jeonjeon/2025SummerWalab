@@ -31,6 +31,22 @@ const toDatetimeLocal = (isoString?: string) => {
     return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 };
 
+const addHoursToDatetimeLocal = (value: string, hours: number) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    date.setHours(date.getHours() + hours);
+    return toDatetimeLocal(date.toISOString());
+};
+
+const addMinutesToDatetimeLocal = (value: string, minutes: number) => {
+    if (!value) return '';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return '';
+    date.setMinutes(date.getMinutes() + minutes);
+    return toDatetimeLocal(date.toISOString());
+};
+
 export const CreateContestModal: React.FC<CreateContestModalProps> = ({
     isOpen,
     onClose,
@@ -208,6 +224,28 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
     }, []);
 
     if (!isOpen) return null;
+
+    const handleStartTimeChange = (value: string) => {
+        setFormData((prev) => ({
+            ...prev,
+            start_time: value,
+            end_time: addHoursToDatetimeLocal(value, 1),
+        }));
+    };
+
+    const handleDurationClick = (hours: number) => {
+        setFormData((prev) => ({
+            ...prev,
+            end_time: addHoursToDatetimeLocal(prev.start_time, hours),
+        }));
+    };
+
+    const handleAddDurationClick = (minutes: number) => {
+        setFormData((prev) => ({
+            ...prev,
+            end_time: addMinutesToDatetimeLocal(prev.end_time || prev.start_time, minutes),
+        }));
+    };
 
     const handleLanguageChange = (lang: string) => {
         setFormData((prev) => {
@@ -483,7 +521,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                                         required
                                                         className="block w-full rounded-lg border-gray-300 dark:border-slate-600 bg-gray-50 dark:bg-slate-800 px-3 py-2.5 text-sm text-gray-900 dark:text-slate-100 shadow-sm transition-colors focus:border-blue-500 focus:bg-white dark:focus:bg-slate-900 focus:ring-blue-500"
                                                         value={formData.start_time}
-                                                        onChange={(e) => setFormData({ ...formData, start_time: e.target.value })}
+                                                        onChange={(e) => handleStartTimeChange(e.target.value)}
                                                     />
                                                 </div>
                                                 <div>
@@ -496,6 +534,38 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                                         onChange={(e) => setFormData({ ...formData, end_time: e.target.value })}
                                                     />
                                                 </div>
+                                            </div>
+
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm font-medium text-gray-500 dark:text-slate-400">진행 시간</span>
+                                                {[1, 2].map((hours) => (
+                                                    <button
+                                                        key={hours}
+                                                        type="button"
+                                                        onClick={() => handleDurationClick(hours)}
+                                                        disabled={!formData.start_time}
+                                                        className="rounded-md border border-gray-300 dark:border-slate-600 px-3 py-1.5 text-sm font-semibold text-gray-700 dark:text-slate-200 transition-colors hover:bg-gray-100 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                                    >
+                                                        {hours}시간
+                                                    </button>
+                                                ))}
+                                                <span className="mx-1 h-4 w-px bg-gray-300 dark:bg-slate-600" />
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleAddDurationClick(30)}
+                                                    disabled={!formData.start_time}
+                                                    className="rounded-md border border-gray-300 dark:border-slate-600 px-3 py-1.5 text-sm font-semibold text-gray-700 dark:text-slate-200 transition-colors hover:bg-gray-100 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                                >
+                                                    30분 추가
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => handleAddDurationClick(60)}
+                                                    disabled={!formData.start_time}
+                                                    className="rounded-md border border-gray-300 dark:border-slate-600 px-3 py-1.5 text-sm font-semibold text-gray-700 dark:text-slate-200 transition-colors hover:bg-gray-100 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                                                >
+                                                    1시간 추가
+                                                </button>
                                             </div>
 
                                             <div>

@@ -46,6 +46,7 @@ interface ContestOverviewTabProps {
     onPasswordSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
   };
   announcementsNode?: React.ReactNode;
+  managementNode?: React.ReactNode;
 }
 
 export const ContestOverviewTab: React.FC<ContestOverviewTabProps> = ({
@@ -54,6 +55,7 @@ export const ContestOverviewTab: React.FC<ContestOverviewTabProps> = ({
   joinState,
   accessState,
   announcementsNode,
+  managementNode,
   stats: _stats,
 }) => {
   const {
@@ -97,6 +99,11 @@ export const ContestOverviewTab: React.FC<ContestOverviewTabProps> = ({
 
   return (
     <div className="flex flex-col gap-6">
+      {managementNode && (
+        <div className="flex justify-end">
+          {managementNode}
+        </div>
+      )}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className={_stats ? 'lg:col-span-2' : 'lg:col-span-3'}>
           <Card className="border border-slate-200 bg-white shadow-sm overflow-hidden p-6 sm:p-10 flex flex-col md:flex-row items-center justify-between min-h-[180px] relative rounded-lg h-full dark:border-slate-700 dark:bg-slate-900">

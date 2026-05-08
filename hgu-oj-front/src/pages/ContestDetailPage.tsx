@@ -16,6 +16,7 @@ import { ContestProblemsTab } from '../features/contestDetail/components/Contest
 import { ContestRankTab } from '../features/contestDetail/components/ContestRankTab';
 import { ContestUserManagementTab } from '../features/contestDetail/components/ContestUserManagementTab';
 import { ContestSubmissionDetailsTab } from '../features/contestDetail/components/ContestSubmissionDetailsTab';
+import { CreateContestModal } from '../features/organization/components/CreateContestModal';
 
 import type { ContestTab } from '../features/contestDetail/types';
 import type { Problem } from '../types';
@@ -44,7 +45,7 @@ export const ContestDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { data: contest, isLoading, error } = useContest(contestId);
+  const { data: contest, isLoading, error, refetch: refetchContest } = useContest(contestId);
   const requiresPassword = useMemo(() => contest?.contestType?.toLowerCase().includes('password') ?? false, [contest?.contestType]);
 
   const { user: authUser } = useAuthStore();
@@ -140,6 +141,8 @@ export const ContestDetailPage: React.FC = () => {
   });
 
   const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
+  const [isContestEditModalOpen, setIsContestEditModalOpen] = useState(false);
+  const [contestEditInitialTab, setContestEditInitialTab] = useState<'basic' | 'problems'>('basic');
 
   const canFetchAnnouncements = canManageAnnouncements || (!contestLockedForUser && (hasAccess || hasContestAdminOverride));
   const { refetchAnnouncements, ...announcementManager } = useContestAnnouncementsManager({
@@ -438,6 +441,19 @@ export const ContestDetailPage: React.FC = () => {
                 joinState={overviewJoinState}
                 accessState={overviewAccessState}
                 announcementsNode={announcementsNode}
+                managementNode={hasContestAdminOverride ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setContestEditInitialTab('basic');
+                      setIsContestEditModalOpen(true);
+                    }}
+                  >
+                    대회 편집
+                  </Button>
+                ) : null}
               />
             )}
 
@@ -459,6 +475,14 @@ export const ContestDetailPage: React.FC = () => {
                 statusFilter={problemsController.statusFilter}
                 handlers={problemsController.handlers}
                 onProblemClick={onProblemClick}
+                onManageProblemsClick={
+                  hasContestAdminOverride
+                    ? () => {
+                      setContestEditInitialTab('problems');
+                      setIsContestEditModalOpen(true);
+                    }
+                    : undefined
+                }
               />
             )}
 
@@ -515,6 +539,23 @@ export const ContestDetailPage: React.FC = () => {
         </div>
       </div>
 
+      {hasContestAdminOverride && (
+        <CreateContestModal
+          isOpen={isContestEditModalOpen}
+          onClose={() => setIsContestEditModalOpen(false)}
+          onSuccess={() => {
+            setIsContestEditModalOpen(false);
+            refetchContest();
+            refetchProblems();
+            refetchPublicRank();
+            refetchAdminRank();
+          }}
+          initialData={contest}
+          contestId={contestId}
+          context="admin"
+          initialTab={contestEditInitialTab}
+        />
+      )}
     </div>
   );
 };

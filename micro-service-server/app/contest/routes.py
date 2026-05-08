@@ -33,13 +33,22 @@ async def create_contest(
 
 
 @router.get("/organization/{organization_id}")
-async def get_organization_contest_list(
+async def get_organization_contest_list_api(
         organization_id: int,
         page: int = Query(1, ge=1),
         size: int = Query(10, ge=1),
         user_profile: UserProfile = Depends(get_userdata),
         db: AsyncSession = Depends(get_database)):
     return await serv.get_organization_contest_list(page, size, organization_id, user_profile, db)
+
+@router.get("/organization/{organization_id}/public")
+async def get_organization_public_contest_list_api(
+        organization_id: int,
+        page: int = Query(1, ge=1),
+        size: int = Query(10, ge=1),
+        user_profile: UserProfile = Depends(get_userdata),
+        db: AsyncSession = Depends(get_database)):
+    return await serv.get_organization_public_contest_list(page, size, organization_id, user_profile, db)
 
 
 @router.put("", response_model=ContestDataDTO)

@@ -57,6 +57,22 @@ const toIsoString = (value: string): string | null => {
   return date.toISOString();
 };
 
+const addHoursToDatetimeLocal = (value: string, hours: number) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  date.setHours(date.getHours() + hours);
+  return toLocalDateTimeInput(date.toISOString());
+};
+
+const addMinutesToDatetimeLocal = (value: string, minutes: number) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  date.setMinutes(date.getMinutes() + minutes);
+  return toLocalDateTimeInput(date.toISOString());
+};
+
 export const ContestEditSection: React.FC = () => {
   const [contestList, setContestList] = useState<AdminContest[]>([]);
   const [contestListLoading, setContestListLoading] = useState(false);
@@ -254,6 +270,46 @@ export const ContestEditSection: React.FC = () => {
       }
       setContestEditMessage({});
       return { ...prev, [field]: value };
+    });
+  };
+
+  const handleContestStartTimeChange = (value: string) => {
+    setContestEditForm((prev) => {
+      if (!prev) {
+        return prev;
+      }
+      setContestEditMessage({});
+      return {
+        ...prev,
+        startTime: value,
+        endTime: addHoursToDatetimeLocal(value, 1),
+      };
+    });
+  };
+
+  const handleContestDurationClick = (hours: number) => {
+    setContestEditForm((prev) => {
+      if (!prev) {
+        return prev;
+      }
+      setContestEditMessage({});
+      return {
+        ...prev,
+        endTime: addHoursToDatetimeLocal(prev.startTime, hours),
+      };
+    });
+  };
+
+  const handleContestAddDurationClick = (minutes: number) => {
+    setContestEditForm((prev) => {
+      if (!prev) {
+        return prev;
+      }
+      setContestEditMessage({});
+      return {
+        ...prev,
+        endTime: addMinutesToDatetimeLocal(prev.endTime || prev.startTime, minutes),
+      };
     });
   };
 
@@ -694,7 +750,7 @@ export const ContestEditSection: React.FC = () => {
                     type="datetime-local"
                     className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
                     value={contestEditForm.startTime}
-                    onChange={(e) => handleContestEditChange('startTime', e.target.value)}
+                    onChange={(e) => handleContestStartTimeChange(e.target.value)}
                   />
                 </div>
                 <div>
@@ -706,6 +762,38 @@ export const ContestEditSection: React.FC = () => {
                     onChange={(e) => handleContestEditChange('endTime', e.target.value)}
                   />
                 </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-gray-500 dark:text-slate-400">진행 시간</span>
+                {[1, 2].map((hours) => (
+                  <button
+                    key={hours}
+                    type="button"
+                    onClick={() => handleContestDurationClick(hours)}
+                    disabled={!contestEditForm.startTime}
+                    className="rounded-md border border-gray-300 dark:border-slate-600 px-3 py-1.5 text-sm font-semibold text-gray-700 dark:text-slate-200 transition-colors hover:bg-gray-100 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {hours}시간
+                  </button>
+                ))}
+                <span className="mx-1 h-4 w-px bg-gray-300 dark:bg-slate-600" />
+                <button
+                  type="button"
+                  onClick={() => handleContestAddDurationClick(30)}
+                  disabled={!contestEditForm.startTime}
+                  className="rounded-md border border-gray-300 dark:border-slate-600 px-3 py-1.5 text-sm font-semibold text-gray-700 dark:text-slate-200 transition-colors hover:bg-gray-100 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  30분 추가
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleContestAddDurationClick(60)}
+                  disabled={!contestEditForm.startTime}
+                  className="rounded-md border border-gray-300 dark:border-slate-600 px-3 py-1.5 text-sm font-semibold text-gray-700 dark:text-slate-200 transition-colors hover:bg-gray-100 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  1시간 추가
+                </button>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-3">
