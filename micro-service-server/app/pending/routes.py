@@ -22,7 +22,6 @@ async def process_pending_api(
 
 
 @require_role("Admin")
-@router.post("")
 @router.get("")
 async def get_pendings_api(
         target_type: PendingTargetType = Query(...),

@@ -13,13 +13,18 @@ class ProblemCode(BaseEntity, Base):
         UniqueConstraint('problem_id', 'user_id', 'language', name='uq_micro_problem_code_pul'),
         {"schema": "public"},
     )
-
-    # id = Column(Integer, primary_key=True, index=True)
-
     problem_id: Mapped[int] = mapped_column(ForeignKey("public.problem.id", ondelete="CASCADE"), nullable=False, index=True)
     user_id: Mapped[int] = mapped_column(ForeignKey("public.user.id", ondelete="CASCADE"), nullable=False, index=True)
     language: Mapped[str] = mapped_column(String(128), nullable=False)
     code: Mapped[Optional[str]] = mapped_column(Text)
 
-    # created_at = Column("created_time", DateTime(timezone=True), server_default=func.now())
-    # updated_at = Column("updated_time", DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+class CustomCode(BaseEntity, Base):
+    __tablename__ = "micro_custom_code"
+    __table_args__ = (
+        UniqueConstraint('user_id', 'file_name', name='uq_micro_custom_code_user_file_name'),
+        {"schema": "public"},
+    )
+    file_name: Mapped[Optional[str]] = mapped_column(Text,nullable=False)
+    user_id: Mapped[int] = mapped_column(ForeignKey("public.user.id", ondelete="CASCADE"), nullable=False, index=True)
+    code: Mapped[Optional[str]] = mapped_column(Text)

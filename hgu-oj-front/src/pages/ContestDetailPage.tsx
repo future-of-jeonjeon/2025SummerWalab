@@ -16,6 +16,7 @@ import { ContestProblemsTab } from '../features/contestDetail/components/Contest
 import { ContestRankTab } from '../features/contestDetail/components/ContestRankTab';
 import { ContestUserManagementTab } from '../features/contestDetail/components/ContestUserManagementTab';
 import { ContestSubmissionDetailsTab } from '../features/contestDetail/components/ContestSubmissionDetailsTab';
+import { CreateContestModal } from '../features/organization/components/CreateContestModal';
 
 import type { ContestTab } from '../features/contestDetail/types';
 import type { Problem } from '../types';
@@ -44,7 +45,7 @@ export const ContestDetailPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const { data: contest, isLoading, error } = useContest(contestId);
+  const { data: contest, isLoading, error, refetch: refetchContest } = useContest(contestId);
   const requiresPassword = useMemo(() => contest?.contestType?.toLowerCase().includes('password') ?? false, [contest?.contestType]);
 
   const { user: authUser } = useAuthStore();
@@ -140,6 +141,8 @@ export const ContestDetailPage: React.FC = () => {
   });
 
   const [isAnnouncementModalOpen, setIsAnnouncementModalOpen] = useState(false);
+  const [isContestEditModalOpen, setIsContestEditModalOpen] = useState(false);
+  const [contestEditInitialTab, setContestEditInitialTab] = useState<'basic' | 'problems'>('basic');
 
   const canFetchAnnouncements = canManageAnnouncements || (!contestLockedForUser && (hasAccess || hasContestAdminOverride));
   const { refetchAnnouncements, ...announcementManager } = useContestAnnouncementsManager({
@@ -367,9 +370,9 @@ export const ContestDetailPage: React.FC = () => {
           <span className="font-bold text-gray-900 dark:text-slate-100">대회 메뉴</span>
         </div>
 
-        <div className="flex flex-col lg:flex-row gap-8 lg:mt-6">
-          <div className="w-full lg:w-64 flex-shrink-0">
-            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden sticky top-24">
+        <div className="flex flex-col lg:flex-row gap-6 lg:mt-6">
+          <div className="w-full lg:w-64 flex-shrink-0 space-y-6">
+            <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
               <div className="p-6 border-b border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-800/60">
                 <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100 leading-tight">{contest?.title || '대회'}</h2>
                 {contest?.organization_name && (
@@ -438,6 +441,19 @@ export const ContestDetailPage: React.FC = () => {
                 joinState={overviewJoinState}
                 accessState={overviewAccessState}
                 announcementsNode={announcementsNode}
+                managementNode={hasContestAdminOverride ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setContestEditInitialTab('basic');
+                      setIsContestEditModalOpen(true);
+                    }}
+                  >
+                    대회 편집
+                  </Button>
+                ) : null}
               />
             )}
 
@@ -459,6 +475,14 @@ export const ContestDetailPage: React.FC = () => {
                 statusFilter={problemsController.statusFilter}
                 handlers={problemsController.handlers}
                 onProblemClick={onProblemClick}
+                onManageProblemsClick={
+                  hasContestAdminOverride
+                    ? () => {
+                      setContestEditInitialTab('problems');
+                      setIsContestEditModalOpen(true);
+                    }
+                    : undefined
+                }
               />
             )}
 
@@ -485,7 +509,20 @@ export const ContestDetailPage: React.FC = () => {
                 loading={userManagement.isLoading}
                 errorMessage={userManagement.errorMessage}
                 feedback={userManagement.feedback}
+                modalFeedback={userManagement.modalFeedback}
                 onDecision={userManagement.handleDecision}
+                isAddModalOpen={userManagement.isAddModalOpen}
+                onOpenAddModal={userManagement.handleOpenAddModal}
+                onCloseAddModal={userManagement.handleCloseAddModal}
+                addQuery={userManagement.addQuery}
+                onAddQueryChange={userManagement.setAddQuery}
+                participantSearchQuery={userManagement.participantSearchQuery}
+                onParticipantSearchQueryChange={userManagement.setParticipantSearchQuery}
+                addCandidates={userManagement.addCandidates}
+                onSearchCandidates={userManagement.handleSearchCandidates}
+                onAddParticipant={userManagement.handleAddParticipant}
+                addSearchPending={userManagement.addSearchPending}
+                addParticipantPending={userManagement.addParticipantPending}
                 decisionState={userManagement.decisionState}
               />
             )}
@@ -502,6 +539,23 @@ export const ContestDetailPage: React.FC = () => {
         </div>
       </div>
 
+      {hasContestAdminOverride && (
+        <CreateContestModal
+          isOpen={isContestEditModalOpen}
+          onClose={() => setIsContestEditModalOpen(false)}
+          onSuccess={() => {
+            setIsContestEditModalOpen(false);
+            refetchContest();
+            refetchProblems();
+            refetchPublicRank();
+            refetchAdminRank();
+          }}
+          initialData={contest}
+          contestId={contestId}
+          context="admin"
+          initialTab={contestEditInitialTab}
+        />
+      )}
     </div>
   );
 };

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { Button } from '../components/atoms/Button';
 import { Card } from '../components/atoms/Card';
@@ -8,9 +8,6 @@ const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { login, isLoading, error, clearError, isAuthenticated } = useAuthStore();
-
-  // Registration disabled flag
-  const registrationDisabled = true;
 
   const [formData, setFormData] = useState({
     username: '',
@@ -76,9 +73,6 @@ const LoginPage: React.FC = () => {
           <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900 dark:text-slate-100">
             로그인
           </h2>
-          <p className="mt-2 text-center text-sm text-gray-600 dark:text-slate-400">
-            HGU Online Judge에 로그인하세요
-          </p>
         </div>
 
         <Card className="mt-8 dark:border dark:border-slate-800 dark:bg-slate-900">
@@ -151,20 +145,6 @@ const LoginPage: React.FC = () => {
                 {isLoading ? '로그인 중...' : '로그인'}
               </Button>
             </div>
-
-            {!registrationDisabled && (
-              <div className="text-center">
-                <p className="text-sm text-gray-600 dark:text-slate-400">
-                  계정이 없으신가요?{' '}
-                  <Link
-                    to="/register"
-                    className="font-medium text-blue-600 hover:text-blue-500"
-                  >
-                    회원가입하기
-                  </Link>
-                </p>
-              </div>
-            )}
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">

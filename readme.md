@@ -1,65 +1,40 @@
-# 2025 Summer Walab OJ project
+# 2025 Summer Walab OJ 프로젝트
+한동대학교(HGU) 온라인 저지 시스템입니다.
 
-[FrontEnd](/OnlineJudgeFE/)
+## 🏗 시스템 아키텍처
 
-[BackEnd](/OnlineJudge/)
-  
-### version information
+- **[OnlineJudge](/OnlineJudge/) (오픈소스 백엔드)**: 기존 Django 기반의 백엔드 서버 (Python 3.12). 코어 OJ 로직, 계정, 대회 및 문제 관리를 담당합니다.
+- **[micro-service-server](/micro-service-server/) (마이크로서비스)**: SSO 검증, 코드 자동 저장, 재인덱싱 등 특화된 작업을 수행하기 위한 FastAPI 기반의 마이크로서비스입니다.
+- **[hgu-oj-front](/hgu-oj-front/) (신규 프론트엔드)**: **React**, **TypeScript**, **Vite**, **Tailwind CSS**로 구축된 프론트엔드로, micro-service-server 와 오픈소스 백엔드를 동시에 사용합니다.
 
-Django - python3.12
+## 🛠 기술 스택
 
-Vue.js - node 16
+- **백엔드**: Django, FastAPI, PostgreSQL, Redis
+- **프론트엔드**: React (Vite, Tailwind CSS), Vue.js (Legacy)
+- **인프라**: Docker, Docker Compose
 
-### how to build and run
+## 🚀 빌드 및 실행 방법
 
-``` bash
-docker compose up -d --build
-```
+### 로컬 개발 환경
 
-or 
+1.  `.env` 파일을 구성합니다 (`.env.sample` 참고).
+2.  Docker Compose를 사용하여 시스템을 실행합니다:
+    ```bash
+    docker compose up -d --build
+    ```
 
-
-```bash
-sudo ./deploy.sh deploy.tgz
-```
+## 🤝 프로젝트 규칙
 
 ### Git 규칙
 
-#### 커밋 메시지
-
+#### 커밋 메시지 형식
 - **형식:** `type: description (#issue)`
-- **타입:** feat, fix, docs, style, refactor, test, chore, build
-- **설명**
-  - feat → 새로운 기능 추가
-  - fix → 버그 수정
-  - docs → 문서 작업
-  - style → 코드 스타일 변경
-  - refactor → 리팩터링
-  - test → 테스트 코드
-  - chore → 빌드/설정/패키지 관리 등
-  - build → 빌드 시스템 및 의존성 관련
+- **타입:** `feat`, `fix`, `docs`, `style`, `refactor`, `test`, `chore`, `build`
 - **예시:**  
-  feat: 로그인 API 추가 (#12)  
-  fix: 메인페이지 CSS 수정 (#15)
+  `feat: 로그인 API 추가 (#12)`  
+  `fix: 메인페이지 CSS 수정 (#15)`
 
----
-
-#### 브랜치
-
+#### 브랜치 전략
 - **main:** 배포용
-- **dev:** 통합 개발용
-- **working:** 기능/수정 단위 작업용
-- **네이밍 규칙:** `type/issue`
-- **타입:** feat, hotfix, docs, style, refactor, test, chore, build
-- **설명**
-  - feat → 기능 개발
-  - hotfix → 긴급 수정
-  - docs → 문서 작업
-  - style → 코드 스타일 변경
-  - refactor → 리팩터링
-  - test → 테스트 코드
-  - chore → 빌드/설정/패키지 관리 등
-  - build → 빌드 시스템 및 의존성 관련
-- **예시:**  
-  feat/#1  
-  hotfix/#3
+- **dev:** 개발 통합 브랜치
+- **작업 브랜치:** `type/issue` 형식 (예: `feat/#1`, `hotfix/#3`)

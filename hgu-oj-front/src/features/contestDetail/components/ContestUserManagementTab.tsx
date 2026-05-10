@@ -1,8 +1,9 @@
 import React from 'react';
 import { Card } from '../../../components/atoms/Card';
 import { Button } from '../../../components/atoms/Button';
+import { Input } from '../../../components/atoms/Input';
 import { formatDateTime } from '../../../utils/date';
-import type { ContestUserRegistrationList } from '../../../types';
+import type { ContestManageUserSearchItem, ContestUserRegistrationList } from '../../../types';
 import type { FeedbackMessage } from '../types';
 
 interface ContestUserManagementTabProps {
@@ -11,7 +12,20 @@ interface ContestUserManagementTabProps {
   loading: boolean;
   errorMessage: string | null;
   feedback: FeedbackMessage | null;
+  modalFeedback: FeedbackMessage | null;
   onDecision: (userId: number, action: 'approve' | 'reject') => void;
+  isAddModalOpen: boolean;
+  onOpenAddModal: () => void;
+  onCloseAddModal: () => void;
+  addQuery: string;
+  onAddQueryChange: (value: string) => void;
+  participantSearchQuery: string;
+  onParticipantSearchQueryChange: (value: string) => void;
+  addCandidates: ContestManageUserSearchItem[];
+  onSearchCandidates: () => void;
+  onAddParticipant: (userId: number) => void;
+  addSearchPending: boolean;
+  addParticipantPending: boolean;
   decisionState: {
     isPending: boolean;
     targetUserId?: number;
@@ -25,7 +39,20 @@ export const ContestUserManagementTab: React.FC<ContestUserManagementTabProps> =
   loading,
   errorMessage,
   feedback,
+  modalFeedback,
   onDecision,
+  isAddModalOpen,
+  onOpenAddModal,
+  onCloseAddModal,
+  addQuery,
+  onAddQueryChange,
+  participantSearchQuery,
+  onParticipantSearchQueryChange,
+  addCandidates,
+  onSearchCandidates,
+  onAddParticipant,
+  addSearchPending,
+  addParticipantPending,
   decisionState,
 }) => {
   if (!isAdminUser) {
@@ -68,19 +95,38 @@ export const ContestUserManagementTab: React.FC<ContestUserManagementTabProps> =
 
   const approvedUsers = registrations.approved ?? [];
   const pendingUsers = registrations.pending ?? [];
+  const normalizedParticipantQuery = participantSearchQuery.trim().toLowerCase();
+  const filteredApprovedUsers = approvedUsers.filter((entry) => {
+    if (!normalizedParticipantQuery) return true;
+    const username = (entry.username ?? '').toLowerCase();
+    const userId = String(entry.userId);
+    return username.includes(normalizedParticipantQuery) || userId.includes(normalizedParticipantQuery);
+  });
 
   return (
-    <div className="grid gap-6 lg:grid-cols-2">
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Button size="sm" onClick={onOpenAddModal}>유저 추가</Button>
+      </div>
+      <div className="grid gap-6 lg:grid-cols-2">
       <Card className="rounded-3xl border-0 bg-white/90 shadow-lg dark:bg-slate-900/80" padding="lg" shadow="lg">
         <div className="flex items-center justify-between">
           <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">참가자 목록</h3>
-          <span className="text-xs text-slate-500 dark:text-slate-400">{approvedUsers.length}명</span>
+          <span className="text-xs text-slate-500 dark:text-slate-400">{filteredApprovedUsers.length}명</span>
         </div>
-        {approvedUsers.length === 0 ? (
+        <div className="mt-3">
+          <Input
+            type="search"
+            placeholder="참가자 검색 (아이디/유저명)"
+            value={participantSearchQuery}
+            onChange={(event) => onParticipantSearchQueryChange(event.target.value)}
+          />
+        </div>
+        {filteredApprovedUsers.length === 0 ? (
           <div className="mt-6 text-sm text-slate-500 dark:text-slate-400">아직 승인된 참가자가 없습니다.</div>
         ) : (
           <div className="mt-4 space-y-2">
-            {approvedUsers.map((entry) => (
+            {filteredApprovedUsers.map((entry) => (
               <div key={entry.userId} className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/50">
                 <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{entry.username ?? `User ${entry.userId}`}</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400">신청일: {formatDateTime(entry.appliedAt)}</p>
@@ -138,6 +184,66 @@ export const ContestUserManagementTab: React.FC<ContestUserManagementTabProps> =
           </div>
         )}
       </Card>
+      </div>
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 p-4">
+          <div className="w-full max-w-2xl rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-900">
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-slate-100">유저 추가</h3>
+              <Button size="sm" variant="ghost" onClick={onCloseAddModal}>닫기</Button>
+            </div>
+            <div className="mt-4 flex gap-2">
+              <div className="min-w-0 flex-1">
+                <Input
+                  type="text"
+                  placeholder="학번 또는 이름 입력"
+                  value={addQuery}
+                  onChange={(event) => onAddQueryChange(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === 'Enter') {
+                      onSearchCandidates();
+                    }
+                  }}
+                />
+              </div>
+              <Button className="min-w-[72px] whitespace-nowrap" onClick={onSearchCandidates} loading={addSearchPending}>검색</Button>
+            </div>
+            <div className="mt-4 max-h-80 space-y-2 overflow-y-auto">
+              {modalFeedback && (
+                <div className={`text-sm ${modalFeedback.type === 'error' ? 'text-red-600 dark:text-red-300' : 'text-emerald-700 dark:text-emerald-200'}`}>
+                  {modalFeedback.message}
+                </div>
+              )}
+              {addCandidates.length === 0 ? (
+                <div className="text-sm text-slate-500 dark:text-slate-400">검색 결과가 없습니다.</div>
+              ) : (
+                addCandidates.map((candidate) => (
+                  <div
+                    key={candidate.userId}
+                    className="flex items-center justify-between rounded-xl border border-slate-200 px-4 py-3 dark:border-slate-700"
+                  >
+                    <div>
+                      <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                        {candidate.name ?? candidate.username}
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        유저명: {candidate.username} | 학번: {candidate.studentId ?? '-'}
+                      </p>
+                    </div>
+                    <Button
+                      size="sm"
+                      onClick={() => onAddParticipant(candidate.userId)}
+                      loading={addParticipantPending}
+                    >
+                      추가
+                    </Button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

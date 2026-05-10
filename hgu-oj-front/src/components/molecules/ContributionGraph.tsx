@@ -9,12 +9,14 @@ interface ContributionGraphProps {
     data: ContributionData[];
     endDate?: Date;
     totalDays?: number;
+    tooltipFormatter?: (date: string, count: number) => string;
 }
 
 export const ContributionGraph: React.FC<ContributionGraphProps> = ({
     data,
     endDate = new Date(),
     totalDays = 365,
+    tooltipFormatter,
 }) => {
     const containerRef = React.useRef<HTMLDivElement>(null);
     const [visibleWeeks, setVisibleWeeks] = React.useState<number>(52);
@@ -106,6 +108,9 @@ export const ContributionGraph: React.FC<ContributionGraphProps> = ({
     };
 
     const getTooltip = (date: string, count: number) => {
+        if (tooltipFormatter) {
+            return tooltipFormatter(date, count);
+        }
         return `${count} contributions on ${date}`;
     };
 

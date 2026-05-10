@@ -211,10 +211,10 @@ export const RankingPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
-      <main className="mx-auto w-full max-w-7xl px-4 py-8 sm:px-6 lg:px-8 2xl:max-w-screen-2xl 2xl:px-10 flex flex-col md:flex-row gap-8">
+      <main className="mx-auto w-full max-w-[1440px] px-4 py-8 sm:px-6 lg:px-8 flex flex-col lg:flex-row gap-6">
         {/* Sidebar */}
-        <div className="w-full md:w-64 flex-shrink-0">
-          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden sticky top-24">
+        <div className="w-full lg:w-64 shrink-0 space-y-6">
+          <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
             <div className="p-6 border-b border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-800">
               <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">랭킹</h2>
             </div>

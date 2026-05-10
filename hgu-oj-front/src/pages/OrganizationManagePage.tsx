@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { organizationService } from '../services/organizationService';
-import { Organization, OrganizationPayload } from '../types';
+import { Organization, OrganizationPayload, OrganizationRole } from '../types';
 import { useAuthStore } from '../stores/authStore';
 import { Button } from '../components/atoms/Button';
 
@@ -25,9 +25,14 @@ export const OrganizationManagePage: React.FC = () => {
     const [organization, setOrganization] = useState<Organization | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [roleDrafts, setRoleDrafts] = useState<Record<number, OrganizationRole>>({});
+    const [savingMemberId, setSavingMemberId] = useState<number | null>(null);
 
     const [hasPermission, setHasPermission] = useState(false);
     const [initializing, setInitializing] = useState(true);
+
+    const currentOrgRole = organization?.members?.find((member) => member.username === user?.username)?.role;
+    const canManageMemberRoles = isAdmin || currentOrgRole === 'ORG_ADMIN' || currentOrgRole === 'ORG_SUPER_ADMIN';
 
     useEffect(() => {
         const checkPermissionAndFetch = async () => {
@@ -81,6 +86,14 @@ export const OrganizationManagePage: React.FC = () => {
         checkPermissionAndFetch();
     }, [id, isAdmin, navigate, isEditMode, user]);
 
+    useEffect(() => {
+        const nextDrafts: Record<number, OrganizationRole> = {};
+        organization?.members?.forEach((member) => {
+            nextDrafts[member.id] = member.role || 'MEMBER';
+        });
+        setRoleDrafts(nextDrafts);
+    }, [organization]);
+
     if (initializing) {
         return (
             <div className="flex justify-center items-center h-screen bg-gray-50 dark:bg-slate-950">
@@ -130,6 +143,31 @@ export const OrganizationManagePage: React.FC = () => {
         }
     };
 
+    const handleRoleDraftChange = (memberId: number, role: OrganizationRole) => {
+        setRoleDrafts((prev) => ({
+            ...prev,
+            [memberId]: role,
+        }));
+    };
+
+    const handleUpdateMemberRole = async (memberId: number) => {
+        if (!id) return;
+        const nextRole = roleDrafts[memberId];
+        if (!nextRole) return;
+
+        try {
+            setSavingMemberId(memberId);
+            await organizationService.updateMemberRole(parseInt(id, 10), memberId, nextRole);
+            const data = await organizationService.get(parseInt(id, 10));
+            setOrganization(data);
+        } catch (err) {
+            alert('권한 수정에 실패했습니다.');
+            console.error(err);
+        } finally {
+            setSavingMemberId(null);
+        }
+    };
+
     const handleDeleteOrganization = async () => {
         if (!id || !window.confirm('정말 이 단체를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.')) return;
         try {
@@ -151,7 +189,7 @@ export const OrganizationManagePage: React.FC = () => {
             const inviteUrl = `${window.location.origin}/organizations/${organization.id}/join?code=${inviteCode}`;
 
             await navigator.clipboard.writeText(inviteUrl);
-            alert('초대 링크가 클립보드에 복사되었습니다. (24시간 유효)');
+            alert('초대 링크가 클립보드에 복사되었습니다. 24시간 동안 여러 명이 사용할 수 있습니다.');
         } catch (err) {
             console.error(err);
             alert('초대 링크 생성에 실패했습니다.');
@@ -160,7 +198,7 @@ export const OrganizationManagePage: React.FC = () => {
 
     return (
         <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
-            <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8 2xl:max-w-screen-2xl 2xl:px-10 py-8 flex flex-col md:flex-row gap-8">
+            <div className="mx-auto w-full max-w-[1440px] px-4 sm:px-6 lg:px-8 py-8 flex flex-col md:flex-row gap-6">
 
                 {/* Mobile Nav Placeholder (Simplified) - visible only on small screens */}
                 <div className="md:hidden mb-4 bg-white dark:bg-slate-900 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 flex justify-between items-center">
@@ -169,8 +207,8 @@ export const OrganizationManagePage: React.FC = () => {
                 </div>
 
                 {/* Sidebar - Boxed Card Style */}
-                <div className="w-full md:w-64 flex-shrink-0">
-                    <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden sticky top-24">
+                <div className="w-full md:w-64 flex-shrink-0 space-y-6">
+                    <div className="bg-white dark:bg-slate-900 rounded-xl shadow-sm border border-gray-100 dark:border-slate-800 overflow-hidden">
                         <div className="p-6 border-b border-gray-100 dark:border-slate-800 bg-gray-50 dark:bg-slate-800">
                             <h2 className="text-lg font-bold text-gray-900 dark:text-slate-100">단체 관리</h2>
                         </div>
@@ -367,19 +405,52 @@ export const OrganizationManagePage: React.FC = () => {
                                 </div>
                                 <ul className="divide-y divide-gray-100 dark:divide-slate-800">
                                     {organization.members?.map((member) => (
-                                        <li key={member.id} className="px-6 py-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
+                                        <li key={member.id} className="px-6 py-4 flex items-center justify-between gap-4 hover:bg-gray-50 dark:hover:bg-slate-800 transition-colors">
                                             <div className="flex items-center">
                                                 <div>
                                                     <p className="text-sm font-medium text-gray-900 dark:text-slate-100">{member.realName || member.username}</p>
                                                 </div>
                                             </div>
                                             <div className="flex items-center space-x-4">
-                                                <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${member.role === 'ORG_ADMIN' || member.role === 'ORG_SUPER_ADMIN'
-                                                    ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
-                                                    : 'bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-slate-300'
-                                                    }`}>
-                                                    {member.role || 'MEMBER'}
-                                                </span>
+                                                {canManageMemberRoles ? (
+                                                    <div className="flex items-center gap-2">
+                                                        <select
+                                                            value={roleDrafts[member.id] || member.role || 'MEMBER'}
+                                                            onChange={(e) => handleRoleDraftChange(member.id, e.target.value as OrganizationRole)}
+                                                            disabled={
+                                                                savingMemberId === member.id ||
+                                                                (currentOrgRole === 'ORG_ADMIN' && !isAdmin && member.role === 'ORG_SUPER_ADMIN')
+                                                            }
+                                                            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm outline-none transition focus:border-blue-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+                                                        >
+                                                            <option value="MEMBER">MEMBER</option>
+                                                            <option value="ORG_ADMIN">ORG_ADMIN</option>
+                                                            {(isAdmin || currentOrgRole === 'ORG_SUPER_ADMIN') && (
+                                                                <option value="ORG_SUPER_ADMIN">ORG_SUPER_ADMIN</option>
+                                                            )}
+                                                        </select>
+                                                        <Button
+                                                            type="button"
+                                                            variant="secondary"
+                                                            className="px-3 py-2 text-sm"
+                                                            disabled={
+                                                                savingMemberId === member.id ||
+                                                                (roleDrafts[member.id] || member.role || 'MEMBER') === (member.role || 'MEMBER') ||
+                                                                (currentOrgRole === 'ORG_ADMIN' && !isAdmin && member.role === 'ORG_SUPER_ADMIN')
+                                                            }
+                                                            onClick={() => handleUpdateMemberRole(member.id)}
+                                                        >
+                                                            {savingMemberId === member.id ? '저장 중...' : '저장'}
+                                                        </Button>
+                                                    </div>
+                                                ) : (
+                                                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${member.role === 'ORG_ADMIN' || member.role === 'ORG_SUPER_ADMIN'
+                                                        ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
+                                                        : 'bg-gray-100 dark:bg-slate-800 text-gray-800 dark:text-slate-300'
+                                                        }`}>
+                                                        {member.role || 'MEMBER'}
+                                                    </span>
+                                                )}
                                                 <button
                                                     onClick={() => handleRemoveMember(member.id)}
                                                     className="text-gray-400 dark:text-slate-500 hover:text-red-500 dark:hover:text-red-400 transition-colors p-2 rounded-full hover:bg-red-50 dark:hover:bg-red-900/20"

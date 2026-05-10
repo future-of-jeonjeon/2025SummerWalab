@@ -1,3 +1,4 @@
+from datetime import date
 from typing import List, Optional, Sequence, Tuple
 
 from sqlalchemy import Select, func, select, update, or_, union
@@ -10,7 +11,7 @@ from sqlalchemy.orm import selectinload
 from sqlalchemy.sql import ColumnElement
 from app.common.page import Page, paginate
 
-from app.problem.models import Problem, ProblemTag, problem_tags_association_table
+from app.problem.models import DailyProblem, Problem, ProblemTag, problem_tags_association_table
 from app.submission.models import Submission
 
 
@@ -326,3 +327,67 @@ async def find_attempted_problems_user_id(
     )
     result = await db.execute(stmt)
     return [int(problem_id) for problem_id in result.scalars().all()]
+
+
+async def lock_daily_problem_selection(session: AsyncSession, lock_key: int) -> None:
+    await session.execute(select(func.pg_advisory_xact_lock(lock_key)))
+
+
+async def find_daily_problem_by_date(session: AsyncSession, challenge_date: date) -> Optional[DailyProblem]:
+    stmt = (
+        select(DailyProblem)
+        .options(selectinload(DailyProblem.problem))
+        .where(DailyProblem.challenge_date == challenge_date)
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def find_latest_daily_problem(session: AsyncSession) -> Optional[DailyProblem]:
+    stmt = (
+        select(DailyProblem)
+        .options(selectinload(DailyProblem.problem))
+        .order_by(DailyProblem.challenge_date.desc())
+        .limit(1)
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def find_daily_problem_by_problem_date(session: AsyncSession, challenge_date: date) -> Optional[int]:
+    stmt = (
+        select(DailyProblem.problem_id)
+        .where(DailyProblem.challenge_date == challenge_date)
+        .limit(1)
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one_or_none()
+
+
+async def find_daily_candidate_problem_ids(session: AsyncSession) -> List[int]:
+    stmt = (
+        select(Problem.id)
+        .where(_public_problem_filter())
+        .order_by(Problem.id.asc())
+    )
+    result = await session.execute(stmt)
+    return [int(pid) for pid in result.scalars().all()]
+
+
+async def create_daily_problem(
+        session: AsyncSession,
+        *,
+        problem_id: int,
+        challenge_date: date,
+        selected_at):
+    entity = DailyProblem(problem_id=problem_id, challenge_date=challenge_date, selected_at=selected_at)
+    session.add(entity)
+    await session.flush()
+    await session.refresh(entity)
+    stmt = (
+        select(DailyProblem)
+        .options(selectinload(DailyProblem.problem))
+        .where(DailyProblem.id == entity.id)
+    )
+    result = await session.execute(stmt)
+    return result.scalar_one()

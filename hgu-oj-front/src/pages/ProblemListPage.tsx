@@ -399,6 +399,7 @@ export const ProblemListPage: React.FC = () => {
                 </select>
               </div>
             )}
+
           </div>
 
           {/* Main Content */}

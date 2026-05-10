@@ -4,7 +4,6 @@ import uuid
 
 import httpx
 
-
 from app.core.redis import get_redis
 from app.user.schemas import UserProfile
 from app.user import repository as user_repo
@@ -31,9 +30,16 @@ async def exchange_sso_for_local_token(sso_token: str) -> str:
     user_profile = await _check_and_parse_userdata(resp)
     local_token = await _create_token()
     redis = await get_redis()
+    user_session_key = get_user_session_key(user_profile.user_id)
+    prev_local_token = await redis.get(user_session_key)
+    prev_local_token = _decode_redis_value(prev_local_token)
+    if prev_local_token and prev_local_token != local_token:
+        prev_redis_key = f"{REDIS_SESSION_PREFIX}{prev_local_token}"
+        await redis.delete(prev_redis_key)
+
     redis_key = f"{REDIS_SESSION_PREFIX}{local_token}"
-    print("redis_key = ", redis_key)
     await redis.setex(redis_key, LOCAL_TOKEN_TTL_SECONDS, user_profile.model_dump_json())
+    await redis.setex(user_session_key, LOCAL_TOKEN_TTL_SECONDS, local_token)
     return local_token
 
 
@@ -65,12 +71,14 @@ async def get_user_session_data(token: str) -> UserProfile:
     except ValidationError:
         exceptions.corrupted_session_data()
 
+
 async def sliding_session(token: str):
     if not token:
         exceptions.missing_token_bad_request()
     redis = await get_redis()
     redis_key = f"{REDIS_SESSION_PREFIX}{token}"
     await redis.expire(redis_key, LOCAL_TOKEN_TTL_SECONDS)
+
 
 async def _create_token() -> str:
     return str(uuid.uuid4())
@@ -105,3 +113,13 @@ async def _check_and_parse_userdata(resp: httpx.Response):
         avatar=user_profile.get("avatar"),
         admin_type=user_profile.get("admin_type"),
     )
+
+
+def get_user_session_key(user_id: int) -> str:
+    return f"{REDIS_SESSION_PREFIX}user:{user_id}:local_token"
+
+
+def _decode_redis_value(value):
+    if isinstance(value, bytes):
+        return value.decode("utf-8")
+    return value

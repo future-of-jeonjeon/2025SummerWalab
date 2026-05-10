@@ -90,6 +90,7 @@ export interface Contest {
   participants: number;
   languages?: string[];
   isOrganizationOnly?: boolean;
+  isPublic?: boolean;
   organization_id?: number | null;
   organization_name?: string | null;
 }
@@ -149,6 +150,7 @@ export interface CreateContestRequest {
   allowed_ip_ranges: string[];
   requires_approval?: boolean;
   is_organization_only?: boolean;
+  is_public?: boolean;
   languages: string[];
   organization_id: number;
   problems?: ContestProblemInputDTO[];
@@ -194,6 +196,13 @@ export interface ContestUserRegistration {
 export interface ContestUserRegistrationList {
   approved: ContestUserRegistration[];
   pending: ContestUserRegistration[];
+}
+
+export interface ContestManageUserSearchItem {
+  userId: number;
+  username: string;
+  name?: string | null;
+  studentId?: string | null;
 }
 
 // 문제집 관련 타입

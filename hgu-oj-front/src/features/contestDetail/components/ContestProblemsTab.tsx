@@ -28,6 +28,7 @@ interface ContestProblemsTabProps {
     handleSortToggle: (field: 'number' | 'submission' | 'accuracy') => void;
   };
   onProblemClick: (problem: Problem) => void;
+  onManageProblemsClick?: () => void;
 }
 
 export const ContestProblemsTab: React.FC<ContestProblemsTabProps> = ({
@@ -42,6 +43,7 @@ export const ContestProblemsTab: React.FC<ContestProblemsTabProps> = ({
   statusFilter,
   handlers,
   onProblemClick,
+  onManageProblemsClick,
   canViewProtectedContent: _canViewProtectedContent,
 }) => {
   if (lockState.locked) {
@@ -139,6 +141,15 @@ export const ContestProblemsTab: React.FC<ContestProblemsTabProps> = ({
             >
               초기화
             </button>
+            {onManageProblemsClick && (
+              <button
+                type="button"
+                onClick={onManageProblemsClick}
+                className="ml-2 rounded-lg border border-gray-300 dark:border-slate-600 bg-white dark:bg-slate-900 px-3 py-2 text-sm font-medium text-gray-900 dark:text-slate-100 text-center shadow-sm transition hover:border-blue-400 hover:text-blue-600 dark:hover:bg-slate-800"
+              >
+                문제 관리
+              </button>
+            )}
           </div>
         </div>
       </div>

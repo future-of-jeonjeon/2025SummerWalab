@@ -123,6 +123,7 @@ const mapContest = (raw: any): Contest => ({
   languages: raw.languages ?? [],
   participants: raw.participants ?? 0,
   isOrganizationOnly: raw.is_organization_only ?? raw.isOrganizationOnly,
+  isPublic: raw.is_public ?? raw.isPublic,
   organization_id: raw.organization_id,
   organization_name: raw.organization_name,
 });
@@ -230,6 +231,35 @@ export const contestService = {
     }
 
     const response = await apiClient.get<any>(`${MICRO_API_BASE}/contest/organization/${organizationId}`, { params: queryParams });
+    const payload = response.data;
+    const items = payload.items ?? payload.results ?? [];
+    const total = payload.total ?? items.length;
+    const page = payload.page ?? params?.page ?? 1;
+    const size = payload.size ?? params?.limit ?? 10;
+
+    return {
+      data: items.map(mapContest),
+      total,
+      page,
+      limit: size,
+      totalPages: Math.ceil(total / size)
+    };
+  },
+
+  getPublicOrganizationContests: async (organizationId: number, params?: {
+    page?: number;
+    limit?: number;
+  }): Promise<PaginatedResponse<Contest>> => {
+    const queryParams: any = {
+      page: params?.page || 1,
+      size: params?.limit || 10,
+    };
+
+    if (!MICRO_API_BASE) {
+      throw new Error('MS_API_BASE not defined');
+    }
+
+    const response = await apiClient.get<any>(`${MICRO_API_BASE}/contest/organization/${organizationId}/public`, { params: queryParams });
     const payload = response.data;
     const items = payload.items ?? payload.results ?? [];
     const total = payload.total ?? items.length;

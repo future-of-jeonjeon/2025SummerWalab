@@ -37,6 +37,8 @@ export const UserAdminSection: React.FC = () => {
     const [userFormMessage, setUserFormMessage] = useState<{ success?: string; error?: string }>({});
     const [userFormLoading, setUserFormLoading] = useState(false);
     const [userDeleteLoading, setUserDeleteLoading] = useState(false);
+    const [userSessionResetLoading, setUserSessionResetLoading] = useState(false);
+    const [allUserSessionResetLoading, setAllUserSessionResetLoading] = useState(false);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [msUserInfo, setMsUserInfo] = useState<{
@@ -218,6 +220,61 @@ export const UserAdminSection: React.FC = () => {
         }
     };
 
+    const handleUserSessionReset = async () => {
+        if (!selectedUser) {
+            return;
+        }
+
+        const confirmed = window.confirm(`${selectedUser.username} 사용자의 세션을 초기화하시겠습니까?`);
+        if (!confirmed) {
+            return;
+        }
+
+        setUserSessionResetLoading(true);
+        setUserFormMessage({});
+        try {
+            await adminService.resetUserSessionFromMS(selectedUser.id);
+            setUserFormMessage({ success: `${selectedUser.username} 사용자의 세션을 초기화했습니다.` });
+        } catch (error) {
+            const message = error instanceof Error ? error.message : '세션 초기화에 실패했습니다.';
+            setUserFormMessage({ error: message });
+        } finally {
+            setUserSessionResetLoading(false);
+        }
+    };
+
+    const handleAllUserSessionReset = async () => {
+        const confirmed = window.confirm('모든 유저 세션을 초기화하면 현재 접속 중인 유저도 즉시 로그아웃됩니다. 계속하시겠습니까?');
+        if (!confirmed) {
+            return;
+        }
+
+        setAllUserSessionResetLoading(true);
+        try {
+            await adminService.resetAllUserSessionsFromMS();
+            window.alert('모든 유저 세션을 초기화했습니다. 다시 로그인해주세요.');
+            localStorage.removeItem('token');
+            localStorage.removeItem('auth-storage');
+            window.location.href = '/login';
+        } catch (error) {
+            const message = error instanceof Error ? error.message : '전체 세션 초기화에 실패했습니다.';
+            setUserFormMessage({ error: message });
+        } finally {
+            setAllUserSessionResetLoading(false);
+        }
+    };
+
+    const formatLoginDate = (value?: string | null) => {
+        if (!value) {
+            return '-';
+        }
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+            return '-';
+        }
+        return date.toLocaleDateString('ko-KR');
+    };
+
     useEffect(() => {
         if (!selectedUser) {
             setUserForm(null);
@@ -244,8 +301,17 @@ export const UserAdminSection: React.FC = () => {
     return (
         <Card padding="lg">
             <div className="space-y-6">
-                <div className="space-y-1">
+                <div className="flex items-center justify-between gap-3">
                     <h2 className="text-xl font-semibold text-gray-900 dark:text-slate-100 dark:text-slate-100">사용자 관리</h2>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={handleAllUserSessionReset}
+                        disabled={allUserSessionResetLoading}
+                    >
+                        {allUserSessionResetLoading ? '전체 세션 초기화 중...' : '모든 유저 세션 초기화'}
+                    </Button>
                 </div>
 
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
@@ -272,10 +338,10 @@ export const UserAdminSection: React.FC = () => {
                                 <thead className="bg-gray-50 dark:bg-slate-800">
                                     <tr>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">아이디</th>
-                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">이름</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">이메일</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">유형</th>
                                         <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">상태</th>
+                                        <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 dark:text-slate-400 uppercase tracking-wider">최근 로그인</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-gray-200 dark:divide-slate-700 bg-white dark:bg-slate-900">
@@ -297,7 +363,6 @@ export const UserAdminSection: React.FC = () => {
                                                 }`}
                                         >
                                             <td className="px-4 py-3 text-sm font-medium text-gray-900 dark:text-slate-100">{item.username}</td>
-                                            <td className="px-4 py-3 text-sm text-gray-500 dark:text-slate-400">{item.real_name || '-'}</td>
                                             <td className="px-4 py-3 text-sm text-gray-500 dark:text-slate-400">{item.email}</td>
                                             <td className="px-4 py-3 text-sm text-gray-500 dark:text-slate-400">{item.admin_type}</td>
                                             <td className="px-4 py-3 text-sm text-gray-700 dark:text-slate-300">
@@ -308,6 +373,7 @@ export const UserAdminSection: React.FC = () => {
                                                     {item.is_disabled ? '비활성' : '활성'}
                                                 </span>
                                             </td>
+                                            <td className="px-4 py-3 text-sm text-gray-500 dark:text-slate-400">{formatLoginDate(item.last_login)}</td>
                                         </tr>
                                     ))}
                                     {userList.length === 0 && !userListLoading && !userListError && (
@@ -348,7 +414,7 @@ export const UserAdminSection: React.FC = () => {
                                         <div className="sm:flex sm:items-start">
                                             <div className="w-full mt-3 text-center sm:mt-0 sm:text-left">
                                                 <h3 className="text-2xl font-bold leading-6 text-gray-900 dark:text-slate-100 mb-6" id="modal-title">
-                                                    계정 상세 정보
+                                                    계정 기본 정보
                                                 </h3>
 
                                                 {userFormMessage.error && (
@@ -364,7 +430,6 @@ export const UserAdminSection: React.FC = () => {
 
                                                 <div className="grid gap-6 sm:grid-cols-2">
                                                     <div className="space-y-4">
-                                                        <h4 className="font-semibold text-gray-900 dark:text-slate-100 border-b pb-2">기본 정보</h4>
 
                                                         <div>
                                                             <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">아이디</label>
@@ -389,7 +454,6 @@ export const UserAdminSection: React.FC = () => {
                                                     </div>
 
                                                     <div className="space-y-4">
-                                                        <h4 className="font-semibold text-gray-900 dark:text-slate-100 border-b pb-2">상세 정보 (MS)</h4>
 
                                                         <div>
                                                             <label className="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">이름</label>
@@ -411,6 +475,7 @@ export const UserAdminSection: React.FC = () => {
                                                                 {msUserInfo?.major_id !== undefined ? DEPARTMENTS[msUserInfo.major_id] : '-'}
                                                             </div>
                                                         </div>
+
                                                     </div>
                                                 </div>
 
@@ -447,23 +512,33 @@ export const UserAdminSection: React.FC = () => {
                                                 </div>
 
                                                 <div className="mt-8 flex justify-between pt-4 border-t">
-                                                    <button
-                                                        type="button"
-                                                        onClick={handleUserDelete}
-                                                        disabled={userFormLoading || userDeleteLoading}
-                                                        className="inline-flex items-center gap-2 rounded-md border border-red-600 px-3 py-2 text-sm text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-                                                    >
-                                                        {userDeleteLoading ? (
-                                                            '삭제 중...'
-                                                        ) : (
-                                                            <>
-                                                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                                </svg>
-                                                                <span>사용자 삭제</span>
-                                                            </>
-                                                        )}
-                                                    </button>
+                                                    <div className="flex gap-2">
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleUserDelete}
+                                                            disabled={userFormLoading || userDeleteLoading || userSessionResetLoading}
+                                                            className="inline-flex items-center gap-2 rounded-md border border-red-600 px-3 py-2 text-sm text-red-600 transition-colors hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+                                                        >
+                                                            {userDeleteLoading ? (
+                                                                '삭제 중...'
+                                                            ) : (
+                                                                <>
+                                                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                                    </svg>
+                                                                    <span>사용자 삭제</span>
+                                                                </>
+                                                            )}
+                                                        </button>
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            onClick={handleUserSessionReset}
+                                                            disabled={userFormLoading || userDeleteLoading || userSessionResetLoading}
+                                                        >
+                                                            {userSessionResetLoading ? '세션 초기화 중...' : '세션 초기화'}
+                                                        </Button>
+                                                    </div>
                                                     <div className="flex gap-3">
                                                         <Button
                                                             variant="outline"

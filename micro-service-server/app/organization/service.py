@@ -107,14 +107,13 @@ async def join_organization(
         user_exceptions.user_not_found()
     user_profile = await user_repo.find_sub_userdata_by_user_id(user_profile.user_id, db)
     redis = await get_redis_manage_code()
-    organization_id, issue_user_id = await _verify_and_consume_join_code(join_code, organization.id, redis)
+    organization_id, _issuer_user_id = await _check_join_code(join_code, organization.id, redis)
     member = (await organization_repo
               .get_member_by_organization_id_and_user_id(organization_id, user_profile.user_id, db))
     if member:
         organization_exception.user_already_exist()
     new_organization_member = OrganizationMember(organization=organization, user=user_profile)
     await organization_repo.save_organization_member(new_organization_member, db)
-    await redis.delete(join_code)
     return OrganizationMemberResponse.from_orm(new_organization_member)
 
 
@@ -130,17 +129,31 @@ async def list_organization_user(
 async def edit_organization_user(
         organization_id: int,
         user_profile: UserProfile,
+        member_id: int,
         user_update_data: OrganizationMemberUpdateRequest,
         db: AsyncSession) -> OrganizationMemberResponse:
-    await check_organization_admin(organization_id, user_profile, db)
-
     await _get_organization_by_id(organization_id, db)
-    member_data = await (organization_repo
-                         .get_member_by_organization_id_and_user_id(organization_id, user_update_data.user_id, db))
+    member_data = await organization_repo.get_member_by_id_and_organization_id(member_id, organization_id, db)
     if not member_data:
         organization_exception.user_not_found()
 
-    member_data.role = OrganizationRole(user_update_data.role)
+    actor_is_system_admin = user_profile.admin_type in ["Admin", "Super Admin"]
+    actor_member = await organization_repo.get_member_by_organization_id_and_user_id(
+        organization_id,
+        user_profile.user_id,
+        db,
+    )
+
+    if not actor_is_system_admin:
+        if not actor_member or actor_member.role not in {OrganizationRole.ORG_ADMIN, OrganizationRole.ORG_SUPER_ADMIN}:
+            organization_exception.forbidden()
+        if actor_member.role == OrganizationRole.ORG_ADMIN and (
+            member_data.role == OrganizationRole.ORG_SUPER_ADMIN
+            or user_update_data.role == OrganizationRole.ORG_SUPER_ADMIN
+        ):
+            organization_exception.forbidden()
+
+    member_data.role = user_update_data.role
     return OrganizationMemberResponse.from_orm(member_data)
 
 
@@ -198,15 +211,6 @@ async def _generate_join_code(
     value = f"organization_join:{organization_id}:{issuer_user_id}"
     await redis.set(code, value, ex=ttl_seconds)
     return code
-
-
-async def _verify_and_consume_join_code(
-        join_code: str,
-        organization_id: int,
-        redis) -> tuple[int, int]:
-    code_org_id, issuer_id = await _check_join_code(join_code, organization_id, redis)
-    await redis.delete(join_code)
-    return code_org_id, issuer_id
 
 
 async def _check_join_code(

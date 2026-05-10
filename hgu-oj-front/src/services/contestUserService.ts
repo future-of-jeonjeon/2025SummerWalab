@@ -1,4 +1,10 @@
-import { ContestJoinStatus, ContestUserRegistrationList, ContestUserRegistration, ContestUserStatusValue } from '../types';
+import {
+  ContestJoinStatus,
+  ContestManageUserSearchItem,
+  ContestUserRegistrationList,
+  ContestUserRegistration,
+  ContestUserStatusValue,
+} from '../types';
 import { apiClient, MS_API_BASE } from './api';
 
 type RawContestUserStatus = {
@@ -32,6 +38,15 @@ type RawContestUserRegistration = {
 type RawContestUserRegistrationList = {
   approved?: RawContestUserRegistration[];
   pending?: RawContestUserRegistration[];
+};
+
+type RawContestManageUserSearchItem = {
+  user_id?: number;
+  userId?: number;
+  username?: string;
+  name?: string;
+  student_id?: string;
+  studentId?: string;
 };
 
 export interface ContestApprovalPolicy {
@@ -90,6 +105,13 @@ const adaptRegistration = (entry: RawContestUserRegistration): ContestUserRegist
   };
 };
 
+const adaptManageSearchUser = (entry: RawContestManageUserSearchItem): ContestManageUserSearchItem => ({
+  userId: Number(entry.user_id ?? entry.userId ?? 0),
+  username: entry.username ?? '',
+  name: entry.name ?? null,
+  studentId: entry.student_id ?? entry.studentId ?? null,
+});
+
 export const contestUserService = {
   getStatus: async (contestId: number): Promise<ContestJoinStatus> => {
     if (!contestId) {
@@ -134,6 +156,38 @@ export const contestUserService = {
     return adaptRegistration(response.data);
   },
 
+  joinByUserId: async (contestId: number, userId: number): Promise<ContestJoinStatus> => {
+    if (!contestId || !userId) {
+      throw new Error('잘못된 요청입니다.');
+    }
+    const response = await apiClient.post<RawContestUserStatus>(
+      `${ensureBaseUrl()}/${contestId}/manage/participants`,
+      {},
+      {
+        params: { user_id: userId },
+      },
+    );
+    return buildStatus(response.data, contestId);
+  },
+
+  searchManageUsers: async (contestId: number, keyword: string): Promise<ContestManageUserSearchItem[]> => {
+    if (!contestId) {
+      throw new Error('유효하지 않은 대회입니다.');
+    }
+    const normalizedKeyword = keyword.trim();
+    if (!normalizedKeyword) {
+      return [];
+    }
+    const response = await apiClient.get<RawContestManageUserSearchItem[]>(
+      `${ensureBaseUrl()}/${contestId}/manage/participants/search`,
+      {
+        params: { keyword: normalizedKeyword },
+      },
+    );
+    const payload = Array.isArray(response.data) ? response.data : [];
+    return payload.map(adaptManageSearchUser).filter((entry) => entry.userId > 0);
+  },
+
   getPolicy: async (contestId: number): Promise<ContestApprovalPolicy> => {
     if (!contestId) {
       throw new Error('유효하지 않은 대회입니다.');
@@ -161,4 +215,3 @@ export const contestUserService = {
     };
   },
 };
-

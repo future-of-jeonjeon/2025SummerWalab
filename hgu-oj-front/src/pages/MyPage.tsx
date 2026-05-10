@@ -1,25 +1,17 @@
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { Link, Navigate } from 'react-router-dom';
 import { Card } from '../components/atoms/Card';
-import { ProblemProgressCard } from '../components/molecules/ProblemProgressCard';
-import { useProblemCount } from '../hooks/useProblemCount';
 import { useAuthStore } from '../stores/authStore';
 import { myPageService, ContestHistoryEntry } from '../services/myPageService';
+import { GoalHistoryGroupSummary, UserGoalInput, todoService } from '../services/todoService';
 import { userService, DEPARTMENTS } from '../services/userService';
-import { submissionService } from '../services/submissionService';
 import { MyProfile, MySolvedProblem, MyWrongProblem } from '../types';
 import { ContributionGraph } from '../components/molecules/ContributionGraph';
 import { GoalConfigModal } from '../components/organisms/GoalConfigModal';
-import { todoService, GoalRecommendation } from '../services/todoService';
-
-
-
-
-
-
-
-
+import { useUserGoals } from '../hooks/useUserGoals';
+import { UserGoalCard } from '../components/molecules/UserGoalCard';
+import { GOAL_PERIOD_LABELS, GOAL_PERIOD_TONES, GOAL_TYPE_LABELS, toEditableGoalInput } from '../utils/goals';
 
 export const MyPage: React.FC = () => {
   const { isAuthenticated } = useAuthStore();
@@ -37,21 +29,10 @@ export const MyPage: React.FC = () => {
 
   const {
     data: profile,
-    isLoading: profileLoading,
-    error: profileError,
   } = useQuery<MyProfile>({
     queryKey: ['mypage', 'profile'],
     queryFn: myPageService.getMyProfile,
     staleTime: 60 * 1000,
-  });
-
-  const {
-    data: contributionData,
-    isLoading: contributionLoading,
-  } = useQuery({
-    queryKey: ['mypage', 'contribution'],
-    queryFn: submissionService.getContributionData,
-    enabled: isAuthenticated,
   });
 
   const {
@@ -82,15 +63,26 @@ export const MyPage: React.FC = () => {
     enabled: isAuthenticated,
   });
 
-
-
   const {
-    total: totalProblemCount,
-    isLoading: problemCountLoading,
-    error: problemCountError,
-  } = useProblemCount();
+    data: goalHistoryOverview,
+    isLoading: goalHistoryLoading,
+  } = useQuery({
+    queryKey: ['todo', 'history', 'overview'],
+    queryFn: todoService.getGoalHistoryOverview,
+    enabled: isAuthenticated,
+    staleTime: 30 * 1000,
+  });
 
   const [isGoalModalOpen, setIsGoalModalOpen] = useState(false);
+  const [modalInitialView, setModalInitialView] = useState<'profile' | 'goal'>('goal');
+  const [initialGoalDraft, setInitialGoalDraft] = useState<UserGoalInput | null>(null);
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyStatusDraft, setHistoryStatusDraft] = useState<'all' | 'success' | 'failure'>('all');
+  const [historyStartDateDraft, setHistoryStartDateDraft] = useState('');
+  const [historyEndDateDraft, setHistoryEndDateDraft] = useState('');
+  const [historyStatusFilter, setHistoryStatusFilter] = useState<'all' | 'success' | 'failure'>('all');
+  const [historyStartDateFilter, setHistoryStartDateFilter] = useState('');
+  const [historyEndDateFilter, setHistoryEndDateFilter] = useState('');
 
   const handleUserUpdateSuccess = async () => {
     await Promise.all([
@@ -99,125 +91,134 @@ export const MyPage: React.FC = () => {
     ]);
   };
 
-  const { data: myTodo } = useQuery({
-    queryKey: ['todo', 'my'],
-    queryFn: todoService.getMyTodo,
-    enabled: isAuthenticated,
-  });
+  const { data: myTodo, goals: userGoals } = useUserGoals();
 
-  const { data: recommendations } = useQuery({
-    queryKey: ['todo', 'recommendations'],
-    queryFn: todoService.getRecommendations,
-    enabled: isAuthenticated,
-  });
+  const averageGoalProgress = userGoals.length > 0
+    ? Math.round(userGoals.reduce((sum, goal) => sum + goal.progress.percent, 0) / userGoals.length)
+    : 0;
+  const completedGoalCount = userGoals.filter((goal) => goal.progress.percent >= 100).length;
 
-  const { data: solveStats } = useQuery({
-    queryKey: ['todo', 'stats', 'solve-count'],
-    queryFn: todoService.getSolveCountStats,
-    enabled: isAuthenticated,
-  });
-
-  const { data: streakStats } = useQuery({
-    queryKey: ['todo', 'stats', 'streak'],
-    queryFn: todoService.getStreakStats,
-    enabled: isAuthenticated,
-  });
-
-  const { data: difficultyStats } = useQuery({
-    queryKey: ['todo', 'stats', 'difficulty'],
-    queryFn: todoService.getDifficultyStats,
-    enabled: isAuthenticated,
-  });
-
-  // Helper to find goal definition
-  const getGoalDef = (val: string | null | undefined, type: 'daily' | 'weekly' | 'monthly'): GoalRecommendation | undefined => {
-    if (!val) return undefined;
-    if (val.startsWith('CUSTOM:')) {
-      const parts = val.split(':');
-      return {
-        id: 'custom',
-        type: parts[1],
-        target: parseInt(parts[2]) || 1,
-        unit: parts[3] || 'problem',
-        label: parts[4] || '사용자 지정 목표',
-        startDate: parts[5],
-        endDate: parts[6]
-      } as any;
-    }
-    if (!recommendations) return undefined;
-    return recommendations[type].find(r => r.id === val);
+  const openGoalSettings = () => {
+    setInitialGoalDraft(null);
+    setModalInitialView('goal');
+    setIsGoalModalOpen(true);
   };
 
-  // Helper to calculate progress using real API stats
-  const getProgress = (def: GoalRecommendation | undefined, type: 'daily' | 'weekly' | 'monthly') => {
-    if (!def) return { current: 0, percent: 0 };
+  const openProfileSettings = () => {
+    setInitialGoalDraft(null);
+    setModalInitialView('profile');
+    setIsGoalModalOpen(true);
+  };
 
-    let current = 0;
-    if (def.type === 'SOLVE_COUNT' || def.type === 'PROBLEM_SOLVE') {
-      if (type === 'daily') current = solveStats?.daily || 0;
-      else if (type === 'weekly') current = solveStats?.weekly || 0;
-      else if (type === 'monthly') current = solveStats?.monthly || 0;
-    } else if (def.type === 'STREAK') {
-      current = streakStats?.streak || 0;
-    } else if (def.type === 'TIER_SOLVE') {
-      let searchDifficulty = 'Bronze';
-      if (def.id === 'custom') {
-        if (def.label.includes('Mid')) searchDifficulty = 'Mid';
-        else if (def.label.includes('Gold')) searchDifficulty = 'Gold';
-      } else {
-        const difficultyMap: Record<string, string> = {
-          'monthly_bronze_3': 'Bronze',
-          'monthly_mid_3': 'Mid',
-          'monthly_gold_3': 'Gold',
-        };
-        searchDifficulty = difficultyMap[def.id] || 'Bronze';
+  const [selectedHistoryGroupKey, setSelectedHistoryGroupKey] = useState<string | null>(null);
+  const goalHistoryGroups = goalHistoryOverview?.groups ?? [];
+
+  const selectedHistoryGroup = useMemo(() => {
+    if (!goalHistoryGroups.length) return null;
+    const fallbackKey = goalHistoryGroups[0]?.key ?? null;
+    const activeKey = selectedHistoryGroupKey ?? fallbackKey;
+    return goalHistoryGroups.find((group) => group.key === activeKey) ?? goalHistoryGroups[0] ?? null;
+  }, [goalHistoryGroups, selectedHistoryGroupKey]);
+
+  useEffect(() => {
+    setHistoryPage(1);
+  }, [selectedHistoryGroupKey]);
+
+  useEffect(() => {
+    setSelectedHistoryGroupKey((currentKey) => {
+      if (!goalHistoryGroups.length) return null;
+      if (currentKey && goalHistoryGroups.some((group) => group.key === currentKey)) {
+        return currentKey;
       }
-      current = difficultyStats?.stats.find(s => s.difficulty === searchDifficulty)?.count || 0;
-    }
+      return goalHistoryGroups[0].key;
+    });
+  }, [goalHistoryGroups]);
 
-    const percent = Math.min(Math.round((current / def.target) * 100), 100);
-    return { current, percent };
+  const historyPageSize = 3;
+  const {
+    data: goalHistoryPage,
+    isLoading: goalHistoryPageLoading,
+  } = useQuery({
+    queryKey: [
+      'todo',
+      'history',
+      'group',
+      selectedHistoryGroup?.period,
+      selectedHistoryGroup?.type,
+      selectedHistoryGroup?.target,
+      selectedHistoryGroup?.difficulty ?? null,
+      selectedHistoryGroup?.customDays ?? null,
+      historyStartDateFilter || null,
+      historyEndDateFilter || null,
+      historyStatusFilter,
+      historyPage,
+      historyPageSize,
+    ],
+    queryFn: () =>
+      todoService.getGoalHistoryGroupPage({
+        period: selectedHistoryGroup!.period,
+        type: selectedHistoryGroup!.type,
+        target: selectedHistoryGroup!.target,
+        difficulty: selectedHistoryGroup!.difficulty ?? null,
+        customDays: selectedHistoryGroup!.customDays ?? null,
+        page: historyPage,
+        pageSize: historyPageSize,
+        startDayFrom: historyStartDateFilter || undefined,
+        endDayTo: historyEndDateFilter || undefined,
+        status: historyStatusFilter,
+      }),
+    enabled: isAuthenticated && !!selectedHistoryGroup,
+    staleTime: 30 * 1000,
+  });
+
+  const historyPageCount = goalHistoryPage?.totalPages ?? 1;
+
+  const handleApplyHistoryFilters = () => {
+    setHistoryPage(1);
+    setHistoryStartDateFilter(historyStartDateDraft);
+    setHistoryEndDateFilter(historyEndDateDraft);
+    setHistoryStatusFilter(historyStatusDraft);
   };
 
-  const dailyGoal = getGoalDef(myTodo?.day_todo, 'daily');
-  const weeklyGoal = getGoalDef(myTodo?.week_todo, 'weekly');
-  const monthlyGoal = getGoalDef(myTodo?.month_todo, 'monthly');
-  const customGoal = getGoalDef(myTodo?.custom_todo, 'daily');
-
-  const dailyProgress = getProgress(dailyGoal, 'daily');
-  const weeklyProgress = getProgress(weeklyGoal, 'weekly');
-  const monthlyProgress = getProgress(monthlyGoal, 'monthly');
-  const customProgress = getProgress(customGoal, 'daily');
-
-  const activeGoals = [
-    { type: 'daily', goal: dailyGoal, progress: dailyProgress, color: 'emerald', title: '일간 목표' },
-    { type: 'weekly', goal: weeklyGoal, progress: weeklyProgress, color: 'blue', title: '주간 목표' },
-    { type: 'monthly', goal: monthlyGoal, progress: monthlyProgress, color: 'purple', title: '월간 목표' },
-    { type: 'custom', goal: customGoal, progress: customProgress, color: 'amber', title: '사용자 정의' },
-  ].filter(g => !!g.goal);
-
-  const getGridCols = (count: number) => {
-    if (count <= 1) return 'grid-cols-1';
-    if (count === 2) return 'grid-cols-1 md:grid-cols-2';
-    if (count === 3) return 'grid-cols-1 md:grid-cols-3';
-    return 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-4';
+  const handleResetHistoryFilters = () => {
+    setHistoryPage(1);
+    setHistoryStartDateDraft('');
+    setHistoryEndDateDraft('');
+    setHistoryStatusDraft('all');
+    setHistoryStartDateFilter('');
+    setHistoryEndDateFilter('');
+    setHistoryStatusFilter('all');
   };
 
-  const getCardPadding = (count: number) => {
-    return count > 3 ? 'p-4' : 'p-5';
+  const handleChangeHistoryStartDate = (value: string) => {
+    setHistoryStartDateDraft(value);
+    setHistoryEndDateDraft((currentEnd) => {
+      if (!value) return currentEnd;
+      if (!currentEnd || currentEnd < value) {
+        return value;
+      }
+      return currentEnd;
+    });
   };
 
-
+  const openGoalFromHistory = (group: GoalHistoryGroupSummary) => {
+    setInitialGoalDraft(
+      toEditableGoalInput({
+        id: undefined,
+        period: group.period,
+        type: group.type,
+        target: group.target,
+        difficulty: group.difficulty ?? null,
+        customDays: group.customDays ?? null,
+      }),
+    );
+    setModalInitialView('goal');
+    setIsGoalModalOpen(true);
+  };
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
-
-  const solvedCount = profile?.solvedCount ?? 0;
-  const progressError = profileError ?? problemCountError;
-  const progressLoading = profileLoading || problemCountLoading;
-
-
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
@@ -265,111 +266,388 @@ export const MyPage: React.FC = () => {
                   <span>{userData?.student_id || '00000000'}</span>
                 </div>
               </div>
+
+              <div className="w-full rounded-3xl border border-gray-200 bg-gray-50/80 p-4 dark:border-slate-700 dark:bg-slate-900/70">
+                {goalHistoryLoading ? (
+                  <div className="flex h-24 items-center justify-center text-sm text-gray-500 dark:text-slate-400">
+                    목표 기록을 불러오는 중...
+                  </div>
+                ) : (
+                  <ContributionGraph
+                    data={goalHistoryOverview?.heatmap ?? []}
+                    totalDays={140}
+                    tooltipFormatter={(date, count) =>
+                      count === 0 ? `${date}: 달성한 목표 없음` : `${date}: 목표 ${count}개 달성`
+                    }
+                  />
+                )}
+              </div>
             </div>
 
             {/* Right: Learning Goal Management */}
-            <div className="flex-1 flex flex-col justify-center">
-              <div className="flex justify-between items-end mb-6">
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-1">학습 목표 관리</h3>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white">Learning Goal</h3>
+            <div className="min-w-0 flex-1 flex flex-col justify-center">
+              <div className="max-w-full rounded-3xl border border-gray-100 bg-gray-50/70 p-5 dark:border-slate-700 dark:bg-slate-900/50">
+                <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                  <div>
+                    <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Learning Goals</p>
+                    <h3 className="mt-1 text-xl font-bold text-gray-900 dark:text-white">학습 목표 관리</h3>
+                    <p className="mt-2 text-sm text-gray-500 dark:text-slate-400">
+                      목표를 원하는 만큼 추가하고, 진행률을 한눈에 확인할 수 있습니다.
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      onClick={openProfileSettings}
+                      className="inline-flex items-center justify-center gap-2 self-start rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-emerald-200 hover:text-emerald-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-emerald-400 dark:hover:text-emerald-300"
+                    >
+                      <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 7a3 3 0 11-6 0 3 3 0 016 0zM21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      프로필 설정
+                    </button>
+                    <button
+                      onClick={openGoalSettings}
+                      className="inline-flex items-center justify-center gap-2 self-start rounded-2xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition hover:border-blue-200 hover:text-blue-600 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200 dark:hover:border-blue-400 dark:hover:text-blue-300"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 4v16m8-8H4" />
+                      </svg>
+                      목표 설정
+                    </button>
+                  </div>
                 </div>
-                <div className="flex flex-col items-end gap-2">
-                  <button
-                    onClick={() => setIsGoalModalOpen(true)}
-                    className="inline-flex items-center justify-center text-gray-400 hover:text-blue-600 transition-colors"
-                    title="설정"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                  </button>
+
+                <div className="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
+                  <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-slate-500">활성 목표</p>
+                    <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white">{userGoals.length}</p>
+                  </div>
+                  <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-slate-500">완료 목표</p>
+                    <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white">{completedGoalCount}</p>
+                  </div>
+                  <div className="rounded-2xl border border-gray-200 bg-white px-4 py-3 dark:border-slate-700 dark:bg-slate-800">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-slate-500">평균 달성률</p>
+                    <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white">{averageGoalProgress}%</p>
+                  </div>
                 </div>
-              </div>
 
-              <div className={`grid gap-4 ${getGridCols(activeGoals.length)}`}>
-                {activeGoals.map((g) => {
-                  const progressColorMap: Record<string, string> = {
-                    emerald: 'bg-emerald-500',
-                    blue: 'bg-blue-600',
-                    purple: 'bg-purple-500',
-                    amber: 'bg-amber-500'
-                  };
-                  const textColorMap: Record<string, string> = {
-                    emerald: 'text-emerald-600',
-                    blue: 'text-blue-600',
-                    purple: 'text-purple-600',
-                    amber: 'text-amber-600'
-                  };
-                  const bgMap: Record<string, string> = {
-                    emerald: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
-                    blue: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
-                    purple: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-                    amber: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400'
-                  };
-
-                  return (
-                    <div key={g.type} className={`bg-gray-50 dark:bg-slate-700/50 rounded-2xl ${getCardPadding(activeGoals.length)} relative group transition-all`}>
-                      <span className={`inline-block px-2 py-0.5 rounded ${bgMap[g.color]} text-[10px] font-bold tracking-wide mb-3`}>
-                        {g.title}
-                      </span>
-                      <p className={`font-semibold text-gray-900 dark:text-white ${activeGoals.length > 3 ? 'text-xs mb-1 line-clamp-1' : 'text-sm mb-1'}`}>
-                        {g.goal?.label}
-                      </p>
-                      {g.type === 'custom' && (g.goal as any).startDate && (
-                        <p className="text-[10px] text-gray-400 dark:text-slate-500 mb-4 font-mono">
-                          {(g.goal as any).startDate} ~ {(g.goal as any).endDate}
-                        </p>
-                      )}
-                      {g.type !== 'custom' && <div className={activeGoals.length > 3 ? 'mb-4' : 'mb-6'} />}
-                      <div className="w-full bg-gray-200 dark:bg-slate-600 rounded-full h-1.5 mb-2">
-                        <div className={`${progressColorMap[g.color]} h-1.5 rounded-full transition-all duration-500`} style={{ width: `${g.progress.percent}%` }}></div>
-                      </div>
-                      <div className={`flex justify-between items-center text-gray-500 dark:text-slate-400 font-medium ${activeGoals.length > 3 ? 'text-[10px]' : 'text-xs'}`}>
-                        <span>{g.progress.current} / {g.goal?.target || 0} {g.goal?.unit || ''}</span>
-                        <span className={`${textColorMap[g.color]} dark:brightness-110`}>{g.progress.percent}%</span>
+                {userGoals.length === 0 ? (
+                  <div className="mt-5 rounded-3xl border border-dashed border-gray-300 bg-white px-6 py-10 text-center dark:border-slate-600 dark:bg-slate-800">
+                    <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-300">
+                      <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4l3 3m6-3A9 9 0 1112 3a9 9 0 019 9z" />
+                      </svg>
+                    </div>
+                    <h4 className="mt-4 text-lg font-semibold text-gray-900 dark:text-white">아직 설정한 목표가 없습니다</h4>
+                    <p className="mt-2 text-sm text-gray-500 dark:text-slate-400">
+                      목표를 추가하면 일간, 주간, 월간 학습 계획을 자유롭게 관리할 수 있습니다.
+                    </p>
+                  </div>
+                ) : userGoals.length <= 2 ? (
+                  <div className="mt-5 grid grid-cols-1 gap-4 xl:grid-cols-2">
+                    {userGoals.map((goal) => (
+                      <UserGoalCard key={goal.id} goal={goal} />
+                    ))}
+                  </div>
+                ) : (
+                  <div className="mt-5 max-w-full overflow-hidden">
+                    <div className="overflow-x-auto pb-2">
+                      <div className="flex w-max gap-4">
+                        {userGoals.map((goal) => (
+                          <UserGoalCard
+                            key={goal.id}
+                            goal={goal}
+                            className="w-[320px] min-w-[320px]"
+                          />
+                        ))}
                       </div>
                     </div>
-                  );
-                })}
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </section>
 
-        <div className="grid grid-cols-1 lg:grid-cols-10 gap-6">
-          <section aria-labelledby="mypage-contribution" className="lg:col-span-6 flex flex-col">
-            <h2 id="mypage-contribution" className="sr-only">활동 그래프</h2>
-            <Card className="h-full flex flex-col justify-center">
-              {contributionLoading ? (
-                <div className="flex justify-center items-center h-40 text-gray-500 dark:text-slate-400">
-                  활동 데이터를 불러오는 중...
+        <section aria-labelledby="mypage-goal-history">
+          <h2 id="mypage-goal-history" className="text-lg font-semibold text-gray-900 dark:text-slate-100 mb-4">학습 목표 로그</h2>
+          <Card className="overflow-hidden">
+            <div className="border-b border-gray-100 px-6 py-5 dark:border-slate-700">
+              <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+                <div>
+                  <p className="text-sm font-semibold text-emerald-600 dark:text-emerald-400">Goal History</p>
+                  <h3 className="mt-1 text-xl font-bold text-gray-900 dark:text-white">지금까지 기록된 학습 목표 결과</h3>
+                  <p className="mt-2 text-sm text-gray-500 dark:text-slate-400">
+                    기간이 종료되어 로그로 저장된 목표 결과를 확인할 수 있습니다.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 xl:min-w-[460px]">
+                  <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/80">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-slate-500">총 로그</p>
+                    <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white">{goalHistoryOverview?.summary.totalLogged ?? 0}</p>
+                  </div>
+                  <div className="rounded-2xl border border-emerald-100 bg-emerald-50/70 px-4 py-3 dark:border-emerald-900/60 dark:bg-emerald-950/30">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-emerald-500 dark:text-emerald-300">달성</p>
+                    <p className="mt-2 text-2xl font-bold text-emerald-700 dark:text-emerald-200">{goalHistoryOverview?.summary.successCount ?? 0}</p>
+                  </div>
+                  <div className="rounded-2xl border border-rose-100 bg-rose-50/70 px-4 py-3 dark:border-rose-900/60 dark:bg-rose-950/30">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-rose-500 dark:text-rose-300">미달성</p>
+                    <p className="mt-2 text-2xl font-bold text-rose-700 dark:text-rose-200">{goalHistoryOverview?.summary.failureCount ?? 0}</p>
+                  </div>
+                  <div className="rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 dark:border-slate-700 dark:bg-slate-800/80">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-slate-500">평균 달성률</p>
+                    <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-white">{goalHistoryOverview?.summary.averageProgress ?? 0}%</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="px-6 py-6">
+              {goalHistoryLoading ? (
+                <div className="flex h-40 items-center justify-center text-gray-500 dark:text-slate-400">
+                  목표 로그를 불러오는 중...
+                </div>
+              ) : goalHistoryGroups.length === 0 ? (
+                <div className="rounded-3xl border border-dashed border-gray-300 bg-gray-50/80 px-6 py-12 text-center dark:border-slate-600 dark:bg-slate-900/60">
+                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white">아직 저장된 학습 목표 로그가 없습니다</h3>
+                  <p className="mt-2 text-sm text-gray-500 dark:text-slate-400">
+                    목표 기간이 종료되면 결과가 자동으로 기록됩니다.
+                  </p>
                 </div>
               ) : (
-                <ContributionGraph data={contributionData ?? []} totalDays={365} />
-              )}
-            </Card>
-          </section>
+                <div className="grid grid-cols-1 gap-5 xl:grid-cols-[320px_minmax(0,1fr)]">
+                  <div className="space-y-3">
+                    {goalHistoryGroups.map((group) => {
+                      const tone = GOAL_PERIOD_TONES[group.period];
+                      const isSelected = selectedHistoryGroup?.key === group.key;
 
-          <section aria-labelledby="mypage-progress" className="lg:col-span-4 flex flex-col">
-            <h2 id="mypage-progress" className="sr-only">문제 풀이 진행도</h2>
-            <ProblemProgressCard
-              solvedCount={solvedCount}
-              totalCount={totalProblemCount}
-              isLoading={progressLoading}
-              error={progressError}
-              className="h-full"
-            />
-          </section>
-        </div>
+                      return (
+                        <button
+                          key={group.key}
+                          type="button"
+                          onClick={() => setSelectedHistoryGroupKey(group.key)}
+                          className={`w-full rounded-3xl border p-4 text-left transition ${
+                            isSelected
+                              ? `border-transparent bg-white shadow-sm ring-2 ${tone.soft} dark:bg-slate-800`
+                              : 'border-gray-200 bg-gray-50/80 hover:border-gray-300 dark:border-slate-700 dark:bg-slate-900/60 dark:hover:border-slate-500'
+                          }`}
+                        >
+                          <div className="flex flex-wrap items-center gap-2">
+                            <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${tone.badge} ${tone.badgeText}`}>
+                              {GOAL_PERIOD_LABELS[group.period]}
+                            </span>
+                            <span className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-medium text-gray-600 dark:bg-slate-800 dark:text-slate-300">
+                              {GOAL_TYPE_LABELS[group.type]}
+                            </span>
+                          </div>
+                          <h3 className="mt-3 text-sm font-semibold leading-6 text-gray-900 dark:text-white">
+                            {group.label}
+                          </h3>
+                          <div className="mt-4 flex items-center justify-between text-xs text-gray-500 dark:text-slate-400">
+                            <span>기록 {group.totalLogged}회</span>
+                            <span className="text-emerald-600 dark:text-emerald-300">달성 {group.successCount}</span>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  <div className="rounded-3xl border border-gray-200 bg-gray-50/70 p-5 dark:border-slate-700 dark:bg-slate-900/60">
+                    {selectedHistoryGroup ? (
+                      <>
+                        <div className="flex flex-col gap-4 border-b border-gray-200 pb-5 dark:border-slate-700 md:flex-row md:items-start md:justify-between">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-2">
+                              <span className={`rounded-full px-3 py-1 text-xs font-semibold ${GOAL_PERIOD_TONES[selectedHistoryGroup.period].badge} ${GOAL_PERIOD_TONES[selectedHistoryGroup.period].badgeText}`}>
+                                {GOAL_PERIOD_LABELS[selectedHistoryGroup.period]}
+                              </span>
+                              <span className="rounded-full bg-white px-3 py-1 text-xs font-medium text-gray-600 dark:bg-slate-800 dark:text-slate-300">
+                                {GOAL_TYPE_LABELS[selectedHistoryGroup.type]}
+                              </span>
+                            </div>
+                            <h3 className="mt-3 text-xl font-bold text-gray-900 dark:text-white">{selectedHistoryGroup.label}</h3>
+                            <p className="mt-2 text-sm text-gray-500 dark:text-slate-400">
+                              같은 조건으로 기록된 목표 {selectedHistoryGroup.totalLogged}회를 모아 보여줍니다.
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => openGoalFromHistory(selectedHistoryGroup)}
+                            className="inline-flex items-center justify-center rounded-2xl border border-blue-200 bg-blue-50 px-4 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-100 dark:border-blue-900/60 dark:bg-blue-950/40 dark:text-blue-200 dark:hover:bg-blue-950/70"
+                          >
+                            이 목표 다시 설정
+                          </button>
+                        </div>
+
+                        <div className="mt-5 space-y-4">
+                          <div className="grid grid-cols-1 gap-2 md:grid-cols-3">
+                            <label className="flex flex-col gap-1 text-xs font-medium text-gray-500 dark:text-slate-400">
+                              시작일
+                              <input
+                                type="date"
+                                value={historyStartDateDraft}
+                                onChange={(event) => handleChangeHistoryStartDate(event.target.value)}
+                                className="rounded-2xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none transition focus:border-emerald-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+                              />
+                            </label>
+                            <label className="flex flex-col gap-1 text-xs font-medium text-gray-500 dark:text-slate-400">
+                              종료일
+                              <input
+                                type="date"
+                                value={historyEndDateDraft}
+                                min={historyStartDateDraft || undefined}
+                                onChange={(event) => setHistoryEndDateDraft(event.target.value)}
+                                className="rounded-2xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none transition focus:border-emerald-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+                              />
+                            </label>
+                            <label className="flex flex-col gap-1 text-xs font-medium text-gray-500 dark:text-slate-400">
+                              결과
+                              <select
+                                value={historyStatusDraft}
+                                onChange={(event) => setHistoryStatusDraft(event.target.value as 'all' | 'success' | 'failure')}
+                                className="rounded-2xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 outline-none transition focus:border-emerald-300 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-200"
+                              >
+                                <option value="all">전체 결과</option>
+                                <option value="success">달성만</option>
+                                <option value="failure">미달성만</option>
+                              </select>
+                            </label>
+                          </div>
+
+                          <div className="flex flex-wrap items-center justify-end gap-2">
+                            <button
+                              type="button"
+                              onClick={handleResetHistoryFilters}
+                              className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl border border-gray-200 bg-white text-gray-600 transition hover:bg-gray-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                              aria-label="필터 초기화"
+                              title="필터 초기화"
+                            >
+                              <svg className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 4v5h.582m15.356 2A8 8 0 106.582 9m0 0H9m11 11v-5h-.581" />
+                              </svg>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={handleApplyHistoryFilters}
+                              className="inline-flex h-10 items-center justify-center rounded-2xl bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-700 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+                            >
+                              적용
+                            </button>
+                          </div>
+
+                          {goalHistoryPageLoading ? (
+                            <div className="flex h-32 items-center justify-center text-sm text-gray-500 dark:text-slate-400">
+                              목표 로그를 불러오는 중...
+                            </div>
+                          ) : (goalHistoryPage?.items ?? []).length === 0 ? (
+                            <div className="flex h-32 items-center justify-center rounded-3xl border border-dashed border-gray-300 bg-white text-sm text-gray-500 dark:border-slate-700 dark:bg-slate-950/40 dark:text-slate-400">
+                              이 조건으로 저장된 로그가 없습니다.
+                            </div>
+                          ) : (
+                            (goalHistoryPage?.items ?? []).map((entry) => {
+                              const tone = GOAL_PERIOD_TONES[entry.period];
+                              const progressWidth = `${Math.max(0, Math.min(entry.percent, 100))}%`;
+                              const unitLabel = entry.type === 'ATTENDANCE' ? 'day' : 'problem';
+
+                              return (
+                                <div
+                                  key={entry.id}
+                                  className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm dark:border-slate-700 dark:bg-slate-950/50"
+                                >
+                                  <div className="flex items-start justify-between gap-4">
+                                    <div>
+                                      <p className="text-sm font-semibold text-gray-900 dark:text-white">
+                                        {entry.startDay} ~ {entry.endDay}
+                                      </p>
+                                      <p className="mt-1 text-xs text-gray-400 dark:text-slate-500">
+                                        기록일 {entry.archivedAt.slice(0, 10)}
+                                      </p>
+                                    </div>
+                                    <span
+                                      className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                                        entry.isSuccess
+                                          ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                          : 'bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300'
+                                      }`}
+                                    >
+                                      {entry.isSuccess ? '달성' : '미달성'}
+                                    </span>
+                                  </div>
+
+                                  <div className="mt-5 flex items-end justify-between gap-4">
+                                    <div>
+                                      <p className="text-base font-semibold text-gray-900 dark:text-white">
+                                        {entry.count} / {entry.target} {unitLabel}
+                                      </p>
+                                      <p className="mt-1 text-xs text-gray-500 dark:text-slate-400">
+                                        {entry.isSuccess ? '목표를 달성했습니다.' : '목표를 달성하지 못했습니다.'}
+                                      </p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className={`text-3xl font-bold ${tone.text}`}>{entry.percent}%</p>
+                                      <p className="text-xs font-medium text-gray-400 dark:text-slate-500">달성률</p>
+                                    </div>
+                                  </div>
+
+                                  <div className="mt-4 h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-slate-800">
+                                    <div
+                                      className={`h-full rounded-full ${tone.progress}`}
+                                      style={{ width: progressWidth }}
+                                    />
+                                  </div>
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+
+                        {historyPageCount > 1 && (
+                          <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-t border-gray-200 pt-5 dark:border-slate-700">
+                            <p className="text-sm text-gray-500 dark:text-slate-400">
+                              {historyPage} / {historyPageCount} 페이지
+                            </p>
+                            <div className="flex items-center gap-2">
+                              <button
+                                type="button"
+                                onClick={() => setHistoryPage((prev) => Math.max(prev - 1, 1))}
+                                disabled={historyPage === 1}
+                                className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                              >
+                                이전
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => setHistoryPage((prev) => Math.min(prev + 1, historyPageCount))}
+                                disabled={historyPage === historyPageCount}
+                                className="rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm font-semibold text-gray-600 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
+                              >
+                                다음
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : null}
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+        </section>
 
         <GoalConfigModal
           isOpen={isGoalModalOpen}
-          onClose={() => setIsGoalModalOpen(false)}
+          onClose={() => {
+            setIsGoalModalOpen(false);
+            setInitialGoalDraft(null);
+          }}
           currentTodo={myTodo || null}
           initialUserData={userData || null}
           onUserUpdateSuccess={handleUserUpdateSuccess}
+          initialView={modalInitialView}
+          initialGoalDraft={initialGoalDraft}
         />
 
         <section aria-labelledby="mypage-contests">

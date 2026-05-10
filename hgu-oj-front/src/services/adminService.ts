@@ -716,6 +716,16 @@ export const adminService = {
     return response.data;
   },
 
+  resetUserSessionFromMS: async (userId: number): Promise<void> => {
+    const baseUrl = MS_API_BASE.endsWith('/') ? MS_API_BASE.slice(0, -1) : MS_API_BASE;
+    await axios.post(`${baseUrl}/auth/session/reset/${userId}`, undefined, { withCredentials: true });
+  },
+
+  resetAllUserSessionsFromMS: async (): Promise<void> => {
+    const baseUrl = MS_API_BASE.endsWith('/') ? MS_API_BASE.slice(0, -1) : MS_API_BASE;
+    await axios.post(`${baseUrl}/auth/session/reset/all`, undefined, { withCredentials: true });
+  },
+
   deleteUser: async (userId: number | number[]): Promise<void> => {
     const ids = Array.isArray(userId) ? userId.join(',') : String(userId);
     const response = await apiClient.delete('/admin/user', {
@@ -897,6 +907,7 @@ const mapAdminContest = (raw: any): AdminContest => {
     organization_id: Number(raw?.organization_id ?? raw?.organizationId ?? 0) || 0,
     organization_name: raw?.organization_name ?? raw?.organizationName ?? null,
     isOrganizationOnly: raw?.is_organization_only ?? raw?.isOrganizationOnly ?? false,
+    isPublic: raw?.is_public ?? raw?.isPublic ?? false,
   } as AdminContest;
 };
 

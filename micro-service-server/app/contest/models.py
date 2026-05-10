@@ -67,6 +67,7 @@ class OrganizationContest(BaseEntity, Base):
     contest_id: Mapped[int] = mapped_column(Integer, ForeignKey("public.contest.id"), nullable=False)
     organization_id: Mapped[int] = mapped_column(Integer, ForeignKey("public.micro_organization.id"), nullable=False)
     is_organization_only: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    is_public: Mapped[bool] = mapped_column(Boolean, nullable=True)
 
 
 class ContestUser(BaseEntity, Base):

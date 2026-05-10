@@ -119,7 +119,7 @@ select {
 /* Minimal vertical resizer: thin hairline with wide hit-area */
 .oj-resizer-v {
   position: relative;
-  width: 12px;
+  width: 8px;
   /* comfortable hit area */
   cursor: col-resize;
   background: transparent;
@@ -134,13 +134,13 @@ select {
   width: 1px;
   /* visual hairline */
   height: 100%;
-  background: #e5e7eb;
+  background: var(--oj-resizer-line, #f3f4f6);
   /* gray-200 to blend with cards */
   transition: background 0.15s ease, width 0.15s ease;
 }
 
 .oj-resizer-v:hover::before {
-  background: #cbd5e1;
+  background: var(--oj-resizer-line-hover, #e5e7eb);
   /* gray-300 on hover */
   width: 2px;
 }

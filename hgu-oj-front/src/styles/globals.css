@@ -178,7 +178,7 @@ pre {
 /* Minimal vertical resizer: thin hairline with wide hit-area */
 .oj-resizer-v {
   position: relative;
-  width: 12px; /* comfortable hit area */
+  width: 8px; /* comfortable hit area */
   cursor: col-resize;
   background: transparent;
 }
@@ -190,11 +190,11 @@ pre {
   transform: translateX(-50%);
   width: 1px; /* visual hairline */
   height: 100%;
-  background: #e5e7eb; /* gray-200 to blend with cards */
+  background: var(--oj-resizer-line, #e5e7eb); /* gray-200 to blend with cards */
   transition: background 0.15s ease, width 0.15s ease;
 }
 .oj-resizer-v:hover::before {
-  background: #cbd5e1; /* gray-300 on hover */
+  background: var(--oj-resizer-line-hover, #cbd5e1); /* gray-300 on hover */
   width: 2px;
 }
 

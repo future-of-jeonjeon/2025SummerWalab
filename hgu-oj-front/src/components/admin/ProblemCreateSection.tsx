@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Card } from '../atoms/Card';
 import { Button } from '../atoms/Button';
 import { Input } from '../atoms/Input';
-import { RichTextEditor } from '../molecules/RichTextEditor';
+import { ProblemTextEditor } from '../molecules/ProblemTextEditor';
 import { adminService, CreateProblemPayload } from '../../services/adminService';
 import {
   availableLanguages,
@@ -12,6 +12,7 @@ import {
   toBackendLanguageList,
   templateMap,
 } from '../../lib/problemLanguage';
+import { normalizeProblemRichTextFields } from '../../utils/problemRichText';
 
 type ProblemFormState = {
   displayId: string;
@@ -157,9 +158,12 @@ export const ProblemCreateSection: React.FC = () => {
 
     const payload: CreateProblemPayload = {
       title: problemForm.title.trim(),
-      description: problemForm.description,
-      input_description: problemForm.inputDescription,
-      output_description: problemForm.outputDescription,
+      ...normalizeProblemRichTextFields({
+        description: problemForm.description,
+        input_description: problemForm.inputDescription,
+        output_description: problemForm.outputDescription,
+        hint: problemForm.hint.trim() || null,
+      }),
       samples: cleanedSamples,
       test_case_id: testCaseId,
       time_limit: Number(problemForm.timeLimit) || 1000,
@@ -172,7 +176,6 @@ export const ProblemCreateSection: React.FC = () => {
       }, {}),
       difficulty: problemForm.difficulty,
       tags: tagList,
-      hint: problemForm.hint.trim() || null,
     };
 
     try {
@@ -309,17 +312,17 @@ export const ProblemCreateSection: React.FC = () => {
             <h3 className="text-lg font-semibold text-gray-900 dark:text-slate-100">문제 설명</h3>
             <p className="text-xs text-gray-500 dark:text-slate-400">문제 본문 및 입출력 설명을 작성하세요.</p>
           </div>
-          <RichTextEditor
+          <ProblemTextEditor
             label="문제 설명"
             value={problemForm.description}
             onChange={(value) => setProblemForm((prev) => ({ ...prev, description: value }))}
           />
-          <RichTextEditor
+          <ProblemTextEditor
             label="입력 설명"
             value={problemForm.inputDescription}
             onChange={(value) => setProblemForm((prev) => ({ ...prev, inputDescription: value }))}
           />
-          <RichTextEditor
+          <ProblemTextEditor
             label="출력 설명"
             value={problemForm.outputDescription}
             onChange={(value) => setProblemForm((prev) => ({ ...prev, outputDescription: value }))}

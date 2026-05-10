@@ -41,6 +41,27 @@ const initialContestForm: ContestFormState = {
   languages: [],
 };
 
+const toDatetimeLocal = (date: Date) => {
+  const offset = date.getTimezoneOffset() * 60000;
+  return new Date(date.getTime() - offset).toISOString().slice(0, 16);
+};
+
+const addHoursToDatetimeLocal = (value: string, hours: number) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  date.setHours(date.getHours() + hours);
+  return toDatetimeLocal(date);
+};
+
+const addMinutesToDatetimeLocal = (value: string, minutes: number) => {
+  if (!value) return '';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  date.setMinutes(date.getMinutes() + minutes);
+  return toDatetimeLocal(date);
+};
+
 export const ContestCreateSection: React.FC = () => {
   const [contestForm, setContestForm] = useState<ContestFormState>(initialContestForm);
   const [contestLoading, setContestLoading] = useState(false);
@@ -63,6 +84,28 @@ export const ContestCreateSection: React.FC = () => {
     visible: true,
   });
   const [contestFormAnnouncementMessage, setContestFormAnnouncementMessage] = useState<{ success?: string; error?: string }>({});
+
+  const handleStartTimeChange = (value: string) => {
+    setContestForm((prev) => ({
+      ...prev,
+      startTime: value,
+      endTime: addHoursToDatetimeLocal(value, 1),
+    }));
+  };
+
+  const handleDurationClick = (hours: number) => {
+    setContestForm((prev) => ({
+      ...prev,
+      endTime: addHoursToDatetimeLocal(prev.startTime, hours),
+    }));
+  };
+
+  const handleAddDurationClick = (minutes: number) => {
+    setContestForm((prev) => ({
+      ...prev,
+      endTime: addMinutesToDatetimeLocal(prev.endTime || prev.startTime, minutes),
+    }));
+  };
 
   useEffect(() => {
     return () => {
@@ -316,7 +359,7 @@ export const ContestCreateSection: React.FC = () => {
               type="datetime-local"
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
               value={contestForm.startTime}
-              onChange={(event) => setContestForm((prev) => ({ ...prev, startTime: event.target.value }))}
+              onChange={(event) => handleStartTimeChange(event.target.value)}
             />
           </div>
           <div>
@@ -327,6 +370,37 @@ export const ContestCreateSection: React.FC = () => {
               value={contestForm.endTime}
               onChange={(event) => setContestForm((prev) => ({ ...prev, endTime: event.target.value }))}
             />
+          </div>
+          <div className="md:col-span-2 flex items-center gap-2">
+            <span className="text-sm font-medium text-gray-500 dark:text-slate-400">진행 시간</span>
+            {[1, 2].map((hours) => (
+              <button
+                key={hours}
+                type="button"
+                onClick={() => handleDurationClick(hours)}
+                disabled={!contestForm.startTime}
+                className="rounded-md border border-gray-300 dark:border-slate-600 px-3 py-1.5 text-sm font-semibold text-gray-700 dark:text-slate-200 transition-colors hover:bg-gray-100 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {hours}시간
+              </button>
+            ))}
+            <span className="mx-1 h-4 w-px bg-gray-300 dark:bg-slate-600" />
+            <button
+              type="button"
+              onClick={() => handleAddDurationClick(30)}
+              disabled={!contestForm.startTime}
+              className="rounded-md border border-gray-300 dark:border-slate-600 px-3 py-1.5 text-sm font-semibold text-gray-700 dark:text-slate-200 transition-colors hover:bg-gray-100 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              30분 추가
+            </button>
+            <button
+              type="button"
+              onClick={() => handleAddDurationClick(60)}
+              disabled={!contestForm.startTime}
+              className="rounded-md border border-gray-300 dark:border-slate-600 px-3 py-1.5 text-sm font-semibold text-gray-700 dark:text-slate-200 transition-colors hover:bg-gray-100 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              1시간 추가
+            </button>
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">룰 타입</label>
