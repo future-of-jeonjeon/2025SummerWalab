@@ -73,6 +73,11 @@ const addMinutesToDatetimeLocal = (value: string, minutes: number) => {
   return toLocalDateTimeInput(date.toISOString());
 };
 
+const getCurrentDatetimeLocal = () => {
+  const date = new Date();
+  return toLocalDateTimeInput(date.toISOString());
+};
+
 export const ContestEditSection: React.FC = () => {
   const [contestList, setContestList] = useState<AdminContest[]>([]);
   const [contestListLoading, setContestListLoading] = useState(false);
@@ -282,12 +287,11 @@ export const ContestEditSection: React.FC = () => {
       return {
         ...prev,
         startTime: value,
-        endTime: addHoursToDatetimeLocal(value, 1),
       };
     });
   };
 
-  const handleContestDurationClick = (hours: number) => {
+  const handleContestSetDurationClick = (minutes: number) => {
     setContestEditForm((prev) => {
       if (!prev) {
         return prev;
@@ -295,20 +299,7 @@ export const ContestEditSection: React.FC = () => {
       setContestEditMessage({});
       return {
         ...prev,
-        endTime: addHoursToDatetimeLocal(prev.startTime, hours),
-      };
-    });
-  };
-
-  const handleContestAddDurationClick = (minutes: number) => {
-    setContestEditForm((prev) => {
-      if (!prev) {
-        return prev;
-      }
-      setContestEditMessage({});
-      return {
-        ...prev,
-        endTime: addMinutesToDatetimeLocal(prev.endTime || prev.startTime, minutes),
+        endTime: addMinutesToDatetimeLocal(prev.startTime, minutes),
       };
     });
   };
@@ -745,7 +736,10 @@ export const ContestEditSection: React.FC = () => {
 
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">시작 시간</label>
+                  <div className="mb-1 flex items-center justify-between">
+                    <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">시작 시간</label>
+                    <button type="button" className="text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-cyan-400 dark:hover:text-cyan-300" onClick={() => handleContestStartTimeChange(getCurrentDatetimeLocal())}>현재 시간으로 설정</button>
+                  </div>
                   <input
                     type="datetime-local"
                     className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
@@ -765,35 +759,27 @@ export const ContestEditSection: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-2">
-                <span className="text-sm font-medium text-gray-500 dark:text-slate-400">진행 시간</span>
-                {[1, 2].map((hours) => (
-                  <button
-                    key={hours}
-                    type="button"
-                    onClick={() => handleContestDurationClick(hours)}
+                <span className="text-sm font-medium text-gray-500 dark:text-slate-400">종료 시간 간편 설정</span>
+                <select
+                    className="rounded-md border border-gray-300 dark:border-slate-600 px-3 py-1.5 text-sm font-semibold text-gray-700 dark:text-slate-200 transition-colors bg-white dark:bg-slate-800 focus:outline-none"
+                    onChange={(e) => {
+                        if (e.target.value) {
+                            handleContestSetDurationClick(Number(e.target.value));
+                            e.target.value = "";
+                        }
+                    }}
                     disabled={!contestEditForm.startTime}
-                    className="rounded-md border border-gray-300 dark:border-slate-600 px-3 py-1.5 text-sm font-semibold text-gray-700 dark:text-slate-200 transition-colors hover:bg-gray-100 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-                  >
-                    {hours}시간
-                  </button>
-                ))}
-                <span className="mx-1 h-4 w-px bg-gray-300 dark:bg-slate-600" />
-                <button
-                  type="button"
-                  onClick={() => handleContestAddDurationClick(30)}
-                  disabled={!contestEditForm.startTime}
-                  className="rounded-md border border-gray-300 dark:border-slate-600 px-3 py-1.5 text-sm font-semibold text-gray-700 dark:text-slate-200 transition-colors hover:bg-gray-100 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  30분 추가
-                </button>
-                <button
-                  type="button"
-                  onClick={() => handleContestAddDurationClick(60)}
-                  disabled={!contestEditForm.startTime}
-                  className="rounded-md border border-gray-300 dark:border-slate-600 px-3 py-1.5 text-sm font-semibold text-gray-700 dark:text-slate-200 transition-colors hover:bg-gray-100 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  1시간 추가
-                </button>
+                    <option value="">시작 시간 기준 설정...</option>
+                    <option value="30">30분 뒤로 설정</option>
+                    <option value="60">1시간 뒤로 설정</option>
+                    <option value="120">2시간 뒤로 설정</option>
+                    <option value="180">3시간 뒤로 설정</option>
+                    <option value="240">4시간 뒤로 설정</option>
+                    <option value="300">5시간 뒤로 설정</option>
+                    <option value="720">12시간 뒤로 설정</option>
+                    <option value="1440">24시간 뒤로 설정</option>
+                </select>
               </div>
 
               <div className="grid gap-4 sm:grid-cols-3">
