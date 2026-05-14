@@ -5,6 +5,7 @@ import { Input } from '../../../components/atoms/Input';
 import { formatDateTime } from '../../../utils/date';
 import type { ContestManageUserSearchItem, ContestUserRegistrationList } from '../../../types';
 import type { FeedbackMessage } from '../types';
+import { DEPARTMENTS } from '../../../services/userService';
 
 interface ContestUserManagementTabProps {
   isAdminUser: boolean;
@@ -99,9 +100,17 @@ export const ContestUserManagementTab: React.FC<ContestUserManagementTabProps> =
   const filteredApprovedUsers = approvedUsers.filter((entry) => {
     if (!normalizedParticipantQuery) return true;
     const username = (entry.username ?? '').toLowerCase();
+    const name = (entry.name ?? '').toLowerCase();
+    const studentId = (entry.studentId ?? '').toLowerCase();
     const userId = String(entry.userId);
-    return username.includes(normalizedParticipantQuery) || userId.includes(normalizedParticipantQuery);
+    return username.includes(normalizedParticipantQuery) || name.includes(normalizedParticipantQuery) || studentId.includes(normalizedParticipantQuery) || userId.includes(normalizedParticipantQuery);
   });
+
+  const getDisplayName = (entry: { name?: string | null; username?: string | null; userId: number }) =>
+    entry.name ?? entry.username ?? `User ${entry.userId}`;
+
+  const getDepartmentName = (majorId?: number | null) =>
+    majorId !== undefined && majorId !== null ? DEPARTMENTS[majorId] : undefined;
 
   return (
     <div className="space-y-4">
@@ -117,7 +126,7 @@ export const ContestUserManagementTab: React.FC<ContestUserManagementTabProps> =
         <div className="mt-3">
           <Input
             type="search"
-            placeholder="참가자 검색 (아이디/유저명)"
+            placeholder="참가자 검색 (학번/이름/유저명)"
             value={participantSearchQuery}
             onChange={(event) => onParticipantSearchQueryChange(event.target.value)}
           />
@@ -128,8 +137,11 @@ export const ContestUserManagementTab: React.FC<ContestUserManagementTabProps> =
           <div className="mt-4 space-y-2">
             {filteredApprovedUsers.map((entry) => (
               <div key={entry.userId} className="rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/50">
-                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{entry.username ?? `User ${entry.userId}`}</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400">신청일: {formatDateTime(entry.appliedAt)}</p>
+                <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                  {entry.studentId ?? '-'} {getDisplayName(entry)}
+                </p>
+                <p className="text-xs text-slate-500 dark:text-slate-400">{getDepartmentName(entry.majorId) ?? '-'}</p>
+                <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">참가 시간: {formatDateTime(entry.appliedAt)}</p>
               </div>
             ))}
           </div>
@@ -153,8 +165,11 @@ export const ContestUserManagementTab: React.FC<ContestUserManagementTabProps> =
                   className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/50"
                 >
                   <div>
-                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">{entry.username ?? `User ${entry.userId}`}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">신청일: {formatDateTime(entry.appliedAt)}</p>
+                    <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
+                      {entry.studentId ?? '-'} {getDisplayName(entry)}
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{getDepartmentName(entry.majorId) ?? '-'}</p>
+                    <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">참가 시간: {formatDateTime(entry.appliedAt)}</p>
                   </div>
                   <div className="flex gap-2">
                     <Button
@@ -224,10 +239,10 @@ export const ContestUserManagementTab: React.FC<ContestUserManagementTabProps> =
                   >
                     <div>
                       <p className="text-sm font-semibold text-slate-900 dark:text-slate-100">
-                        {candidate.name ?? candidate.username}
+                        {candidate.studentId ?? '-'} {candidate.name ?? candidate.username}
                       </p>
                       <p className="text-xs text-slate-500 dark:text-slate-400">
-                        유저명: {candidate.username} | 학번: {candidate.studentId ?? '-'}
+                        {getDepartmentName(candidate.majorId) ?? '-'} | 유저명: {candidate.username}
                       </p>
                     </div>
                     <Button

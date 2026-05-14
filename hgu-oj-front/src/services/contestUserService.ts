@@ -26,6 +26,11 @@ type RawContestUserRegistration = {
   user_id?: number;
   userId?: number;
   username?: string;
+  name?: string;
+  student_id?: string;
+  studentId?: string;
+  major_id?: number;
+  majorId?: number;
   status?: string;
   applied_at?: string;
   appliedAt?: string;
@@ -47,6 +52,8 @@ type RawContestManageUserSearchItem = {
   name?: string;
   student_id?: string;
   studentId?: string;
+  major_id?: number;
+  majorId?: number;
 };
 
 export interface ContestApprovalPolicy {
@@ -98,6 +105,9 @@ const adaptRegistration = (entry: RawContestUserRegistration): ContestUserRegist
   return {
     userId,
     username: entry.username ?? null,
+    name: entry.name ?? null,
+    studentId: entry.student_id ?? entry.studentId ?? null,
+    majorId: entry.major_id ?? entry.majorId ?? null,
     status,
     appliedAt: entry.applied_at ?? entry.appliedAt,
     decidedAt: entry.decided_at ?? entry.decidedAt,
@@ -110,6 +120,7 @@ const adaptManageSearchUser = (entry: RawContestManageUserSearchItem): ContestMa
   username: entry.username ?? '',
   name: entry.name ?? null,
   studentId: entry.student_id ?? entry.studentId ?? null,
+  majorId: entry.major_id ?? entry.majorId ?? null,
 });
 
 export const contestUserService = {
