@@ -189,20 +189,22 @@ const toneStyles: Record<StatusTone, StatusToneStyle> = {
 };
 
 const STATUS_META: Record<string, Omit<StatusDisplayMeta, 'code'>> = {
-  AC: { label: '채점 통과', message: '축하합니다! 이 문제를 해결했습니다.', tone: 'success' },
-  ACCEPTED: { label: '채점 통과', message: '축하합니다! 이 문제를 해결했습니다.', tone: 'success' },
-  WA: { label: '틀렸습니다', message: '정답과 출력이 달랐어요. 입출력 예제를 다시 확인해보세요.', tone: 'error' },
-  WRONG_ANSWER: { label: '틀렸습니다', message: '정답과 출력이 달랐어요. 입출력 예제를 다시 확인해보세요.', tone: 'error' },
-  TLE: { label: '시간 초과', message: '실행 시간이 제한을 넘었습니다. 알고리즘을 최적화해보세요.', tone: 'warning' },
-  TIME_LIMIT_EXCEEDED: { label: '시간 초과', message: '실행 시간이 제한을 넘었습니다. 알고리즘을 최적화해보세요.', tone: 'warning' },
+  AC: { label: '해결', message: '정답 처리되었습니다.', tone: 'success' },
+  ACCEPTED: { label: '해결', message: '정답 처리되었습니다.', tone: 'success' },
+  WA: { label: '오답', message: '틀렸습니다', tone: 'error' },
+  WR: { label: '오답', message: '틀렸습니다', tone: 'error' },
+  WRONG: { label: '오답', message: '틀렸습니다', tone: 'error' },
+  WRONG_ANSWER: { label: '오답', message: '틀렸습니다', tone: 'error' },
+  TLE: { label: '시간 초과', message: '제한시간 초과', tone: 'warning' },
+  TIME_LIMIT_EXCEEDED: { label: '시간 초과', message: '제한시간 초과', tone: 'warning' },
   MLE: { label: '메모리 초과', message: '필요한 메모리가 제한을 초과했습니다. 자료구조를 재검토해보세요.', tone: 'warning' },
   MEMORY_LIMIT_EXCEEDED: { label: '메모리 초과', message: '필요한 메모리가 제한을 초과했습니다. 자료구조를 재검토해보세요.', tone: 'warning' },
   OLE: { label: '출력 초과', message: '출력 크기가 제한을 초과했습니다.', tone: 'warning' },
   OUTPUT_LIMIT_EXCEEDED: { label: '출력 초과', message: '출력 크기가 제한을 초과했습니다.', tone: 'warning' },
-  RE: { label: '런타임 에러', message: '실행 중 예외가 발생했습니다. 예외 상황을 확인해보세요.', tone: 'error' },
-  RUNTIME_ERROR: { label: '런타임 에러', message: '실행 중 예외가 발생했습니다. 예외 상황을 확인해보세요.', tone: 'error' },
-  CE: { label: '컴파일 에러', message: '컴파일이 실패했습니다. 컴파일러 메시지를 확인하세요.', tone: 'error' },
-  COMPILE_ERROR: { label: '컴파일 에러', message: '컴파일이 실패했습니다. 컴파일러 메시지를 확인하세요.', tone: 'error' },
+  RE: { label: '런타임 에러', message: '런타임 에러', tone: 'error' },
+  RUNTIME_ERROR: { label: '런타임 에러', message: '런타임 에러', tone: 'error' },
+  CE: { label: '컴파일 에러', message: '컴파일 에러', tone: 'error' },
+  COMPILE_ERROR: { label: '컴파일 에러', message: '컴파일 에러', tone: 'error' },
   SE: { label: '시스템 오류', message: '채점 서버에 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.', tone: 'error' },
   SYSTEM_ERROR: { label: '시스템 오류', message: '채점 서버에 문제가 발생했습니다. 잠시 후 다시 시도해 주세요.', tone: 'error' },
   PAC: { label: '부분 정답', message: '일부 테스트만 통과했습니다. 나머지도 해결해 보세요.', tone: 'warning' },
@@ -221,9 +223,10 @@ const describeStatus = (statusCode?: string): StatusDisplayMeta | undefined => {
   const normalized = statusCode.trim().toUpperCase();
   if (!normalized) return undefined;
   const normalizedKey = normalized.replace(/\s+/g, '_');
-  const meta = STATUS_META[normalized] ?? STATUS_META[normalizedKey];
+  const numericStatus = judgeResultToStatus[normalized];
+  const meta = STATUS_META[numericStatus ?? normalized] ?? STATUS_META[normalizedKey];
   if (meta) {
-    return { ...meta, code: normalized };
+    return { ...meta, code: meta.label };
   }
   return undefined;
 };
@@ -822,8 +825,34 @@ export const ProblemDetailPage: React.FC = () => {
   }, [problemIdentifier, stopSubmissionPolling]);
 
   const rawProblemStatus = useMemo(() => {
+    const submissions = liveMySubmissions?.items ?? [];
+
+    if (Array.isArray(submissions) && submissions.length > 0) {
+      const hasAcceptedSubmission = submissions.some((item) => {
+        const mapped = judgeResultToStatus[String(item.result ?? '')];
+        const normalizedStatus = item.status != null ? String(item.status).trim().toUpperCase() : '';
+        return mapped === 'AC' || normalizedStatus === 'AC' || normalizedStatus === 'ACCEPTED';
+      });
+      if (hasAcceptedSubmission) return 'AC';
+    }
+
+    if (problem?.solved) {
+      return 'AC';
+    }
+
+    if (!problem || !isAuthenticated) return undefined;
+    let fallbackProblemStatus: string | undefined;
+    const fromProblem = problem.myStatus ?? (problem as any).my_status;
+    if (fromProblem != null && String(fromProblem).trim().length > 0) {
+      const raw = String(fromProblem).trim();
+      const mapped = judgeResultToStatus[raw];
+      const normalized = (mapped ?? raw).toUpperCase();
+      if (normalized === 'AC' || normalized === 'ACCEPTED') return 'AC';
+      fallbackProblemStatus = normalized;
+    }
+
     const latestSubmission = (() => {
-      const items = liveMySubmissions?.items ?? [];
+      const items = submissions;
       if (!Array.isArray(items) || items.length === 0) return null;
       const sorted = [...items].sort((a, b) => {
         const ta = new Date((a.create_time ?? a.createTime ?? '') as string).getTime();
@@ -843,21 +872,7 @@ export const ProblemDetailPage: React.FC = () => {
         return String(latestSubmission.status).trim().toUpperCase();
       }
     }
-
-    if (!problem || !isAuthenticated) return undefined;
-    const fromProblem = problem.myStatus ?? (problem as any).my_status;
-    if (fromProblem != null && String(fromProblem).trim().length > 0) {
-      const raw = String(fromProblem).trim();
-      const mapped = judgeResultToStatus[raw];
-      if (mapped) {
-        return mapped;
-      }
-      return raw.toUpperCase();
-    }
-    if (problem.solved) {
-      return 'AC';
-    }
-    return undefined;
+    return fallbackProblemStatus;
   }, [isAuthenticated, liveMySubmissions, problem]);
 
   const isProblemSolved = useMemo(() => {
@@ -1259,12 +1274,14 @@ export const ProblemDetailPage: React.FC = () => {
                   {formatDateTime(submittedAtRaw)}
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className={`inline-flex items-center px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide rounded ${toneStyle.badge}`}>
-                    {statusMeta.code ?? ''}
-                  </span>
-                  <span className={`text-sm font-medium ${isDarkTheme ? 'text-slate-100' : 'text-gray-800'}`}>
+                  <span className={`inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded ${toneStyle.badge}`}>
                     {statusMeta.label}
                   </span>
+                  {statusMeta.message && (
+                    <span className={`text-sm font-medium ${isDarkTheme ? 'text-slate-100' : 'text-gray-800'}`}>
+                      {statusMeta.message}
+                    </span>
+                  )}
                   {submission.language && (
                     <span className={`text-xs ${isDarkTheme ? 'text-slate-300' : 'text-gray-500'}`}>
                       {submission.language}
@@ -1819,10 +1836,7 @@ export const ProblemDetailPage: React.FC = () => {
                   <>
                     <div className="space-y-2">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className={`inline-flex items-center px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide rounded ${modalToneStyle.badge}`}>
-                          {modalStatusMeta?.code ?? 'INFO'}
-                        </span>
-                        <span className={`text-sm font-semibold ${isDarkTheme ? 'text-slate-100' : 'text-gray-900'}`}>
+                        <span className={`inline-flex items-center px-2 py-0.5 text-[10px] font-semibold rounded ${modalToneStyle.badge}`}>
                           {modalStatusMeta?.label ?? '채점 중'}
                         </span>
                       </div>

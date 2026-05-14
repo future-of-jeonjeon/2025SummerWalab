@@ -32,7 +32,7 @@ export const OrganizationManagePage: React.FC = () => {
     const [initializing, setInitializing] = useState(true);
 
     const currentOrgRole = organization?.members?.find((member) => member.username === user?.username)?.role;
-    const canManageMemberRoles = isAdmin || currentOrgRole === 'ORG_ADMIN' || currentOrgRole === 'ORG_SUPER_ADMIN';
+    const canManageMemberRoles = isAdmin || currentOrgRole === 'ORG_SUPER_ADMIN';
 
     useEffect(() => {
         const checkPermissionAndFetch = async () => {
@@ -151,6 +151,7 @@ export const OrganizationManagePage: React.FC = () => {
     };
 
     const handleUpdateMemberRole = async (memberId: number) => {
+        if (!canManageMemberRoles) return;
         if (!id) return;
         const nextRole = roleDrafts[memberId];
         if (!nextRole) return;
@@ -418,8 +419,7 @@ export const OrganizationManagePage: React.FC = () => {
                                                             value={roleDrafts[member.id] || member.role || 'MEMBER'}
                                                             onChange={(e) => handleRoleDraftChange(member.id, e.target.value as OrganizationRole)}
                                                             disabled={
-                                                                savingMemberId === member.id ||
-                                                                (currentOrgRole === 'ORG_ADMIN' && !isAdmin && member.role === 'ORG_SUPER_ADMIN')
+                                                                savingMemberId === member.id
                                                             }
                                                             className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 shadow-sm outline-none transition focus:border-blue-400 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
                                                         >
@@ -435,8 +435,7 @@ export const OrganizationManagePage: React.FC = () => {
                                                             className="px-3 py-2 text-sm"
                                                             disabled={
                                                                 savingMemberId === member.id ||
-                                                                (roleDrafts[member.id] || member.role || 'MEMBER') === (member.role || 'MEMBER') ||
-                                                                (currentOrgRole === 'ORG_ADMIN' && !isAdmin && member.role === 'ORG_SUPER_ADMIN')
+                                                                (roleDrafts[member.id] || member.role || 'MEMBER') === (member.role || 'MEMBER')
                                                             }
                                                             onClick={() => handleUpdateMemberRole(member.id)}
                                                         >
@@ -475,7 +474,7 @@ export const OrganizationManagePage: React.FC = () => {
 
                     {/* Contests Tab */}
                     {activeTab === 'contests' && isEditMode && (
-                        <OrganizationContestManager />
+                        <OrganizationContestManager organizationName={organization?.name} />
                     )}
                 </div>
             </div>

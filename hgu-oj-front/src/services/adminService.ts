@@ -602,6 +602,7 @@ export const adminService = {
     const payload = problems.map((p, index) => ({
       problem_id: p.id,
       display_id: String(index + 1),
+      current_display_id: String(p.displayId ?? (p as any)._id ?? p.id),
     }));
     await apiClient.put(`${baseUrl}/contest/${contestId}/problems/reindex`, payload);
   },

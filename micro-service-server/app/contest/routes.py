@@ -14,7 +14,7 @@ router = APIRouter(prefix="/api/contest", tags=["contest"])
 
 
 @router.get("", response_model=PaginatedContestResponse)
-async def get_contest_list(
+async def get_contest_list_api(
         page: int = Query(1, ge=1),
         size: int = Query(20, ge=1),
         keyword: Optional[str] = None,

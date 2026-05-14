@@ -424,8 +424,9 @@ async def create_problem(
     except Exception as e:
         logger.error(f"Failed to create problem: {e}")
         error_code = _extract_error_code(e)
+        error_message = _extract_error_message(e)
         utils.remove_test_case_directory([request_data.test_case_id])
-        await _set_redis_polling_state(polling_key, "error", 0, 1, 1, error_code)
+        await _set_redis_polling_state(polling_key, "error", 0, 1, 1, error_code, error_message)
 
 
 async def _set_problem_contest_language(contest_id: int, problem: Problem, db: AsyncSession) -> Problem:
@@ -456,9 +457,10 @@ async def update_problem(
     except Exception as e:
         logger.error(f"Failed to update problem: {e}")
         error_code = _extract_error_code(e)
+        error_message = _extract_error_message(e)
         if request_data.test_case_id and problem and request_data.test_case_id != problem.test_case_id:
             utils.remove_test_case_directory([request_data.test_case_id])
-        await _set_redis_polling_state(polling_key, "error", 0, 1, 1, error_code)
+        await _set_redis_polling_state(polling_key, "error", 0, 1, 1, error_code, error_message)
 
 
 async def _validate_problem_request(request_data: Union[ProblemCreateRequest, ProblemUpdateRequest], db: AsyncSession,

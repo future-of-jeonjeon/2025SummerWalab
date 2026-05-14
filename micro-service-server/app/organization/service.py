@@ -76,8 +76,10 @@ async def delete_organization(
         user_profile: UserProfile,
         db: AsyncSession):
     await check_organization_admin(organization_id, user_profile, db)
-    await organization_repo.remove_organization_all_members(organization_id, db)
     await _get_organization_by_id(organization_id, db)
+    from app.contest.service import delete_contests_by_organization_id
+    await delete_contests_by_organization_id(organization_id, db)
+    await organization_repo.remove_organization_all_members(organization_id, db)
     await organization_repo.delete_by_id(organization_id, db)
     return
 
