@@ -46,13 +46,6 @@ const toDatetimeLocal = (date: Date) => {
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 };
 
-const addHoursToDatetimeLocal = (value: string, hours: number) => {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  date.setHours(date.getHours() + hours);
-  return toDatetimeLocal(date);
-};
 
 const addMinutesToDatetimeLocal = (value: string, minutes: number) => {
   if (!value) return '';

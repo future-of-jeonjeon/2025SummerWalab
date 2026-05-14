@@ -57,13 +57,6 @@ const toIsoString = (value: string): string | null => {
   return date.toISOString();
 };
 
-const addHoursToDatetimeLocal = (value: string, hours: number) => {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  date.setHours(date.getHours() + hours);
-  return toLocalDateTimeInput(date.toISOString());
-};
 
 const addMinutesToDatetimeLocal = (value: string, minutes: number) => {
   if (!value) return '';
