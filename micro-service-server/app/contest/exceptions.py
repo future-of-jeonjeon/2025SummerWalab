@@ -10,6 +10,10 @@ def invalid_ip_network(ip_range: str):
     handlers.bad_request(f"{ip_range} is not a valid cidr network", ErrorCode.BAD_REQUEST)
 
 
+def invalid_contest_languages():
+    handlers.bad_request("Contest must have at least one language", ErrorCode.BAD_REQUEST)
+
+
 def contest_not_found():
     handlers.not_found("Contest not found", ErrorCode.CONTEST_NOT_FOUND)
 

@@ -8,6 +8,7 @@ from app.common.page import Page
 class ContestProblemInputDTO(BaseModel):
     problem_id: int
     display_id: str
+    current_display_id: Optional[str] = None
 
 
 class ContestDTO(BaseModel):
@@ -128,6 +129,7 @@ class ContestManageUserSearchItem(BaseModel):
     username: str
     name: str | None = None
     student_id: str | None = None
+    major_id: int | None = None
 
 
 class ContestApprovalPolicy(BaseModel):
@@ -138,6 +140,9 @@ class ContestApprovalPolicy(BaseModel):
 class ContestUserDetail(BaseModel):
     user_id: int
     username: str | None = None
+    name: str | None = None
+    student_id: str | None = None
+    major_id: int | None = None
     status: ParticipationStatus
     applied_at: datetime | None = None
     decided_at: datetime | None = None

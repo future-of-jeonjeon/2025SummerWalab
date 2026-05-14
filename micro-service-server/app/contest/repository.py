@@ -7,7 +7,8 @@ from sqlalchemy import and_
 from app.contest.models import *
 
 from app.user.models import User, UserData
-from app.problem.models import Problem
+from app.problem.models import Problem, problem_tags_association_table
+from app.submission.models import Submission
 
 from sqlalchemy import delete
 from app.common.page import Page, paginate
@@ -23,6 +24,8 @@ async def get_contest_list(
         created_by_id: Optional[int] = None,
         visible_only: bool = True) -> Page:
     filters = []
+    now = datetime.now()
+
     if visible_only:
         filters.append(Contest.visible == True)
     if keyword:
@@ -32,7 +35,6 @@ async def get_contest_list(
     if created_by_id:
         filters.append(Contest.created_by_id == created_by_id)
 
-    now = datetime.now()
     if status == "1":
         filters.append(Contest.start_time <= now)
         filters.append(Contest.end_time >= now)
@@ -40,14 +42,11 @@ async def get_contest_list(
         filters.append(Contest.end_time < now)
     if status == "0":
         filters.append(Contest.start_time > now)
+
     stmt = (
-        select(Contest, ContestLanguage.languages, User, UserData)
-        .join(User, Contest.created_by_id == User.id)
+        select(Contest)
         .join(OrganizationContest, Contest.id == OrganizationContest.contest_id)
-        .outerjoin(UserData, User.id == UserData.user_id)
-        .outerjoin(ContestLanguage, Contest.id == ContestLanguage.contest_id)
         .where(*filters, OrganizationContest.is_public == True)
-        .where(OrganizationContest.is_organization_only == False)
         .order_by(desc(Contest.create_time))
     )
     return await paginate(db, stmt, page, size)
@@ -202,9 +201,51 @@ async def delete_contest_users(
     await db.execute(stmt)
 
 
+async def delete_organization_contest_by_contest_id(
+        contest_id: int,
+        db: AsyncSession) -> None:
+    stmt = (
+        delete(OrganizationContest)
+        .where(OrganizationContest.contest_id == contest_id)
+    )
+    await db.execute(stmt)
+
+
+async def delete_contest_announcements(
+        contest_id: int,
+        db: AsyncSession) -> None:
+    stmt = (
+        delete(ContestAnnouncement)
+        .where(ContestAnnouncement.contest_id == contest_id)
+    )
+    await db.execute(stmt)
+
+
+async def delete_contest_ranks(
+        contest_id: int,
+        db: AsyncSession) -> None:
+    await db.execute(delete(ACMContestRank).where(ACMContestRank.contest_id == contest_id))
+    await db.execute(delete(OIContestRank).where(OIContestRank.contest_id == contest_id))
+
+
+async def delete_contest_submissions(
+        contest_id: int,
+        db: AsyncSession) -> None:
+    stmt = (
+        delete(Submission)
+        .where(Submission.contest_id == contest_id)
+    )
+    await db.execute(stmt)
+
+
 async def delete_contest_problems(
         contest_id: int,
         db: AsyncSession) -> None:
+    problem_ids = select(Problem.id).where(Problem.contest_id == contest_id)
+    await db.execute(
+        delete(problem_tags_association_table)
+        .where(problem_tags_association_table.c.problem_id.in_(problem_ids))
+    )
     stmt = (
         delete(Problem)
         .where(Problem.contest_id == contest_id)
@@ -260,6 +301,17 @@ async def find_organization_contest_by_contest_id(
     return result.scalar_one_or_none()
 
 
+async def find_contest_ids_by_organization_id(
+        organization_id: int,
+        db: AsyncSession) -> List[int]:
+    stmt = (
+        select(OrganizationContest.contest_id)
+        .where(OrganizationContest.organization_id == organization_id)
+    )
+    result = await db.execute(stmt)
+    return list(result.scalars().all())
+
+
 async def find_by_contest_and_user(
         contest_id: int,
         user_id: int,
@@ -307,10 +359,11 @@ async def upsert_membership(
 
 async def list_memberships(
         contest_id: int,
-        db: AsyncSession) -> List[Tuple[ContestUser, User]]:
+        db: AsyncSession) -> List[Tuple[ContestUser, User, UserData]]:
     stmt = (
-        select(ContestUser, User)
+        select(ContestUser, User, UserData)
         .join(User, User.id == ContestUser.user_id)
+        .outerjoin(UserData, UserData.user_id == User.id)
         .where(
             ContestUser.contest_id == contest_id,
             ContestUser.user_id > 0
