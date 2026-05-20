@@ -65,7 +65,7 @@ async def search_users_by_name_or_student_id(keyword: str, db: AsyncSession, lim
         return []
 
     stmt = (
-        select(User.id, User.username, UserData.student_id, UserData.name)
+        select(User.id, User.username, UserData.student_id, UserData.name, UserData.major_id)
         .join(UserData, UserData.user_id == User.id)
         .where(
             or_(

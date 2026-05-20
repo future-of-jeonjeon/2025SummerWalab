@@ -163,6 +163,7 @@ export interface ContestRankEntry {
     username: string;
     realName?: string;
     studentId?: string;
+    majorId?: number | null;
   };
   rank?: number;
   acceptedNumber?: number;
@@ -187,6 +188,9 @@ export interface ContestJoinStatus {
 export interface ContestUserRegistration {
   userId: number;
   username?: string | null;
+  name?: string | null;
+  studentId?: string | null;
+  majorId?: number | null;
   status: ContestUserStatusValue;
   appliedAt?: string;
   decidedAt?: string;
@@ -203,6 +207,7 @@ export interface ContestManageUserSearchItem {
   username: string;
   name?: string | null;
   studentId?: string | null;
+  majorId?: number | null;
 }
 
 // 문제집 관련 타입

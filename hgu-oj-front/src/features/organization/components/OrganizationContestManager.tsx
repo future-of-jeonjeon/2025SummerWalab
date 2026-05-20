@@ -6,7 +6,11 @@ import { CreateContestModal } from './CreateContestModal';
 import { useParams } from 'react-router-dom';
 import CommonPagination from '../../../components/common/CommonPagination';
 
-export const OrganizationContestManager: React.FC = () => {
+interface OrganizationContestManagerProps {
+    organizationName?: string;
+}
+
+export const OrganizationContestManager: React.FC<OrganizationContestManagerProps> = ({ organizationName }) => {
     const { id } = useParams<{ id: string }>();
     const organizationId = parseInt(id || '0', 10);
     const [contests, setContests] = useState<Contest[]>([]);
@@ -306,6 +310,7 @@ export const OrganizationContestManager: React.FC = () => {
                         setInitialTab('basic');
                     }}
                     organizationId={organizationId}
+                    organizationName={organizationName}
                     onSuccess={handleCreateSuccess}
                     initialData={selectedContest}
                     initialTab={initialTab}

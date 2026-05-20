@@ -14,6 +14,7 @@ interface CreateContestModalProps {
     onClose: () => void;
     onSuccess: () => void;
     organizationId?: number;
+    organizationName?: string;
     initialData?: ContestLike;
     context?: ModalContext;
     contestId?: number | null;
@@ -31,13 +32,6 @@ const toDatetimeLocal = (isoString?: string) => {
     return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 };
 
-const addHoursToDatetimeLocal = (value: string, hours: number) => {
-    if (!value) return '';
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return '';
-    date.setHours(date.getHours() + hours);
-    return toDatetimeLocal(date.toISOString());
-};
 
 const addMinutesToDatetimeLocal = (value: string, minutes: number) => {
     if (!value) return '';
@@ -47,10 +41,46 @@ const addMinutesToDatetimeLocal = (value: string, minutes: number) => {
     return toDatetimeLocal(date.toISOString());
 };
 
+const getMidnightDatetimeLocal = () => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    return toDatetimeLocal(date.toISOString());
+};
+
+const getEndOfDayDatetimeLocal = () => {
+    const date = new Date();
+    date.setHours(23, 59, 59, 999);
+    return toDatetimeLocal(date.toISOString());
+};
+
+const getCurrentDatetimeLocal = () => {
+    const date = new Date();
+    return toDatetimeLocal(date.toISOString());
+};
+
+const createDefaultContestFormData = () => {
+    return {
+        title: '',
+        description: '',
+        start_time: getMidnightDatetimeLocal(),
+        end_time: getEndOfDayDatetimeLocal(),
+        rule_type: 'ACM' as 'ACM' | 'OI',
+        password: '',
+        visible: true,
+        real_time_rank: true,
+        allowed_ip_ranges: '',
+        languages: SUPPORTED_LANGUAGES,
+        requires_approval: false,
+        is_organization_only: false,
+        is_public: true,
+    };
+};
+
 export const CreateContestModal: React.FC<CreateContestModalProps> = ({
     isOpen,
     onClose,
     organizationId,
+    organizationName,
     onSuccess,
     initialData,
     context = 'organization',
@@ -70,21 +100,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
     const [problemImportProgress, setProblemImportProgress] = useState<{ processed: number; total: number } | null>(null);
     const problemImportFileRef = useRef<HTMLInputElement | null>(null);
 
-    const [formData, setFormData] = useState({
-        title: '',
-        description: '',
-        start_time: '',
-        end_time: '',
-        rule_type: 'ACM' as 'ACM' | 'OI',
-        password: '',
-        visible: true,
-        real_time_rank: true,
-        allowed_ip_ranges: '',
-        languages: SUPPORTED_LANGUAGES,
-        requires_approval: false,
-        is_organization_only: false,
-        is_public: false,
-    });
+    const [formData, setFormData] = useState(() => createDefaultContestFormData());
     const [resolvedOrganizationId, setResolvedOrganizationId] = useState<number | null>(
         (initialData as AdminContest | undefined)?.organization_id ??
         organizationId ??
@@ -102,6 +118,17 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
     const dragItemRef = useRef<number | null>(null);
     const dragOverItemRef = useRef<number | null>(null);
     const [editingProblemId, setEditingProblemId] = useState<number | undefined>(undefined);
+
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const previousOverflow = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+
+        return () => {
+            document.body.style.overflow = previousOverflow;
+        };
+    }, [isOpen]);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -129,21 +156,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                 is_public: initialData.isPublic || false,
             });
         } else {
-            setFormData({
-                title: '',
-                description: '',
-                start_time: '',
-                end_time: '',
-                rule_type: 'ACM',
-                password: '',
-                visible: true,
-                real_time_rank: true,
-                allowed_ip_ranges: '',
-                languages: SUPPORTED_LANGUAGES,
-                requires_approval: false,
-                is_organization_only: false,
-                is_public: false,
-            });
+            setFormData(createDefaultContestFormData());
             setContestProblems([]);
             setResolvedOrganizationId(organizationId ?? null);
         }
@@ -229,21 +242,13 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
         setFormData((prev) => ({
             ...prev,
             start_time: value,
-            end_time: addHoursToDatetimeLocal(value, 1),
         }));
     };
 
-    const handleDurationClick = (hours: number) => {
+    const handleSetDurationClick = (minutes: number) => {
         setFormData((prev) => ({
             ...prev,
-            end_time: addHoursToDatetimeLocal(prev.start_time, hours),
-        }));
-    };
-
-    const handleAddDurationClick = (minutes: number) => {
-        setFormData((prev) => ({
-            ...prev,
-            end_time: addMinutesToDatetimeLocal(prev.end_time || prev.start_time, minutes),
+            end_time: addMinutesToDatetimeLocal(prev.start_time, minutes),
         }));
     };
 
@@ -378,6 +383,12 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
         setError('');
 
         try {
+            if (formData.languages.length === 0) {
+                setError('사용 언어를 최소 1개 이상 선택해주세요.');
+                setLoading(false);
+                return;
+            }
+
             const allowedIpRanges = formData.allowed_ip_ranges
                 ? formData.allowed_ip_ranges.split(',').map((ip) => ip.trim()).filter((ip) => ip.length > 0)
                 : [];
@@ -470,18 +481,16 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
     };
 
     return (
-        <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
-            <div className="flex min-h-screen items-end justify-center px-4 pb-20 pt-4 text-center sm:block sm:p-0">
+        <div className="fixed inset-0 z-50 overflow-hidden" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+            <div className="flex h-full items-center justify-center px-4 py-4 text-center sm:px-0">
                 <div
                     className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm transition-opacity"
                     aria-hidden="true"
                 />
 
-                <span className="hidden sm:inline-block sm:h-screen sm:align-middle" aria-hidden="true">&#8203;</span>
-
-                <div className="inline-block h-[92vh] w-full transform overflow-hidden rounded-2xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-900 text-left align-bottom shadow-2xl transition-all sm:my-8 sm:h-[760px] sm:max-w-2xl sm:align-middle">
+                <div className="relative h-[92vh] w-full max-w-2xl transform overflow-hidden rounded-2xl border border-gray-100 dark:border-slate-700 bg-white dark:bg-slate-900 text-left shadow-2xl transition-all sm:h-[min(760px,calc(100vh-4rem))]">
                     <div className="flex h-full flex-col">
-                        <div className="flex-1 overflow-y-auto bg-white dark:bg-slate-900 px-8 pb-6 pt-8">
+                        <div className="min-h-0 flex-1 overflow-y-auto bg-white dark:bg-slate-900 px-8 pb-6 pt-8">
                             <div className="w-full">
                                 <h3 className="text-2xl font-bold leading-6 tracking-tight text-gray-900 dark:text-slate-100" id="modal-title">
                                     {isEditMode ? '대회 수정' : '새 대회 생성'}
@@ -515,7 +524,10 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
 
                                             <div className="grid grid-cols-2 gap-6">
                                                 <div>
-                                                    <label className="mb-1.5 block text-sm font-semibold text-gray-700 dark:text-slate-300">시작 시간</label>
+                                                    <div className="mb-1.5 flex items-center justify-between">
+                                                        <label className="block text-sm font-semibold text-gray-700 dark:text-slate-300">시작 시간</label>
+                                                        <button type="button" className="text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-cyan-400 dark:hover:text-cyan-300" onClick={() => handleStartTimeChange(getCurrentDatetimeLocal())}>현재 시간으로 설정</button>
+                                                    </div>
                                                     <input
                                                         type="datetime-local"
                                                         required
@@ -537,35 +549,27 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                             </div>
 
                                             <div className="flex items-center gap-2">
-                                                <span className="text-sm font-medium text-gray-500 dark:text-slate-400">진행 시간</span>
-                                                {[1, 2].map((hours) => (
-                                                    <button
-                                                        key={hours}
-                                                        type="button"
-                                                        onClick={() => handleDurationClick(hours)}
-                                                        disabled={!formData.start_time}
-                                                        className="rounded-md border border-gray-300 dark:border-slate-600 px-3 py-1.5 text-sm font-semibold text-gray-700 dark:text-slate-200 transition-colors hover:bg-gray-100 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-                                                    >
-                                                        {hours}시간
-                                                    </button>
-                                                ))}
-                                                <span className="mx-1 h-4 w-px bg-gray-300 dark:bg-slate-600" />
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleAddDurationClick(30)}
+                                                <span className="text-sm font-medium text-gray-500 dark:text-slate-400">종료 시간 간편 설정</span>
+                                                <select
+                                                    className="rounded-md border border-gray-300 dark:border-slate-600 px-3 py-1.5 text-sm font-semibold text-gray-700 dark:text-slate-200 transition-colors bg-white dark:bg-slate-800 focus:outline-none"
+                                                    onChange={(e) => {
+                                                        if (e.target.value) {
+                                                            handleSetDurationClick(Number(e.target.value));
+                                                            e.target.value = "";
+                                                        }
+                                                    }}
                                                     disabled={!formData.start_time}
-                                                    className="rounded-md border border-gray-300 dark:border-slate-600 px-3 py-1.5 text-sm font-semibold text-gray-700 dark:text-slate-200 transition-colors hover:bg-gray-100 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
                                                 >
-                                                    30분 추가
-                                                </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => handleAddDurationClick(60)}
-                                                    disabled={!formData.start_time}
-                                                    className="rounded-md border border-gray-300 dark:border-slate-600 px-3 py-1.5 text-sm font-semibold text-gray-700 dark:text-slate-200 transition-colors hover:bg-gray-100 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-                                                >
-                                                    1시간 추가
-                                                </button>
+                                                    <option value="">시작 시간 기준 설정...</option>
+                                                    <option value="30">30분 뒤로 설정</option>
+                                                    <option value="60">1시간 뒤로 설정</option>
+                                                    <option value="120">2시간 뒤로 설정</option>
+                                                    <option value="180">3시간 뒤로 설정</option>
+                                                    <option value="240">4시간 뒤로 설정</option>
+                                                    <option value="300">5시간 뒤로 설정</option>
+                                                    <option value="720">12시간 뒤로 설정</option>
+                                                    <option value="1440">24시간 뒤로 설정</option>
+                                                </select>
                                             </div>
 
                                             <div>
@@ -600,7 +604,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                                         onChange={(e) => setFormData({ ...formData, is_organization_only: e.target.checked })}
                                                     />
                                                     <label htmlFor="is_organization_only" className="ml-2 block cursor-pointer select-none text-sm font-medium text-gray-900 dark:text-slate-100">
-                                                        단체 내부 전용 <span className="font-normal text-gray-500 dark:text-slate-400">(외부인 불가)</span>
+                                                        {organizationName ? `${organizationName} 전용` : '단체 전용'}
                                                     </label>
                                                 </div>
                                                 <div className="flex items-center space-x-2 rounded-lg border border-gray-100 dark:border-slate-700 bg-gray-50 dark:bg-slate-800 p-3">
@@ -647,23 +651,28 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                             <div>
                                                 <label className="mb-2.5 block text-sm font-semibold text-gray-700 dark:text-slate-300">사용 언어</label>
                                                 <div className="flex flex-wrap gap-2.5">
-                                                    {SUPPORTED_LANGUAGES.map((lang) => (
-                                                        <label
-                                                            key={lang}
-                                                            className={`inline-flex cursor-pointer items-center rounded-full border px-3 py-1.5 text-sm font-medium transition-all duration-200 ${formData.languages.includes(lang)
-                                                                ? 'border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
-                                                                : 'border-gray-200 dark:border-slate-700 bg-white dark:bg-slate-900 text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-slate-800'
-                                                                }`}
-                                                        >
-                                                            <input
-                                                                type="checkbox"
-                                                                className="sr-only"
-                                                                checked={formData.languages.includes(lang)}
-                                                                onChange={() => handleLanguageChange(lang)}
-                                                            />
-                                                            <span>{lang}</span>
-                                                        </label>
-                                                    ))}
+                                                    {SUPPORTED_LANGUAGES.map((lang) => {
+                                                        const selected = formData.languages.includes(lang);
+                                                        return (
+                                                            <button
+                                                                type="button"
+                                                                key={lang}
+                                                                aria-pressed={selected}
+                                                                onClick={() => handleLanguageChange(lang)}
+                                                                className={`inline-flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-sm font-semibold transition-all duration-200 ${selected
+                                                                    ? 'border-blue-500 bg-blue-600 text-white shadow-sm dark:border-cyan-400 dark:bg-slate-700 dark:text-white dark:ring-1 dark:ring-cyan-400/60'
+                                                                    : 'border-gray-200 bg-white text-gray-600 hover:bg-gray-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-400 dark:hover:border-slate-500 dark:hover:text-slate-200'
+                                                                    }`}
+                                                            >
+                                                                {selected && (
+                                                                    <svg className="h-3.5 w-3.5 text-white dark:text-cyan-300" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                                                        <path fillRule="evenodd" d="M16.704 5.29a1 1 0 010 1.42l-7.5 7.5a1 1 0 01-1.414 0l-3.5-3.5a1 1 0 111.414-1.42l2.793 2.793 6.793-6.793a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                                    </svg>
+                                                                )}
+                                                                <span>{lang}</span>
+                                                            </button>
+                                                        );
+                                                    })}
                                                 </div>
                                             </div>
                                         </>
@@ -695,7 +704,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                                             problemImportFileRef.current?.click();
                                                         }}
                                                     >
-                                                        {problemImportLoading ? '불러오는 중...' : '문제 불러오기'}
+                                                        {problemImportLoading ? '업로드 중...' : '문제 파일 업로드'}
                                                     </Button>
                                                     <input
                                                         ref={problemImportFileRef}
@@ -741,7 +750,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                                                         setProblemMessage({ success: '문제를 불러왔습니다.' });
                                                                         isPolling = false;
                                                                     } else if (status.status === 'error') {
-                                                                        throw new Error(status.error_message || `문제 불러오기 실패: ${status.error_code || '알 수 없는 오류'}`);
+                                                                        throw new Error(status.error_message || `문제 파일 업로드 실패: ${status.error_code || '알 수 없는 오류'}`);
                                                                     } else {
                                                                         setProblemImportProgress({
                                                                             processed: status.processed_problem ?? 0,
@@ -751,7 +760,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                                                     }
                                                                 }
                                                             } catch (error) {
-                                                                const message = error instanceof Error ? error.message : '문제 불러오기에 실패했습니다.';
+                                                                const message = error instanceof Error ? error.message : '문제 파일 업로드에 실패했습니다.';
                                                                 setProblemMessage({ error: message });
                                                                 if (typeof window !== 'undefined') {
                                                                     window.alert(message);
@@ -773,7 +782,7 @@ export const CreateContestModal: React.FC<CreateContestModalProps> = ({
                                                 {problemMessage.success && <div className="rounded-md bg-green-50 dark:bg-emerald-900/20 px-3 py-2 text-xs text-green-600 dark:text-emerald-300">{problemMessage.success}</div>}
                                                 {problemImportLoading && problemImportProgress && (
                                                     <div className="rounded-md bg-blue-50 dark:bg-blue-900/20 px-3 py-2 text-xs text-blue-700 dark:text-blue-300">
-                                                        문제 불러오는 중... {problemImportProgress.processed}/{problemImportProgress.total}
+                                                        문제 파일 업로드 중... {problemImportProgress.processed}/{problemImportProgress.total}
                                                     </div>
                                                 )}
 

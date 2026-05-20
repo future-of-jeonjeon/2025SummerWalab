@@ -2,7 +2,9 @@ import React, { useMemo, useState } from 'react';
 import type { ContestRankEntry, Problem } from '../../../types';
 import { contestService } from '../../../services/contestService';
 import { submissionService } from '../../../services/submissionService';
+import { DEPARTMENTS } from '../../../services/userService';
 import type { SubmissionDetail, SubmissionListItem } from '../../../services/submissionService';
+import { getJudgeResultLabel } from '../utils/judgeResult';
 
 type ProblemStatus = { status: 'ac' | 'tried' | 'unknown'; errors?: number; acTime?: number };
 type CaseEntry = { id: string; result?: number | string; success: boolean };
@@ -128,26 +130,12 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
     return String(raw);
   };
 
+  const getDepartmentName = (majorId?: number | null) =>
+    majorId !== undefined && majorId !== null ? DEPARTMENTS[majorId] : undefined;
+
   const renderResultLabel = (status: unknown): string => {
-    // Normalize numeric codes: 0 => 성공, others => 실패
-    if (typeof status === 'number') {
-      return status === 0 ? '성공' : '실패';
-    }
-    if (typeof status === 'string') {
-      const trimmed = status.trim().toLowerCase();
-      if (trimmed === '0') return '성공';
-      // Known success tokens
-      if (['ac', 'accepted', 'success'].includes(trimmed)) return '성공';
-      // Known failure tokens
-      if (
-        ['wa', 'wrong answer', 'tle', 'mle', 're', 'ce', 'runtime error', 'compile error', 'fail', 'failed'].includes(trimmed)
-      ) {
-        return '실패';
-      }
-      // Pending/other
-      if (['pending', 'judging', 'queue', 'processing'].includes(trimmed)) return '채점 중';
-    }
-    return '알 수 없음';
+    const label = getJudgeResultLabel(status);
+    return label === '-' ? '알 수 없음' : label;
   };
 
   const problemList = useMemo(() => {
@@ -644,11 +632,11 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
                     >
                       <div className="flex flex-col items-center leading-tight">
                         <div className="text-sm font-medium text-gray-900 hover:underline dark:text-slate-100 whitespace-nowrap truncate max-w-[120px]">
-                          {entry.user.realName || entry.user.username}
+                          {entry.user.studentId ? `${entry.user.studentId} ` : ''}{entry.user.realName || entry.user.username}
                         </div>
-                        {entry.user.studentId && (
+                        {getDepartmentName(entry.user.majorId) && (
                           <div className="text-xs text-gray-500 dark:text-slate-400 whitespace-nowrap truncate max-w-[120px]">
-                            {entry.user.studentId}
+                            {getDepartmentName(entry.user.majorId)}
                           </div>
                         )}
                       </div>
@@ -667,7 +655,7 @@ export const ContestSubmissionDetailsTab: React.FC<ContestSubmissionDetailsTabPr
                             ? 'bg-amber-50 text-amber-700'
                             : 'bg-gray-100 text-gray-400 dark:bg-slate-800 dark:text-slate-400';
                       const labelScore = info?.score;
-                      const label = labelScore != null ? `${labelScore}` : status === 'ac' ? 'AC' : status === 'tried' ? 'T' : '-';
+                      const label = labelScore != null ? `${labelScore}` : status === 'ac' ? '해결' : status === 'tried' ? '시도' : '-';
                       const handleClick = () => {
                         if (entry.user?.id) {
                           handleCellClick(entry.user.id, entry.user.username, problem);

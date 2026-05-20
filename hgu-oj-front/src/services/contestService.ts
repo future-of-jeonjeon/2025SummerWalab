@@ -172,6 +172,7 @@ export const contestService = {
     const payload = problems.map((p, index) => ({
       problem_id: p.id,
       display_id: String(index + 1),
+      current_display_id: String(p.displayId ?? (p as any)._id ?? p.id),
     }));
     await apiClient.put(`${MICRO_API_BASE}/contest/${contestId}/problems/reindex`, payload);
   },
@@ -494,6 +495,7 @@ export const contestService = {
           username: raw.username ?? raw.user?.username,
           realName: raw.real_name ?? raw.user?.real_name ?? raw.user?.realName,
           studentId: raw.student_id ?? raw.user?.student_id ?? raw.user?.studentId,
+          majorId: raw.major_id ?? raw.user?.major_id ?? raw.user?.majorId ?? null,
         },
         rank: index + 1,
         acceptedNumber: raw.accepted_number ?? raw.acceptedNumber,

@@ -24,6 +24,8 @@ from app.user.schemas import UserProfile
 def _check_contest_options(dto: Union[CreateContestRequest, ReqUpdateContestDTO]):
     if dto.end_time <= dto.start_time:
         contest_exception.invalid_time_range()
+    if not dto.languages or not any(str(language).strip() for language in dto.languages):
+        contest_exception.invalid_contest_languages()
     if not dto.password:
         dto.password = None
     for ip_range in dto.allowed_ip_ranges:
@@ -247,15 +249,30 @@ async def delete_contest(contest_id: int, user_profile: UserProfile, db: AsyncSe
     if not contest:
         contest_exception.contest_not_found()
     organization_contest = await  contest_repo.find_organization_contest_by_contest_id(contest_id, db)
+    if not organization_contest:
+        contest_exception.contest_not_found()
     organization = await organization_repo.find_by_id(organization_contest.organization_id, db)
     if not organization:
         organization_exception.organization_not_found()
     await organization_service.check_organization_admin(organization.id, user_profile, db)
+    await delete_contest_data(contest_id, db)
+
+
+async def delete_contest_data(contest_id: int, db: AsyncSession):
+    await contest_repo.delete_contest_announcements(contest_id, db)
+    await contest_repo.delete_contest_ranks(contest_id, db)
+    await contest_repo.delete_contest_submissions(contest_id, db)
     await contest_repo.delete_contest_languages(contest_id, db)
     await contest_repo.delete_contest_users(contest_id, db)
-    await contest_repo.delete_organization_contest_by_contest_id(organization_contest.contest_id, db)
+    await contest_repo.delete_organization_contest_by_contest_id(contest_id, db)
     await contest_repo.delete_contest_problems(contest_id, db)
     await contest_repo.delete_contest(contest_id, db)
+
+
+async def delete_contests_by_organization_id(organization_id: int, db: AsyncSession):
+    contest_ids = await contest_repo.find_contest_ids_by_organization_id(organization_id, db)
+    for contest_id in contest_ids:
+        await delete_contest_data(contest_id, db)
 
 
 async def get_participated_contest_by_user(
@@ -545,8 +562,9 @@ async def search_contest_users_for_management(
             username=username,
             name=name,
             student_id=student_id,
+            major_id=major_id,
         )
-        for user_id, username, student_id, name in users
+        for user_id, username, student_id, name, major_id in users
     ]
 
 
@@ -594,11 +612,14 @@ async def list_contest_users(contest_id: int, user_profile: UserProfile, db: Asy
     approved: List[ContestUserDetail] = []
     pending: List[ContestUserDetail] = []
 
-    for membership, user in rows:
+    for membership, user, user_data in rows:
         decided_at = membership.approved_at if membership.status == APPROVED else membership.updated_time
         detail = ContestUserDetail(
             user_id=membership.user_id,
             username=getattr(user, "username", None),
+            name=getattr(user_data, "name", None),
+            student_id=getattr(user_data, "student_id", None),
+            major_id=getattr(user_data, "major_id", None),
             status=membership.status,
             applied_at=membership.created_time,
             decided_at=decided_at,
@@ -634,10 +655,14 @@ async def decide_contest_user(
 
     user = await user_repo.find_user_by_id(user_id, db)
     username = getattr(user, "username", None) if user else None
+    user_data = await user_repo.find_sub_userdata_by_user_id(user_id, db)
     decided_at = membership.approved_at if membership.status == APPROVED else membership.updated_time
     return ContestUserDetail(
         user_id=membership.user_id,
         username=username,
+        name=getattr(user_data, "name", None),
+        student_id=getattr(user_data, "student_id", None),
+        major_id=getattr(user_data, "major_id", None),
         status=membership.status,
         applied_at=membership.created_time,
         decided_at=decided_at,
@@ -804,13 +829,21 @@ async def reindex_contest_problems(
     await _ensure_contest_permission(contest_id, user_profile, db)
 
     problem_list: list[Problem] = await problem_repo.find_problems_by_contest_id(db, contest_id)
-    mapping = {p.problem_id: p.display_id for p in problem_ids}
+    mapping_by_problem_id = {p.problem_id: p.display_id for p in problem_ids}
+    mapping_by_current_display_id = {
+        p.current_display_id: p.display_id
+        for p in problem_ids
+        if p.current_display_id is not None
+    }
+    current_display_ids = {problem.id: problem._id for problem in problem_list}
 
     for problem in problem_list:
         problem._id = str(uuid.uuid4())
     await db.flush()
     for problem in problem_list:
-        display_id = mapping.get(problem.id)
+        display_id = mapping_by_problem_id.get(problem.id)
+        if display_id is None:
+            display_id = mapping_by_current_display_id.get(current_display_ids.get(problem.id))
         if display_id is None:
             problem_exceptions.handlers.bad_request()
         problem._id = str(display_id)

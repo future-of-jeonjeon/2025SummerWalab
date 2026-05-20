@@ -171,6 +171,7 @@ async def get_contest_user_rank(contest_id: int, db: AsyncSession):
                 "username": user.username,
                 "real_name": userdata.name if isinstance(userdata, UserData) else None,
                 "student_id": userdata.student_id if isinstance(userdata, UserData) else None,
+                "major_id": userdata.major_id if isinstance(userdata, UserData) else None,
                 "total_score": total_score,
                 "total_time": total_time,
                 "accepted_number": solved,

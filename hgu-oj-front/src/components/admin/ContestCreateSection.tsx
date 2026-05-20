@@ -46,13 +46,6 @@ const toDatetimeLocal = (date: Date) => {
   return new Date(date.getTime() - offset).toISOString().slice(0, 16);
 };
 
-const addHoursToDatetimeLocal = (value: string, hours: number) => {
-  if (!value) return '';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  date.setHours(date.getHours() + hours);
-  return toDatetimeLocal(date);
-};
 
 const addMinutesToDatetimeLocal = (value: string, minutes: number) => {
   if (!value) return '';
@@ -62,8 +55,33 @@ const addMinutesToDatetimeLocal = (value: string, minutes: number) => {
   return toDatetimeLocal(date);
 };
 
+const getMidnightDatetimeLocal = () => {
+  const date = new Date();
+  date.setHours(0, 0, 0, 0);
+  return toDatetimeLocal(date);
+};
+
+const getEndOfDayDatetimeLocal = () => {
+  const date = new Date();
+  date.setHours(23, 59, 59, 999);
+  return toDatetimeLocal(date);
+};
+
+const getCurrentDatetimeLocal = () => {
+  const date = new Date();
+  return toDatetimeLocal(date);
+};
+
+const createDefaultContestForm = (): ContestFormState => {
+  return {
+    ...initialContestForm,
+    startTime: getMidnightDatetimeLocal(),
+    endTime: getEndOfDayDatetimeLocal(),
+  };
+};
+
 export const ContestCreateSection: React.FC = () => {
-  const [contestForm, setContestForm] = useState<ContestFormState>(initialContestForm);
+  const [contestForm, setContestForm] = useState<ContestFormState>(() => createDefaultContestForm());
   const [contestLoading, setContestLoading] = useState(false);
   const [contestMessage, setContestMessage] = useState<{ success?: string; error?: string }>({});
   const [contestFormProblems, setContestFormProblems] = useState<Problem[]>([]);
@@ -89,21 +107,13 @@ export const ContestCreateSection: React.FC = () => {
     setContestForm((prev) => ({
       ...prev,
       startTime: value,
-      endTime: addHoursToDatetimeLocal(value, 1),
     }));
   };
 
-  const handleDurationClick = (hours: number) => {
+  const handleSetDurationClick = (minutes: number) => {
     setContestForm((prev) => ({
       ...prev,
-      endTime: addHoursToDatetimeLocal(prev.startTime, hours),
-    }));
-  };
-
-  const handleAddDurationClick = (minutes: number) => {
-    setContestForm((prev) => ({
-      ...prev,
-      endTime: addMinutesToDatetimeLocal(prev.endTime || prev.startTime, minutes),
+      endTime: addMinutesToDatetimeLocal(prev.startTime, minutes),
     }));
   };
 
@@ -314,7 +324,7 @@ export const ContestCreateSection: React.FC = () => {
         setContestMessage({ success: `대회(ID: ${created?.id})가 등록되었습니다.` });
       }
 
-      setContestForm(initialContestForm);
+      setContestForm(createDefaultContestForm());
       setContestFormProblems([]);
       setContestFormAnnouncements([]);
       setContestFormAnnouncementDraft({ title: '', content: '', visible: true });
@@ -354,7 +364,10 @@ export const ContestCreateSection: React.FC = () => {
             onChange={(event) => setContestForm((prev) => ({ ...prev, password: event.target.value }))}
           />
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">시작 시간</label>
+            <div className="mb-1 flex items-center justify-between">
+              <label className="block text-sm font-medium text-gray-700 dark:text-slate-300">시작 시간</label>
+              <button type="button" className="text-xs font-semibold text-blue-600 hover:text-blue-700 dark:text-cyan-400 dark:hover:text-cyan-300" onClick={() => handleStartTimeChange(getCurrentDatetimeLocal())}>현재 시간으로 설정</button>
+            </div>
             <input
               type="datetime-local"
               className="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#58A0C8]"
@@ -372,35 +385,27 @@ export const ContestCreateSection: React.FC = () => {
             />
           </div>
           <div className="md:col-span-2 flex items-center gap-2">
-            <span className="text-sm font-medium text-gray-500 dark:text-slate-400">진행 시간</span>
-            {[1, 2].map((hours) => (
-              <button
-                key={hours}
-                type="button"
-                onClick={() => handleDurationClick(hours)}
+            <span className="text-sm font-medium text-gray-500 dark:text-slate-400">종료 시간 간편 설정</span>
+            <select
+                className="rounded-md border border-gray-300 dark:border-slate-600 px-3 py-1.5 text-sm font-semibold text-gray-700 dark:text-slate-200 transition-colors bg-white dark:bg-slate-800 focus:outline-none"
+                onChange={(e) => {
+                    if (e.target.value) {
+                        handleSetDurationClick(Number(e.target.value));
+                        e.target.value = "";
+                    }
+                }}
                 disabled={!contestForm.startTime}
-                className="rounded-md border border-gray-300 dark:border-slate-600 px-3 py-1.5 text-sm font-semibold text-gray-700 dark:text-slate-200 transition-colors hover:bg-gray-100 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {hours}시간
-              </button>
-            ))}
-            <span className="mx-1 h-4 w-px bg-gray-300 dark:bg-slate-600" />
-            <button
-              type="button"
-              onClick={() => handleAddDurationClick(30)}
-              disabled={!contestForm.startTime}
-              className="rounded-md border border-gray-300 dark:border-slate-600 px-3 py-1.5 text-sm font-semibold text-gray-700 dark:text-slate-200 transition-colors hover:bg-gray-100 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              30분 추가
-            </button>
-            <button
-              type="button"
-              onClick={() => handleAddDurationClick(60)}
-              disabled={!contestForm.startTime}
-              className="rounded-md border border-gray-300 dark:border-slate-600 px-3 py-1.5 text-sm font-semibold text-gray-700 dark:text-slate-200 transition-colors hover:bg-gray-100 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              1시간 추가
-            </button>
+                <option value="">시작 시간 기준 설정...</option>
+                <option value="30">30분 뒤로 설정</option>
+                <option value="60">1시간 뒤로 설정</option>
+                <option value="120">2시간 뒤로 설정</option>
+                <option value="180">3시간 뒤로 설정</option>
+                <option value="240">4시간 뒤로 설정</option>
+                <option value="300">5시간 뒤로 설정</option>
+                <option value="720">12시간 뒤로 설정</option>
+                <option value="1440">24시간 뒤로 설정</option>
+            </select>
           </div>
           <div>
             <label className="mb-1 block text-sm font-medium text-gray-700 dark:text-slate-300">룰 타입</label>

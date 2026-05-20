@@ -301,7 +301,7 @@ export const ProblemRegistrationModal: React.FC<ProblemRegistrationModalProps> =
                         onClose();
                         isPolling = false;
                     } else if (status.status === 'error') {
-                        throw new Error(`문제 생성 실패: ${status.error_code || '알 수 없는 오류'}`);
+                        throw new Error(status.error_message || `문제 생성 실패: ${status.error_code || '알 수 없는 오류'}`);
                     } else {
                         await new Promise((resolve) => setTimeout(resolve, 1000));
                     }
